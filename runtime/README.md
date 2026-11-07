@@ -10,9 +10,11 @@ The runtime provides:
 - canonical research bundle structural and referential-integrity validation;
 - mapping-plan reference, provenance, transformation-specification, and approval-gate validation;
 - deterministic canonical construction from approved CSV and JSON mappings, explicit entity grouping, and declared row-overlap or field-equality relationships;
-- non-destructive diagnostics for exact-payload duplicate candidates and unreferenced entities.
+- non-destructive diagnostics for exact-payload duplicate candidates and unreferenced entities;
+- evidence-linked reconciliation review queues for endpoint variants, missing endpoint definitions, observation value variation, same-replicate conflicts, evidence locator disagreements, and explicitly ambiguous/conflicting values;
+- report-hash and bundle-hash-bound human reconciliation decision validation.
 
-The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The mapping plan schema is in ../schemas/mapping_plan.schema.json. The build specification schema is in ../schemas/canonical_build_spec.schema.json. See ../docs/CANONICAL_DATA_MODEL.md, ../docs/MAPPING_CONTRACT.md, and ../docs/CANONICAL_BUILDER.md.
+The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The mapping plan schema is in ../schemas/mapping_plan.schema.json. The build specification schema is in ../schemas/canonical_build_spec.schema.json. Reconciliation report and human decision schemas are in ../schemas/reconciliation_report.schema.json and ../schemas/reconciliation_decisions.schema.json. See ../docs/CANONICAL_DATA_MODEL.md, ../docs/MAPPING_CONTRACT.md, ../docs/CANONICAL_BUILDER.md, and ../docs/RECONCILIATION.md.
 
 ## Setup
 
@@ -82,6 +84,26 @@ The build report is always written. canonical_bundle.json is written only after 
     dor diagnose-bundle --input canonical_bundle.json --out relationship_diagnostics.json
 
 Diagnostics report exact-payload duplicate candidates and several classes of unused/unreferenced entities. They do not determine that two records are scientifically equivalent, and they never merge, delete, or rewrite entities.
+
+## Reconcile canonical data
+
+    dor reconcile-bundle --input canonical_bundle.json --out-dir path/to/new/derived/run/03_reconciliation
+
+The command writes reconciliation_report.json and reconciliation_review_queue.csv. It detects:
+- missing endpoint definitions and multiple endpoint definitions under the same target label;
+- different reported values within the same experiment/target/endpoint/timepoint context;
+- possible same-replicate/sample value conflicts when an explicit replicate_id or sample_id is present;
+- multiple evidence extractions at the same exact source locator, including disagreements in quoted text or verification status;
+- evidence records marked REVIEW_REQUIRED, CONFLICTING, or UNVERIFIED;
+- canonical integrity errors, potential exact-payload duplicates, and unreferenced entities.
+
+Differences without an explicit replicate/sample identity are labelled unresolved observation variation, not a confirmed conflict. Multiple endpoint definitions are kept separate. The engine creates review candidates only; it never chooses a source value, changes value_state, merges records, or updates modelling eligibility.
+
+## Validate human decisions
+
+    dor validate-reconciliation-decisions --decisions reconciliation_decisions.json --report reconciliation_report.json --bundle canonical_bundle.json --out decision_validation.json
+
+The decision file must bind to the exact report SHA-256, and the report must reference the exact canonical bundle SHA-256. Every decision must identify an issue, reviewer, timestamp, rationale, and an allowed decision status. RESOLVED_WITH_EVIDENCE requires evidence IDs already present in the canonical bundle. Validation does not apply decisions or mutate canonical data.
 
 ## Source preservation
 
