@@ -31,6 +31,7 @@ class CanonicalBuilderTests(unittest.TestCase):
         add("R_SYS_TYPE","System","systems","system_type")
         add("R_COND_TYPE","ConditionType","conditions","condition_type")
         add("R_COND_STATE","ValueState","conditions","value_state")
+        add("R_TEMP","Temperature","conditions","raw_value","NUMERIC_PARSE")
         add("R_TARGET","Target","observations","target_id")
         add("R_OBS_STATE","ValueState","observations","value_state")
         add("R_VALUE","Value","observations","raw_value","NUMERIC_PARSE")
@@ -47,7 +48,7 @@ class CanonicalBuilderTests(unittest.TestCase):
             {"definition_id":"D_SYSTEM","entity_type":"systems","source_file":"source.csv",
              "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System"]},"field_rule_ids":["R_SYS_TYPE"]},
             {"definition_id":"D_CONDITION","entity_type":"conditions","source_file":"source.csv",
-             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System","SRC_Temperature"]},"field_rule_ids":["R_COND_TYPE","R_COND_STATE"]},
+             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System","SRC_Temperature"]},"field_rule_ids":["R_COND_TYPE","R_COND_STATE","R_TEMP"]},
             {"definition_id":"D_EXPERIMENT","entity_type":"experiments","source_file":"source.csv",
              "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment"]},"field_rule_ids":[]},
             {"definition_id":"D_OBSERVATION","entity_type":"observations","source_file":"source.csv",
