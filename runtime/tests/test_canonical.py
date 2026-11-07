@@ -45,6 +45,16 @@ class CanonicalBundleTests(unittest.TestCase):
         bundle=valid_bundle(); bundle["observations"][0]["experiment_id"]=["EX1"]
         report=validate_canonical_bundle(bundle)
         self.assertFalse(report["valid"])
+
+    def test_missing_required_fields_are_rejected(self):
+        bundle=valid_bundle(); del bundle["experiments"][0]["condition_ids"]
+        report=validate_canonical_bundle(bundle)
+        self.assertTrue(any(e["code"]=="MISSING_REQUIRED_FIELD" for e in report["errors"]))
+    def test_experiment_condition_system_mismatch_is_rejected(self):
+        bundle=valid_bundle(); bundle["conditions"][0]["system_ids"]=[]
+        report=validate_canonical_bundle(bundle)
+        self.assertTrue(any(e["code"]=="EXPERIMENT_CONDITION_SYSTEM_MISMATCH" for e in report["errors"]))
+
     def test_non_object_bundle_returns_report(self):
         report=validate_canonical_bundle(["not","an","object"])
         self.assertFalse(report["valid"]); self.assertEqual(report["errors"][0]["code"],"BUNDLE_NOT_OBJECT")
