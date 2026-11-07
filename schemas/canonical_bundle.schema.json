@@ -1,0 +1,28 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/canonical_bundle.schema.json",
+  "title":"Canonical Research Data Bundle","type":"object",
+  "required":["schema_version","project_id","mapping_version","studies","systems","conditions","experiments","observations","comparisons","evidence"],
+  "properties":{
+    "schema_version":{"const":"1.0"},"project_id":{"type":"string","minLength":1},
+    "mapping_version":{"type":"string","minLength":1},
+    "studies":{"type":"array","items":{"$ref":"#/$defs/study"}},
+    "systems":{"type":"array","items":{"$ref":"#/$defs/system"}},
+    "conditions":{"type":"array","items":{"$ref":"#/$defs/condition"}},
+    "experiments":{"type":"array","items":{"$ref":"#/$defs/experiment"}},
+    "observations":{"type":"array","items":{"$ref":"#/$defs/observation"}},
+    "comparisons":{"type":"array","items":{"$ref":"#/$defs/comparison"}},
+    "evidence":{"type":"array","items":{"$ref":"#/$defs/evidence"}}
+  },"additionalProperties":false,
+  "$defs":{
+    "id":{"type":"string","minLength":1},
+    "locator":{"type":"object","required":["source_file","source_sha256","locator_type","locator"],"properties":{"source_file":{"type":"string"},"source_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},"locator_type":{"enum":["csv_row","csv_column","json_path","json_pointer","pdf_page","table_cell","figure_panel","supplementary_item","other"]},"locator":{"type":"string"}},"additionalProperties":false},
+    "study":{"type":"object","required":["study_id","source_locators"],"properties":{"study_id":{"$ref":"#/$defs/id"},"doi":{"type":["string","null"]},"title":{"type":["string","null"]},"year":{"type":["integer","null"]},"source_locators":{"type":"array","items":{"$ref":"#/$defs/locator"}}},"additionalProperties":true},
+    "system":{"type":"object","required":["system_id","study_ids","system_type"],"properties":{"system_id":{"$ref":"#/$defs/id"},"study_ids":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/id"}},"system_type":{"type":"string"},"description":{"type":"string"}},"additionalProperties":true},
+    "condition":{"type":"object","required":["condition_id","system_ids","condition_type","value_state"],"properties":{"condition_id":{"$ref":"#/$defs/id"},"system_ids":{"type":"array","items":{"$ref":"#/$defs/id"}},"condition_type":{"type":"string"},"reported_name":{"type":["string","null"]},"raw_value":{},"raw_unit":{"type":["string","null"]},"normalized_value":{},"normalized_unit":{"type":["string","null"]},"value_state":{"enum":["REPORTED","NOT_REPORTED","NOT_APPLICABLE","AMBIGUOUS","CONFLICTING","NOT_ASSESSED"]},"source_locators":{"type":"array","items":{"$ref":"#/$defs/locator"}}},"additionalProperties":true},
+    "experiment":{"type":"object","required":["experiment_id","study_id","system_id","condition_ids"],"properties":{"experiment_id":{"$ref":"#/$defs/id"},"study_id":{"$ref":"#/$defs/id"},"system_id":{"$ref":"#/$defs/id"},"condition_ids":{"type":"array","items":{"$ref":"#/$defs/id"}},"protocol_label":{"type":["string","null"]},"replicate_group_id":{"type":["string","null"]}},"additionalProperties":true},
+    "observation":{"type":"object","required":["observation_id","experiment_id","target_id","value_state","evidence_ids"],"properties":{"observation_id":{"$ref":"#/$defs/id"},"experiment_id":{"$ref":"#/$defs/id"},"target_id":{"$ref":"#/$defs/id"},"raw_feature_name":{"type":["string","null"]},"raw_value":{},"raw_unit":{"type":["string","null"]},"normalized_value":{},"normalized_unit":{"type":["string","null"]},"value_state":{"enum":["REPORTED","NOT_REPORTED","NOT_APPLICABLE","AMBIGUOUS","CONFLICTING","NOT_ASSESSED"]},"endpoint_definition":{"type":["string","null"]},"timepoint":{"type":["string","number","null"]},"evidence_ids":{"type":"array","items":{"$ref":"#/$defs/id"}}},"additionalProperties":true},
+    "comparison":{"type":"object","required":["comparison_id","observation_ids","comparison_type"],"properties":{"comparison_id":{"$ref":"#/$defs/id"},"observation_ids":{"type":"array","minItems":2,"items":{"$ref":"#/$defs/id"}},"comparison_type":{"type":"string"},"description":{"type":"string"}},"additionalProperties":true},
+    "evidence":{"type":"object","required":["evidence_id","study_id","source_locator","evidence_type"],"properties":{"evidence_id":{"$ref":"#/$defs/id"},"study_id":{"$ref":"#/$defs/id"},"source_locator":{"$ref":"#/$defs/locator"},"evidence_type":{"enum":["direct_quote","table_value","figure_value","supplementary_value","method_description","metadata","other"]},"quoted_text":{"type":["string","null"]},"extraction_status":{"enum":["VERIFIED","REVIEW_REQUIRED","CONFLICTING","UNVERIFIED"]}},"additionalProperties":true}
+  }
+}
