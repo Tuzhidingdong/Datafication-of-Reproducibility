@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/mapping_plan.schema.json",
+  "title": "Human-reviewed source-to-canonical mapping plan",
+  "type": "object",
+  "required": ["schema_version", "mapping_version", "source_inventory_sha256", "rules"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "mapping_version": {"type": "string", "minLength": 1},
+    "source_inventory_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "rules": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/rule"}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "required": ["mapping_rule_id", "source_item_id", "status"],
+      "properties": {
+        "mapping_rule_id": {"type": "string", "minLength": 1},
+        "source_item_id": {"type": "string", "minLength": 1},
+        "target_entity": {"enum": ["studies", "systems", "conditions", "experiments", "observations", "comparisons", "evidence"]},
+        "target_field_id": {"type": "string", "minLength": 1},
+        "status": {"enum": ["PROPOSED", "REVIEWED", "APPROVED", "REJECTED", "UNRESOLVED"]},
+        "transformation": {"$ref": "#/$defs/transformation"},
+        "review": {
+          "type": "object",
+          "properties": {
+            "reviewer": {"type": "string", "minLength": 1},
+            "reviewed_at": {"type": "string", "minLength": 1},
+            "decision_note": {"type": "string", "minLength": 1},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}}
+          },
+          "additionalProperties": false
+        },
+        "notes": {"type": "string"}
+      },
+      "allOf": [{
+        "if": {"properties": {"status": {"const": "APPROVED"}}, "required": ["status"]},
+        "then": {
+          "required": ["target_entity", "target_field_id", "transformation", "review"],
+          "properties": {
+            "review": {"required": ["reviewer", "reviewed_at", "decision_note"]}
+          }
+        }
+      }],
+      "additionalProperties": false
+    },
+    "transformation": {
+      "type": "object",
+      "required": ["type", "parameters"],
+      "properties": {
+        "type": {"enum": ["IDENTITY", "NUMERIC_PARSE", "UNIT_CONVERSION", "LOOKUP", "SPLIT", "CUSTOM"]},
+        "parameters": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  }
+}
