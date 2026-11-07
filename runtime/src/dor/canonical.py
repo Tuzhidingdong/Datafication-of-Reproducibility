@@ -66,8 +66,12 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
         for i, value in enumerate(values): ref(f"{path}[{i}]", value, collection)
     for i, row in enumerate(records["systems"].values()):
         refs(f"systems[{i}].study_ids", row.get("study_ids"), "studies")
+        if not isinstance(row.get("study_ids"), list) or not row.get("study_ids"):
+            errors.append({"code":"SYSTEM_WITHOUT_STUDY","path":f"systems[{i}].study_ids","message":"A system must link to at least one study."})
     for i, row in enumerate(records["conditions"].values()):
         refs(f"conditions[{i}].system_ids", row.get("system_ids", []), "systems")
+        if not isinstance(row.get("system_ids"), list) or not row.get("system_ids"):
+            errors.append({"code":"CONDITION_WITHOUT_SYSTEM","path":f"conditions[{i}].system_ids","message":"A condition must link to at least one system."})
         if not isinstance(row.get("value_state"), str) or row.get("value_state") not in MISSINGNESS:
             errors.append({"code":"INVALID_MISSINGNESS_STATE","path":f"conditions[{i}].value_state","message":"Unknown value_state."})
     for i, row in enumerate(records["experiments"].values()):
