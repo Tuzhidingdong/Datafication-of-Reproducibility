@@ -32,6 +32,7 @@ class CanonicalBuilderTests(unittest.TestCase):
         add("R_COND_TYPE","ConditionType","conditions","condition_type")
         add("R_COND_STATE","ValueState","conditions","value_state")
         add("R_TARGET","Target","observations","target_id")
+        add("R_OBS_STATE","ValueState","observations","value_state")
         add("R_VALUE","Value","observations","raw_value","NUMERIC_PARSE")
         self.mapping = {"schema_version":"1.0","mapping_version":"map-1",
           "source_inventory_sha256":"placeholder","rules":rules}
@@ -50,7 +51,7 @@ class CanonicalBuilderTests(unittest.TestCase):
             {"definition_id":"D_EXPERIMENT","entity_type":"experiments","source_file":"source.csv",
              "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment"]},"field_rule_ids":[]},
             {"definition_id":"D_OBSERVATION","entity_type":"observations","source_file":"source.csv",
-             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment","SRC_Target"]},"field_rule_ids":["R_TARGET","R_VALUE"]}
+             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment","SRC_Target"]},"field_rule_ids":["R_TARGET","R_OBS_STATE","R_VALUE"]}
           ],
           "links":[
             {"child_definition_id":"D_SYSTEM","parent_definition_id":"D_STUDY","field_id":"study_ids"},
@@ -78,11 +79,17 @@ class CanonicalBuilderTests(unittest.TestCase):
     def test_conflicting_values_within_group_fail_closed(self):
         self.spec["entity_definitions"][0]["field_rule_ids"]=["R_DOI","R_TITLE"]
         self.inventory["items"] = self.inventory["items"]
-        self.source.write_text(self.source.read_text(encoding="utf-8").replace("Study A","Different title",1),encoding="utf-8")
-        # A stale source hash is detected before any records are emitted.
+        content = self.source.read_text(encoding="utf-8").replace("10.1000/a,Study A,Cell A,25", "10.1000/a,Different title,Cell A,25", 1)
+        self.source.write_text(content, encoding="utf-8")
+        new_hash = sha256_file(self.source)
+        for item in self.inventory["items"]:
+            item["source_sha256"] = new_hash
+        self.inventory_path_hash = "d"*64
+        self.mapping["source_inventory_sha256"] = self.inventory_path_hash
+        self.spec["source_inventory_sha256"] = self.inventory_path_hash
         bundle, report = build_canonical_bundle(self.mapping,self.inventory,self.spec,self.root,self.plan_hash,self.inventory_path_hash)
         self.assertIsNone(bundle)
-        self.assertFalse(report["valid"])
+        self.assertTrue(any(e["code"]=="GROUP_FIELD_CONFLICT" for e in report["errors"]))
 
     def test_unapproved_mapping_cannot_build(self):
         self.mapping["rules"][0]["status"]="REVIEWED"
