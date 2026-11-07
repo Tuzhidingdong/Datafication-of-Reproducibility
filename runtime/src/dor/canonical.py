@@ -85,7 +85,7 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     for i, row in enumerate(records["observations"].values()):
         ref(f"observations[{i}].experiment_id", row.get("experiment_id"), "experiments")
         refs(f"observations[{i}].evidence_ids", row.get("evidence_ids"), "evidence")
-        if row.get("value_state") not in MISSINGNESS:
+        if not isinstance(row.get("value_state"), str) or row.get("value_state") not in MISSINGNESS:
             errors.append({"code":"INVALID_MISSINGNESS_STATE","path":f"observations[{i}].value_state","message":"Unknown value_state."})
         if row.get("value_state") == "REPORTED" and "raw_value" not in row:
             warnings.append({"code":"REPORTED_WITHOUT_RAW_VALUE","path":f"observations[{i}]","message":"Reported observation has no raw_value field."})
