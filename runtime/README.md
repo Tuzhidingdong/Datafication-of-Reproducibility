@@ -6,11 +6,11 @@ The runtime executes deterministic, file-based operations. It does not orchestra
 
 The runtime provides:
 - read-only CSV/JSON structural audit, source hashing, and coverage reports;
-- bounded nested JSON structure profiling;
-- stable source inventory and unresolved mapping review queue;
+- bounded nested JSON profiling and a stable source inventory;
 - canonical research bundle structural and referential-integrity validation;
 - mapping-plan reference, provenance, transformation-specification, and approval-gate validation;
-- deterministic canonical construction from approved mappings, explicit entity grouping, and explicit row-overlap relationships for CSV sources.
+- deterministic canonical construction from approved CSV and JSON mappings, explicit entity grouping, and declared row-overlap or field-equality relationships;
+- non-destructive diagnostics for exact-payload duplicate candidates and unreferenced entities.
 
 The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The mapping plan schema is in ../schemas/mapping_plan.schema.json. The build specification schema is in ../schemas/canonical_build_spec.schema.json. See ../docs/CANONICAL_DATA_MODEL.md, ../docs/MAPPING_CONTRACT.md, and ../docs/CANONICAL_BUILDER.md.
 
@@ -47,16 +47,41 @@ The plan must contain the SHA-256 digest of the exact inventory file. Regenerati
     dor build-canonical --plan mapping_plan.json --inventory source_inventory.json --spec canonical_build_spec.json --source-root path/to/source/files --out-dir path/to/new/derived/run/02_canonical
 
 The build specification is bound to the exact mapping-plan and source-inventory file hashes. It explicitly defines:
-- each canonical entity definition and the source CSV it reads;
-- whether instances are one-per-source-row or grouped by declared source key columns;
-- which approved mapping rules populate the entity's fields;
-- which child-to-parent relationships are created from shared source-row overlap.
+- the canonical entity type and source file for each entity definition;
+- the source format (csv or json);
+- whether entity instances are one-per-source-record or grouped by declared source key fields;
+- which approved mapping rules populate the entity fields;
+- how child-parent relationships are established.
 
-The builder never assumes that a CSV row is an experiment. Grouped fields must be consistent within a group; conflicting values fail the build and require a finer grouping or a reviewed mapping change. Blank grouping keys fail rather than creating unstable identities. IDs are deterministic within the input hashes and build-definition IDs.
+### CSV selectors
 
-V0.2 construction currently supports CSV columns only. JSON paths are inventoried but are not yet executable selectors; a build definition referencing a JSON path is rejected. Relationships are supported only when child and parent definitions refer to the same source CSV and the declared relationship is evidenced by shared source rows. Cross-file joins require a future explicit join-key contract.
+CSV entity definitions use declared column inventory IDs for grouping and approved mappings. A row is not automatically an experiment; entity grain is a reviewed build-spec decision.
 
-The builder executes IDENTITY, NUMERIC_PARSE, UNIT_CONVERSION, LOOKUP, and SPLIT transformations. CUSTOM transformations are not executable. Raw source values and per-cell provenance are retained in each entity's field_provenance; source row/hash and mapping version are recorded in _provenance. The build report is always written; canonical_bundle.json is written only after structural and referential validation passes. A successful build is not proof that the scientific mappings or entity groupings are correct.
+### JSON selectors
+
+A JSON entity definition must set source_format to json and an explicit record_selector using an RFC 6901 JSON Pointer with * as an array wildcard. Example:
+
+    /papers/*/experiments/*
+
+The selector must resolve to objects. A JSON field mapping refers to the audit inventory's structural path pattern, such as $['papers'][]['experiments'][]['temperature']. The builder resolves that pattern relative to each selected object and records the concrete JSON Pointer for each value. If one mapped path resolves to multiple values inside a selected object, the build fails; select a deeper record level rather than arbitrarily choosing or aggregating values.
+
+### Relationships
+
+ROW_OVERLAP links records that share the same source data row (CSV) or selected JSON object pointer. It requires the same source file and format.
+
+FIELD_EQUALITY links entities using two explicitly mapped canonical fields: child_key_field and parent_key_field. This supports cross-file CSV/JSON joins. Matching is exact and type-sensitive after the declared field transformations; no implicit trimming, case folding, unit conversion, DOI normalization, fuzzy matching, or null-to-null matching is performed. Scalar relationships require exactly one parent match; zero or multiple matches fail the build. Many-valued relationships retain every exact match.
+
+The builder never assumes that a CSV row or JSON object is an experiment. Grouped fields must be consistent within a group; conflicts fail the build and require a finer grouping or a reviewed mapping change. Blank grouping/join keys fail rather than creating unstable identities. IDs are deterministic within the source hashes, selected record locators, and build-definition IDs.
+
+The builder executes IDENTITY, NUMERIC_PARSE, UNIT_CONVERSION, LOOKUP, and SPLIT transformations. CUSTOM transformations are not executable. Raw source values and per-value provenance are retained, including concrete CSV row/column or JSON Pointer locators. Each entity retains its definition ID, mapping version, source hash, mapping-plan hash, and source-inventory hash. Bundle-level build_provenance records the mapping-plan, inventory, and build-spec hashes.
+
+The build report is always written. canonical_bundle.json is written only after structural and referential validation passes. The report also includes relationship diagnostics; duplicate and unreferenced findings are review-only and do not modify or merge records.
+
+## Diagnose a canonical bundle
+
+    dor diagnose-bundle --input canonical_bundle.json --out relationship_diagnostics.json
+
+Diagnostics report exact-payload duplicate candidates and several classes of unused/unreferenced entities. They do not determine that two records are scientifically equivalent, and they never merge, delete, or rewrite entities.
 
 ## Source preservation
 
