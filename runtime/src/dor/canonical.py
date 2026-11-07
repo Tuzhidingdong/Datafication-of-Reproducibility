@@ -68,7 +68,7 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
         refs(f"systems[{i}].study_ids", row.get("study_ids"), "studies")
     for i, row in enumerate(records["conditions"].values()):
         refs(f"conditions[{i}].system_ids", row.get("system_ids", []), "systems")
-        if row.get("value_state") not in MISSINGNESS:
+        if not isinstance(row.get("value_state"), str) or row.get("value_state") not in MISSINGNESS:
             errors.append({"code":"INVALID_MISSINGNESS_STATE","path":f"conditions[{i}].value_state","message":"Unknown value_state."})
     for i, row in enumerate(records["experiments"].values()):
         ref(f"experiments[{i}].study_id", row.get("study_id"), "studies")
