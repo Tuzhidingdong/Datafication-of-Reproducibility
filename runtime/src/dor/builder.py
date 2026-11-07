@@ -1,16 +1,19 @@
-"""Deterministic canonical bundle construction from approved CSV mappings."""
+"""Deterministic canonical construction from approved CSV and JSON mappings."""
 from __future__ import annotations
 
 import csv
 import hashlib
 import json
-import math
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
 from dor.canonical import validate_canonical_bundle
 from dor.mapping import sha256_file, validate_mapping_plan
+from dor.selectors import (
+    parse_json_pointer, parse_profile_path, render_json_pointer,
+    resolve_tokens, select_records, selector_prefix_matches,
+)
 
 ENTITIES = {"studies", "systems", "conditions", "experiments", "observations", "comparisons", "evidence"}
 ID_FIELDS = {"studies":"study_id", "systems":"system_id", "conditions":"condition_id",
@@ -42,10 +45,18 @@ def _issue(code: str, path: str, message: str) -> dict[str, str]:
     return {"code": code, "path": path, "message": message}
 
 
-def _parse_numeric(raw: str, params: dict[str, Any]) -> int | float:
+def _stable(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _is_blank(value: Any) -> bool:
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
+def _parse_numeric(raw: Any, params: dict[str, Any]) -> int | float:
     decimal_sep = params.get("decimal_separator", ".")
     thousands_sep = params.get("thousands_separator")
-    value = raw.strip()
+    value = str(raw).strip()
     if thousands_sep:
         value = value.replace(thousands_sep, "")
     if decimal_sep == ",":
@@ -61,10 +72,10 @@ def _parse_numeric(raw: str, params: dict[str, Any]) -> int | float:
     return float(number)
 
 
-def _transform(raw: str, spec: dict[str, Any]) -> Any:
+def _transform(raw: Any, spec: dict[str, Any]) -> Any:
     kind = spec.get("type")
     params = spec.get("parameters", {})
-    if raw == "":
+    if raw is None or (isinstance(raw, str) and raw == ""):
         return None
     if kind == "IDENTITY":
         return raw
@@ -82,14 +93,20 @@ def _transform(raw: str, spec: dict[str, Any]) -> Any:
         return float(result)
     if kind == "LOOKUP":
         table = params.get("mapping")
-        if not isinstance(table, dict) or raw not in table:
-            raise ValueError(f"LOOKUP has no explicit mapping for value {raw!r}.")
-        return table[raw]
+        key = raw if isinstance(raw, str) else _stable(raw)
+        if not isinstance(table, dict) or key not in table:
+            raise ValueError(f"LOOKUP has no explicit mapping for value {key!r}.")
+        return table[key]
     if kind == "SPLIT":
+        if not isinstance(raw, str):
+            raise ValueError("SPLIT requires a string source value.")
         delimiter = params.get("delimiter")
         if not isinstance(delimiter, str) or not delimiter:
             raise ValueError("SPLIT requires a non-empty delimiter.")
-        parts = raw.split(delimiter, params.get("maxsplit", -1))
+        maxsplit = params.get("maxsplit", -1)
+        if isinstance(maxsplit, bool) or not isinstance(maxsplit, int) or maxsplit < -1:
+            raise ValueError("SPLIT maxsplit must be an integer >= -1.")
+        parts = raw.split(delimiter, maxsplit)
         if params.get("strip_items", True):
             parts = [part.strip() for part in parts]
         if not params.get("keep_empty", False):
@@ -104,9 +121,8 @@ def _canonical_id(source_sha: str, definition_id: str, key: list[Any]) -> str:
     return "DOR_" + digest
 
 
-def _read_csv(path: Path, expected_hash: str) -> tuple[list[str], list[dict[str, str]]]:
-    actual_hash = sha256_file(path)
-    if actual_hash != expected_hash:
+def _read_csv(path: Path, expected_hash: str) -> tuple[list[dict[str, str]], str]:
+    if sha256_file(path) != expected_hash:
         raise ValueError(f"Source hash mismatch for {path.name}; inventory is stale.")
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.reader(handle, strict=True)
@@ -116,14 +132,24 @@ def _read_csv(path: Path, expected_hash: str) -> tuple[list[str], list[dict[str,
             raise ValueError(f"CSV has no header: {path.name}") from exc
         if not header or any(not name.strip() for name in header) or len(set(header)) != len(header):
             raise ValueError(f"CSV header is empty, contains blank names, or has duplicate names: {path.name}")
-        rows: list[dict[str, str]] = []
+        rows = []
         for row_number, values in enumerate(reader, start=1):
             if len(values) != len(header):
                 raise ValueError(f"CSV row {row_number} in {path.name} has {len(values)} cells; expected {len(header)}.")
             rows.append(dict(zip(header, values)))
     if sha256_file(path) != expected_hash:
         raise ValueError(f"Source changed while being read: {path.name}")
-    return header, rows
+    return rows, expected_hash
+
+
+def _read_json(path: Path, expected_hash: str) -> tuple[Any, str]:
+    if sha256_file(path) != expected_hash:
+        raise ValueError(f"Source hash mismatch for {path.name}; inventory is stale.")
+    with path.open("r", encoding="utf-8-sig") as handle:
+        payload = json.load(handle)
+    if sha256_file(path) != expected_hash:
+        raise ValueError(f"Source changed while being read: {path.name}")
+    return payload, expected_hash
 
 
 def _safe_source_path(root: Path, file_name: str) -> Path:
@@ -132,6 +158,22 @@ def _safe_source_path(root: Path, file_name: str) -> Path:
     if not path.is_relative_to(root):
         raise ValueError(f"Source file path escapes source root: {file_name}")
     return path
+
+
+def _source_item_matches_definition(item: dict[str, Any], definition: dict[str, Any],
+                                    selector_tokens: tuple[str, ...] | None) -> bool:
+    fmt = definition.get("source_format", "csv")
+    if item.get("source_file") != definition.get("source_file") or item.get("source_format") != fmt:
+        return False
+    if fmt == "csv":
+        return item.get("locator_type") == "csv_column"
+    if fmt == "json" and item.get("locator_type") == "json_path":
+        try:
+            return selector_tokens is not None and selector_prefix_matches(
+                parse_profile_path(item["locator"]), selector_tokens)
+        except (KeyError, ValueError):
+            return False
+    return False
 
 
 def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dict[str, Any],
@@ -143,11 +185,12 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
         errors.append(_issue("UNSUPPORTED_SCHEMA_VERSION", "schema_version", "Expected build spec schema_version 1.0."))
     for field, actual in (("mapping_plan_sha256", plan_hash), ("source_inventory_sha256", inventory_hash)):
         if spec.get(field) != actual:
-            errors.append(_issue("STALE_BUILD_SPEC", field, f"Build specification must reference exact {field}."))    
+            errors.append(_issue("STALE_BUILD_SPEC", field, f"Build specification must reference exact {field}."))
     if spec.get("mapping_version") != mapping_plan.get("mapping_version"):
         errors.append(_issue("MAPPING_VERSION_MISMATCH", "mapping_version", "Build spec and mapping plan versions differ."))
     if not isinstance(spec.get("project_id"), str) or not spec["project_id"].strip():
         errors.append(_issue("MISSING_PROJECT_ID", "project_id", "A non-empty project_id is required."))
+
     inventory_items = inventory.get("items", []) if isinstance(inventory, dict) else []
     item_by_id = {item.get("inventory_id"): item for item in inventory_items if isinstance(item, dict)}
     rule_by_id = {rule.get("mapping_rule_id"): rule for rule in mapping_plan.get("rules", []) if isinstance(rule, dict)}
@@ -173,9 +216,22 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
         if not isinstance(etype, str) or etype not in ENTITIES:
             errors.append(_issue("INVALID_ENTITY_TYPE", f"{path}.entity_type", "Unsupported canonical entity type."))
         source_file = definition.get("source_file")
-        grouping = definition.get("grouping")
+        fmt = definition.get("source_format", "csv")
         if not isinstance(source_file, str) or not source_file:
             errors.append(_issue("INVALID_SOURCE_FILE", f"{path}.source_file", "source_file is required."))
+        if fmt not in {"csv", "json"}:
+            errors.append(_issue("INVALID_SOURCE_FORMAT", f"{path}.source_format", "source_format must be csv or json."))
+            fmt = "unsupported"
+        selector_tokens = None
+        if fmt == "json":
+            try:
+                selector_tokens = parse_json_pointer(definition.get("record_selector"))
+                if "*" not in selector_tokens:
+                    errors.append(_issue("JSON_SELECTOR_REQUIRES_WILDCARD", f"{path}.record_selector", "JSON record_selector must contain an explicit '*' array wildcard."))
+            except ValueError as exc:
+                errors.append(_issue("INVALID_JSON_RECORD_SELECTOR", f"{path}.record_selector", str(exc)))
+
+        grouping = definition.get("grouping")
         if not isinstance(grouping, dict) or grouping.get("mode") not in {"SOURCE_ROW", "GROUP_BY_FIELDS"}:
             errors.append(_issue("INVALID_GROUPING", f"{path}.grouping", "Grouping mode must be SOURCE_ROW or GROUP_BY_FIELDS."))
             grouping = {}
@@ -189,11 +245,12 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
             errors.append(_issue("GROUP_KEYS_REQUIRED", f"{path}.grouping.source_item_ids", "GROUP_BY_FIELDS requires at least one explicit key field."))
         for source_id in key_ids:
             item = item_by_id.get(source_id)
-            if not item or item.get("source_file") != source_file or item.get("locator_type") != "csv_column" or item.get("source_format") != "csv":
-                errors.append(_issue("INVALID_GROUP_KEY_SOURCE", f"{path}.grouping.source_item_ids", f"{source_id} is not a CSV column from {source_file}."))
+            if not item or not _source_item_matches_definition(item, definition, selector_tokens):
+                errors.append(_issue("INVALID_GROUP_KEY_SOURCE", f"{path}.grouping.source_item_ids", f"{source_id} is not a compatible source field within {source_file}."))
+
         field_rule_ids = definition.get("field_rule_ids")
         if not isinstance(field_rule_ids, list):
-            errors.append(_issue("FIELD_RULES_NOT_ARRAY", f"{path}.field_rule_ids", "field_rule_ids must be an array; it may be empty when all fields are generated by declared relationships."))
+            errors.append(_issue("FIELD_RULES_NOT_ARRAY", f"{path}.field_rule_ids", "field_rule_ids must be an array."))
             field_rule_ids = []
         seen_fields: set[str] = set()
         for rule_id in field_rule_ids:
@@ -204,14 +261,15 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
             source_item = item_by_id.get(rule.get("source_item_id"))
             if rule.get("target_entity") != etype:
                 errors.append(_issue("RULE_ENTITY_MISMATCH", f"{path}.field_rule_ids", f"{rule_id} targets {rule.get('target_entity')}, not {etype}."))
-            if not source_item or source_item.get("source_file") != source_file or source_item.get("source_format") != "csv" or source_item.get("locator_type") != "csv_column":
-                errors.append(_issue("UNSUPPORTED_OR_MISMATCHED_SOURCE", f"{path}.field_rule_ids", f"{rule_id} must reference a CSV column in {source_file}."))
+            if not source_item or not _source_item_matches_definition(source_item, definition, selector_tokens):
+                errors.append(_issue("UNSUPPORTED_OR_MISMATCHED_SOURCE", f"{path}.field_rule_ids", f"{rule_id} must reference a compatible source item in {source_file}."))
             field_id = rule.get("target_field_id")
             if field_id in seen_fields:
                 errors.append(_issue("DUPLICATE_FIELD_RULE", f"{path}.field_rule_ids", f"Multiple rules target {field_id} in this entity definition."))
             seen_fields.add(field_id)
             if field_id in GENERATED_FIELDS.get(etype, set()):
-                errors.append(_issue("GENERATED_FIELD_CANNOT_BE_MAPPED", f"{path}.field_rule_ids", f"{field_id} is created by the builder's identity/link contract and cannot be overwritten by a field rule."))
+                errors.append(_issue("GENERATED_FIELD_CANNOT_BE_MAPPED", f"{path}.field_rule_ids", f"{field_id} is generated by canonical identity/link logic and cannot be overwritten."))
+
     links = spec.get("links")
     if not isinstance(links, list):
         errors.append(_issue("LINKS_NOT_ARRAY", "links", "links must be an array."))
@@ -231,8 +289,24 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
         expected = (child.get("entity_type"), field_id, parent.get("entity_type"))
         if expected not in RELATIONSHIPS:
             errors.append(_issue("INVALID_CANONICAL_RELATIONSHIP", path, f"Unsupported canonical relationship {expected}."))
-        if child.get("source_file") != parent.get("source_file"):
-            errors.append(_issue("CROSS_FILE_LINK_UNSUPPORTED", path, "V0.2 builder supports row-overlap links within one source CSV only."))
+        match_mode = link.get("match_mode", "ROW_OVERLAP")
+        if match_mode not in {"ROW_OVERLAP", "FIELD_EQUALITY"}:
+            errors.append(_issue("INVALID_LINK_MATCH_MODE", f"{path}.match_mode", "match_mode must be ROW_OVERLAP or FIELD_EQUALITY."))
+        if match_mode == "ROW_OVERLAP":
+            if child.get("source_file") != parent.get("source_file") or child.get("source_format", "csv") != parent.get("source_format", "csv"):
+                errors.append(_issue("ROW_OVERLAP_CROSS_SOURCE", path, "ROW_OVERLAP requires the same source file and format; use FIELD_EQUALITY for cross-source links."))
+            if "child_key_field" in link or "parent_key_field" in link:
+                errors.append(_issue("ROW_OVERLAP_HAS_KEYS", path, "ROW_OVERLAP must not declare equality key fields."))
+        elif match_mode == "FIELD_EQUALITY":
+            for key in ("child_key_field", "parent_key_field"):
+                if not isinstance(link.get(key), str) or not link[key].strip():
+                    errors.append(_issue("FIELD_EQUALITY_KEY_REQUIRED", f"{path}.{key}", "FIELD_EQUALITY requires explicit child_key_field and parent_key_field."))
+            for definition, key_name, prefix in ((child, "child_key_field", "child"), (parent, "parent_key_field", "parent")):
+                key_field = link.get(key_name)
+                rules = [rule_by_id.get(rid) for rid in definition.get("field_rule_ids", []) if rid in rule_by_id]
+                mapped_fields = {rule.get("target_field_id") for rule in rules if isinstance(rule, dict)}
+                if isinstance(key_field, str) and key_field not in mapped_fields:
+                    errors.append(_issue("JOIN_KEY_NOT_MAPPED", f"{path}.{key_name}", f"{prefix} join key must be populated by an explicit mapping rule in its entity definition."))
         key = (link.get("child_definition_id"), link.get("parent_definition_id"), field_id)
         if key in seen_links:
             errors.append(_issue("DUPLICATE_LINK", path, "Duplicate link declaration."))
@@ -240,10 +314,63 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
     return errors
 
 
+def _record_units(definition: dict[str, Any], source: dict[str, Any]) -> list[dict[str, Any]]:
+    if source["format"] == "csv":
+        units = []
+        for index, row in enumerate(source["rows"], start=1):
+            units.append({"data": row, "locator_type": "csv_row", "locator": f"data_row:{index}",
+                          "unit_key": f"csv_row:{index}", "row_number": index})
+        return units
+    selected = select_records(source["payload"], definition["record_selector"])
+    return [{"data": record, "locator_type": "json_pointer", "locator": render_json_pointer(pointer),
+             "unit_key": "json_pointer:" + render_json_pointer(pointer), "pointer_tokens": pointer}
+            for record, pointer in selected]
+
+
+def _resolve_item(item: dict[str, Any], definition: dict[str, Any], unit: dict[str, Any]) -> tuple[Any, str, str]:
+    if definition.get("source_format", "csv") == "csv":
+        column = item["locator"]
+        value = unit["data"].get(column)
+        return value, "csv_row", f"{unit['locator']};column:{column}"
+    pattern_tokens = parse_profile_path(item["locator"])
+    selector_tokens = parse_json_pointer(definition["record_selector"])
+    if not selector_prefix_matches(pattern_tokens, selector_tokens):
+        raise ValueError(f"JSON path {item['locator']!r} is outside record_selector {definition['record_selector']!r}.")
+    relative_tokens = pattern_tokens[len(selector_tokens):]
+    matches = resolve_tokens(unit["data"], relative_tokens)
+    if not matches:
+        return None, "json_pointer", unit["locator"]
+    if len(matches) > 1:
+        raise ValueError(f"JSON source path {item['locator']!r} resolves to multiple values inside one selected record; select a deeper record_selector.")
+    value, relative_concrete = matches[0]
+    absolute = tuple(unit["pointer_tokens"]) + relative_concrete
+    return value, "json_pointer", render_json_pointer(absolute)
+
+
+def _group_key(definition: dict[str, Any], unit: dict[str, Any], key_items: list[dict[str, Any]]) -> tuple[Any, ...]:
+    if definition["grouping"]["mode"] == "SOURCE_ROW":
+        return (unit["unit_key"],)
+    values = []
+    for item in key_items:
+        value, _, _ = _resolve_item(item, definition, unit)
+        if _is_blank(value) or isinstance(value, (dict, list)):
+            raise ValueError(f"Grouping key {item['inventory_id']} is blank or non-scalar at {unit['locator']}.")
+        values.append(value)
+    return tuple(values)
+
+
+def _source_fingerprint(value: Any) -> str:
+    if isinstance(value, (dict, list)):
+        raise ValueError("FIELD_EQUALITY keys must be scalar values.")
+    if _is_blank(value):
+        raise ValueError("FIELD_EQUALITY key is blank; no implicit null-to-null match is allowed.")
+    return _stable(value)
+
+
 def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                            source_root: Path, mapping_plan_sha256: str,
                            inventory_sha256: str, build_spec_sha256: str | None = None) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    """Build only from validated APPROVED mappings and explicit entity/link definitions."""
+    """Build only from validated approved mappings and explicit entity/link definitions."""
     mapping_validation = validate_mapping_plan(mapping_plan, inventory, inventory_sha256)
     errors = list(mapping_validation.get("errors", []))
     if not mapping_validation.get("valid"):
@@ -253,120 +380,146 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
         return None, {"valid": False, "errors": errors, "warnings": [], "validation_scope": "NO_BUILD_SPEC_INVALID"}
 
     item_by_id = {item["inventory_id"]: item for item in inventory["items"]}
-    rule_by_id = {rule["mapping_rule_id"]: rule for rule in mapping_plan["rules"] if rule["mapping_rule_id"] in set(mapping_validation["approved_rule_ids"])}
-    source_cache: dict[str, tuple[list[str], list[dict[str, str]], str]] = {}
+    approved_set = set(mapping_validation["approved_rule_ids"])
+    rule_by_id = {rule["mapping_rule_id"]: rule for rule in mapping_plan["rules"] if rule["mapping_rule_id"] in approved_set}
+    source_cache: dict[str, dict[str, Any]] = {}
     for definition in build_spec["entity_definitions"]:
         filename = definition["source_file"]
         if filename in source_cache:
             continue
         matching = [item for item in inventory["items"] if item.get("source_file") == filename]
         hashes = {item.get("source_sha256") for item in matching}
-        if not matching or len(hashes) != 1:
-            errors.append(_issue("SOURCE_INVENTORY_AMBIGUOUS", filename, "Source file has no inventory items or inconsistent hashes."))
+        formats = {item.get("source_format") for item in matching}
+        if not matching or len(hashes) != 1 or len(formats) != 1:
+            errors.append(_issue("SOURCE_INVENTORY_AMBIGUOUS", filename, "Source file has no inventory items or inconsistent hashes/formats."))
             continue
         digest = next(iter(hashes))
+        fmt = next(iter(formats))
         try:
             path = _safe_source_path(source_root, filename)
             if not path.is_file():
                 raise FileNotFoundError(f"Source file not found: {path}")
-            header, rows = _read_csv(path, digest)
+            if fmt == "csv":
+                rows, digest = _read_csv(path, digest)
+                source_cache[filename] = {"format": "csv", "rows": rows, "sha256": digest}
+                headers = set(rows[0]) if rows else set()
+                # Header validation is performed even for empty CSVs by the reader's parser below.
+                for item in matching:
+                    if item.get("locator_type") == "csv_column" and rows and item.get("locator") not in headers:
+                        errors.append(_issue("SOURCE_COLUMN_NOT_FOUND", item.get("inventory_id", filename), f"CSV column {item.get('locator')!r} is absent from current file."))
+            elif fmt == "json":
+                payload, digest = _read_json(path, digest)
+                source_cache[filename] = {"format": "json", "payload": payload, "sha256": digest}
+                for item in matching:
+                    if item.get("locator_type") == "json_path":
+                        try:
+                            parse_profile_path(item["locator"])
+                        except (KeyError, ValueError) as exc:
+                            errors.append(_issue("INVALID_JSON_INVENTORY_PATH", item.get("inventory_id", filename), str(exc)))
+            else:
+                errors.append(_issue("UNSUPPORTED_SOURCE_FORMAT", filename, f"Unsupported source format {fmt!r}."))
         except Exception as exc:
             errors.append(_issue("SOURCE_READ_FAILED", filename, str(exc)))
-            continue
-        source_cache[filename] = (header, rows, digest)
-        for item in matching:
-            if item.get("locator_type") == "csv_column" and item.get("locator") not in header:
-                errors.append(_issue("SOURCE_COLUMN_NOT_FOUND", item.get("inventory_id", filename), f"CSV column {item.get('locator')!r} is absent from current file."))
 
     if errors:
         return None, {"valid": False, "errors": errors, "warnings": [], "validation_scope": "NO_BUILD_SOURCE_VALIDATION_FAILED"}
 
     records_by_definition: dict[str, list[dict[str, Any]]] = {}
-    rowsets_by_definition: dict[str, list[set[int]]] = {}
+    unitsets_by_definition: dict[str, list[set[str]]] = {}
     definitions_by_id = {d["definition_id"]: d for d in build_spec["entity_definitions"]}
     for definition in build_spec["entity_definitions"]:
         filename = definition["source_file"]
-        header, rows, digest = source_cache[filename]
+        source = source_cache[filename]
+        try:
+            units = _record_units(definition, source)
+        except Exception as exc:
+            errors.append(_issue("RECORD_SELECTOR_FAILED", definition["definition_id"], str(exc)))
+            continue
         grouping = definition["grouping"]
-        key_columns = [item_by_id[sid]["locator"] for sid in grouping.get("source_item_ids", [])]
-        groups: dict[tuple[Any, ...], list[int]] = {}
-        for row_index, row in enumerate(rows, start=1):
-            if grouping["mode"] == "SOURCE_ROW":
-                key = ("__SOURCE_ROW__", row_index)
-            else:
-                values = tuple(row[column] for column in key_columns)
-                if any(value == "" for value in values):
-                    errors.append(_issue("EMPTY_GROUP_KEY", f"{definition['definition_id']}:row:{row_index}", "A grouping key is blank; refusing to merge or invent an entity identity."))
-                    continue
-                key = values
-            groups.setdefault(key, []).append(row_index)
+        key_items = [item_by_id[sid] for sid in grouping.get("source_item_ids", [])]
+        groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+        for unit in units:
+            try:
+                key = _group_key(definition, unit, key_items)
+            except Exception as exc:
+                errors.append(_issue("INVALID_GROUP_KEY_VALUE", f"{definition['definition_id']}:{unit['locator']}", str(exc)))
+                continue
+            groups.setdefault(key, []).append(unit)
+
         records: list[dict[str, Any]] = []
-        rowsets: list[set[int]] = []
+        unitsets: list[set[str]] = []
         entity_type = definition["entity_type"]
-        for key, row_numbers in groups.items():
+        digest = source["sha256"]
+        for key, grouped_units in groups.items():
             record: dict[str, Any] = {}
-            row_set = set(row_numbers)
             for rule_id in definition["field_rule_ids"]:
                 rule = rule_by_id[rule_id]
                 item = item_by_id[rule["source_item_id"]]
-                column = item["locator"]
-                values: list[tuple[str, Any, int]] = []
-                for row_number in row_numbers:
-                    raw = rows[row_number - 1][column]
+                values: list[tuple[Any, Any, str, str]] = []
+                for unit in grouped_units:
                     try:
+                        raw, locator_type, locator = _resolve_item(item, definition, unit)
                         transformed = _transform(raw, rule["transformation"])
                     except Exception as exc:
-                        errors.append(_issue("VALUE_TRANSFORM_FAILED", f"{definition['definition_id']}:row:{row_number}:{column}", f"{rule_id}: {exc}"))
-                        transformed = None
-                    values.append((raw, transformed, row_number))
-                non_null = [value for _, value, _ in values if value is not None]
-                unique_values = {json.dumps(value, sort_keys=True, ensure_ascii=False) for value in non_null}
-                has_blank = any(raw == "" for raw, _, _ in values)
+                        errors.append(_issue("VALUE_TRANSFORM_FAILED", f"{definition['definition_id']}:{unit['locator']}", f"{rule_id}: {exc}"))
+                        continue
+                    values.append((raw, transformed, locator_type, locator))
+                non_null = [transformed for _, transformed, _, _ in values if transformed is not None]
+                unique_values = {_stable(value) for value in non_null}
+                has_blank = any(raw is None or raw == "" for raw, _, _, _ in values)
                 if len(unique_values) > 1 or (has_blank and non_null):
                     errors.append(_issue("GROUP_FIELD_CONFLICT", f"{definition['definition_id']}.{rule['target_field_id']}", f"Values for {rule_id} are not consistent within group {key!r}; define a finer entity grouping instead of selecting one."))
                     continue
                 record[rule["target_field_id"]] = non_null[0] if non_null else None
-                for raw, transformed, row_number in values:
+                for raw, transformed, locator_type, locator in values:
                     record.setdefault("field_provenance", []).append({
                         "target_field_id": rule["target_field_id"],
                         "mapping_rule_id": rule_id,
                         "source_item_id": item["inventory_id"],
                         "source_file": filename,
                         "source_sha256": digest,
-                        "locator_type": "csv_row",
-                        "locator": f"data_row:{row_number};column:{column}",
+                        "locator_type": locator_type,
+                        "locator": locator,
                         "raw_value": raw,
                         "transformed_value": transformed,
                         "transformation": rule["transformation"],
-                        "cell_state": "BLANK" if raw == "" else "PRESENT",
+                        "cell_state": "MISSING_PATH" if raw is None else ("BLANK" if raw == "" else "PRESENT"),
                     })
-            entity_id = _canonical_id(digest, definition["definition_id"], list(key))
+
+            entity_key = list(key)
+            entity_id = _canonical_id(digest, definition["definition_id"], entity_key)
             record[ID_FIELDS[entity_type]] = entity_id
             for generated_field in GENERATED_FIELDS.get(entity_type, set()):
                 if generated_field.endswith("_ids"):
                     record.setdefault(generated_field, [])
-            record.setdefault("_provenance", {
+            unit_keys = {unit["unit_key"] for unit in grouped_units}
+            first_locator_type = grouped_units[0]["locator_type"] if grouped_units else ("csv_row" if source["format"] == "csv" else "json_pointer")
+            locator_objects = [
+                {"source_file": filename, "source_sha256": digest, "locator_type": unit["locator_type"], "locator": unit["locator"]}
+                for unit in grouped_units
+            ]
+            record["_provenance"] = {
                 "definition_id": definition["definition_id"],
                 "source_file": filename,
+                "source_format": source["format"],
                 "source_sha256": digest,
-                "source_data_rows": sorted(row_set),
+                "source_record_locators": locator_objects,
                 "mapping_version": mapping_plan["mapping_version"],
                 "mapping_plan_sha256": mapping_plan_sha256,
                 "source_inventory_sha256": inventory_sha256,
                 **({"build_spec_sha256": build_spec_sha256} if build_spec_sha256 else {}),
-            })
+            }
             if entity_type == "studies":
-                record["source_locators"] = [
-                    {"source_file": filename, "source_sha256": digest, "locator_type": "csv_row", "locator": f"data_row:{n}"}
-                    for n in sorted(row_set)
-                ]
+                record["source_locators"] = locator_objects
             if entity_type == "evidence":
-                record["source_locator"] = {"source_file": filename, "source_sha256": digest,
-                    "locator_type": "csv_row", "locator": f"data_row:{min(row_set)}"}
+                if len(locator_objects) != 1:
+                    errors.append(_issue("EVIDENCE_REQUIRES_SINGLE_SOURCE_RECORD", entity_id, "Each Evidence entity must resolve to exactly one selected source record."))
+                else:
+                    record["source_locator"] = locator_objects[0]
             records.append(record)
-            rowsets.append(row_set)
+            unitsets.append(unit_keys)
         records_by_definition[definition["definition_id"]] = records
-        rowsets_by_definition[definition["definition_id"]] = rowsets
+        unitsets_by_definition[definition["definition_id"]] = unitsets
 
     if errors:
         return None, {"valid": False, "errors": errors, "warnings": [], "validation_scope": "NO_BUILD_VALUE_OR_GROUP_CONFLICT"}
@@ -380,20 +533,53 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
         parent_type = parent_def["entity_type"]
         field_id = link["field_id"]
         cardinality = RELATIONSHIPS[(child_type, field_id, parent_type)]
+        child_records = records_by_definition[child_id]
         parent_records = records_by_definition[parent_id]
-        parent_rows = rowsets_by_definition[parent_id]
-        for child_record, child_rows in zip(records_by_definition[child_id], rowsets_by_definition[child_id]):
-            matching = [p for p, rows_for_parent in zip(parent_records, parent_rows) if child_rows.intersection(rows_for_parent)]
-            parent_ids = [p[ID_FIELDS[parent_type]] for p in matching]
-            if cardinality == "ONE":
-                if len(parent_ids) != 1:
-                    errors.append(_issue("LINK_CARDINALITY_VIOLATION", child_record[ID_FIELDS[child_type]], f"{field_id} requires exactly one linked {parent_type}; found {len(parent_ids)}."))
+        match_mode = link.get("match_mode", "ROW_OVERLAP")
+        if match_mode == "ROW_OVERLAP":
+            parent_units = unitsets_by_definition[parent_id]
+            for child_record, child_units in zip(child_records, unitsets_by_definition[child_id]):
+                matching = [parent for parent, parent_keys in zip(parent_records, parent_units) if child_units.intersection(parent_keys)]
+                parent_ids = [parent[ID_FIELDS[parent_type]] for parent in matching]
+                if cardinality == "ONE":
+                    if len(parent_ids) != 1:
+                        errors.append(_issue("LINK_CARDINALITY_VIOLATION", child_record[ID_FIELDS[child_type]], f"{field_id} requires exactly one linked {parent_type}; found {len(parent_ids)}."))
+                        continue
+                    child_record[field_id] = parent_ids[0]
+                else:
+                    child_record[field_id] = sorted(set(parent_ids))
+        else:
+            child_key_field = link["child_key_field"]
+            parent_key_field = link["parent_key_field"]
+            index: dict[str, list[dict[str, Any]]] = {}
+            for parent in parent_records:
+                value = parent.get(parent_key_field)
+                if _is_blank(value):
                     continue
-                child_record[field_id] = parent_ids[0]
-            else:
-                child_record[field_id] = sorted(set(parent_ids))
-                if child_type == "comparisons" and field_id == "observation_ids" and len(child_record[field_id]) < 2:
-                    errors.append(_issue("COMPARISON_REQUIRES_TWO_OBSERVATIONS", child_record[ID_FIELDS[child_type]], "Comparison group must link to at least two observations."))
+                try:
+                    fingerprint = _source_fingerprint(value)
+                except ValueError as exc:
+                    errors.append(_issue("INVALID_PARENT_JOIN_KEY", parent[ID_FIELDS[parent_type]], str(exc)))
+                    continue
+                index.setdefault(fingerprint, []).append(parent)
+            for child in child_records:
+                value = child.get(child_key_field)
+                try:
+                    fingerprint = _source_fingerprint(value)
+                except ValueError as exc:
+                    errors.append(_issue("INVALID_CHILD_JOIN_KEY", child[ID_FIELDS[child_type]], str(exc)))
+                    continue
+                matching = index.get(fingerprint, [])
+                parent_ids = [parent[ID_FIELDS[parent_type]] for parent in matching]
+                if cardinality == "ONE":
+                    if len(parent_ids) != 1:
+                        errors.append(_issue("JOIN_CARDINALITY_VIOLATION", child[ID_FIELDS[child_type]], f"{field_id} requires exactly one parent by {child_key_field}={value!r}; found {len(parent_ids)}."))
+                        continue
+                    child[field_id] = parent_ids[0]
+                else:
+                    child[field_id] = sorted(set(parent_ids))
+                    if child_type == "comparisons" and field_id == "observation_ids" and len(child[field_id]) < 2:
+                        errors.append(_issue("COMPARISON_REQUIRES_TWO_OBSERVATIONS", child[ID_FIELDS[child_type]], "Comparison join must resolve to at least two observations."))
 
     if errors:
         return None, {"valid": False, "errors": errors, "warnings": [], "validation_scope": "NO_BUILD_RELATIONSHIP_ERRORS"}
@@ -410,8 +596,7 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
         **{entity: [] for entity in ENTITIES},
     }
     for definition in build_spec["entity_definitions"]:
-        entity = definition["entity_type"]
-        bundle[entity].extend(records_by_definition[definition["definition_id"]])
+        bundle[definition["entity_type"]].extend(records_by_definition[definition["definition_id"]])
     integrity = validate_canonical_bundle(bundle)
     if not integrity["valid"]:
         return None, {"valid": False, "errors": integrity["errors"], "warnings": integrity["warnings"],
@@ -426,7 +611,7 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
         "mapping_plan_sha256": mapping_plan_sha256,
         "source_inventory_sha256": inventory_sha256,
         **({"build_spec_sha256": build_spec_sha256} if build_spec_sha256 else {}),
-        "validation_scope": "DETERMINISTIC_CSV_BUILD_AND_CANONICAL_STRUCTURAL_REFERENTIAL_VALIDATION_NOT_SCIENTIFIC_VALIDATION",
+        "validation_scope": "DETERMINISTIC_CSV_JSON_BUILD_AND_CANONICAL_STRUCTURAL_REFERENTIAL_VALIDATION_NOT_SCIENTIFIC_VALIDATION",
     }
 
 
