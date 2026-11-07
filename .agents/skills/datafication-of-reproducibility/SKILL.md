@@ -61,6 +61,8 @@ After G1 approval:
 - Define and obtain approval for a mapping plan and a separate canonical build specification. The latter must explicitly declare entity grouping keys and same-source-row relationships; never assume one CSV row is one experiment.
 - Use `dor validate-mapping` before construction, then `dor build-canonical` with exact inventory/plan hashes and a new derived output directory.
 - Review the build report and canonical bundle integrity output at G1/G2. Resolve grouping conflicts rather than selecting or averaging records.
+- Run `dor reconcile-bundle` on the resulting canonical bundle. Review endpoint-definition gaps/variants, unresolved observation variation, same-replicate value conflicts, evidence locator disagreements, verification states, and unreferenced entities.
+- Keep all reconciliation findings in the review queue. Do not merge, discard, relabel, or select conflicting source values automatically. Human decisions must be recorded in a separate decision file bound to exact report and bundle hashes, then validated with `dor validate-reconciliation-decisions`.
 - Keep study, system, condition, experiment, observation, comparison, and evidence entities distinct.
 - Define outcome-specific cohorts; do not force all targets into one complete-case table.
 - Quantify joint coverage for each proposed variable pair and target.
