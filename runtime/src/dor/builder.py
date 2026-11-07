@@ -242,7 +242,7 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
 
 def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                            source_root: Path, mapping_plan_sha256: str,
-                           inventory_sha256: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+                           inventory_sha256: str, build_spec_sha256: str | None = None) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Build only from validated APPROVED mappings and explicit entity/link definitions."""
     mapping_validation = validate_mapping_plan(mapping_plan, inventory, inventory_sha256)
     errors = list(mapping_validation.get("errors", []))
@@ -351,6 +351,9 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                 "source_sha256": digest,
                 "source_data_rows": sorted(row_set),
                 "mapping_version": mapping_plan["mapping_version"],
+                "mapping_plan_sha256": mapping_plan_sha256,
+                "source_inventory_sha256": inventory_sha256,
+                **({"build_spec_sha256": build_spec_sha256} if build_spec_sha256 else {}),
             })
             if entity_type == "studies":
                 record["source_locators"] = [
@@ -399,6 +402,11 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
         "schema_version": "1.0",
         "project_id": build_spec["project_id"],
         "mapping_version": mapping_plan["mapping_version"],
+        "build_provenance": {
+            "mapping_plan_sha256": mapping_plan_sha256,
+            "source_inventory_sha256": inventory_sha256,
+            **({"build_spec_sha256": build_spec_sha256} if build_spec_sha256 else {}),
+        },
         **{entity: [] for entity in ENTITIES},
     }
     for definition in build_spec["entity_definitions"]:
@@ -415,6 +423,9 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
         "entity_definition_count": len(build_spec["entity_definitions"]),
         "link_count": len(build_spec["links"]),
         "source_files": sorted(source_cache),
+        "mapping_plan_sha256": mapping_plan_sha256,
+        "source_inventory_sha256": inventory_sha256,
+        **({"build_spec_sha256": build_spec_sha256} if build_spec_sha256 else {}),
         "validation_scope": "DETERMINISTIC_CSV_BUILD_AND_CANONICAL_STRUCTURAL_REFERENTIAL_VALIDATION_NOT_SCIENTIFIC_VALIDATION",
     }
 
@@ -428,4 +439,5 @@ def build_canonical_files(mapping_plan_path: Path, inventory_path: Path, build_s
     with build_spec_path.open("r", encoding="utf-8-sig") as handle:
         build_spec = json.load(handle)
     return build_canonical_bundle(mapping_plan, inventory, build_spec, source_root,
-                                  sha256_file(mapping_plan_path), sha256_file(inventory_path))
+                                  sha256_file(mapping_plan_path), sha256_file(inventory_path),
+                                  sha256_file(build_spec_path))
