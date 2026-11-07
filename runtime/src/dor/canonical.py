@@ -13,6 +13,15 @@ ENTITY_KEYS = {
     "evidence": ("evidence_id", None),
 }
 MISSINGNESS = {"REPORTED", "NOT_REPORTED", "NOT_APPLICABLE", "AMBIGUOUS", "CONFLICTING", "NOT_ASSESSED"}
+REQUIRED_FIELDS = {
+    "studies": {"study_id", "source_locators"},
+    "systems": {"system_id", "study_ids", "system_type"},
+    "conditions": {"condition_id", "system_ids", "condition_type", "value_state"},
+    "experiments": {"experiment_id", "study_id", "system_id", "condition_ids"},
+    "observations": {"observation_id", "experiment_id", "target_id", "value_state", "evidence_ids"},
+    "comparisons": {"comparison_id", "observation_ids", "comparison_type"},
+    "evidence": {"evidence_id", "study_id", "source_locator", "evidence_type"},
+}
 
 def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     """Return all detectable structural/reference errors; never repairs or mutates input."""
@@ -36,6 +45,9 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(row, dict):
                 errors.append({"code":"RECORD_NOT_OBJECT","path":path,"message":"Record must be an object."})
                 continue
+            missing_fields = REQUIRED_FIELDS[collection] - row.keys()
+            for field in sorted(missing_fields):
+                errors.append({"code":"MISSING_REQUIRED_FIELD","path":f"{path}.{field}","message":f"Required field {field} is missing."})
             identifier = row.get(id_field)
             if not isinstance(identifier, str) or not identifier.strip():
                 errors.append({"code":"MISSING_RECORD_ID","path":path,"message":f"{id_field} must be a non-empty string."})
@@ -62,6 +74,14 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
         ref(f"experiments[{i}].study_id", row.get("study_id"), "studies")
         ref(f"experiments[{i}].system_id", row.get("system_id"), "systems")
         refs(f"experiments[{i}].condition_ids", row.get("condition_ids"), "conditions")
+        system = records["systems"].get(row.get("system_id")) if isinstance(row.get("system_id"), str) else None
+        if system and row.get("study_id") not in system.get("study_ids", []):
+            errors.append({"code":"EXPERIMENT_SYSTEM_STUDY_MISMATCH","path":f"experiments[{i}]","message":"Experiment study_id is not linked to its system."})
+        condition_ids = row.get("condition_ids", [])
+        for condition_id in condition_ids if isinstance(condition_ids, list) else []:
+            condition = records["conditions"].get(condition_id) if isinstance(condition_id, str) else None
+            if condition and row.get("system_id") not in condition.get("system_ids", []):
+                errors.append({"code":"EXPERIMENT_CONDITION_SYSTEM_MISMATCH","path":f"experiments[{i}].condition_ids","message":f"Condition {condition_id} is not linked to the experiment system."})
     for i, row in enumerate(records["observations"].values()):
         ref(f"observations[{i}].experiment_id", row.get("experiment_id"), "experiments")
         refs(f"observations[{i}].evidence_ids", row.get("evidence_ids"), "evidence")
