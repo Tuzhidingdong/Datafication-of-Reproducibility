@@ -42,6 +42,11 @@ def diagnose_canonical_bundle(bundle: Any) -> dict[str, Any]:
                                    "payload_sha256":fingerprint,
                                    "status":"REVIEW_ONLY_NOT_MERGED"})
 
+    def string_list(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        return [item for item in value if isinstance(item, str)]
+
     def ids(entity: str) -> dict[str, dict[str, Any]]:
         rows = bundle.get(entity, [])
         if not isinstance(rows, list):
@@ -58,7 +63,7 @@ def diagnose_canonical_bundle(bundle: Any) -> dict[str, Any]:
     observed_experiments = set()
     cited_evidence = set()
     for row in systems.values():
-        linked_studies.update(x for x in row.get("study_ids", []) if isinstance(x, str))
+        linked_studies.update(string_list(row.get("study_ids")))
     for row in evidence.values():
         value = row.get("study_id")
         if isinstance(value, str):
@@ -69,14 +74,14 @@ def diagnose_canonical_bundle(bundle: Any) -> dict[str, Any]:
             linked_studies.add(study_id)
         if isinstance(system_id, str):
             linked_systems.add(system_id)
-        used_conditions.update(x for x in row.get("condition_ids", []) if isinstance(x, str))
+        used_conditions.update(string_list(row.get("condition_ids")))
     for row in conditions.values():
-        linked_systems.update(x for x in row.get("system_ids", []) if isinstance(x, str))
+        linked_systems.update(string_list(row.get("system_ids")))
     for row in observations.values():
         experiment_id = row.get("experiment_id")
         if isinstance(experiment_id, str):
             observed_experiments.add(experiment_id)
-        cited_evidence.update(x for x in row.get("evidence_ids", []) if isinstance(x, str))
+        cited_evidence.update(string_list(row.get("evidence_ids")))
 
     unreferenced = {
         "studies_without_system_experiment_or_evidence_link": sorted(set(studies) - linked_studies),
