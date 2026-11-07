@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from dor.canonical import validate_canonical_bundle
+from dor.diagnostics import diagnose_canonical_bundle
 from dor.mapping import sha256_file, validate_mapping_plan
 from dor.selectors import (
     parse_json_pointer, parse_profile_path, render_json_pointer,
@@ -610,6 +611,7 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
         "entity_definition_count": len(build_spec["entity_definitions"]),
         "link_count": len(build_spec["links"]),
         "source_files": sorted(source_cache),
+        "relationship_diagnostics": diagnose_canonical_bundle(bundle),
         "mapping_plan_sha256": mapping_plan_sha256,
         "source_inventory_sha256": inventory_sha256,
         **({"build_spec_sha256": build_spec_sha256} if build_spec_sha256 else {}),
