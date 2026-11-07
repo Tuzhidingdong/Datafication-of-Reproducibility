@@ -121,7 +121,7 @@ def _canonical_id(source_sha: str, definition_id: str, key: list[Any]) -> str:
     return "DOR_" + digest
 
 
-def _read_csv(path: Path, expected_hash: str) -> tuple[list[dict[str, str]], str]:
+def _read_csv(path: Path, expected_hash: str) -> tuple[list[str], list[dict[str, str]], str]:
     if sha256_file(path) != expected_hash:
         raise ValueError(f"Source hash mismatch for {path.name}; inventory is stale.")
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -139,7 +139,7 @@ def _read_csv(path: Path, expected_hash: str) -> tuple[list[dict[str, str]], str
             rows.append(dict(zip(header, values)))
     if sha256_file(path) != expected_hash:
         raise ValueError(f"Source changed while being read: {path.name}")
-    return rows, expected_hash
+    return header, rows, expected_hash
 
 
 def _read_json(path: Path, expected_hash: str) -> tuple[Any, str]:
@@ -219,7 +219,7 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
         fmt = definition.get("source_format", "csv")
         if not isinstance(source_file, str) or not source_file:
             errors.append(_issue("INVALID_SOURCE_FILE", f"{path}.source_file", "source_file is required."))
-        if fmt not in {"csv", "json"}:
+        if not isinstance(fmt, str) or fmt not in {"csv", "json"}:
             errors.append(_issue("INVALID_SOURCE_FORMAT", f"{path}.source_format", "source_format must be csv or json."))
             fmt = "unsupported"
         selector_tokens = None
@@ -287,10 +287,10 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
             continue
         field_id = link.get("field_id")
         expected = (child.get("entity_type"), field_id, parent.get("entity_type"))
-        if expected not in RELATIONSHIPS:
+        if not isinstance(field_id, str) or expected not in RELATIONSHIPS:
             errors.append(_issue("INVALID_CANONICAL_RELATIONSHIP", path, f"Unsupported canonical relationship {expected}."))
         match_mode = link.get("match_mode", "ROW_OVERLAP")
-        if match_mode not in {"ROW_OVERLAP", "FIELD_EQUALITY"}:
+        if not isinstance(match_mode, str) or match_mode not in {"ROW_OVERLAP", "FIELD_EQUALITY"}:
             errors.append(_issue("INVALID_LINK_MATCH_MODE", f"{path}.match_mode", "match_mode must be ROW_OVERLAP or FIELD_EQUALITY."))
         if match_mode == "ROW_OVERLAP":
             if child.get("source_file") != parent.get("source_file") or child.get("source_format", "csv") != parent.get("source_format", "csv"):
@@ -400,12 +400,11 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
             if not path.is_file():
                 raise FileNotFoundError(f"Source file not found: {path}")
             if fmt == "csv":
-                rows, digest = _read_csv(path, digest)
-                source_cache[filename] = {"format": "csv", "rows": rows, "sha256": digest}
-                headers = set(rows[0]) if rows else set()
-                # Header validation is performed even for empty CSVs by the reader's parser below.
+                header, rows, digest = _read_csv(path, digest)
+                source_cache[filename] = {"format": "csv", "header": header, "rows": rows, "sha256": digest}
+                headers = set(header)
                 for item in matching:
-                    if item.get("locator_type") == "csv_column" and rows and item.get("locator") not in headers:
+                    if item.get("locator_type") == "csv_column" and item.get("locator") not in headers:
                         errors.append(_issue("SOURCE_COLUMN_NOT_FOUND", item.get("inventory_id", filename), f"CSV column {item.get('locator')!r} is absent from current file."))
             elif fmt == "json":
                 payload, digest = _read_json(path, digest)
@@ -434,6 +433,9 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
             units = _record_units(definition, source)
         except Exception as exc:
             errors.append(_issue("RECORD_SELECTOR_FAILED", definition["definition_id"], str(exc)))
+            continue
+        if not units:
+            errors.append(_issue("NO_SOURCE_RECORDS_SELECTED", definition["definition_id"], "The source selector returned no records; refusing to emit an empty entity collection silently."))
             continue
         grouping = definition["grouping"]
         key_items = [item_by_id[sid] for sid in grouping.get("source_item_ids", [])]
