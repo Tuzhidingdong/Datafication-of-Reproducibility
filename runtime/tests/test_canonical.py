@@ -37,6 +37,13 @@ class CanonicalBundleTests(unittest.TestCase):
         bundle=valid_bundle(); bundle["observations"][0]["value_state"]="ZERO"
         report=validate_canonical_bundle(bundle)
         self.assertTrue(any(e["code"]=="INVALID_MISSINGNESS_STATE" for e in report["errors"]))
+    def test_reported_observation_with_null_value_is_warned(self):
+        bundle=valid_bundle()
+        bundle["observations"][0]["raw_value"]=None
+        report=validate_canonical_bundle(bundle)
+        self.assertTrue(report["valid"])
+        self.assertTrue(any(w["code"]=="REPORTED_WITHOUT_RAW_VALUE" for w in report["warnings"]))
+
     def test_input_is_not_mutated(self):
         bundle=valid_bundle(); before=copy.deepcopy(bundle)
         validate_canonical_bundle(bundle)
