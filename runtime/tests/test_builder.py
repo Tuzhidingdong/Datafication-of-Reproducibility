@@ -95,6 +95,13 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertIsNone(bundle)
         self.assertTrue(any(e["code"]=="GROUP_FIELD_CONFLICT" for e in report["errors"]))
 
+    def test_custom_transform_is_not_executed(self):
+        rule = next(item for item in self.mapping["rules"] if item["mapping_rule_id"] == "R_VALUE")
+        rule["transformation"] = {"type":"CUSTOM","parameters":{"implementation":"not-installed"}}
+        bundle, report = build_canonical_bundle(self.mapping,self.inventory,self.spec,self.root,self.plan_hash,self.inventory_path_hash)
+        self.assertIsNone(bundle)
+        self.assertTrue(any(e["code"]=="VALUE_TRANSFORM_FAILED" for e in report["errors"]))
+
     def test_unapproved_mapping_cannot_build(self):
         self.mapping["rules"][0]["status"]="REVIEWED"
         bundle, report = build_canonical_bundle(self.mapping,self.inventory,self.spec,self.root,self.plan_hash,self.inventory_path_hash)
