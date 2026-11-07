@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from dor.structure import profile_json_structure
+from dor.inventory import build_source_inventory, write_source_inventory
 
 def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
     digest = hashlib.sha256()
@@ -141,4 +142,6 @@ def run_audit(csv_path: Path | None, json_path: Path | None, output_dir: Path) -
             writer.writeheader()
             for item in json_record["structure_profile"]["paths"]:
                 writer.writerow({**item, "value_types": json.dumps(item["value_types"], ensure_ascii=False, sort_keys=True)})
+    inventory = build_source_inventory(sources)
+    write_source_inventory(inventory, output_dir)
     return manifest
