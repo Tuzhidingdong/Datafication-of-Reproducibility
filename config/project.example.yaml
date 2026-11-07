@@ -12,12 +12,12 @@ source_data:
     - role: "wide_table"
       path: "../private_data/consolidated_zinc_battery_database.csv"
       format: "csv"
-      description: "Literature-derived wide table; one row is intended to represent one material/battery system."
+      description: "Literature-derived wide table; row semantics require confirmation."
       read_only: true
     - role: "evidence_database"
       path: "../private_data/consolidated_zinc_battery_database.json"
       format: "json"
-      description: "Nested evidence and context database."
+      description: "Nested evidence and context database; schema requires inspection."
       read_only: true
 
 workspace:
@@ -36,6 +36,6 @@ workflow:
     require_user_approval_for_deep_investigation: true
 
 notes:
-  - "This is an example configuration, not a verified mapping of the user's current dataset."
+  - "This is an example configuration, not a verified mapping of the current dataset."
   - "Adjust local file paths without committing private paths or source data."
   - "Review the actual CSV and JSON before completing the zinc-battery feature mapping."
