@@ -14,7 +14,7 @@ The project aims to reconstruct relationships among reported experimental condit
 
 ## Repository status
 
-This repository is being initialized as the **V0.1 foundation**. V0.1 focuses on the Antigravity Skill entry point, project and domain configuration, data audit contracts, workflow state, Agent task/result protocols, immutable-source safeguards, and publication-package navigation. It does not yet claim to implement a complete modelling or interaction-discovery engine.
+This Draft development branch now contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, and the first V0.3 modelling component: endpoint-specific cohort construction with deterministic Study-level train/validation/test splits. Model fitting, baseline comparison, uncertainty evaluation, and interaction discovery are not yet implemented. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
 
 ## Planned layout
 
@@ -23,7 +23,8 @@ This repository is being initialized as the **V0.1 foundation**. V0.1 focuses on
 - `domain_profiles/template/`: reusable domain-adapter templates.
 - `domain_profiles/zinc_battery/`: initial adapter scaffold; mappings remain provisional until the actual CSV/JSON are audited.
 - `schemas/`: machine-readable contracts for projects, datasets, workflow state, tasks, findings, and publication manifests.
-- `runtime/`: deterministic Python engine scaffold.
+- `runtime/`: deterministic Python engine, including audit, canonical build, reconciliation, and modelling-cohort preparation.
+- `docs/V0.3_MODELING_COHORTS.md`: modelling task, cohort eligibility, split, and output contract.
 - `templates/`: reusable reports and paper-output templates.
 - `tests/`: V0.1 contract and immutability tests.
 
