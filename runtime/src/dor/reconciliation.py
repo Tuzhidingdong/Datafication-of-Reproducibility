@@ -217,7 +217,8 @@ def reconcile_canonical_bundle(bundle: Any, bundle_sha256: str | None = None) ->
             str(locator.get("locator", "")),
         )
         evidence_by_locator.setdefault(key, []).append(evidence_id)
-        if item.get("extraction_status") in {"REVIEW_REQUIRED", "CONFLICTING", "UNVERIFIED"}:
+        extraction_status = item.get("extraction_status")
+        if isinstance(extraction_status, str) and extraction_status in {"REVIEW_REQUIRED", "CONFLICTING", "UNVERIFIED"}:
             linked_observations = [
                 oid for oid, observation in observations.items()
                 if evidence_id in _as_string_list(observation.get("evidence_ids"))
@@ -260,7 +261,7 @@ def reconcile_canonical_bundle(bundle: Any, bundle_sha256: str | None = None) ->
     ):
         for entity_id, record in records.items():
             state = record.get("value_state")
-            if state in {"AMBIGUOUS", "CONFLICTING"}:
+            if isinstance(state, str) and state in {"AMBIGUOUS", "CONFLICTING"}:
                 evidence_refs = _as_string_list(record.get("evidence_ids"))
                 issues.append(_make_issue(
                     "SOURCE_VALUE_STATE_" + str(state), "REVIEW_REQUIRED", entity_type,
@@ -320,7 +321,7 @@ def reconcile_bundle_file(bundle_path: Path, output_dir: Path) -> dict[str, Any]
 
 
 def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
-                                       report_sha256: str) -> dict[str, Any]:
+                                       report_sha256: str, bundle_sha256: str | None = None) -> dict[str, Any]:
     """Validate human decision records without applying them to the canonical bundle."""
     errors: list[dict[str, str]] = []
     if not isinstance(decisions, dict):
@@ -330,6 +331,8 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
         errors.append({"code":"STALE_RECONCILIATION_REPORT","path":"reconciliation_report_sha256","message":"Decisions must bind to the exact reconciliation report file hash."})
     if not isinstance(bundle, dict) or report.get("bundle_sha256") is None:
         errors.append({"code":"MISSING_BUNDLE_PROVENANCE","path":"bundle_sha256","message":"The reconciliation report must reference a bundle hash."})
+    elif bundle_sha256 is None or report.get("bundle_sha256") != bundle_sha256:
+        errors.append({"code":"STALE_CANONICAL_BUNDLE","path":"bundle_sha256","message":"The canonical bundle must match the exact bundle hash used by the reconciliation report."})
     issues = report.get("issues", []) if isinstance(report, dict) else []
     issue_by_id = {item.get("issue_id"): item for item in issues if isinstance(item, dict)}
     evidence_ids = set(_records(bundle, "evidence", "evidence_id")) if isinstance(bundle, dict) else set()
@@ -353,7 +356,7 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
         if issue_id in seen:
             errors.append({"code":"DUPLICATE_ISSUE_DECISION","path":f"{path}.issue_id","message":"An issue may have at most one decision in this decision file."})
         seen.add(issue_id)
-        if decision.get("decision") not in allowed:
+        if not isinstance(decision.get("decision"), str) or decision.get("decision") not in allowed:
             errors.append({"code":"INVALID_RECONCILIATION_DECISION","path":f"{path}.decision","message":"Unsupported decision value."})
         for field in ("reviewer", "reviewed_at", "rationale"):
             if not isinstance(decision.get(field), str) or not decision[field].strip():
@@ -383,4 +386,4 @@ def validate_reconciliation_decisions_files(decisions_path: Path, report_path: P
         report = json.load(handle)
     with bundle_path.open("r", encoding="utf-8-sig") as handle:
         bundle = json.load(handle)
-    return validate_reconciliation_decisions(decisions, report, bundle, sha256_file(report_path))
+    return validate_reconciliation_decisions(decisions, report, bundle, sha256_file(report_path), sha256_file(bundle_path))
