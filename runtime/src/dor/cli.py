@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
+from dor.cohort import build_modeling_cohort_files
 from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
 from dor.diagnostics import diagnose_canonical_bundle
@@ -47,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--spec", type=Path, required=True, help="Canonical build specification JSON")
     build.add_argument("--source-root", type=Path, required=True, help="Directory containing source files named in the inventory")
     build.add_argument("--out-dir", type=Path, required=True, help="New or empty derived output directory")
+    cohort = subparsers.add_parser("build-cohort", help="Build an endpoint-specific modelling cohort with study-level splits")
+    cohort.add_argument("--bundle", type=Path, required=True, help="Validated canonical_bundle.json")
+    cohort.add_argument("--task", type=Path, required=True, help="Explicit modeling_task.json")
+    cohort.add_argument("--out-dir", type=Path, required=True, help="New or empty derived cohort output directory")
     return parser
 
 def main() -> int:
@@ -79,6 +84,14 @@ def main() -> int:
             report=validate_mapping_files(args.plan,args.inventory)
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
+        if args.command == "build-cohort":
+            result=build_modeling_cohort_files(args.bundle,args.task,args.out_dir)
+            report=result["report"]
+            print(json.dumps({"status":"completed" if result["valid"] else "failed",
+                "output_dir":result["output_dir"],"eligible_observation_count":report.get("eligible_observation_count",0),
+                "eligible_study_count":report.get("eligible_study_count",0),
+                "split_counts":report.get("split_counts",{}),"errors":report.get("errors",[])},ensure_ascii=False,indent=2))
+            return 0 if result["valid"] else 2
         if args.command == "build-canonical":
             output_dir=args.out_dir.expanduser().resolve()
             if output_dir.exists():
