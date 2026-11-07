@@ -36,7 +36,10 @@ class CanonicalDiagnosticsTests(unittest.TestCase):
     def test_malformed_relationship_fields_do_not_crash(self):
         bundle=sample_bundle()
         bundle["systems"][0]["study_ids"]="not-an-array"
+        bundle["experiments"][0]["study_id"]=None
         bundle["experiments"][0]["condition_ids"]=None
+        for evidence in bundle["evidence"]:
+            evidence["study_id"]=None
         bundle["observations"][0]["evidence_ids"]=42
         report=diagnose_canonical_bundle(bundle)
         self.assertTrue(report["valid_input"])
