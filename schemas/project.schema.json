@@ -1,68 +1,15 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/project.schema.json",
-  "title": "Datafication of Reproducibility Project Configuration",
-  "type": "object",
-  "required": ["schema_version", "project", "domain_profile", "source_data", "workspace", "workflow"],
-  "properties": {
-    "schema_version": {"type": "string", "const": "1.0"},
-    "project": {
-      "type": "object",
-      "required": ["project_id", "name"],
-      "properties": {
-        "project_id": {"type": "string", "minLength": 1},
-        "name": {"type": "string", "minLength": 1},
-        "description": {"type": "string"},
-        "owner_notes": {"type": "string"}
-      },
-      "additionalProperties": true
-    },
-    "domain_profile": {"type": "string", "description": "Project-relative path to a domain profile YAML file."},
-    "source_data": {
-      "type": "object",
-      "required": ["files"],
-      "properties": {
-        "files": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": ["role", "path", "format"],
-            "properties": {
-              "role": {"type": "string"},
-              "path": {"type": "string"},
-              "format": {"enum": ["csv", "json", "xlsx", "parquet", "tsv", "other"]},
-              "description": {"type": "string"},
-              "read_only": {"type": "boolean", "default": true}
-            },
-            "additionalProperties": true
-          }
-        }
-      },
-      "additionalProperties": true
-    },
-    "workspace": {
-      "type": "object",
-      "required": ["runs_dir", "cache_dir"],
-      "properties": {
-        "runs_dir": {"type": "string"},
-        "cache_dir": {"type": "string"},
-        "allow_source_copy": {"type": "boolean", "default": false}
-      },
-      "additionalProperties": true
-    },
-    "workflow": {
-      "type": "object",
-      "required": ["mode", "approval_gates", "source_policy"],
-      "properties": {
-        "mode": {"enum": ["guided"]},
-        "approval_gates": {"type": "array", "items": {"enum": ["G0", "G1", "G2", "G3", "G4"]}},
-        "source_policy": {"enum": ["preserve"]},
-        "max_parallel_workers": {"type": "integer", "minimum": 1, "maximum": 4},
-        "llm_budget": {"type": "object"}
-      },
-      "additionalProperties": true
-    }
-  },
-  "additionalProperties": false
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/project.schema.json",
+  "title":"Datafication of Reproducibility Project Configuration","type":"object",
+  "required":["schema_version","project","domain_profile","source_data","workspace","workflow"],
+  "properties":{
+    "schema_version":{"type":"string","const":"1.0"},
+    "project":{"type":"object","required":["project_id","name"],"properties":{"project_id":{"type":"string","minLength":1},"name":{"type":"string","minLength":1},"description":{"type":"string"},"owner_notes":{"type":"string"}},"additionalProperties":true},
+    "domain_profile":{"type":"string","description":"Project-relative path to a domain profile YAML file."},
+    "source_data":{"type":"object","required":["files"],"properties":{"files":{"type":"array","minItems":1,"items":{"type":"object","required":["role","path","format"],"properties":{"role":{"type":"string"},"path":{"type":"string"},"format":{"enum":["csv","json","xlsx","parquet","tsv","other"]},"description":{"type":"string"},"read_only":{"type":"boolean","default":true}},"additionalProperties":true}}},"additionalProperties":true},
+    "workspace":{"type":"object","required":["runs_dir","cache_dir"],"properties":{"runs_dir":{"type":"string"},"cache_dir":{"type":"string"},"allow_source_copy":{"type":"boolean","default":false}},"additionalProperties":true},
+    "workflow":{"type":"object","required":["mode","approval_gates","source_policy"],"properties":{"mode":{"enum":["guided"]},"approval_gates":{"type":"array","items":{"enum":["G0","G1","G2","G3","G4"]}},"source_policy":{"enum":["preserve"]},"max_parallel_workers":{"type":"integer","minimum":1,"maximum":4},"llm_budget":{"type":"object"}},"additionalProperties":true},
+    "notes":{"type":"array","items":{"type":"string"},"description":"Non-executable reminders for the human project owner."}
+  },"additionalProperties":false
 }
