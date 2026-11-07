@@ -12,7 +12,7 @@ class ReadOnlyAuditTests(unittest.TestCase):
             source_json.write_text(json.dumps({"records":[{"evidence":"quote","values":[1,None,"x"]}]}),encoding="utf-8")
             hashes=(sha256_file(source_csv),sha256_file(source_json)); result=run_audit(source_csv,source_json,output)
             self.assertEqual(result["audit_scope"],"READ_ONLY_STRUCTURAL_INSPECTION")
-            for name in ["dataset_manifest.json","data_audit_report.md","column_coverage.csv","json_structure_paths.csv"]:
+            for name in ["dataset_manifest.json","data_audit_report.md","column_coverage.csv","json_structure_paths.csv","source_inventory.json","mapping_review_queue.csv"]:
                 self.assertTrue((output/name).is_file())
             self.assertEqual(hashes,(sha256_file(source_csv),sha256_file(source_json)))
             with (output/"column_coverage.csv").open(encoding="utf-8",newline="") as h:
