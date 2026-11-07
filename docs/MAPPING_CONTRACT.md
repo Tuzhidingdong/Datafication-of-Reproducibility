@@ -4,7 +4,7 @@
 
 A mapping plan records explicit decisions that connect structural source items to fields in the canonical research model. It is a reviewable scientific contract, not a semantic inference engine. Column names, JSON paths, observed value types, and coverage statistics may help a reviewer inspect a source, but none proves what a field means.
 
-The plan is validated against the exact `source_inventory.json` file from which it was prepared. Only rules in `APPROVED` status that pass every validation gate are eligible for a later canonical builder. This validator does not execute conversions or certify scientific correctness.
+The plan is validated against the exact `source_inventory.json` file from which it was prepared. Only rules in `APPROVED` status that pass every validation gate are eligible for `dor build-canonical`. The mapping validator checks eligibility but does not execute conversions or certify scientific correctness; the canonical builder executes only the explicitly supported transformation types under a separate build specification.
 
 ## Rule structure
 
