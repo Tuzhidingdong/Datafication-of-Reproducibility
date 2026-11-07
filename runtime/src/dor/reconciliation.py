@@ -327,9 +327,10 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
     if not isinstance(decisions, dict):
         return {"valid": False, "errors": [{"code":"DECISIONS_NOT_OBJECT","path":"$","message":"Decision file must be an object."}],
                 "validated_decision_ids": [], "decision_policy":"DECISIONS_ARE_REVIEW_METADATA_ONLY"}
-    if not isinstance(report, dict) or decisions.get("reconciliation_report_sha256") != report_sha256:
+    report_is_object = isinstance(report, dict)
+    if not report_is_object or decisions.get("reconciliation_report_sha256") != report_sha256:
         errors.append({"code":"STALE_RECONCILIATION_REPORT","path":"reconciliation_report_sha256","message":"Decisions must bind to the exact reconciliation report file hash."})
-    if not isinstance(bundle, dict) or report.get("bundle_sha256") is None:
+    if not isinstance(bundle, dict) or not report_is_object or report.get("bundle_sha256") is None:
         errors.append({"code":"MISSING_BUNDLE_PROVENANCE","path":"bundle_sha256","message":"The reconciliation report must reference a bundle hash."})
     elif bundle_sha256 is None or report.get("bundle_sha256") != bundle_sha256:
         errors.append({"code":"STALE_CANONICAL_BUNDLE","path":"bundle_sha256","message":"The canonical bundle must match the exact bundle hash used by the reconciliation report."})
