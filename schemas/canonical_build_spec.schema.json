@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/canonical_build_spec.schema.json",
+  "title": "Explicit canonical entity grouping and linking specification",
+  "type": "object",
+  "required": ["schema_version", "project_id", "mapping_version", "mapping_plan_sha256", "source_inventory_sha256", "entity_definitions", "links"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "project_id": {"type": "string", "minLength": 1},
+    "mapping_version": {"type": "string", "minLength": 1},
+    "mapping_plan_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "source_inventory_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "entity_definitions": {"type": "array", "items": {"$ref": "#/$defs/entity_definition"}},
+    "links": {"type": "array", "items": {"$ref": "#/$defs/link"}}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "entity_definition": {
+      "type": "object",
+      "required": ["definition_id", "entity_type", "source_file", "grouping", "field_rule_ids"],
+      "properties": {
+        "definition_id": {"type": "string", "minLength": 1},
+        "entity_type": {"enum": ["studies", "systems", "conditions", "experiments", "observations", "comparisons", "evidence"]},
+        "source_file": {"type": "string", "minLength": 1},
+        "grouping": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": {"enum": ["SOURCE_ROW", "GROUP_BY_FIELDS"]},
+            "source_item_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+          },
+          "allOf": [
+            {"if": {"properties": {"mode": {"const": "SOURCE_ROW"}}, "required": ["mode"]}, "then": {"properties": {"source_item_ids": {"maxItems": 0}}}},
+            {"if": {"properties": {"mode": {"const": "GROUP_BY_FIELDS"}}, "required": ["mode"]}, "then": {"required": ["source_item_ids"], "properties": {"source_item_ids": {"minItems": 1}}}}
+          ],
+          "additionalProperties": false
+        },
+        "field_rule_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    },
+    "link": {
+      "type": "object",
+      "required": ["child_definition_id", "parent_definition_id", "field_id"],
+      "properties": {
+        "child_definition_id": {"type": "string", "minLength": 1},
+        "parent_definition_id": {"type": "string", "minLength": 1},
+        "field_id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  }
+}
