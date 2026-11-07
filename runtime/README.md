@@ -9,9 +9,10 @@ The runtime provides:
 - bounded nested JSON structure profiling;
 - stable source inventory and unresolved mapping review queue;
 - canonical research bundle structural and referential-integrity validation;
-- mapping-plan reference, provenance, transformation-specification, and approval-gate validation.
+- mapping-plan reference, provenance, transformation-specification, and approval-gate validation;
+- deterministic canonical construction from approved mappings, explicit entity grouping, and explicit row-overlap relationships for CSV sources.
 
-The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The mapping plan schema is in ../schemas/mapping_plan.schema.json. See ../docs/CANONICAL_DATA_MODEL.md and ../docs/MAPPING_CONTRACT.md for the entity and mapping contracts.
+The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The mapping plan schema is in ../schemas/mapping_plan.schema.json. The build specification schema is in ../schemas/canonical_build_spec.schema.json. See ../docs/CANONICAL_DATA_MODEL.md, ../docs/MAPPING_CONTRACT.md, and ../docs/CANONICAL_BUILDER.md.
 
 ## Setup
 
@@ -33,20 +34,34 @@ Either input may be omitted, but at least one must be supplied. Output must be a
 
     dor validate-bundle --input canonical_bundle.json --out validation_report.json
 
-The command reports missing required fields, duplicate IDs, broken references, selected relationship inconsistencies, invalid missingness states, and malformed evidence locators. It returns exit code 0 when valid and 2 when validation errors are found. The report states its scope and does not certify scientific correctness.
+This checks required entity fields, duplicate IDs, broken references, selected relationship inconsistencies, missingness states, comparison size, and evidence locator presence. It is structural/referential validation, not scientific validation or full JSON Schema validation.
 
 ## Validate a mapping plan
 
     dor validate-mapping --plan mapping_plan.json --inventory source_inventory.json --out mapping_validation.json
 
-The plan must contain the SHA-256 digest of the exact inventory file. Calculate it after the inventory is final; editing or regenerating that inventory invalidates the plan's digest. Only rules with APPROVED status, a valid source reference, a supported canonical target, explicit transformation specification, and reviewer metadata are eligible. Any validation error fails closed and produces no eligible rule IDs.
+The plan must contain the SHA-256 digest of the exact inventory file. Regenerating or editing that inventory invalidates the plan's digest. Only approved rules with valid references, targets, explicit transformations, and review metadata are eligible. Any error fails closed and produces no eligible rule IDs.
 
-This command validates eligibility; it does not execute conversions, create canonical entities, or decide whether a scientific mapping is correct. Transformation execution and canonical construction are separate future components.
+## Build a canonical bundle
+
+    dor build-canonical --plan mapping_plan.json --inventory source_inventory.json --spec canonical_build_spec.json --source-root path/to/source/files --out-dir path/to/new/derived/run/02_canonical
+
+The build specification is bound to the exact mapping-plan and source-inventory file hashes. It explicitly defines:
+- each canonical entity definition and the source CSV it reads;
+- whether instances are one-per-source-row or grouped by declared source key columns;
+- which approved mapping rules populate the entity's fields;
+- which child-to-parent relationships are created from shared source-row overlap.
+
+The builder never assumes that a CSV row is an experiment. Grouped fields must be consistent within a group; conflicting values fail the build and require a finer grouping or a reviewed mapping change. Blank grouping keys fail rather than creating unstable identities. IDs are deterministic within the input hashes and build-definition IDs.
+
+V0.2 construction currently supports CSV columns only. JSON paths are inventoried but are not yet executable selectors; a build definition referencing a JSON path is rejected. Relationships are supported only when child and parent definitions refer to the same source CSV and the declared relationship is evidenced by shared source rows. Cross-file joins require a future explicit join-key contract.
+
+The builder executes IDENTITY, NUMERIC_PARSE, UNIT_CONVERSION, LOOKUP, and SPLIT transformations. CUSTOM transformations are not executable. Raw source values and per-cell provenance are retained in each entity's field_provenance; source row/hash and mapping version are recorded in _provenance. The build report is always written; canonical_bundle.json is written only after structural and referential validation passes. A successful build is not proof that the scientific mappings or entity groupings are correct.
 
 ## Source preservation
 
-The audit reads inputs and writes only to --out. It records input hashes before and after inspection and fails if an input changed during the audit. It refuses a non-empty output directory and refuses an output path that is an existing file. The validators read their inputs and write only to the optional report path.
+All commands read original sources. Audit and build outputs go to separate derived directories. The builder verifies source hashes before and after reading and refuses non-empty output directories. It never edits source CSV/JSON files.
 
 ## Interpretation boundary
 
-A nested path is only a structural observation. It does not establish that a value is an experimental setpoint, measured local state, or valid model feature. Domain mapping remains a separately reviewed scientific task.
+A nested path or column is only a structural observation. It does not establish that a value is an experimental setpoint, measured local state, or valid model feature. Domain mapping, grouping, and relationship rules remain explicit scientific review decisions.
