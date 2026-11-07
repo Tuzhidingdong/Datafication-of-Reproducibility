@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
+from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
 from dor.mapping import validate_mapping_files
 
@@ -20,6 +21,12 @@ def build_parser() -> argparse.ArgumentParser:
     mapping.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
     mapping.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
     mapping.add_argument("--out", type=Path, help="Optional path for a validation report JSON")
+    build = subparsers.add_parser("build-canonical", help="Build canonical entities from approved CSV mappings and explicit grouping/link rules")
+    build.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
+    build.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
+    build.add_argument("--spec", type=Path, required=True, help="Canonical build specification JSON")
+    build.add_argument("--source-root", type=Path, required=True, help="Directory containing source CSV files named in the inventory")
+    build.add_argument("--out-dir", type=Path, required=True, help="New or empty derived output directory")
     return parser
 
 def main() -> int:
@@ -34,19 +41,42 @@ def main() -> int:
             with args.input.open("r",encoding="utf-8-sig") as handle:
                 bundle=json.load(handle)
             report=validate_canonical_bundle(bundle)
-        elif args.command == "validate-mapping":
+            rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
+            if args.out:
+                args.out.parent.mkdir(parents=True,exist_ok=True)
+                args.out.write_text(rendered,encoding="utf-8")
+            print(rendered,end="")
+            return 0 if report["valid"] else 2
+        if args.command == "validate-mapping":
             report=validate_mapping_files(args.plan,args.inventory)
-        else:
-            return 1
-        rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
-        if args.out:
-            args.out.parent.mkdir(parents=True,exist_ok=True)
-            args.out.write_text(rendered,encoding="utf-8")
-        print(rendered,end="")
-        return 0 if report["valid"] else 2
+            rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
+            if args.out:
+                args.out.parent.mkdir(parents=True,exist_ok=True)
+                args.out.write_text(rendered,encoding="utf-8")
+            print(rendered,end="")
+            return 0 if report["valid"] else 2
+        if args.command == "build-canonical":
+            output_dir=args.out_dir.expanduser().resolve()
+            if output_dir.exists():
+                if not output_dir.is_dir():
+                    raise NotADirectoryError(f"Output path exists and is not a directory: {output_dir}")
+                if any(output_dir.iterdir()):
+                    raise FileExistsError(f"Refusing to overwrite a non-empty output directory: {output_dir}")
+            source_root=args.source_root.expanduser().resolve()
+            bundle, report=build_canonical_files(args.plan,args.inventory,args.spec,source_root)
+            output_dir.mkdir(parents=True,exist_ok=True)
+            (output_dir/"build_report.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+            if bundle is None:
+                print(json.dumps({"status":"failed","output_dir":str(output_dir),"report":report},ensure_ascii=False,indent=2))
+                return 2
+            (output_dir/"canonical_bundle.json").write_text(json.dumps(bundle,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+            print(json.dumps({"status":"completed","output_dir":str(output_dir),
+                "entity_counts":report["entity_counts"]},ensure_ascii=False))
+            return 0
     except Exception as exc:
         print(json.dumps({"status":"failed","error_type":type(exc).__name__,"error":str(exc)}),file=sys.stderr)
         return 2
+    return 1
 
 if __name__ == "__main__":
     raise SystemExit(main())
