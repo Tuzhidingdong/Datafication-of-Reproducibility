@@ -233,7 +233,7 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
                 errors.append(_issue("INVALID_JSON_RECORD_SELECTOR", f"{path}.record_selector", str(exc)))
 
         grouping = definition.get("grouping")
-        if not isinstance(grouping, dict) or grouping.get("mode") not in {"SOURCE_ROW", "GROUP_BY_FIELDS"}:
+        if not isinstance(grouping, dict) or not isinstance(grouping.get("mode"), str) or grouping.get("mode") not in {"SOURCE_ROW", "GROUP_BY_FIELDS"}:
             errors.append(_issue("INVALID_GROUPING", f"{path}.grouping", "Grouping mode must be SOURCE_ROW or GROUP_BY_FIELDS."))
             grouping = {}
         key_ids = grouping.get("source_item_ids", [])
@@ -255,6 +255,9 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
             field_rule_ids = []
         seen_fields: set[str] = set()
         for rule_id in field_rule_ids:
+            if not isinstance(rule_id, str):
+                errors.append(_issue("INVALID_FIELD_RULE_ID", f"{path}.field_rule_ids", "Field rule IDs must be strings."))
+                continue
             rule = rule_by_id.get(rule_id)
             if rule_id not in approved_ids or not rule:
                 errors.append(_issue("RULE_NOT_ELIGIBLE", f"{path}.field_rule_ids", f"{rule_id} is not an approved, validated mapping rule."))
@@ -281,8 +284,10 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
         if not isinstance(link, dict):
             errors.append(_issue("LINK_NOT_OBJECT", path, "Link declaration must be an object."))
             continue
-        child = def_by_id.get(link.get("child_definition_id"))
-        parent = def_by_id.get(link.get("parent_definition_id"))
+        child_id = link.get("child_definition_id")
+        parent_id = link.get("parent_definition_id")
+        child = def_by_id.get(child_id) if isinstance(child_id, str) else None
+        parent = def_by_id.get(parent_id) if isinstance(parent_id, str) else None
         if child is None or parent is None:
             errors.append(_issue("UNKNOWN_LINK_DEFINITION", path, "Child and parent definition IDs must exist."))
             continue
@@ -308,7 +313,7 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
                 mapped_fields = {rule.get("target_field_id") for rule in rules if isinstance(rule, dict)}
                 if isinstance(key_field, str) and key_field not in mapped_fields:
                     errors.append(_issue("JOIN_KEY_NOT_MAPPED", f"{path}.{key_name}", f"{prefix} join key must be populated by an explicit mapping rule in its entity definition."))
-        key = (link.get("child_definition_id"), link.get("parent_definition_id"), field_id)
+        key = (child_id, parent_id, field_id if isinstance(field_id, str) else repr(field_id))
         if key in seen_links:
             errors.append(_issue("DUPLICATE_LINK", path, "Duplicate link declaration."))
         seen_links.add(key)
