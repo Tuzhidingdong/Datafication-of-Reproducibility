@@ -39,6 +39,7 @@ class CanonicalBuilderTests(unittest.TestCase):
           "source_inventory_sha256":"placeholder","rules":rules}
         self.inventory_path_hash = "b"*64
         self.plan_hash = "c"*64
+        self.spec_hash = "e"*64
         self.spec = {
           "schema_version":"1.0","project_id":"TEST","mapping_version":"map-1",
           "mapping_plan_sha256":self.plan_hash,"source_inventory_sha256":self.inventory_path_hash,
@@ -68,7 +69,7 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_builds_grouped_entities_and_explicit_links(self):
-        bundle, report = build_canonical_bundle(self.mapping,self.inventory,self.spec,self.root,self.plan_hash,self.inventory_path_hash)
+        bundle, report = build_canonical_bundle(self.mapping,self.inventory,self.spec,self.root,self.plan_hash,self.inventory_path_hash,self.spec_hash)
         self.assertTrue(report["valid"], report)
         self.assertEqual(len(bundle["studies"]),1)
         self.assertEqual(len(bundle["systems"]),1)
@@ -76,6 +77,8 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertEqual(len(bundle["observations"]),2)
         self.assertEqual(bundle["observations"][0]["raw_value"],100)
         self.assertEqual(bundle["experiments"][0]["study_id"],bundle["studies"][0]["study_id"])
+        self.assertEqual(bundle["build_provenance"]["build_spec_sha256"],self.spec_hash)
+        self.assertEqual(bundle["observations"][0]["_provenance"]["mapping_plan_sha256"],self.plan_hash)
 
     def test_conflicting_values_within_group_fail_closed(self):
         self.spec["entity_definitions"][0]["field_rule_ids"]=["R_DOI","R_TITLE"]
