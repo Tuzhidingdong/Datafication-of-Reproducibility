@@ -4,17 +4,13 @@ The runtime executes deterministic, file-based operations. It does not orchestra
 
 ## Current implementation
 
-The runtime provides a read-only structural audit:
-- source existence, readability, file size, and SHA-256;
-- CSV headers, row count, short/long row counts, non-empty coverage, and coarse sampled type hints;
-- JSON parse validation, top-level shape, and a bounded nested path/type profile;
-- a machine-readable dataset manifest and Markdown audit report;
-- column-coverage CSV and JSON-structure-path CSV;
-- source_inventory.json and mapping_review_queue.csv, containing neutral source locators with unresolved mapping status.
+The runtime provides:
+- read-only CSV/JSON structural audit, source hashing, and coverage reports;
+- bounded nested JSON structure profiling;
+- stable source inventory and unresolved mapping review queue;
+- canonical research bundle integrity validation.
 
-The JSON profile records structural paths, observed JSON value types, and list-length ranges. It deliberately does not copy source text values into the profile or assign domain meaning to any path. The inventory is a review queue, not an automatically inferred semantic mapping.
-
-The audit does not infer domain semantics, normalize values, impute missing conditions, merge systems, train models, or modify source files.
+The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The model distinguishes Study, System, Condition, Experiment, Observation, Comparison, and Evidence. See ../docs/CANONICAL_DATA_MODEL.md for relationship rules and interpretation boundaries.
 
 ## Setup
 
@@ -24,17 +20,23 @@ From the repository root:
     # Activate the environment using your operating system's normal command.
     python -m pip install -e ./runtime
 
-The current audit uses the Python standard library only.
+The current runtime uses the Python standard library only.
 
-## Run an audit
+## Run a read-only audit
 
     dor audit --csv path/to/input.csv --json path/to/input.json --out path/to/separate/run/01_audit
 
 Either input may be omitted, but at least one must be supplied. Output must be a separate derived-data directory. The audit produces dataset_manifest.json, data_audit_report.md, source_inventory.json, and mapping_review_queue.csv, plus the CSV/JSON-specific profile files when those sources are supplied.
 
+## Validate a canonical bundle
+
+    dor validate-bundle --input canonical_bundle.json --out validation_report.json
+
+The command reports missing required fields, duplicate IDs, broken references, selected relationship inconsistencies, invalid missingness states, and malformed evidence locators. It returns exit code 0 when valid and 2 when validation errors are found. The report states its scope and does not certify scientific correctness.
+
 ## Source preservation
 
-The command reads inputs and writes only to --out. It records input hashes before and after inspection and fails if an input changed during the audit. It refuses a non-empty output directory and refuses an output path that is an existing file. Keep source data outside the Git repository unless redistribution is explicitly permitted.
+The audit reads inputs and writes only to --out. It records input hashes before and after inspection and fails if an input changed during the audit. It refuses a non-empty output directory and refuses an output path that is an existing file. The bundle validator reads the supplied bundle and writes only to the optional report path.
 
 ## Interpretation boundary
 
