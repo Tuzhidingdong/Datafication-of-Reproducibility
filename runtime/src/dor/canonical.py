@@ -45,7 +45,7 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
             ids[collection].add(identifier)
             records[collection][identifier] = row
     def ref(path: str, value: Any, collection: str) -> None:
-        if value not in ids[collection]:
+        if not isinstance(value, str) or value not in ids[collection]:
             errors.append({"code":"BROKEN_REFERENCE","path":path,"message":f"Reference {value!r} not found in {collection}."})
     def refs(path: str, values: Any, collection: str) -> None:
         if not isinstance(values, list):
@@ -73,7 +73,8 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
             warnings.append({"code":"ZERO_ON_NON_REPORTED_STATE","path":f"observations[{i}].raw_value","message":"A zero value is present despite a non-REPORTED state; review rather than infer."})
     for i, row in enumerate(records["comparisons"].values()):
         refs(f"comparisons[{i}].observation_ids", row.get("observation_ids"), "observations")
-        if len(row.get("observation_ids", [])) < 2:
+        comparison_refs = row.get("observation_ids", [])
+        if not isinstance(comparison_refs, list) or len(comparison_refs) < 2:
             errors.append({"code":"COMPARISON_TOO_SMALL","path":f"comparisons[{i}].observation_ids","message":"A comparison must reference at least two observations."})
     for i, row in enumerate(records["evidence"].values()):
         ref(f"evidence[{i}].study_id", row.get("study_id"), "studies")
