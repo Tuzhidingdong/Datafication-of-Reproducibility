@@ -4,6 +4,7 @@ import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
 from dor.canonical import validate_canonical_bundle
+from dor.mapping import validate_mapping_files
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dor", description="Datafication of Reproducibility runtime")
@@ -15,6 +16,10 @@ def build_parser() -> argparse.ArgumentParser:
     validate = subparsers.add_parser("validate-bundle", help="Validate canonical bundle structure and references")
     validate.add_argument("--input", type=Path, required=True, help="Canonical bundle JSON file")
     validate.add_argument("--out", type=Path, help="Optional path for a validation report JSON")
+    mapping = subparsers.add_parser("validate-mapping", help="Validate mapping references, provenance, and approval gates")
+    mapping.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
+    mapping.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
+    mapping.add_argument("--out", type=Path, help="Optional path for a validation report JSON")
     return parser
 
 def main() -> int:
@@ -29,16 +34,19 @@ def main() -> int:
             with args.input.open("r",encoding="utf-8-sig") as handle:
                 bundle=json.load(handle)
             report=validate_canonical_bundle(bundle)
-            rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
-            if args.out:
-                args.out.parent.mkdir(parents=True,exist_ok=True)
-                args.out.write_text(rendered,encoding="utf-8")
-            print(rendered,end="")
-            return 0 if report["valid"] else 2
+        elif args.command == "validate-mapping":
+            report=validate_mapping_files(args.plan,args.inventory)
+        else:
+            return 1
+        rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
+        if args.out:
+            args.out.parent.mkdir(parents=True,exist_ok=True)
+            args.out.write_text(rendered,encoding="utf-8")
+        print(rendered,end="")
+        return 0 if report["valid"] else 2
     except Exception as exc:
         print(json.dumps({"status":"failed","error_type":type(exc).__name__,"error":str(exc)}),file=sys.stderr)
         return 2
-    return 1
 
 if __name__ == "__main__":
     raise SystemExit(main())
