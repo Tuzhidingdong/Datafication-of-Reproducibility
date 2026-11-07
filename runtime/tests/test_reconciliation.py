@@ -106,6 +106,12 @@ class ReconciliationTests(unittest.TestCase):
         self.assertFalse(stale["valid"])
         self.assertIn("STALE_CANONICAL_BUNDLE",[x["code"] for x in stale["errors"]])
 
+    def test_malformed_report_is_rejected_without_exception(self):
+        decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,"decisions":[]}
+        result=validate_reconciliation_decisions(decisions,[],bundle(),"b"*64,"a"*64)
+        self.assertFalse(result["valid"])
+        self.assertTrue(any(x["code"]=="STALE_RECONCILIATION_REPORT" for x in result["errors"]))
+
     def test_resolved_with_evidence_requires_evidence_reference(self):
         data=bundle()
         report=reconcile_canonical_bundle(data,"a"*64)
