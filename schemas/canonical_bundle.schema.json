@@ -6,6 +6,7 @@
   "properties":{
     "schema_version":{"const":"1.0"},"project_id":{"type":"string","minLength":1},
     "mapping_version":{"type":"string","minLength":1},
+    "build_provenance":{"type":"object","required":["mapping_plan_sha256","source_inventory_sha256"],"properties":{"mapping_plan_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},"source_inventory_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},"build_spec_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"}},"additionalProperties":false},
     "studies":{"type":"array","items":{"$ref":"#/$defs/study"}},
     "systems":{"type":"array","items":{"$ref":"#/$defs/system"}},
     "conditions":{"type":"array","items":{"$ref":"#/$defs/condition"}},
