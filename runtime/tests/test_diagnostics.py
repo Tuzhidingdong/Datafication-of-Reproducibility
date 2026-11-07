@@ -33,6 +33,15 @@ class CanonicalDiagnosticsTests(unittest.TestCase):
         self.assertEqual(report["duplicate_candidates"][0]["status"],"REVIEW_ONLY_NOT_MERGED")
         self.assertEqual(bundle,before)
 
+    def test_malformed_relationship_fields_do_not_crash(self):
+        bundle=sample_bundle()
+        bundle["systems"][0]["study_ids"]="not-an-array"
+        bundle["experiments"][0]["condition_ids"]=None
+        bundle["observations"][0]["evidence_ids"]=42
+        report=diagnose_canonical_bundle(bundle)
+        self.assertTrue(report["valid_input"])
+        self.assertIn("ST1",report["unreferenced"]["studies_without_system_experiment_or_evidence_link"])
+
     def test_non_object_input_returns_diagnostic_error(self):
         report=diagnose_canonical_bundle([])
         self.assertFalse(report["valid_input"])
