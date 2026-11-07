@@ -74,6 +74,8 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
             errors.append({"code":"CONDITION_WITHOUT_SYSTEM","path":f"conditions[{i}].system_ids","message":"A condition must link to at least one system."})
         if not isinstance(row.get("value_state"), str) or row.get("value_state") not in MISSINGNESS:
             errors.append({"code":"INVALID_MISSINGNESS_STATE","path":f"conditions[{i}].value_state","message":"Unknown value_state."})
+        if row.get("value_state") == "REPORTED" and row.get("raw_value") is None:
+            warnings.append({"code":"REPORTED_CONDITION_WITHOUT_RAW_VALUE","path":f"conditions[{i}]","message":"Reported condition has no raw_value; inspect missing source paths and evidence."})
     for i, row in enumerate(records["experiments"].values()):
         ref(f"experiments[{i}].study_id", row.get("study_id"), "studies")
         ref(f"experiments[{i}].system_id", row.get("system_id"), "systems")
@@ -91,7 +93,7 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
         refs(f"observations[{i}].evidence_ids", row.get("evidence_ids"), "evidence")
         if not isinstance(row.get("value_state"), str) or row.get("value_state") not in MISSINGNESS:
             errors.append({"code":"INVALID_MISSINGNESS_STATE","path":f"observations[{i}].value_state","message":"Unknown value_state."})
-        if row.get("value_state") == "REPORTED" and "raw_value" not in row:
+        if row.get("value_state") == "REPORTED" and row.get("raw_value") is None:
             warnings.append({"code":"REPORTED_WITHOUT_RAW_VALUE","path":f"observations[{i}]","message":"Reported observation has no raw_value field."})
         if row.get("value_state") != "REPORTED" and row.get("raw_value") == 0:
             warnings.append({"code":"ZERO_ON_NON_REPORTED_STATE","path":f"observations[{i}].raw_value","message":"A zero value is present despite a non-REPORTED state; review rather than infer."})
