@@ -31,7 +31,7 @@ def _validate_transform(rule: dict[str, Any], path: str, errors: list[dict[str, 
         return
     kind = transform.get("type")
     params = transform.get("parameters")
-    if kind not in TRANSFORMS:
+    if not isinstance(kind, str) or kind not in TRANSFORMS:
         errors.append(_issue("UNKNOWN_TRANSFORMATION", f"{path}.type", "Transformation type is not supported."))
         return
     if not isinstance(params, dict):
@@ -58,7 +58,7 @@ def _validate_transform(rule: dict[str, Any], path: str, errors: list[dict[str, 
     elif kind == "NUMERIC_PARSE":
         decimal = params.get("decimal_separator", ".")
         thousands = params.get("thousands_separator")
-        if decimal not in {".", ","}:
+        if not isinstance(decimal, str) or decimal not in {".", ","}:
             errors.append(_issue("INVALID_DECIMAL_SEPARATOR", f"{path}.parameters.decimal_separator", "Decimal separator must be '.' or ','."))
         if thousands is not None and (not isinstance(thousands, str) or len(thousands) != 1 or thousands == decimal):
             errors.append(_issue("INVALID_THOUSANDS_SEPARATOR", f"{path}.parameters.thousands_separator", "Thousands separator must be one character distinct from the decimal separator."))
@@ -111,7 +111,7 @@ def validate_mapping_plan(plan: Any, inventory: Any, inventory_sha256: str) -> d
             errors.append(_issue("DUPLICATE_RULE_ID", f"{path}.mapping_rule_id", f"Duplicate mapping rule ID {rule_id}."))
         seen_ids.add(rule_id)
         status = rule.get("status")
-        if status not in STATUSES:
+        if not isinstance(status, str) or status not in STATUSES:
             errors.append(_issue("INVALID_MAPPING_STATUS", f"{path}.status", "Unknown mapping status."))
             excluded.append(rule_id)
             continue
@@ -125,7 +125,7 @@ def validate_mapping_plan(plan: Any, inventory: Any, inventory_sha256: str) -> d
             continue
         target_entity = rule.get("target_entity")
         target_field = rule.get("target_field_id")
-        if target_entity not in ENTITIES:
+        if not isinstance(target_entity, str) or target_entity not in ENTITIES:
             errors.append(_issue("INVALID_TARGET_ENTITY", f"{path}.target_entity", "Approved rule requires a supported canonical entity."))
         if not isinstance(target_field, str) or not target_field.strip():
             errors.append(_issue("INVALID_TARGET_FIELD", f"{path}.target_field_id", "Approved rule requires a non-empty canonical field ID."))
@@ -148,7 +148,7 @@ def validate_mapping_plan(plan: Any, inventory: Any, inventory_sha256: str) -> d
                 errors.append(_issue("DUPLICATE_APPROVED_TARGET", path, f"Approved rules {previous} and {rule_id} map the same source item to the same target."))
             else:
                 approved_targets[key] = rule_id
-        if source is not None and target_entity in ENTITIES and isinstance(target_field, str) and target_field.strip():
+        if source is not None and isinstance(target_entity, str) and target_entity in ENTITIES and isinstance(target_field, str) and target_field.strip():
             approved.append(rule_id)
 
     valid = not errors
@@ -163,6 +163,7 @@ def validate_mapping_plan(plan: Any, inventory: Any, inventory_sha256: str) -> d
         "approved_rule_count": len(approved) if valid else 0,
         "excluded_rule_count": len(excluded),
         "mapping_version": plan.get("mapping_version"),
+        "source_inventory_sha256": inventory_sha256,
         "validation_scope": "MAPPING_REFERENCE_AND_APPROVAL_GATE_ONLY_TRANSFORMATIONS_NOT_EXECUTED",
     }
 
