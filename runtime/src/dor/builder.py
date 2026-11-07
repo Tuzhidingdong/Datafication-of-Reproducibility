@@ -342,6 +342,9 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                     })
             entity_id = _canonical_id(digest, definition["definition_id"], list(key))
             record[ID_FIELDS[entity_type]] = entity_id
+            for generated_field in GENERATED_FIELDS.get(entity_type, set()):
+                if generated_field.endswith("_ids"):
+                    record.setdefault(generated_field, [])
             record.setdefault("_provenance", {
                 "definition_id": definition["definition_id"],
                 "source_file": filename,
