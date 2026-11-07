@@ -42,7 +42,7 @@ The same-row relationship contract is deliberately narrow: it records that the r
 - `SPLIT`: split using an explicit delimiter and declared trimming/empty handling.
 - `CUSTOM`: not executable by the current builder and causes a failed build.
 
-The builder records raw value, transformed value, mapping rule, source file/hash, row/column locator, and transformation parameters per mapped cell. Normalized units should be mapped explicitly; the builder does not guess a unit field from a conversion's target unit.
+The builder records raw value, transformed value, mapping rule, source file/hash, row/column locator, and transformation parameters per mapped cell. Each entity also retains its definition ID, grouped source rows, mapping version, mapping-plan hash, and source-inventory hash. The bundle-level build_provenance records the exact mapping-plan, inventory, and build-spec hashes. Normalized units should be mapped explicitly; the builder does not guess a unit field from a conversion's target unit.
 
 ## Output and failure behavior
 
