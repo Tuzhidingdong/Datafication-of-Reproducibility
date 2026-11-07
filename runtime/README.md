@@ -8,10 +8,11 @@ The runtime provides a read-only structural audit:
 - source existence, readability, file size, and SHA-256;
 - CSV headers, row count, short/long row counts, non-empty coverage, and coarse sampled type hints;
 - JSON parse validation, top-level shape, and a bounded nested path/type profile;
-- machine-readable dataset manifest and Markdown audit report;
-- column-coverage CSV and JSON-structure-path CSV when corresponding sources are supplied.
+- a machine-readable dataset manifest and Markdown audit report;
+- column-coverage CSV and JSON-structure-path CSV;
+- source_inventory.json and mapping_review_queue.csv, containing neutral source locators with unresolved mapping status.
 
-The JSON profile records structural paths, observed JSON value types, and list-length ranges. It deliberately does not copy source text values into the profile or assign domain meaning to any path.
+The JSON profile records structural paths, observed JSON value types, and list-length ranges. It deliberately does not copy source text values into the profile or assign domain meaning to any path. The inventory is a review queue, not an automatically inferred semantic mapping.
 
 The audit does not infer domain semantics, normalize values, impute missing conditions, merge systems, train models, or modify source files.
 
@@ -29,7 +30,7 @@ The current audit uses the Python standard library only.
 
     dor audit --csv path/to/input.csv --json path/to/input.json --out path/to/separate/run/01_audit
 
-Either input may be omitted, but at least one must be supplied. Output must be a separate derived-data directory. The audit produces dataset_manifest.json and data_audit_report.md, plus column_coverage.csv for CSV input and json_structure_paths.csv for JSON input.
+Either input may be omitted, but at least one must be supplied. Output must be a separate derived-data directory. The audit produces dataset_manifest.json, data_audit_report.md, source_inventory.json, and mapping_review_queue.csv, plus the CSV/JSON-specific profile files when those sources are supplied.
 
 ## Source preservation
 
