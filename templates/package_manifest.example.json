@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "project_id": "PROJECT_001",
+  "run_id": "RUN_0001",
+  "package_version": "0.1.0",
+  "created_at": "REPLACE_WITH_ACTUAL_TIMESTAMP",
+  "domain_profile": "domain_profiles/example/domain_profile.yaml",
+  "source_hashes": {},
+  "writing_guide": "README_FOR_WRITING_SKILL.md",
+  "artifacts": [
+    {
+      "artifact_id": "DATA_DICTIONARY_001",
+      "path": "data/data_dictionary.csv",
+      "type": "data_dictionary",
+      "description": "Definitions, units, types, missingness and source mappings for included fields.",
+      "status": "requires_review",
+      "sha256": "",
+      "linked_record_ids": [],
+      "manuscript_sections": ["Methods", "Supporting Information"]
+    },
+    {
+      "artifact_id": "MODEL_CARD_001",
+      "path": "models/MODEL_001/model_card.md",
+      "type": "model_card",
+      "description": "Executed model, parameters, cohort, validation and applicability domain.",
+      "status": "not_generated",
+      "sha256": "",
+      "linked_record_ids": ["MODEL_001"],
+      "manuscript_sections": ["Methods", "Results", "Supporting Information"]
+    },
+    {
+      "artifact_id": "FIGURE_001",
+      "path": "figures/FIGURE_001/figure.svg",
+      "type": "figure",
+      "description": "Rendered figure with associated source data and plotting configuration.",
+      "status": "not_generated",
+      "sha256": "",
+      "linked_record_ids": [],
+      "manuscript_sections": ["Results"]
+    }
+  ],
+  "completeness": {
+    "status": "partial",
+    "unresolved_items": [
+      "Replace example records with artifacts from an executed run.",
+      "Verify all artifact paths and hashes."
+    ]
+  }
+}

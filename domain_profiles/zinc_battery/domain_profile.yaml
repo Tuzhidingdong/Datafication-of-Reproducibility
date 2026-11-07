@@ -1,0 +1,83 @@
+schema_version: "1.0"
+domain:
+  id: "aqueous-zinc-metal-batteries"
+  name: "Aqueous zinc metal batteries"
+  description: >
+    Initial domain adapter scaffold for literature-derived aqueous zinc battery
+    systems, electrolyte formulations, electrochemical protocols, observations,
+    and interfacial mechanisms.
+  version: "0.1.0-provisional"
+  status: "PROVISIONAL_PENDING_SOURCE_AUDIT"
+
+source_data:
+  expected_files:
+    wide_table: "consolidated_zinc_battery_database.csv"
+    evidence_database: "consolidated_zinc_battery_database.json"
+  actual_paths_must_be_supplied_in_local_project_config: true
+  expected_wide_table_description: >
+    One row is described by the project owner as an independent material/battery
+    system, containing DOI, title, year, formulation, 24 standard feature values,
+    and test conditions. This description must be verified against the actual file.
+  nested_json_shape: "NOT_YET_INSPECTED"
+
+entities:
+  study:
+    candidate_identifiers: ["DOI"]
+    additional_fields: ["Title", "Year"]
+  system:
+    candidate_identifier: "system_id"
+    status: "MUST_BE_VERIFIED_OR_DERIVED_WITH_LINEAGE"
+  condition:
+    groups:
+      - electrolyte_composition
+      - molecular_or_additive_properties
+      - electrode_and_cell_configuration
+      - electrochemical_operating_conditions
+      - cell_design
+      - test_protocol
+  experiment:
+    status: "NOT_YET_MAPPED"
+  observation:
+    status: "FEATURE_SEMANTICS_AND_ENDPOINTS_REQUIRE_SOURCE_AUDIT"
+  comparison:
+    status: "ONLY_CREATE_WHEN_MATCHED_RELATION_IS_SUPPORTED_BY_SOURCE_EVIDENCE"
+
+candidate_outcome_families:
+  - coulombic_efficiency
+  - corrosion_and_side_reactions
+  - interfacial_kinetics
+  - nucleation_and_deposition
+  - surface_morphology
+  - symmetric_cell_cycling
+  - full_cell_capacity_and_retention
+
+candidate_mechanism_families:
+  - zinc_ion_solvation
+  - interfacial_hydration
+  - adsorption_and_interfacial_coverage
+  - desolvation_and_charge_transfer
+  - corrosion_and_hydrogen_evolution
+  - nucleation_and_growth
+  - mass_transport_and_concentration_polarization
+  - thermal_and_local_state_effects
+
+mapping_policy:
+  feature_mapping_file: "feature_mapping.yaml"
+  do_not_infer_unseen_feature_names: true
+  preserve_raw_labels_units_and_qualifiers: true
+  do_not_assume_all_outcomes_share_one_endpoint: true
+  do_not_assume_all_rows_are_independent_replicates: true
+
+validation:
+  primary_group_field: "DOI"
+  candidate_splits:
+    - grouped_study_holdout
+    - grouped_cross_validation
+    - temporal_holdout_if_supported
+    - molecular_scaffold_split_if_structural_data_exist
+
+notes:
+  - "This profile is a scaffold, not a validated description of the actual CSV/JSON schema."
+  - "The 24 feature names and units must be imported from the real data dictionary, not guessed."
+  - "Electrochemical endpoint compatibility must be checked before merging values."
+  - "The profile must be versioned after the source audit."

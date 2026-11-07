@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/dataset_manifest.schema.json",
+  "title": "Read-only Dataset Audit Manifest",
+  "type": "object",
+  "required": ["schema_version", "audit_id", "created_at", "audit_scope", "sources", "semantic_mapping_status", "warnings"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "audit_id": {"type": "string"},
+    "created_at": {"type": "string"},
+    "audit_scope": {"const": "READ_ONLY_STRUCTURAL_INSPECTION"},
+    "semantic_mapping_status": {"enum": ["NOT_PERFORMED", "PARTIAL", "COMPLETED"]},
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "format", "file_name", "size_bytes", "sha256"],
+        "properties": {
+          "role": {"type": "string"},
+          "format": {"enum": ["csv", "json"]},
+          "file_name": {"type": "string"},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "row_count": {"type": "integer", "minimum": 0},
+          "column_count": {"type": "integer", "minimum": 0},
+          "columns": {"type": "array", "items": {"type": "object"}},
+          "top_level_type": {"type": "string"},
+          "top_level_length": {"type": ["integer", "null"]},
+          "top_level_keys": {"type": "array", "items": {"type": "string"}},
+          "nested_schema_status": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

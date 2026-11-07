@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/research_finding.schema.json",
+  "title": "Research Finding",
+  "type": "object",
+  "required": ["schema_version", "finding_id", "claim_type", "claim", "status", "supporting_artifacts", "limitations"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "finding_id": {"type": "string"},
+    "claim_type": {"enum": ["descriptive", "statistical_association", "statistical_interaction", "cross_study_robust", "mechanism_hypothesis", "mechanism_supported", "prospectively_validated"]},
+    "claim": {"type": "string"},
+    "status": {"enum": ["candidate", "supported", "contradicted", "inconclusive", "validated"]},
+    "target_id": {"type": "string"},
+    "interaction_ids": {"type": "array", "items": {"type": "string"}},
+    "model_ids": {"type": "array", "items": {"type": "string"}},
+    "supporting_artifacts": {"type": "array", "items": {"type": "string"}},
+    "supporting_studies": {"type": "array", "items": {"type": "string"}},
+    "contradicting_evidence": {"type": "array", "items": {"type": "string"}},
+    "mechanism_status": {"enum": ["not_assessed", "hypothesis", "direct_evidence", "theoretical_support", "prospectively_tested"]},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "manuscript_wording": {"type": "string"}
+  },
+  "additionalProperties": false
+}

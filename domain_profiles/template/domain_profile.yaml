@@ -1,0 +1,52 @@
+schema_version: "1.0"
+domain:
+  id: "replace-with-domain-id"
+  name: "Replace with research domain"
+  description: "Describe the experimental domain and scope."
+  version: "0.1.0"
+
+source_data:
+  formats: []
+
+entities:
+  study:
+    identifiers: []
+  system:
+    identifiers: []
+  condition:
+    categories: []
+  experiment:
+    identifiers: []
+  observation:
+    identifiers: []
+  comparison:
+    types: []
+
+conditions:
+  groups: []
+
+outcomes:
+  definitions: []
+
+missingness_states:
+  - REPORTED
+  - NOT_REPORTED
+  - NOT_APPLICABLE
+  - AMBIGUOUS
+  - CONFLICTING
+  - NOT_ASSESSED
+
+validation:
+  study_group_field: "study_id"
+  recommended_splits: []
+
+mechanisms:
+  vocabulary: []
+  evidence_types: []
+
+publication:
+  terminology:
+    study: "study"
+    system: "system"
+    condition: "condition"
+    observation: "observation"

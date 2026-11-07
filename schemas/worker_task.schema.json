@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/worker_task.schema.json",
+  "title": "Worker Task Packet",
+  "type": "object",
+  "required": ["schema_version", "task_id", "project_id", "run_id", "phase", "role", "objective", "input_artifacts", "permissions", "expected_outputs"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "task_id": {"type": "string"},
+    "project_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "phase": {"type": "string"},
+    "role": {"enum": ["data_scientist", "scientific_analyst", "independent_auditor"]},
+    "objective": {"type": "string", "minLength": 1},
+    "context_summary": {"type": "string"},
+    "input_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string"},
+          "description": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "required": ["read_sources", "write_locations", "prohibited_actions"],
+      "properties": {
+        "read_sources": {"type": "array", "items": {"type": "string"}},
+        "write_locations": {"type": "array", "items": {"type": "string"}},
+        "prohibited_actions": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "expected_outputs": {"type": "array", "items": {"type": "string"}},
+    "context_budget": {"type": "object"},
+    "completion_criteria": {"type": "array", "items": {"type": "string"}},
+    "escalation_criteria": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
