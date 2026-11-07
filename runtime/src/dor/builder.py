@@ -71,7 +71,7 @@ def _transform(raw: str, spec: dict[str, Any]) -> Any:
     if kind == "NUMERIC_PARSE":
         return _parse_numeric(raw, params)
     if kind == "UNIT_CONVERSION":
-        number = Decimal(str(_parse_numeric(raw, {})))
+        number = Decimal(str(_parse_numeric(raw, params)))
         factor = Decimal(str(params["factor"]))
         offset = Decimal(str(params.get("offset", 0)))
         result = number * factor + offset
