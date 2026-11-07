@@ -57,8 +57,11 @@ Read `../../../references/data-model.md` and `../../../references/guided-workflo
 
 After G1 approval:
 
-- Build derived canonical tables while preserving source identifiers and lineage.
-- Keep study, system, condition, observation, comparison, and evidence entities distinct.
+- Read [the canonical data model](../../../docs/CANONICAL_DATA_MODEL.md), [mapping contract](../../../docs/MAPPING_CONTRACT.md), and [canonical builder contract](../../../docs/CANONICAL_BUILDER.md).
+- Define and obtain approval for a mapping plan and a separate canonical build specification. The latter must explicitly declare entity grouping keys and same-source-row relationships; never assume one CSV row is one experiment.
+- Use `dor validate-mapping` before construction, then `dor build-canonical` with exact inventory/plan hashes and a new derived output directory.
+- Review the build report and canonical bundle integrity output at G1/G2. Resolve grouping conflicts rather than selecting or averaging records.
+- Keep study, system, condition, experiment, observation, comparison, and evidence entities distinct.
 - Define outcome-specific cohorts; do not force all targets into one complete-case table.
 - Quantify joint coverage for each proposed variable pair and target.
 - Propose candidate prediction and interaction tasks based on actual data support.
