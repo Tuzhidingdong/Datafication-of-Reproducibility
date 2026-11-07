@@ -66,14 +66,18 @@ After G1 approval:
 - Keep study, system, condition, experiment, observation, comparison, and evidence entities distinct.
 - Define outcome-specific cohorts; do not force all targets into one complete-case table.
 - Quantify joint coverage for each proposed variable pair and target.
-- Propose candidate prediction and interaction tasks based on actual data support.
-- Present model families, validation splits, assumptions, exclusion rules, and compute costs.
-- Stop at Gate G2 for approval.
+- Propose endpoint-specific prediction tasks based on actual data support. Each task must specify an exact target_id and endpoint_definition, outcome field and unit, explicit feature bindings to canonical condition_type values, eligibility rules, and a study-level split design. Do not map feature names automatically.
+- Present candidate model families, validation splits, assumptions, exclusion rules, and compute costs.
+- Stop at Gate G2 for approval. Do not create a modelling cohort or fit a model before G2 approval.
 
 ### Stage 3 — Baseline modelling and prediction
 
 After G2 approval:
 
+- Create a task file conforming to `schemas/modeling_task.schema.json` and review the exact endpoint, outcome field/unit, feature bindings, and split strategy.
+- Build the endpoint-specific cohort with `dor build-cohort --bundle canonical_bundle.json --task modeling_task.json --out-dir 04_modeling/cohort`.
+- Inspect `cohort_report.json`, `modeling_cohort.csv`, `split_manifest.json`, and `modeling_cohort_manifest.json`. Confirm exclusion reasons, feature coverage, group assignments, and zero study overlap before fitting any model.
+- A cohort is not a model result. Do not infer performance, causal effects, or scientific validity from cohort construction.
 - Use deterministic Python execution for preprocessing, fitting, hyperparameter search, validation, and metrics.
 - Select models based on sample size, target type, feature types, study heterogeneity, and extrapolation requirements.
 - Compare against meaningful baselines.
