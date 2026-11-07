@@ -47,6 +47,10 @@ class JsonStructureProfileTests(unittest.TestCase):
         by_path={item["path"]:item for item in profile["paths"]}
         self.assertEqual(by_path["$['a'][]['b']"]["value_types"],{"integer":1,"null":1})
         self.assertNotIn("do-not-copy",json.dumps(profile))
+    def test_node_limit_bounds_large_arrays(self):
+        profile=profile_json_structure({"records":list(range(1000))},max_nodes=10)
+        self.assertLessEqual(profile["visited_nodes"],10)
+        self.assertGreater(profile["truncated_nodes"],0)
     def test_path_limit_is_enforced(self):
         profile=profile_json_structure({str(i):i for i in range(50)},max_paths=10)
         self.assertLessEqual(profile["path_count"],10); self.assertTrue(profile["truncated_paths"])
