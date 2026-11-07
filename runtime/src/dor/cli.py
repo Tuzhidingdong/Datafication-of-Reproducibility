@@ -7,6 +7,7 @@ from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
 from dor.diagnostics import diagnose_canonical_bundle
 from dor.mapping import validate_mapping_files
+from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 
 def _write_json(path: Path | None, report: dict) -> str:
     rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
@@ -28,6 +29,14 @@ def build_parser() -> argparse.ArgumentParser:
     diagnose = subparsers.add_parser("diagnose-bundle", help="Report potential duplicate and unreferenced canonical entities without changing records")
     diagnose.add_argument("--input", type=Path, required=True, help="Canonical bundle JSON file")
     diagnose.add_argument("--out", type=Path, help="Optional path for a diagnostics report JSON")
+    reconcile = subparsers.add_parser("reconcile-bundle", help="Create evidence-linked data quality and reconciliation review queue without changing canonical data")
+    reconcile.add_argument("--input", type=Path, required=True, help="Canonical bundle JSON file")
+    reconcile.add_argument("--out-dir", type=Path, required=True, help="New or empty derived output directory")
+    decisions = subparsers.add_parser("validate-reconciliation-decisions", help="Validate human review decisions against exact report and bundle hashes")
+    decisions.add_argument("--decisions", type=Path, required=True, help="Human reconciliation decisions JSON")
+    decisions.add_argument("--report", type=Path, required=True, help="Exact reconciliation_report.json")
+    decisions.add_argument("--bundle", type=Path, required=True, help="Exact canonical_bundle.json referenced by the report")
+    decisions.add_argument("--out", type=Path, help="Optional validation report JSON")
     mapping = subparsers.add_parser("validate-mapping", help="Validate mapping references, provenance, and approval gates")
     mapping.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
     mapping.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
@@ -54,6 +63,18 @@ def main() -> int:
             report=validate_canonical_bundle(bundle) if args.command=="validate-bundle" else diagnose_canonical_bundle(bundle)
             print(_write_json(args.out,report),end="")
             return 0 if report.get("valid",report.get("valid_input",False)) else 2
+        if args.command == "reconcile-bundle":
+            result=reconcile_bundle_file(args.input,args.out_dir)
+            report=result["report"]
+            print(json.dumps({"status":"completed" if report["valid_bundle"] else "completed_with_integrity_errors",
+                "report_path":result["report_path"],"queue_path":result["queue_path"],
+                "issue_count":report["issue_count"],"severity_counts":report["severity_counts"]},
+                ensure_ascii=False,indent=2))
+            return 0 if report["valid_bundle"] else 2
+        if args.command == "validate-reconciliation-decisions":
+            report=validate_reconciliation_decisions_files(args.decisions,args.report,args.bundle)
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
         if args.command == "validate-mapping":
             report=validate_mapping_files(args.plan,args.inventory)
             print(_write_json(args.out,report),end="")
