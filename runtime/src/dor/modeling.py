@@ -27,6 +27,12 @@ def _settings(task: dict[str, Any]) -> dict[str, Any]:
     settings = task.get("modeling", {})
     if not isinstance(settings, dict):
         raise ValueError("The optional modeling settings must be an object.")
+    allowed = {"ridge_alphas", "max_iter", "tolerance"} if task["outcome_type"] == "NUMERIC" else {
+        "naive_bayes_smoothing", "naive_bayes_variance_floor"
+    }
+    unknown = sorted(set(settings) - allowed)
+    if unknown:
+        raise ValueError("Unsupported modeling settings: " + ", ".join(unknown))
     if task["outcome_type"] == "NUMERIC":
         alphas = settings.get("ridge_alphas", DEFAULT_RIDGE_ALPHAS)
         if not isinstance(alphas, list) or not alphas or any(not _finite_number(x) or float(x) <= 0 for x in alphas):
@@ -67,6 +73,10 @@ def _load_cohort(cohort_dir: Path, task_path: Path) -> tuple[list[dict[str, Any]
         raise ValueError("Modeling inputs must be JSON objects.")
     if manifest.get("task_id") != task.get("task_id") or report.get("task_id") != task.get("task_id"):
         raise ValueError("Cohort manifest/report and task IDs do not match.")
+    if report.get("target_id") != task.get("target_id") or report.get("endpoint_definition") != task.get("endpoint_definition"):
+        raise ValueError("Cohort report target/endpoint does not match the exact modelling task.")
+    if report.get("task_sha256") != manifest.get("task_sha256") or report.get("bundle_sha256") != manifest.get("bundle_sha256"):
+        raise ValueError("Cohort report provenance does not match its manifest.")
     checks = manifest.get("artifact_sha256", {})
     for name, path in (("modeling_cohort.csv", csv_path), ("cohort_report.json", report_path), ("split_manifest.json", split_path)):
         expected = checks.get(name) if isinstance(checks, dict) else None
@@ -121,10 +131,22 @@ def _load_cohort(cohort_dir: Path, task_path: Path) -> tuple[list[dict[str, Any]
     if observation_ids != expected_observations:
         raise ValueError("Cohort Observation IDs do not match split_manifest.")
     groups: dict[str, set[str]] = {}
+    observed_by_split: dict[str, set[str]] = {"train": set(), "validation": set(), "test": set()}
     for row in rows:
         groups.setdefault(row["study_id"], set()).add(row["split"])
+        observed_by_split[row["split"]].add(row["observation_id"])
     if any(len(value) != 1 for value in groups.values()):
         raise ValueError("Study leakage detected: a Study appears in multiple data partitions.")
+    if set(groups) != set(study_assignments):
+        raise ValueError("Study IDs in cohort rows do not match the split manifest.")
+    declared_by_split = split.get("leakage_check", {}).get("study_ids_by_split", {})
+    for partition in ("train", "validation", "test"):
+        declared_observations = set(split.get("observation_ids_by_split", {}).get(partition, []))
+        if observed_by_split[partition] != declared_observations:
+            raise ValueError("Observation IDs assigned to " + partition + " do not match split_manifest.")
+        observed_studies = sorted(sid for sid, partitions in groups.items() if partition in partitions)
+        if observed_studies != sorted(declared_by_split.get(partition, [])):
+            raise ValueError("Study IDs assigned to " + partition + " do not match split_manifest.")
     for partition in ("train", "validation", "test"):
         if not any(row["split"] == partition for row in rows):
             raise ValueError("The " + partition + " partition is empty.")
@@ -169,7 +191,7 @@ def _typed_rows(rows: list[dict[str, Any]], task: dict[str, Any]) -> list[dict[s
     return typed
 
 
-def _raw_matrix(rows: list[dict[str, Any]], bindings: list[dict[str, Any]]) -> list[list[float]]:
+def _raw_matrix(rows: list[dict[str, Any]], bindings: list[dict[str, Any]]) -> tuple[list[list[float]], dict[str, Any]]:
     columns: list[dict[str, Any]] = []
     categories: dict[str, list[str]] = {}
     for binding in bindings:
