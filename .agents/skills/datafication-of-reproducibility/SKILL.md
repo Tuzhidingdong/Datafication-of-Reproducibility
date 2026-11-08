@@ -256,3 +256,10 @@ The eight acceptance stages are fixed and ordered: source_selection, source_inte
 A single Study cannot support Study-held-out evaluation. For a one-paper pilot, cohort_feasibility and modeling_validation may be NOT_APPLICABLE with an explicit reason; do not split rows and call them independent Studies. A multi-Study modelling pilot is a separate scope requiring adequate independent Studies and explicit G2 approval.
 
 The acceptance record is a review ledger, not an automatic scientific truth score. A schema-valid record still requires human inspection of the cited evidence. Do not mark full PASS unless all eight stages pass; a one-Study pilot should normally conclude CONDITIONAL_PASS with its limitations stated. See ../../../docs/V1.0_CONTROLLED_ACCEPTANCE.md.
+
+
+Validate a completed acceptance record with the deterministic Runtime validator:
+
+    dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --out acceptance_validation_report.json
+
+This checks the fixed stage order, stage/decision semantics, exact Run Manifest binding, and current SHA-256 hashes of every cited source/evidence file. A valid report confirms structural and file-integrity conditions only; the human scientific review remains mandatory.

@@ -18,6 +18,7 @@ from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_de
 from dor.publication import build_publication_package_files, audit_publication_package_files
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
+from dor.acceptance import validate_acceptance_record
 from dor.run_manager import (
     authorize_worker, build_artifact_manifest, build_resume_plan, initialize_run, record_stage_status, verify_run,
 )
@@ -163,6 +164,11 @@ def build_parser() -> argparse.ArgumentParser:
     gate_status = subparsers.add_parser("gate-status", help="Verify event history, artifact hashes, and current G0-G4 approval state")
     gate_status.add_argument("--workflow-ledger", type=Path, required=True)
 
+    acceptance = subparsers.add_parser("validate-acceptance", help="Verify V1.0 acceptance stage semantics, run binding, and cited file hashes")
+    acceptance.add_argument("--record", type=Path, required=True, help="V1.0 acceptance record JSON")
+    acceptance.add_argument("--run-manifest", type=Path, required=True, help="Exact run_manifest.json referenced by the record")
+    acceptance.add_argument("--out", type=Path, help="Optional validation report JSON")
+
     run_init = subparsers.add_parser("run-init", help="Create a new isolated run workspace from an explicit stage/artifact plan")
     run_init.add_argument("--plan", type=Path, required=True)
     run_init.add_argument("--run-root", type=Path, required=True)
@@ -220,6 +226,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        if args.command == "validate-acceptance":
+            result = validate_acceptance_record(args.record, args.run_manifest)
+            print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
         if args.command == "run-init":
             result = initialize_run(args.plan, args.run_root, args.run_id)
             print(_write_json(None, result), end="")

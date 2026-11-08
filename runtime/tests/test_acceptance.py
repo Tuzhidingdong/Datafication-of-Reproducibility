@@ -1,0 +1,129 @@
+import hashlib
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+import io
+import contextlib
+import sys
+
+from dor.acceptance import STAGE_ORDER, validate_acceptance_record
+from dor.cli import build_parser, main
+
+
+class AcceptanceValidatorTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.paper = self.root / "paper.pdf"
+        self.si = self.root / "paper_si.pdf"
+        self.paper.write_bytes(b"synthetic paper bytes")
+        self.si.write_bytes(b"synthetic SI bytes")
+        self.manifest = self.root / "run_manifest.json"
+        self.manifest.write_text(json.dumps({"run_id":"RUN_1","project_id":"PROJECT_1"}), encoding="utf-8")
+        self.record_path = self.root / "acceptance.json"
+        self.record = {
+            "schema_version":"1.0","acceptance_id":"ACC_1","project_id":"PROJECT_1",
+            "scope":"CONTROLLED_SINGLE_STUDY","run_id":"RUN_1",
+            "run_manifest_sha256":self.sha(self.manifest),
+            "source_snapshot":{"study_count":1,"artifacts":[
+                {"source_id":"paper","role":"PRIMARY_PAPER","path":str(self.paper),"sha256":self.sha(self.paper)},
+                {"source_id":"si","role":"SUPPLEMENTARY_INFORMATION","path":str(self.si),"sha256":self.sha(self.si)}
+            ]},
+            "stages":[{"stage_id":stage,"status":"NOT_STARTED","evidence":[],"limitations":[]} for stage in STAGE_ORDER],
+            "final_assessment":{"decision":"NOT_ASSESSED","assessed_by":"reviewer","rationale":"Not yet reviewed.","blocking_issue_ids":[]}
+        }
+        self.write_record()
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    @staticmethod
+    def sha(path):
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def write_record(self):
+        self.record_path.write_text(json.dumps(self.record, indent=2), encoding="utf-8")
+
+    def set_stage(self, stage_id, status, evidence=True, **extra):
+        stage = next(item for item in self.record["stages"] if item["stage_id"] == stage_id)
+        stage["status"] = status
+        stage.update(extra)
+        if evidence:
+            artifact = self.root / f"{stage_id}.json"
+            artifact.write_text(json.dumps({"stage":stage_id}), encoding="utf-8")
+            stage["evidence"] = [{"artifact_id":f"{stage_id}_report","path":str(artifact),"sha256":self.sha(artifact)}]
+        self.write_record()
+
+    def validate(self):
+        return validate_acceptance_record(self.record_path, self.manifest)
+
+    def test_initial_record_is_valid_but_not_scientifically_accepted(self):
+        report = self.validate()
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["final_decision"], "NOT_ASSESSED")
+        self.assertTrue(report["scientific_review_required"])
+
+    def test_all_pass_requires_evidence_and_supports_full_pass_only_when_all_stages_pass(self):
+        self.record["scope"] = "MULTI_STUDY_PILOT"
+        self.record["source_snapshot"]["study_count"] = 3
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.write_record()
+        self.assertTrue(self.validate()["valid"])
+
+    def test_single_study_cannot_pass_model_validation(self):
+        self.set_stage("modeling_validation", "PASS")
+        report = self.validate()
+        self.assertIn("SINGLE_STUDY_MODEL_VALIDATION_INVALID", {item["code"] for item in report["issues"]})
+
+    def test_conditional_pass_allows_na_only_with_reason(self):
+        for stage in STAGE_ORDER:
+            if stage in {"cohort_feasibility","modeling_validation"}:
+                self.set_stage(stage, "NOT_APPLICABLE", evidence=False,
+                               not_applicable_reason="Single Study cannot support Study-held-out validation.")
+            else:
+                self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "CONDITIONAL_PASS"
+        self.write_record()
+        self.assertTrue(self.validate()["valid"])
+
+    def test_na_without_reason_is_rejected(self):
+        self.set_stage("modeling_validation", "NOT_APPLICABLE", evidence=False)
+        report = self.validate()
+        self.assertIn("NA_WITHOUT_REASON", {item["code"] for item in report["issues"]})
+
+    def test_source_or_evidence_tampering_is_detected(self):
+        self.set_stage("source_integrity", "PASS")
+        evidence_path = Path(self.record["stages"][1]["evidence"][0]["path"])
+        evidence_path.write_text("tampered", encoding="utf-8")
+        self.assertIn("EVIDENCE_HASH_MISMATCH", {item["code"] for item in self.validate()["issues"]})
+        self.paper.write_bytes(b"changed paper")
+        self.assertIn("SOURCE_HASH_MISMATCH", {item["code"] for item in self.validate()["issues"]})
+
+    def test_run_manifest_hash_mismatch_is_detected(self):
+        self.record["run_manifest_sha256"] = "f" * 64
+        self.write_record()
+        self.assertIn("RUN_MANIFEST_HASH_MISMATCH", {item["code"] for item in self.validate()["issues"]})
+
+    def test_stage_order_is_fixed(self):
+        self.record["stages"].reverse()
+        self.write_record()
+        self.assertIn("STAGE_ORDER_MISMATCH", {item["code"] for item in self.validate()["issues"]})
+
+    def test_cli_registers_and_executes_validator(self):
+        parser = build_parser()
+        subparsers = next(action.choices for action in parser._actions if hasattr(action, "choices") and action.choices)
+        self.assertIn("validate-acceptance", subparsers)
+        args = ["dor","validate-acceptance","--record",str(self.record_path),"--run-manifest",str(self.manifest)]
+        stdout = io.StringIO()
+        with patch.object(sys,"argv",args), contextlib.redirect_stdout(stdout):
+            code = main()
+        self.assertEqual(code, 0)
+        self.assertIn('"valid": true', stdout.getvalue())
+
+
+if __name__ == "__main__":
+    unittest.main()
