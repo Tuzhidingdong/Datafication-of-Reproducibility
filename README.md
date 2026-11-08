@@ -14,7 +14,7 @@ The project aims to reconstruct relationships among reported experimental condit
 
 ## Repository status
 
-This Draft development branch contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, V0.3 endpoint-specific cohort builder, deterministic Study-level splits, dependency-free baseline models, nested cross-study evaluation, and V0.4 numeric pairwise interaction screening, repeated-seed robustness assessment, descriptive response surfaces, and an evidence-linked mechanism hypothesis bridge. The bridge validates canonical source evidence links, preserves contradictions, checks prospective Study independence, and emits candidate mechanism Findings pending user review. Alternative model/encoding families, categorical interaction methods, inferential multiplicity control, calibrated uncertainty, and broader causal/mechanistic validation remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
+This Draft development branch contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, V0.3 endpoint-specific cohort builder, deterministic Study-level splits, dependency-free baseline models, nested cross-study evaluation, V0.4 numeric pairwise interaction screening, repeated-seed robustness assessment, descriptive response surfaces, and an evidence-linked mechanism hypothesis bridge. The bridge validates canonical source evidence links, preserves contradictions, checks prospective Study independence, and emits candidate mechanism Findings pending user review. V0.5 adds explicit-plan publication package assembly with file-hash integrity auditing and guarded virtual condition prediction from the selected baseline model; new model artifacts include train-plus-validation feature ranges/category sets for marginal support warnings. Virtual estimates remain NOT_CALIBRATED and are not physical reproduction. Alternative model/encoding families, richer joint applicability-domain analysis, calibrated uncertainty, inferential multiplicity control, and broader causal/mechanistic validation remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
 
 ## Planned layout
 
@@ -31,6 +31,7 @@ This Draft development branch contains the V0.1 research foundation, V0.2 data-u
 - `docs/V0.4_INTERACTION_ROBUSTNESS.md`: repeated-seed sensitivity analysis and its interpretation limits.
 - `docs/V0.4_INTERACTION_RESPONSE_SURFACE.md`: descriptive partial-dependence surfaces, empirical two-feature support masks, and marginal-effect outputs.
 - `docs/V0.4_MECHANISM_EVIDENCE_BRIDGE.md`: source-linked mechanism hypotheses, evidence classification, prospective-independence checks, and contradiction review.
+- `docs/V0.5_PUBLICATION_AND_VIRTUAL_REPRODUCTION.md`: explicit publication package plans, SHA-256 integrity audit, serialized-model condition predictions, and applicability-domain boundaries.
 - `templates/`: reusable reports and paper-output templates.
 - `tests/`: V0.1 contract and immutability tests.
 
