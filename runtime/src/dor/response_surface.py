@@ -358,6 +358,7 @@ def generate_interaction_surface_files(
         "source_interaction_status": selected.get("interpretation_status"),
         "robustness_status": robustness.get("robustness_status") if robustness else "NOT_SUPPLIED",
         "method": "ALL_COHORT_DESCRIPTIVE_REFIT_FROM_MEDIAN_NESTED_ALPHA",
+        "fit_population": "ALL_ELIGIBLE_COHORT_OBSERVATIONS_ALL_SPLITS_INCLUDING_HELD_OUT_TEST",
         "prediction_mode": "PARTIAL_DEPENDENCE_AVERAGED_OVER_EMPIRICAL_BACKGROUND",
         "model": {"type": "PAIRWISE_BILINEAR_RIDGE", "alpha": alpha,
                   "alpha_values_from_nested_folds": selection_meta["selected_alpha_values"],
@@ -422,6 +423,9 @@ def generate_interaction_surface_files(
 
     input_hashes = {
         "cohort_sha256": sha256_file(cohort_dir / "modeling_cohort.csv"),
+        "cohort_report_sha256": sha256_file(cohort_dir / "cohort_report.json"),
+        "split_manifest_sha256": sha256_file(cohort_dir / "split_manifest.json"),
+        "cohort_manifest_sha256": sha256_file(cohort_dir / "modeling_cohort_manifest.json"),
         "task_sha256": sha256_file(task_path),
         "interaction_discovery_report_sha256": selection_meta["report_sha256"],
         "interaction_discovery_manifest_sha256": sha256_file(interaction_dir / "interaction_discovery_manifest.json"),
