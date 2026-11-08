@@ -3,15 +3,19 @@ from __future__ import annotations
 import copy
 import csv
 import json
+import io
+import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from unittest.mock import patch
 from pathlib import Path
 
 from dor.audit import run_audit
 from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
 from dor.cohort import build_modeling_cohort_files
-from dor.cli import build_parser
+from dor.cli import build_parser, main as cli_main
 from dor.interactions import discover_interactions_files
 from dor.mapping import sha256_file, validate_mapping_files
 from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
@@ -87,6 +91,21 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.temp.cleanup()
+
+    @classmethod
+    def _run_cli(cls, *arguments):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with patch.object(sys, "argv", ["dor", *arguments]), redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = cli_main()
+        if exit_code != 0:
+            raise AssertionError(
+                "CLI command failed: " + " ".join(arguments) +
+                "; exit_code=" + str(exit_code) +
+                "; stdout=" + stdout.getvalue() +
+                "; stderr=" + stderr.getvalue()
+            )
+        return stdout.getvalue()
 
     @classmethod
     def _create_sources(cls):
@@ -190,7 +209,11 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             cls.csv_path.name: sha256_file(cls.csv_path),
             cls.json_path.name: sha256_file(cls.json_path),
         }
-        manifest = run_audit(cls.csv_path, cls.json_path, cls.audit_dir)
+        cls._run_cli(
+            "audit", "--csv", str(cls.csv_path), "--json", str(cls.json_path),
+            "--out", str(cls.audit_dir),
+        )
+        manifest = json.loads((cls.audit_dir / "dataset_manifest.json").read_text(encoding="utf-8"))
         cls.assert_audit = manifest
         inventory = json.loads(
             (cls.audit_dir / "source_inventory.json").read_text(encoding="utf-8")
@@ -386,32 +409,46 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "links": links,
         })
 
-        mapping_validation = validate_mapping_files(cls.plan_path, inventory_path)
+        validation_path = cls.root / "mapping_validation.json"
+        cls._run_cli(
+            "validate-mapping", "--plan", str(cls.plan_path),
+            "--inventory", str(inventory_path), "--out", str(validation_path),
+        )
+        mapping_validation = json.loads(validation_path.read_text(encoding="utf-8"))
         if not mapping_validation["valid"]:
             raise AssertionError("Synthetic mapping plan failed validation: " + repr(mapping_validation["errors"]))
         cls.mapping_validation = mapping_validation
 
     @classmethod
     def _build_canonical_bundle(cls):
-        bundle, report = build_canonical_files(
-            cls.plan_path, cls.audit_dir / "source_inventory.json",
-            cls.spec_path, cls.source_root,
+        cls._run_cli(
+            "build-canonical", "--plan", str(cls.plan_path),
+            "--inventory", str(cls.audit_dir / "source_inventory.json"),
+            "--spec", str(cls.spec_path), "--source-root", str(cls.source_root),
+            "--out-dir", str(cls.canonical_dir),
         )
-        if bundle is None or not report.get("valid"):
-            raise AssertionError("Canonical build failed: " + repr(report.get("errors")))
-        integrity = validate_canonical_bundle(bundle)
+        cls.bundle = json.loads(cls.bundle_path.read_text(encoding="utf-8"))
+        cls.canonical_report = json.loads(
+            (cls.canonical_dir / "build_report.json").read_text(encoding="utf-8")
+        )
+        validation_path = cls.root / "canonical_validation.json"
+        cls._run_cli("validate-bundle", "--input", str(cls.bundle_path), "--out", str(validation_path))
+        integrity = json.loads(validation_path.read_text(encoding="utf-8"))
         if not integrity["valid"]:
             raise AssertionError("Canonical bundle failed integrity: " + repr(integrity["errors"]))
-        cls.bundle = bundle
-        cls.canonical_report = report
-        cls.canonical_dir.mkdir(parents=True, exist_ok=True)
-        write_json(cls.bundle_path, bundle)
-        write_json(cls.canonical_dir / "canonical_build_report.json", report)
         cls.canonical_hash = sha256_file(cls.bundle_path)
 
     @classmethod
     def _build_reconciliation_and_modeling(cls):
-        cls.reconciliation = reconcile_bundle_file(cls.bundle_path, cls.reconciliation_dir)
+        cls._run_cli(
+            "reconcile-bundle", "--input", str(cls.bundle_path),
+            "--out-dir", str(cls.reconciliation_dir),
+        )
+        cls.reconciliation = {
+            "report": json.loads(
+                (cls.reconciliation_dir / "reconciliation_report.json").read_text(encoding="utf-8")
+            )
+        }
         task = {
             "schema_version": "1.0",
             "task_id": "SYNTHETIC_INTERACTION_TASK",
@@ -452,20 +489,44 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         }
         write_json(cls.task_path, task)
         cls.task = task
-        cohort = build_modeling_cohort_files(cls.bundle_path, cls.task_path, cls.cohort_dir)
-        if not cohort["valid"]:
-            raise AssertionError("Cohort build failed: " + repr(cohort["report"].get("errors")))
-        cls.cohort_result = cohort
-        cls.model_result = run_baseline_models_files(cls.cohort_dir, cls.task_path, cls.model_dir)
-        cls.evaluation_result = evaluate_reproducibility_files(
-            cls.cohort_dir, cls.task_path, cls.evaluation_dir, folds=4, seed=31
+        cls._run_cli(
+            "build-cohort", "--bundle", str(cls.bundle_path), "--task", str(cls.task_path),
+            "--out-dir", str(cls.cohort_dir),
         )
+        cohort_report = json.loads((cls.cohort_dir / "cohort_report.json").read_text(encoding="utf-8"))
+        cohort_manifest = json.loads((cls.cohort_dir / "modeling_cohort_manifest.json").read_text(encoding="utf-8"))
+        cls.cohort_result = {"valid": cohort_report["valid"], "report": cohort_report, "manifest": cohort_manifest}
+        cls._run_cli(
+            "fit-baselines", "--cohort-dir", str(cls.cohort_dir),
+            "--task", str(cls.task_path), "--out-dir", str(cls.model_dir),
+        )
+        cls.model_result = {
+            "report": json.loads((cls.model_dir / "model_report.json").read_text(encoding="utf-8")),
+            "artifact": json.loads((cls.model_dir / "model_artifact.json").read_text(encoding="utf-8")),
+        }
+        cls._run_cli(
+            "evaluate-reproducibility", "--cohort-dir", str(cls.cohort_dir),
+            "--task", str(cls.task_path), "--out-dir", str(cls.evaluation_dir),
+            "--folds", "4", "--seed", "31",
+        )
+        cls.evaluation_result = {
+            "report": json.loads(
+                (cls.evaluation_dir / "reproducibility_evaluation.json").read_text(encoding="utf-8")
+            )
+        }
 
     @classmethod
     def _run_interaction_and_evidence_stages(cls):
-        cls.interaction_result = discover_interactions_files(
-            cls.cohort_dir, cls.task_path, cls.interaction_dir, folds=4, seed=19
+        cls._run_cli(
+            "discover-interactions", "--cohort-dir", str(cls.cohort_dir),
+            "--task", str(cls.task_path), "--out-dir", str(cls.interaction_dir),
+            "--folds", "4", "--seed", "19",
         )
+        cls.interaction_result = {
+            "report": json.loads(
+                (cls.interaction_dir / "interaction_discovery_report.json").read_text(encoding="utf-8")
+            )
+        }
         report = cls.interaction_result["report"]
         candidates = [
             item for item in report["interaction_catalogue"]
@@ -474,14 +535,28 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         if len(candidates) != 1:
             raise AssertionError("Expected one synthetic bilinear interaction candidate, got: " + repr(report["interaction_catalogue"]))
         cls.interaction_id = candidates[0]["interaction_id"]
-        cls.robustness_result = assess_interaction_robustness_files(
-            cls.cohort_dir, cls.task_path, cls.robustness_dir,
-            seeds=[11, 19, 23], folds=4, minimum_candidate_run_fraction=0.6,
+        cls._run_cli(
+            "assess-interaction-robustness", "--cohort-dir", str(cls.cohort_dir),
+            "--task", str(cls.task_path), "--out-dir", str(cls.robustness_dir),
+            "--seeds", "11,19,23", "--folds", "4",
+            "--minimum-candidate-run-fraction", "0.6",
         )
-        cls.surface_result = generate_interaction_surface_files(
-            cls.cohort_dir, cls.task_path, cls.interaction_dir,
-            cls.interaction_id, cls.surface_dir, robustness_dir=cls.robustness_dir,
+        cls.robustness_result = {
+            "report": json.loads(
+                (cls.robustness_dir / "interaction_robustness_report.json").read_text(encoding="utf-8")
+            )
+        }
+        cls._run_cli(
+            "generate-interaction-surface", "--cohort-dir", str(cls.cohort_dir),
+            "--task", str(cls.task_path), "--interaction-dir", str(cls.interaction_dir),
+            "--interaction-id", cls.interaction_id, "--out-dir", str(cls.surface_dir),
+            "--robustness-dir", str(cls.robustness_dir),
         )
+        cls.surface_result = {
+            "report": json.loads(
+                (cls.surface_dir / "interaction_response_surface_report.json").read_text(encoding="utf-8")
+            )
+        }
 
         evidence_by_key = {
             record["source_evidence_key"]: record
@@ -550,12 +625,22 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             }],
         }
         write_json(cls.mechanism_plan_path, plan)
-        cls.mechanism_result = build_mechanism_evidence_bridge_files(
-            cls.bundle_path, cls.cohort_dir, cls.task_path, cls.interaction_dir,
-            cls.mechanism_plan_path, cls.mechanism_dir,
-            robustness_dir=cls.robustness_dir,
-            response_surface_dir=cls.surface_dir,
+        cls._run_cli(
+            "build-mechanism-evidence-bridge", "--bundle", str(cls.bundle_path),
+            "--cohort-dir", str(cls.cohort_dir), "--task", str(cls.task_path),
+            "--interaction-dir", str(cls.interaction_dir), "--plan", str(cls.mechanism_plan_path),
+            "--out-dir", str(cls.mechanism_dir),
+            "--robustness-dir", str(cls.robustness_dir),
+            "--response-surface-dir", str(cls.surface_dir),
         )
+        cls.mechanism_result = {
+            "report": json.loads(
+                (cls.mechanism_dir / "mechanism_evidence_bridge_report.json").read_text(encoding="utf-8")
+            ),
+            "findings": json.loads(
+                (cls.mechanism_dir / "mechanism_findings.json").read_text(encoding="utf-8")
+            ),
+        }
 
     @classmethod
     def _run_virtual_prediction(cls):
@@ -569,9 +654,13 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 "pressure": {"value": -0.5, "unit": "arb-z"},
             },
         })
-        cls.prediction_result = predict_virtual_condition_files(
-            cls.model_dir, cls.query_path, cls.prediction_path
+        cls._run_cli(
+            "predict-virtual-condition", "--model-run-dir", str(cls.model_dir),
+            "--query", str(cls.query_path), "--out", str(cls.prediction_path),
         )
+        cls.prediction_result = {
+            "report": json.loads(cls.prediction_path.read_text(encoding="utf-8"))
+        }
 
     @classmethod
     def _build_and_audit_publication_package(cls):
@@ -627,11 +716,18 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 "manuscript_sections": ["Results"],
             }],
         })
-        cls.package_result = build_publication_package_files(
-            cls.package_plan_path, cls.root, cls.package_dir
+        cls._run_cli(
+            "build-publication-package", "--plan", str(cls.package_plan_path),
+            "--workspace-root", str(cls.root), "--out-dir", str(cls.package_dir),
         )
-        cls.package_audit = audit_publication_package_files(cls.package_dir)
-        write_json(cls.package_audit_path, cls.package_audit)
+        cls.package_result = {
+            "manifest": json.loads((cls.package_dir / "package_manifest.json").read_text(encoding="utf-8"))
+        }
+        cls._run_cli(
+            "audit-publication-package", "--package-dir", str(cls.package_dir),
+            "--out", str(cls.package_audit_path),
+        )
+        cls.package_audit = json.loads(cls.package_audit_path.read_text(encoding="utf-8"))
 
     def test_audit_inventory_and_cross_format_canonical_build_are_connected(self):
         self.assertEqual(self.assert_audit["audit_scope"], "READ_ONLY_STRUCTURAL_INSPECTION")
