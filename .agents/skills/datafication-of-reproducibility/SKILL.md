@@ -204,3 +204,44 @@ Do not guess. Record the missing field and its status, identify whether it is cr
 Stop and report the blocker if source files cannot be read, identifiers cannot be reconciled safely, target semantics are ambiguous, leakage cannot be controlled, no supported validation design exists, or requested predictions are outside the model's applicability domain.
 
 Do not fabricate sample counts, feature mappings, model metrics, paper citations, experimental conditions, or mechanism evidence.
+
+
+## V0.9 project Run Manager (mandatory for managed runs)
+
+Before the first scientific operation, decompose the intended workflow into a complete explicit stage DAG. Do this up front; do not let the Agent opportunistically decide coarse or convenient stage boundaries during execution. The run plan must declare every source artifact, stage dependency, exact input artifact ID, output artifact ID/path, executor, and required approval gate. Use schemas/run_plan.schema.json and templates/run_plan.example.json. Never crawl a workspace to populate this plan.
+
+Initialize a new independent run workspace with:
+
+    dor run-init --plan run_plan.json --run-root path/to/new/run
+
+Keep the original plan and raw sources unchanged. The runtime creates run_manifest.json and run_events.jsonl and binds the run to the exact plan and source hashes. Never reuse a run after a source file changes; create a new run.
+
+Record each explicitly planned stage with dor run-stage-record:
+- Record RUNNING immediately before starting the local/manual operation, or after the user-authorized Worker packet is created and before dispatch.
+- Record SUCCEEDED only when every declared output exists and the exact inputs remain unchanged.
+- Record FAILED with a concrete reason on failure.
+- Include Worker job/session IDs and token counts only when returned by the existing Worker Manager. Unknown usage stays unknown.
+
+For a Worker stage, first present role, provider, model, active project root, task inputs/hashes, staging outputs, and restrictions to the user. Wait for explicit authorization, then run dor run-worker-authorize. This command emits a bounded task packet and records the authorization; it does not dispatch a Worker. Invoke the existing Worker Manager only after that authorization. Never silently choose or start a Worker. Workers may write only new files under worker_staging/<stage_id>/; they cannot write into protected sources, ledgers, manifests, or approved artifacts. A human review/promotion stage must separately approve and materialize accepted outputs.
+
+On every resume, run:
+
+    dor run-verify --manifest run_manifest.json
+    dor run-status --manifest run_manifest.json
+    dor run-resume-plan --manifest run_manifest.json --out resume_plan.json
+
+Reuse only stages explicitly marked REUSE. Rebuild only the stale stage and its declared downstream dependents; keep independent reusable stages. Do not interpret RUNNING as stopped: inspect the external process first, and only then use --confirm-abandoned to create a replacement attempt. A changed source requires a new run. Resume planning does not execute commands, dispatch Workers, or record G0-G4 decisions.
+
+The run event ledger is execution provenance only. It does not approve scientific scope, mapping, canonical data, interactions, or publication. G0-G4 remain the only scientific approval gates. See ../../../docs/V0.9_RUN_MANAGER.md.
+
+For Worker stages, treat the task packet as a strict file-access boundary, but do not describe it as an OS sandbox. Configure the external Worker Manager with guarded permissions and a bounded workdir; include every protected scientific input in the explicit stage input list so the Runtime can verify its hashes after completion. Do not give a Worker broad workspace access when a small staging workdir and declared input copies are sufficient.
+
+
+Generate an explicit artifact view with `dor run-artifacts --manifest run_manifest.json --out artifact_manifest.json`. This report is regenerated from the Run Plan and hash-chained execution events; it is not the source of truth. Inspect statuses and hashes before reusing any output. When a stage becomes REBUILD_REQUIRED, archive/move its old declared outputs away before retry; the Runtime refuses to overwrite existing outputs. A changed G0-G4 approval event also invalidates stages that were executed against the previous approval hash.
+
+V0.9 does not yet implement automatic parent/child run orchestration. For an optional analysis branch that is not declared in the immutable parent plan, create a separate follow-on run with the exact parent-run outputs, G3-approved selection, and mechanism plan declared as immutable source_artifacts. Record the parent run_id and manifest SHA-256 in the project-level run index; never alter the parent run plan.
+
+A stage whose declared source input differs from the run-init SHA-256 is reported as `SOURCE_CHANGED_NEW_RUN_REQUIRED`; do not retry that stage inside the old Run. Initialize a new Run from the revised source snapshot.
+
+
+The Run Manager initializes run_events.jsonl with an immutable RUN_INITIALIZED record binding the manifest's project/run scope, exact plan hash, source roots and source hashes, workflow-ledger path, and stage order. Runtime compares this record to run_manifest.json on every operation. Do not edit either control file by hand.

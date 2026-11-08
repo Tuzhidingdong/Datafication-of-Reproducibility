@@ -18,6 +18,9 @@ from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_de
 from dor.publication import build_publication_package_files, audit_publication_package_files
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
+from dor.run_manager import (
+    authorize_worker, build_artifact_manifest, build_resume_plan, initialize_run, record_stage_status, verify_run,
+)
 
 def _write_json(path: Path | None, report: dict) -> str:
     rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
@@ -159,11 +162,119 @@ def build_parser() -> argparse.ArgumentParser:
         help="Hash-bind a reviewed file as ARTIFACT_ID=FILE_PATH; repeat for every required artifact")
     gate_status = subparsers.add_parser("gate-status", help="Verify event history, artifact hashes, and current G0-G4 approval state")
     gate_status.add_argument("--workflow-ledger", type=Path, required=True)
+
+    run_init = subparsers.add_parser("run-init", help="Create a new isolated run workspace from an explicit stage/artifact plan")
+    run_init.add_argument("--plan", type=Path, required=True)
+    run_init.add_argument("--run-root", type=Path, required=True)
+    run_init.add_argument("--run-id", type=str, default=None)
+
+    run_status = subparsers.add_parser("run-status", help="Show current project run and stage states")
+    run_status.add_argument("--manifest", type=Path, required=True)
+
+    run_verify = subparsers.add_parser("run-verify", help="Verify the run plan, source snapshots, and append-only run event chain")
+    run_verify.add_argument("--manifest", type=Path, required=True)
+
+    run_resume = subparsers.add_parser("run-resume-plan", help="Calculate safe artifact reuse and stage rebuild actions without executing them")
+    run_resume.add_argument("--manifest", type=Path, required=True)
+    run_resume.add_argument("--out", type=Path, default=None)
+
+    worker_authorize = subparsers.add_parser("run-worker-authorize", help="Record an explicit pre-dispatch Worker authorization and emit its bounded task packet")
+    worker_authorize.add_argument("--manifest", type=Path, required=True)
+    worker_authorize.add_argument("--stage", dest="stage_id", required=True)
+    worker_authorize.add_argument("--role", required=True)
+    worker_authorize.add_argument("--provider", required=True)
+    worker_authorize.add_argument("--model", required=True)
+    worker_authorize.add_argument("--project-root", type=Path, required=True)
+    worker_authorize.add_argument("--authorized-by", required=True)
+    worker_authorize.add_argument("--rationale", required=True)
+    worker_authorize.add_argument("--confirm-abandoned", action="store_true",
+        help="Confirm that an earlier RUNNING Worker process has been inspected and is no longer active.")
+
+    stage_record = subparsers.add_parser("run-stage-record", help="Append RUNNING/SUCCEEDED/FAILED metadata for one explicitly declared stage")
+    stage_record.add_argument("--manifest", type=Path, required=True)
+    stage_record.add_argument("--stage", dest="stage_id", required=True)
+    stage_record.add_argument("--status", choices=["RUNNING", "SUCCEEDED", "FAILED"], required=True)
+    stage_record.add_argument("--producer-kind", choices=["local", "worker", "manual"], required=True)
+    stage_record.add_argument("--command", dest="producer_command", default=None)
+    stage_record.add_argument("--role", default=None)
+    stage_record.add_argument("--provider", default=None)
+    stage_record.add_argument("--model", default=None)
+    stage_record.add_argument("--project-root", default=None)
+    stage_record.add_argument("--job-id", default=None)
+    stage_record.add_argument("--session-id", default=None)
+    stage_record.add_argument("--task-id", default=None)
+    stage_record.add_argument("--input-tokens", type=int, default=None)
+    stage_record.add_argument("--output-tokens", type=int, default=None)
+    stage_record.add_argument("--reasoning-tokens", type=int, default=None)
+    stage_record.add_argument("--cache-read-tokens", type=int, default=None)
+    stage_record.add_argument("--cache-write-tokens", type=int, default=None)
+    stage_record.add_argument("--reason", default=None)
+    stage_record.add_argument("--confirm-abandoned", action="store_true",
+        help="Confirm that an earlier RUNNING process has been inspected and is no longer active.")
     return parser
 
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        if args.command == "run-init":
+            result = initialize_run(args.plan, args.run_root, args.run_id)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "run-verify":
+            result = verify_run(args.manifest)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "run-status":
+            result = verify_run(args.manifest)
+            print(_write_json(None, {
+                "run_id": result["run_id"], "project_id": result["project_id"],
+                "source_integrity": result["source_integrity"],
+                "event_count": result["event_count"],
+                "stages": result["resume_plan"]["stages"],
+            }), end="")
+            return 0
+        if args.command == "run-resume-plan":
+            result = build_resume_plan(args.manifest)
+            print(_write_json(args.out, result), end="")
+            return 0
+        if args.command == "run-artifacts":
+            result = build_artifact_manifest(args.manifest)
+            if args.out is not None:
+                output_path = args.out.expanduser().resolve(strict=False)
+                declared_paths = {Path(item["path"]).expanduser().resolve(strict=False)
+                                  for item in result["artifacts"]}
+                source_roots = [Path(item).expanduser().resolve(strict=False) for item in result["source_roots"]]
+                protected_control_files = {
+                    (Path(result["workspace_root"]) / name).resolve(strict=False)
+                    for name in ("run_manifest.json", "run_plan.json", "run_events.jsonl")
+                }
+                if output_path in declared_paths or output_path in protected_control_files:
+                    raise ValueError("Artifact manifest output cannot overwrite a declared artifact or Run Manager control file.")
+                if any(output_path.is_relative_to(source_root) for source_root in source_roots):
+                    raise ValueError("Artifact manifest output must remain outside all protected source_roots.")
+            print(_write_json(args.out, result), end="")
+            return 0
+        if args.command == "run-worker-authorize":
+            result = authorize_worker(
+                args.manifest, args.stage_id, args.role, args.provider, args.model,
+                args.project_root, args.authorized_by, args.rationale,
+                confirm_abandoned=args.confirm_abandoned,
+            )
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "run-stage-record":
+            result = record_stage_status(
+                args.manifest, args.stage_id, args.status, args.producer_kind,
+                command=args.producer_command,
+                role=args.role, provider=args.provider, model=args.model,
+                project_root=args.project_root, job_id=args.job_id, session_id=args.session_id,
+                task_id=args.task_id, input_tokens=args.input_tokens, output_tokens=args.output_tokens,
+                reasoning_tokens=args.reasoning_tokens, cache_read_tokens=args.cache_read_tokens,
+                cache_write_tokens=args.cache_write_tokens, reason=args.reason,
+                confirm_abandoned=args.confirm_abandoned,
+            )
+            print(_write_json(None, result), end="")
+            return 0
         if args.command == "gate-record":
             result=record_gate_decision(args.workflow_ledger,args.gate_id,args.decision,
                 args.reviewer,args.rationale,_parse_artifact_bindings(args.artifacts or []))

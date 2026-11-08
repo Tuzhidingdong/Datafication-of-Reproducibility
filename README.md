@@ -60,3 +60,14 @@ Exact installation and runtime instructions will be finalized with the V0.1 impl
 ## License and data policy
 
 A project license has not yet been selected. Do not commit private literature databases, full-text papers, credentials, local paths containing personal information, run caches, or derived data that cannot be redistributed.
+
+
+## V0.9 Run Manager
+
+The Runtime now provides explicit project run workspaces, a hash-chained run event ledger, stage-attempt recording, bounded Worker authorization packets, and dependency-aware resume planning. Run plans are authored up front and name every source/artifact/stage/dependency; no workspace crawling or automatic stage inference is performed. The run manager never launches Workers or creates scientific gate approvals. See docs/V0.9_RUN_MANAGER.md.
+
+
+V0.9 also provides `dor run-artifacts` to regenerate a hash/provenance inventory from the run plan and event ledger. The artifact manifest is a projection rather than a second mutable source of truth.
+
+
+The run manager distinguishes a changed protected source (`SOURCE_CHANGED_NEW_RUN_REQUIRED`) from a stale derived artifact (`REBUILD_REQUIRED`). Raw-source changes require a new run; derived-stage rebuilds require archiving prior output paths before a new attempt.

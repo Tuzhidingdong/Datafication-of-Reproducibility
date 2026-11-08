@@ -78,3 +78,26 @@ The user-facing G0–G4 decisions are unchanged, but their approval packets are 
 - Gated CLI operations are exercised through the full synthetic workflow without the legacy bypass. A revised upstream decision must invalidate existing later approvals.
 
 Do not record an approval if any file-to-file relationship is inconsistent, even when every file individually parses and has a valid hash.
+
+
+## V0.9 Run Manager and resumption
+
+Every managed project run must begin from an explicit run plan that decomposes the complete intended workflow into stages before any expensive execution. Declare source artifacts, direct dependencies, stage inputs/outputs, executor types, and required gates. Do not let the Agent invent coarse stage boundaries during execution.
+
+Create the independent workspace using dor run-init. Record RUNNING/SUCCEEDED/FAILED attempts with dor run-stage-record. The separate run event ledger records execution lineage; the existing workflow gate ledger remains the only source of G0-G4 scientific approval.
+
+For Worker stages, display role/provider/model/project and the exact bounded task packet before asking for user authorization. After explicit approval, record authorization with dor run-worker-authorize, then invoke the already configured external Worker Manager. The CLI never dispatches a Worker. Workers may write only to their declared worker_staging/<stage_id>/ locations; use a separate human review/promotion stage for accepted results.
+
+On resume, call dor run-verify, dor run-status, and dor run-resume-plan. Reuse only current stages marked REUSE. Rebuild stale upstream stages and their declared downstream dependents, while retaining independent reusable results. A RUNNING state requires inspection of the actual external process; do not assume it ended. A changed protected source means a new run, not an in-place continuation. Recovery planning never executes a stage or creates an approval.
+
+
+## Run plan granularity
+
+Define stages at the level of independent Runtime operations and artifact reuse boundaries before execution. Do not merge audit, mapping, canonical construction, reconciliation, cohort construction, baseline fitting, nested validation, interaction discovery, robustness, virtual prediction, or publication assembly into oversized stages. Stage dependencies must be explicit and derived only from actual artifact flow.
+
+Mechanism bridge work is conditional on G3 selection. Do not guess or pre-create a mechanism plan before the interaction has been selected. When the branch cannot be represented honestly in the initial plan, end the current run at G3 and initialize a separate follow-on analysis run. Declare the approved G3 selection, exact mechanism plan, and parent-run artifacts as immutable source inputs; record the parent run_id and manifest hash in the project-level run index. V0.9 does not automate parent/child run links.
+
+A changed protected source input produces `SOURCE_CHANGED_NEW_RUN_REQUIRED`. Do not use `REBUILD_REQUIRED` to rebase raw data inside the same Run; create a new Run for the changed source snapshot.
+
+
+The first run_events.jsonl event is RUN_INITIALIZED and binds the run manifest's exact source hashes, plan hash, stage order, and workspace. Do not edit run_manifest.json or run_events.jsonl; manifest tampering is detected against the first event.

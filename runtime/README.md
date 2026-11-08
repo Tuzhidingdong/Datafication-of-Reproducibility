@@ -180,3 +180,32 @@ Cohort reports include non-destructive Observation/Condition grain diagnostics. 
 Approval events now verify the relationships between the bound files, not only their individual hashes. G1 re-runs mapping validation and verifies mapping-plan/inventory/build-spec hash links. G2 verifies that reconciliation refers to the exact canonical bundle and that canonical build provenance matches G1. G3 binds interaction and repeated-seed robustness reports plus manifests, then verifies both derive from the G2-approved task and the same cohort/split artifacts. The selection record uses schema version 1.1 and binds both report hashes.
 
 The full synthetic CLI acceptance path now records G0–G4 and invokes gated commands with the real ledger; it does not use \`--allow-untracked-legacy\`. See ../docs/V0.8_APPROVED_WORKFLOW_ACCEPTANCE.md.
+
+
+## V0.9 project Run Manager
+
+Create a fully explicit run plan before execution, then initialize a separate run workspace:
+
+    dor run-init --plan run_plan.json --run-root path/to/new/run
+
+The plan declares protected source roots/files, the complete stage DAG, direct dependencies, exact artifact IDs, output paths, executor types, and optional G0-G4 requirements. The Runtime does not infer stage boundaries or discover files by crawling directories.
+
+For each stage, use dor run-stage-record to record RUNNING, SUCCEEDED, or FAILED. Successful completion hashes every declared input and output. The append-only run_events.jsonl ledger records attempts separately from the G0-G4 scientific approval ledger.
+
+For a Worker stage, first display and obtain explicit user authorization for the role, provider, model, project root, exact inputs, and staging outputs. Then use dor run-worker-authorize to create a bounded task packet. This command records authorization but does not start a Worker. Worker writes are confined to new files under worker_staging/<stage_id>/. A separate manual stage must review and promote accepted outputs.
+
+On resume, run dor run-verify, dor run-status, and dor run-resume-plan. Reuse only stages marked REUSE. Rebuild stale stages and their declared downstream dependents; independent stages remain reusable. RUNNING attempts require external process inspection before --confirm-abandoned is used. Changed source files require a new run.
+
+See ../docs/V0.9_RUN_MANAGER.md and ../schemas/run_plan.schema.json.
+
+
+Generate the current declared artifact inventory with:
+
+    dor run-artifacts --manifest run_manifest.json --out artifact_manifest.json
+
+It lists source and derived artifacts by ID/path/producer, expected and actual SHA-256, and current/missing/stale/unrecorded status. It is a regenerable projection of the immutable plan and run event ledger. A stage marked REBUILD_REQUIRED must have its existing declared outputs archived/moved before a new attempt; the Runtime never overwrites an existing output. Stage attempts are also bound to the exact required G0-G4 approval event hash, so a later reapproval forces re-execution.
+
+The resume planner reports `SOURCE_CHANGED_NEW_RUN_REQUIRED` when a declared source input no longer matches its run-init snapshot. Do not rebuild against changed source data inside the same run; initialize a new Run.
+
+
+The first run event is RUN_INITIALIZED. It hash-binds the Run Manifest's source snapshot, plan hash, workspace, workflow-ledger path, and stage order. Every Runtime operation compares the manifest against this event before trusting any stage status.
