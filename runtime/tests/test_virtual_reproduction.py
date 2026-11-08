@@ -50,6 +50,7 @@ class VirtualReproductionTests(unittest.TestCase):
         self.assertTrue(result["valid"])
         self.assertIsInstance(report["prediction"], (int, float))
         self.assertEqual(report["uncertainty_status"], "NOT_CALIBRATED")
+        self.assertEqual(report["support_assessment"]["per_feature"][0]["training_range"], [20.0, 25.0])
         self.assertFalse(report["provenance"]["test_set_used_for_fit_or_selection"])
         self.assertTrue(any("NOT_A_PHYSICAL_REPRODUCTION" in item for item in report["warnings"]))
         self.assertTrue(self.output.is_file())
