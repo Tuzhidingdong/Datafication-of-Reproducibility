@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from dor.cohort import build_modeling_cohort_files
+from dor.cli import build_parser
 from dor.interactions import discover_interactions_files
 from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
 from dor.response_surface import generate_interaction_surface_files
@@ -198,6 +199,31 @@ class MechanismEvidenceBridgeTests(unittest.TestCase):
         self.assertEqual(mechanism["evidence_counts"]["independent_prospective_support"], 1)
         self.assertTrue(any(item["issue_code"] == "PROSPECTIVE_EVIDENCE_NOT_INDEPENDENT"
                             for item in result["report"]["review_queue"]))
+
+    def test_unclassified_contradictory_evidence_is_preserved_for_review(self):
+        plan = mechanism_plan(self.interaction_id)
+        assessment = next(item for item in plan["mechanism_hypotheses"][0]["evidence_assessments"]
+                          if item["evidence_id"] == "EV_CONTRA")
+        assessment["evidence_class"] = "OTHER"
+        plan["mechanism_hypotheses"][0]["evidence_assessments"] = [assessment]
+        self.plan_path.write_text(json.dumps(plan), encoding="utf-8")
+        result = self._build("unclassified_contradiction")
+        mechanism = result["report"]["mechanism_catalogue"][0]
+        self.assertEqual(mechanism["evidence_status"], "NO_CLASSIFIED_MECHANISM_SUPPORT")
+        self.assertTrue(any(item["issue_code"] == "CONTRADICTORY_EVIDENCE_NOT_CLASSIFIED_OR_VERIFIED"
+                            for item in result["report"]["review_queue"]))
+
+    def test_cli_exposes_mechanism_bridge_with_optional_packages(self):
+        args = build_parser().parse_args([
+            "build-mechanism-evidence-bridge",
+            "--bundle", "bundle.json", "--cohort-dir", "cohort",
+            "--task", "task.json", "--interaction-dir", "interactions",
+            "--plan", "mechanism_plan.json", "--out-dir", "mechanisms",
+            "--robustness-dir", "robustness", "--response-surface-dir", "surface"
+        ])
+        self.assertEqual(args.command, "build-mechanism-evidence-bridge")
+        self.assertEqual(args.robustness_dir, Path("robustness"))
+        self.assertEqual(args.response_surface_dir, Path("surface"))
 
     def test_direct_observation_requires_an_exact_canonical_observation_link(self):
         plan = mechanism_plan(self.interaction_id)
