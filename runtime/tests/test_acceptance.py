@@ -51,7 +51,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             command="synthetic acceptance fixture",
         )
         self.evidence_path.parent.mkdir(parents=True)
-        self.evidence_path.write_text('{"synthetic": true}', encoding="utf-8")
+        self.evidence_path.write_text(json.dumps({"synthetic": True, "a/b": [{"~key": 7}], "ids": ["S1", "S1"]}), encoding="utf-8")
         record_stage_status(self.manifest, "acceptance_evidence", "SUCCEEDED", "local")
 
         self.record_path = self.root / "acceptance.json"
@@ -262,7 +262,6 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertFalse(report["assertion_checks"][0]["passed"])
 
     def test_json_pointer_supports_escaped_keys_and_array_indices(self):
-        self.evidence_path.write_text(json.dumps({"a/b": [{"~key": 7}]}), encoding="utf-8")
         self.set_stage("source_selection", "PASS")
         check = self.record["stages"][0]["checks"][0]
         check.update({"json_pointer": "/a~1b/0/~0key", "operator": "gte", "expected": 7})
@@ -272,7 +271,6 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertEqual(report["assertion_checks"][0]["actual"], 7)
 
     def test_unique_assertion_detects_duplicate_array_values(self):
-        self.evidence_path.write_text(json.dumps({"ids": ["S1", "S1"]}), encoding="utf-8")
         self.set_stage("source_selection", "PASS")
         self.record["stages"][0]["checks"][0].update({"json_pointer": "/ids", "operator": "unique"})
         self.write_record()
