@@ -128,11 +128,27 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
     run_root = run_manifest_path.parent
     run_plan: dict[str, Any] = {}
     run_events: list[dict[str, Any]] = []
+    run_report: dict[str, Any] = {}
+    run_artifact_states: dict[str, dict[str, Any]] = {}
     try:
         run_root, manifest, run_plan, run_events = _manifest_context(run_manifest_path)
         run_report = verify_run(run_manifest_path)
         if run_report.get("source_integrity") != "CURRENT":
             issue("RUN_SOURCE_INTEGRITY_CHANGED", "At least one Run Manager source artifact changed after run initialization.")
+        artifact_manifest = run_report.get("artifact_manifest")
+        artifact_rows = artifact_manifest.get("artifacts") if isinstance(artifact_manifest, dict) else None
+        if not isinstance(artifact_rows, list):
+            issue("RUN_ARTIFACT_MANIFEST_MISSING", "Run Manager did not return a valid regenerated artifact manifest.")
+        else:
+            for row in artifact_rows:
+                if not isinstance(row, dict) or not isinstance(row.get("artifact_id"), str):
+                    issue("RUN_ARTIFACT_MANIFEST_ENTRY_INVALID", "Run artifact manifest contains an invalid artifact entry.")
+                    continue
+                artifact_id = row["artifact_id"]
+                if artifact_id in run_artifact_states:
+                    issue("RUN_ARTIFACT_MANIFEST_DUPLICATE_ID", f"Run artifact manifest contains duplicate artifact_id {artifact_id}.")
+                    continue
+                run_artifact_states[artifact_id] = row
     except (OSError, ValueError, KeyError, TypeError) as exc:
         issue("RUN_INTEGRITY_INVALID", f"Run Manager manifest/plan/event chain is invalid: {exc}")
 
@@ -305,6 +321,17 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
                     issue("EVIDENCE_PATH_NOT_BOUND_TO_RUN", f"Evidence {artifact_id} path differs from its Run artifact.")
                 if expected != bound_evidence.get("sha256"):
                     issue("EVIDENCE_HASH_NOT_BOUND_TO_RUN", f"Evidence {artifact_id} SHA-256 differs from its Run event/source snapshot.")
+            run_artifact_is_current = True
+            if artifact_id != "run_manifest":
+                run_artifact = run_artifact_states.get(artifact_id)
+                if run_artifact is None:
+                    run_artifact_is_current = False
+                    issue("EVIDENCE_RUN_ARTIFACT_STATE_MISSING", f"Evidence {artifact_id} is absent from the regenerated Run artifact manifest.")
+                elif run_artifact.get("status") != "CURRENT":
+                    run_artifact_is_current = False
+                    producer = run_artifact.get("producer_stage_id")
+                    issue("EVIDENCE_RUN_ARTIFACT_NOT_CURRENT",
+                          f"Evidence {artifact_id} is not reusable in the current Run state (status={run_artifact.get('status')}, producer_stage={producer}). Rebuild invalidated upstream/downstream stages before acceptance.")
             actual = None
             try:
                 actual = _sha256(path)
@@ -317,7 +344,7 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
                                     "path": str(path), "expected_sha256": expected,
                                     "actual_sha256": actual,
                                     "status": "CURRENT" if actual == expected else "MISSING_OR_CHANGED"})
-            if isinstance(artifact_type, str) and artifact_type.strip() and actual == expected:
+            if isinstance(artifact_type, str) and artifact_type.strip() and actual == expected and run_artifact_is_current:
                 if artifact_type == "modeling_cohort_csv":
                     typed_evidence.append({**artifact, "path": str(path), "payload": None})
                 else:

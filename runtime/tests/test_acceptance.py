@@ -588,6 +588,29 @@ class AcceptanceValidatorTests(unittest.TestCase):
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertTrue({"SOURCE_HASH_MISMATCH", "RUN_INTEGRITY_INVALID", "RUN_SOURCE_INTEGRITY_CHANGED"} & codes)
 
+    def test_invalidated_run_artifact_cannot_support_acceptance_pass(self):
+        from dor.run_manager import verify_run
+
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.write_record()
+
+        report = verify_run(self.manifest)
+        artifacts = report["artifact_manifest"]["artifacts"]
+        stale = next(item for item in artifacts if item["artifact_id"] == "selection_manifest")
+        stale["status"] = "STALE_OR_MISSING"
+        stage_state = next(item for item in report["resume_plan"]["stages"]
+                           if item["stage_id"] == "acceptance_evidence")
+        stage_state["action"] = "REBUILD_REQUIRED"
+
+        with patch("dor.acceptance.verify_run", return_value=report):
+            validation = self.validate()
+        codes = {item["code"] for item in validation["issues"]}
+        self.assertIn("EVIDENCE_RUN_ARTIFACT_NOT_CURRENT", codes)
+        self.assertFalse(validation["valid"])
+
     def test_run_manifest_hash_mismatch_is_detected(self):
         self.record["run_manifest_sha256"] = "f" * 64
         self.write_record()
