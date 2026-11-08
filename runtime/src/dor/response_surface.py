@@ -301,6 +301,9 @@ def generate_interaction_surface_files(
     cross_partial = (model["target_scale"] * interaction_coefficient /
                      (encoder["standardizer"]["scales"][feature_a_column] *
                       encoder["standardizer"]["scales"][feature_b_column]))
+    outcome_unit = task.get("outcome_unit") or "unitless"
+    unit_a = next(item["expected_unit"] for item in bindings if item["feature_id"] == feature_a) or "unitless"
+    unit_b = next(item["expected_unit"] for item in bindings if item["feature_id"] == feature_b) or "unitless"
 
     grid_lookup = {(x, y): value for (x, y), value in matrix.items()}
     rows_out = []
@@ -365,10 +368,12 @@ def generate_interaction_surface_files(
                               "grid_status_counts": support_counts,
                               "supported_grid_fraction": supported_count / len(rows_out)},
         "marginal_effects": {"definition": "Finite differences of the partial-dependence surface in raw feature units.",
-                             "feature_a_unit": next(item["expected_unit"] for item in bindings if item["feature_id"] == feature_a),
-                             "feature_b_unit": next(item["expected_unit"] for item in bindings if item["feature_id"] == feature_b),
+                             "feature_a_unit": unit_a,
+                             "feature_b_unit": unit_b,
+                             "marginal_effect_feature_a_unit": outcome_unit + " / " + unit_a,
+                             "marginal_effect_feature_b_unit": outcome_unit + " / " + unit_b,
                              "cross_partial_derivative": cross_partial,
-                             "cross_partial_derivative_unit": "outcome_unit / feature_a_unit / feature_b_unit"},
+                             "cross_partial_derivative_unit": outcome_unit + " / (" + unit_a + " * " + unit_b + ")"},
         "interpretation_limits": [
             "The response surface is a descriptive full-cohort refit using the median Ridge alpha selected in the nested interaction folds; it is not an independent validation result.",
             "Partial dependence averages over observed values of all other features. When covariates are correlated, some constructed combinations may be unrealistic.",
