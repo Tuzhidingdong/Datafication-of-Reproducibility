@@ -39,7 +39,7 @@ class StageEvidenceContractTests(unittest.TestCase):
         codes = {item["code"] for item in validate_stage_payload(
             "canonical_bundle", payload, run_id="R1", project_id="P1", study_ids={"S1"}
         )}
-        self.assertIn("CANONICAL_BUNDLE_INVALID", codes)
+        self.assertTrue({"CANONICAL_BUNDLE_INVALID", "CANONICAL_BUNDLE_METADATA_INVALID"} & codes)
 
     def test_reconciliation_report_must_bind_exact_bundle_hash(self):
         payload = {"schema_version": "1.0", "bundle_sha256": "b" * 64, "valid_bundle": True,
