@@ -78,6 +78,14 @@ class WorkflowGateTests(unittest.TestCase):
             "schema_version": "1.0", "task_id": "TASK_GATE",
             "interaction_id": "INT_1",
         })
+        # G3 report/manifest/selection artifacts are overwritten with internally
+        # consistent fixtures by _prepare_g3, but must first be registered.
+        for artifact_id in (
+            "interaction_report", "interaction_manifest",
+            "robustness_report", "robustness_manifest",
+            "interaction_selection",
+        ):
+            make_file(artifact_id, {})
         self._prepare_g3(["INT_1"], ["INT_1"])
 
     def tearDown(self):
