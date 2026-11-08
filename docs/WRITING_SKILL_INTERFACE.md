@@ -40,3 +40,15 @@ The file paths and schema version are part of the interface. Breaking changes re
 ## No source-code dependency
 
 The downstream Writing Skill must not need to inspect the Python implementation, model source, or old Agent conversations to retrieve executed scientific facts.
+
+
+## Mechanism evidence hand-off
+
+When a run includes the V0.4 Mechanism Evidence Bridge, the Writing Skill should retrieve:
+
+- `mechanisms/mechanism_evidence_bridge_report.json` for hypothesis scope, evidence status, contradictions, and pending review;
+- `mechanisms/mechanism_evidence_ledger.csv` for exact Evidence IDs, Study/DOI, source file and locator, extraction state, Observation links, and whether the record was counted;
+- `mechanisms/mechanism_review_queue.csv` for unresolved source verification, non-independent prospective labels, and contradictory evidence;
+- `findings/mechanism_findings.json` for structured Research Finding records.
+
+Every generated mechanism finding remains a candidate hypothesis until the report's `PENDING_USER_MECHANISM_REVIEW` state is resolved by an explicit human review process. Do not rewrite `mechanism_hypothesis` as an established mechanism. Direct observation, theoretical support, and prospective validation are different evidence types, not steps on an automatic confidence ladder. Contradictory evidence must remain visible in the claim map and manuscript discussion.
