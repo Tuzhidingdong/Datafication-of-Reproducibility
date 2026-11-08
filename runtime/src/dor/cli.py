@@ -12,6 +12,7 @@ from dor.modeling import run_baseline_models_files
 from dor.reproducibility import evaluate_reproducibility_files
 from dor.interactions import discover_interactions_files
 from dor.robustness import assess_interaction_robustness_files
+from dor.response_surface import generate_interaction_surface_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 
 def _write_json(path: Path | None, report: dict) -> str:
@@ -79,6 +80,15 @@ def build_parser() -> argparse.ArgumentParser:
     robustness.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
     robustness.add_argument("--seeds", type=str, default="11,23,42", help="At least three unique comma-separated integer seeds")
     robustness.add_argument("--minimum-candidate-run-fraction", type=float, default=0.8, help="Required fraction of runs labelled as candidates for seed-stable status")
+    surface = subparsers.add_parser("generate-interaction-surface", help="Generate a descriptive pairwise response surface and support mask")
+    surface.add_argument("--cohort-dir", type=Path, required=True, help="Completed hash-verified numeric modeling cohort directory")
+    surface.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON")
+    surface.add_argument("--interaction-dir", type=Path, required=True, help="Hash-verified output directory from dor discover-interactions")
+    surface.add_argument("--interaction-id", type=str, required=True, help="Exact interaction_id selected from interaction_catalogue.csv")
+    surface.add_argument("--out-dir", type=Path, required=True, help="New or empty derived response-surface directory")
+    surface.add_argument("--robustness-dir", type=Path, default=None, help="Optional hash-verified output directory from dor assess-interaction-robustness")
+    surface.add_argument("--grid-size", type=int, default=None, help="Override task grid size (5-61)")
+    surface.add_argument("--background-max", type=int, default=None, help="Override partial-dependence background cap (10-5000)")
     return parser
 
 def main() -> int:
@@ -128,6 +138,15 @@ def main() -> int:
                 "seed_count":report["seed_count"],
                 "seed_stable_candidates":sum(1 for item in report["interaction_catalogue"] if item["robustness_status"]=="SEED_STABLE_PREDICTIVE_INTERACTION_CANDIDATE"),
                 "claim_scope":"SEED_SENSITIVITY_NOT_INFERENTIAL_SIGNIFICANCE_CAUSALITY_OR_MECHANISM"},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "generate-interaction-surface":
+            result=generate_interaction_surface_files(args.cohort_dir,args.task,args.interaction_dir,
+                args.interaction_id,args.out_dir,args.robustness_dir,args.grid_size,args.background_max)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "interaction_id":report["interaction_id"],"grid_point_count":report["grid"]["grid_point_count"],
+                "supported_grid_fraction":report["empirical_support"]["supported_grid_fraction"],
+                "method":report["method"],"validation_scope":report["validation_scope"]},ensure_ascii=False,indent=2))
             return 0
         if args.command == "evaluate-reproducibility":
             result=evaluate_reproducibility_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
