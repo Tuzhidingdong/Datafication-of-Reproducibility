@@ -168,13 +168,14 @@ def build_publication_package_files(plan_path: Path, workspace_root: Path, outpu
         "run_id": plan["run_id"],
         "package_version": plan["package_version"],
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "domain_profile": plan.get("domain_profile"),
         "source_hashes": plan.get("source_hashes", {}),
         "writing_guide": "README_FOR_WRITING_SKILL.md",
         "writing_guide_sha256": guide_before,
         "artifacts": manifest_artifacts,
         "completeness": {"status": completeness_status, "unresolved_items": unresolved}
     }
+    if plan.get("domain_profile") is not None:
+        manifest["domain_profile"] = plan["domain_profile"]
     _write_json(output_dir / "package_manifest.json", manifest)
     return {"valid": True, "manifest": manifest, "output_dir": str(output_dir),
             "artifact_count": len(manifest_artifacts), "copied_artifact_count": len(copied_sources)}
@@ -215,6 +216,8 @@ def audit_publication_package_files(package_dir: Path) -> dict[str, Any]:
         aid = item.get("artifact_id")
         rel = item.get("path")
         status = item.get("status")
+        if status not in STATUSES:
+            errors.append("Unsupported artifact status for " + str(aid) + ": " + str(status))
         if not isinstance(aid, str) or aid in seen_ids:
             errors.append("Artifact IDs are missing or duplicated: " + str(aid))
         seen_ids.add(str(aid))
