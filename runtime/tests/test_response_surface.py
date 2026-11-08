@@ -46,6 +46,8 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
         self.assertEqual(report["fit_population"], "ALL_ELIGIBLE_COHORT_OBSERVATIONS_ALL_SPLITS_INCLUDING_HELD_OUT_TEST")
         self.assertEqual(report["grid"]["grid_point_count"], 81)
         self.assertEqual(report["cohort"]["study_count"], 8)
+        self.assertEqual(len(report["study_pair_coverage"]), 8)
+        self.assertEqual(report["study_pair_coverage"][0]["distinct_observed_feature_pairs"], 4)
         self.assertEqual(report["feature_definitions"]["feature_a"]["condition_type"], "pressure")
         self.assertEqual(report["feature_definitions"]["feature_b"]["condition_type"], "temperature")
         self.assertGreater(report["empirical_support"]["distance_threshold"], 0)
