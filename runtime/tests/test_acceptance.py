@@ -46,12 +46,12 @@ class AcceptanceValidatorTests(unittest.TestCase):
         initialized = initialize_run(self.plan_path, self.run_root, "RUN_1")
         self.manifest = Path(initialized["manifest_path"])
         self.evidence_path = self.run_root / "01_audit" / "audit_report.json"
-        self.evidence_path.parent.mkdir(parents=True)
-        self.evidence_path.write_text('{"synthetic": true}', encoding="utf-8")
         record_stage_status(
             self.manifest, "acceptance_evidence", "RUNNING", "local",
             command="synthetic acceptance fixture",
         )
+        self.evidence_path.parent.mkdir(parents=True)
+        self.evidence_path.write_text('{"synthetic": true}', encoding="utf-8")
         record_stage_status(self.manifest, "acceptance_evidence", "SUCCEEDED", "local")
 
         self.record_path = self.root / "acceptance.json"
