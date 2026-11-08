@@ -15,6 +15,8 @@ from dor.robustness import assess_interaction_robustness_files
 from dor.response_surface import generate_interaction_surface_files
 from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
+from dor.publication import build_publication_package_files, audit_publication_package_files
+from dor.virtual_reproduction import predict_virtual_condition_files
 
 def _write_json(path: Path | None, report: dict) -> str:
     rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
@@ -99,6 +101,17 @@ def build_parser() -> argparse.ArgumentParser:
     mechanism.add_argument("--out-dir", type=Path, required=True, help="New or empty derived mechanism bridge output directory")
     mechanism.add_argument("--robustness-dir", type=Path, default=None, help="Optional hash-verified repeated-seed robustness output")
     mechanism.add_argument("--response-surface-dir", type=Path, default=None, help="Optional hash-verified descriptive response-surface output")
+    package = subparsers.add_parser("build-publication-package", help="Assemble an explicitly curated, hash-verified Writing Skill package")
+    package.add_argument("--plan", type=Path, required=True, help="Explicit publication_package_plan.json")
+    package.add_argument("--workspace-root", type=Path, required=True, help="Workspace root for declared relative source paths")
+    package.add_argument("--out-dir", type=Path, required=True, help="New or empty publication package directory")
+    package_audit = subparsers.add_parser("audit-publication-package", help="Verify publication package paths, completeness states, and SHA-256 hashes")
+    package_audit.add_argument("--package-dir", type=Path, required=True, help="Publication package directory")
+    package_audit.add_argument("--out", type=Path, help="Optional integrity report JSON outside the package")
+    virtual = subparsers.add_parser("predict-virtual-condition", help="Predict a requested condition set with a hash-verified selected baseline model")
+    virtual.add_argument("--model-run-dir", type=Path, required=True, help="Exact output directory from dor fit-baselines")
+    virtual.add_argument("--query", type=Path, required=True, help="Explicit virtual_reproduction_query.json")
+    virtual.add_argument("--out", type=Path, required=True, help="New JSON prediction report path")
     return parser
 
 def main() -> int:
@@ -167,6 +180,24 @@ def main() -> int:
                 "evidence_review_issue_count":report["review_issue_count"],
                 "review_state":report["review_state"],
                 "claim_scope":report["claim_scope"]},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "build-publication-package":
+            result=build_publication_package_files(args.plan,args.workspace_root,args.out_dir)
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "artifact_count":result["artifact_count"],"copied_artifact_count":result["copied_artifact_count"],
+                "completeness":result["manifest"]["completeness"]},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "audit-publication-package":
+            report=audit_publication_package_files(args.package_dir)
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
+        if args.command == "predict-virtual-condition":
+            result=predict_virtual_condition_files(args.model_run_dir,args.query,args.out)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_path":result["output_path"],
+                "prediction":report["prediction"],"prediction_status":report["prediction_status"],
+                "uncertainty_status":report["uncertainty_status"],"warning_count":len(report["warnings"])},
+                ensure_ascii=False,indent=2))
             return 0
         if args.command == "evaluate-reproducibility":
             result=evaluate_reproducibility_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
