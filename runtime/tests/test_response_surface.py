@@ -43,6 +43,7 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
             self.interaction_dir, self.interaction_id, output)
         report = result["report"]
         self.assertEqual(report["prediction_mode"], "PARTIAL_DEPENDENCE_AVERAGED_OVER_EMPIRICAL_BACKGROUND")
+        self.assertEqual(report["fit_population"], "ALL_ELIGIBLE_COHORT_OBSERVATIONS_ALL_SPLITS_INCLUDING_HELD_OUT_TEST")
         self.assertEqual(report["grid"]["grid_point_count"], 81)
         self.assertEqual(report["cohort"]["study_count"], 8)
         self.assertEqual(report["feature_definitions"]["feature_a"]["condition_type"], "pressure")
