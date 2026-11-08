@@ -20,6 +20,7 @@ from dor.modeling import (
 from dor.reproducibility import _quantile
 
 ENGINE_VERSION = "dor-runtime/0.1.0"
+MAX_PARTIAL_DEPENDENCE_EVALUATIONS = 500_000
 DEFAULT_GRID_SIZE = 21
 DEFAULT_BACKGROUND_MAX = 500
 DEFAULT_SUPPORT_QUANTILE = 0.95
@@ -264,6 +265,10 @@ def generate_interaction_surface_files(
         raise RuntimeError("Full-cohort descriptive interaction refit did not converge; response surface was not generated.")
 
     background = _background_rows(rows, settings["background_max_observations"])
+    prediction_evaluations = len(axis_a) * len(axis_b) * len(background)
+    if prediction_evaluations > MAX_PARTIAL_DEPENDENCE_EVALUATIONS:
+        raise ValueError("Requested response surface exceeds the bounded partial-dependence evaluation budget of "
+                         + str(MAX_PARTIAL_DEPENDENCE_EVALUATIONS) + "; reduce grid_size or background_max_observations.")
     surface = _partial_dependence_predictions(axis_a, axis_b, background, feature_a, feature_b,
                                                encoder, model, pair_columns)
     matrix = {(item["feature_a_value"], item["feature_b_value"]): item["predicted_mean"] for item in surface}
@@ -345,6 +350,7 @@ def generate_interaction_surface_files(
         "cohort": {"observation_count": len(rows), "study_count": len({row["study_id"] for row in rows}),
                    "distinct_observed_feature_pairs": len(unique_points),
                    "background_observation_count": len(background),
+                   "partial_dependence_prediction_evaluations": prediction_evaluations,
                    "background_sampling": "DETERMINISTIC_EVENLY_SPACED_ROWS" if len(background) < len(rows) else "ALL_ELIGIBLE_ROWS"},
         "grid": {"grid_size_per_axis": settings["grid_size"], "grid_point_count": len(rows_out),
                  "feature_a_range": list(range_a), "feature_b_range": list(range_b),
