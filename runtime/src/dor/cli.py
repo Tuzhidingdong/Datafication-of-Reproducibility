@@ -13,6 +13,7 @@ from dor.reproducibility import evaluate_reproducibility_files
 from dor.interactions import discover_interactions_files
 from dor.robustness import assess_interaction_robustness_files
 from dor.response_surface import generate_interaction_surface_files
+from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 
 def _write_json(path: Path | None, report: dict) -> str:
@@ -89,6 +90,15 @@ def build_parser() -> argparse.ArgumentParser:
     surface.add_argument("--robustness-dir", type=Path, default=None, help="Optional hash-verified output directory from dor assess-interaction-robustness")
     surface.add_argument("--grid-size", type=int, default=None, help="Override task grid size (5-61)")
     surface.add_argument("--background-max", type=int, default=None, help="Override partial-dependence background cap (10-5000)")
+    mechanism = subparsers.add_parser("build-mechanism-evidence-bridge", help="Validate source evidence links for explicit mechanism hypotheses tied to a selected interaction")
+    mechanism.add_argument("--bundle", type=Path, required=True, help="Exact canonical_bundle.json used to build the modeling cohort")
+    mechanism.add_argument("--cohort-dir", type=Path, required=True, help="Hash-verified endpoint-specific modeling cohort")
+    mechanism.add_argument("--task", type=Path, required=True, help="Exact modeling_task.json used to build the cohort")
+    mechanism.add_argument("--interaction-dir", type=Path, required=True, help="Hash-verified interaction discovery output")
+    mechanism.add_argument("--plan", type=Path, required=True, help="Explicit mechanism_plan.json with evidence assessments")
+    mechanism.add_argument("--out-dir", type=Path, required=True, help="New or empty derived mechanism bridge output directory")
+    mechanism.add_argument("--robustness-dir", type=Path, default=None, help="Optional hash-verified repeated-seed robustness output")
+    mechanism.add_argument("--response-surface-dir", type=Path, default=None, help="Optional hash-verified descriptive response-surface output")
     return parser
 
 def main() -> int:
@@ -147,6 +157,16 @@ def main() -> int:
                 "interaction_id":report["interaction_id"],"grid_point_count":report["grid"]["grid_point_count"],
                 "supported_grid_fraction":report["empirical_support"]["supported_grid_fraction"],
                 "method":report["method"],"validation_scope":report["validation_scope"]},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "build-mechanism-evidence-bridge":
+            result=build_mechanism_evidence_bridge_files(args.bundle,args.cohort_dir,args.task,
+                args.interaction_dir,args.plan,args.out_dir,args.robustness_dir,args.response_surface_dir)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "mechanism_hypothesis_count":len(report["mechanism_catalogue"]),
+                "evidence_review_issue_count":report["review_issue_count"],
+                "review_state":report["review_state"],
+                "claim_scope":report["claim_scope"]},ensure_ascii=False,indent=2))
             return 0
         if args.command == "evaluate-reproducibility":
             result=evaluate_reproducibility_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
