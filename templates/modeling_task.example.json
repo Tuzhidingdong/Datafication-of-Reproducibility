@@ -10,5 +10,12 @@
     {"feature_id":"feature_temperature","condition_type":"temperature","value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"degC"}
   ],
   "split":{"strategy":"GROUPED_HOLDOUT","seed":42,"fractions":{"train":0.7,"validation":0.15,"test":0.15}},
+  "modeling":{
+    "ridge_alphas":[0.01,0.1,1.0,10.0,100.0],
+    "max_iter":2000,
+    "tolerance":1e-8,
+    "naive_bayes_smoothing":[0.1,1.0,10.0],
+    "naive_bayes_variance_floor":1e-6
+  },
   "notes":"Illustrative only. Replace target, endpoint, field, and unit after reviewing the canonical data."
 }
