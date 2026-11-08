@@ -80,8 +80,10 @@ class BaselineModelEngineTests(unittest.TestCase):
     def test_categorical_engine_compares_majority_and_mixed_naive_bayes(self):
         task_path=self.root/"categorical_task.json"
         task_path.write_text(json.dumps(make_task(categorical=True)),encoding="utf-8")
+        categorical_bundle=self.root/"categorical_bundle.json"
+        categorical_bundle.write_text(json.dumps(make_bundle(categorical=True)),encoding="utf-8")
         cohort_dir=self.root/"categorical_cohort"
-        built=build_modeling_cohort_files(self.bundle_path,task_path,cohort_dir)
+        built=build_modeling_cohort_files(categorical_bundle,task_path,cohort_dir)
         self.assertTrue(built["valid"],built)
         result=run_baseline_models_files(cohort_dir,task_path,self.root/"categorical_model")
         self.assertTrue(result["valid"],result)
@@ -136,15 +138,16 @@ class BaselineModelEngineTests(unittest.TestCase):
             run_baseline_models_files(self.cohort_dir,self.task_path,out)
         self.assertEqual(marker.read_text(),"keep")
 
-    def test_no_implicit_numeric_string_cast_for_direct_feature_values(self):
-        task=make_task()
-        task["feature_bindings"][0]["value_type"]="CATEGORICAL"
-        task["feature_bindings"][0]["feature_id"]="temperature_as_category"
-        # Cohort CSV is task-bound; use a synthetic task/cohort pair for this changed feature definition.
-        task_path=self.root/"cat_feature_task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
-        # The prior cohort's feature name does not match this task, so the reader must fail closed.
-        with self.assertRaisesRegex(ValueError,"missing required fields"):
-            run_baseline_models_files(self.cohort_dir,task_path,self.root/"model")
+    def test_numeric_strings_are_not_silently_parsed_as_canonical_features(self):
+        data=make_bundle()
+        data["conditions"][0]["normalized_value"]="20.0"
+        bundle_path=self.root/"numeric_string_bundle.json"
+        bundle_path.write_text(json.dumps(data),encoding="utf-8")
+        cohort_dir=self.root/"numeric_string_cohort"
+        result=build_modeling_cohort_files(bundle_path,self.task_path,cohort_dir)
+        self.assertTrue(result["valid"],result)
+        excluded={item["observation_id"]:item["reason"] for item in result["report"]["excluded"]}
+        self.assertEqual(excluded["OB1"],"FEATURE_VALUE_NOT_VALID_NUMERIC")
 
 if __name__=="__main__":
     unittest.main()
