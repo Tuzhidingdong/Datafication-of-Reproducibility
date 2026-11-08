@@ -345,6 +345,16 @@ def generate_interaction_surface_files(
         "schema_version": "1.0", "task_id": task["task_id"], "target_id": task["target_id"],
         "endpoint_definition": task["endpoint_definition"], "interaction_id": interaction_id,
         "feature_a": feature_a, "feature_b": feature_b, "outcome_unit": task.get("outcome_unit"),
+        "feature_definitions": {
+            "feature_a": {"feature_id": feature_a,
+                          "condition_type": next(item["condition_type"] for item in bindings if item["feature_id"] == feature_a),
+                          "value_field": next(item["value_field"] for item in bindings if item["feature_id"] == feature_a),
+                          "value_type": "NUMERIC", "unit": unit_a},
+            "feature_b": {"feature_id": feature_b,
+                          "condition_type": next(item["condition_type"] for item in bindings if item["feature_id"] == feature_b),
+                          "value_field": next(item["value_field"] for item in bindings if item["feature_id"] == feature_b),
+                          "value_type": "NUMERIC", "unit": unit_b}
+        },
         "source_interaction_status": selected.get("interpretation_status"),
         "robustness_status": robustness.get("robustness_status") if robustness else "NOT_SUPPLIED",
         "method": "ALL_COHORT_DESCRIPTIVE_REFIT_FROM_MEDIAN_NESTED_ALPHA",
