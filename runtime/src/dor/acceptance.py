@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,66 @@ def _resolve_file(raw_path: str, record_dir: Path) -> Path:
     return (path if path.is_absolute() else record_dir / path).resolve(strict=False)
 
 
+
+def _json_pointer_get(document: Any, pointer: str) -> tuple[bool, Any]:
+    """Resolve an RFC 6901 JSON Pointer without treating missing as null."""
+    if pointer == "":
+        return True, document
+    if not isinstance(pointer, str) or not pointer.startswith("/"):
+        return False, None
+    current = document
+    for raw_token in pointer[1:].split("/"):
+        if re.search(r"~(?![01])", raw_token):
+            return False, None
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, dict):
+            if token not in current:
+                return False, None
+            current = current[token]
+        elif isinstance(current, list):
+            if not token.isdigit() or (len(token) > 1 and token.startswith("0")):
+                return False, None
+            index = int(token)
+            if index >= len(current):
+                return False, None
+            current = current[index]
+        else:
+            return False, None
+    return True, current
+
+
+def _evaluate_assertion(operator: str, actual: Any, expected: Any = None) -> tuple[bool, str]:
+    if operator == "exists":
+        return True, "JSON Pointer resolves."
+    if operator == "equals":
+        ok = type(actual) is type(expected) and actual == expected
+        return ok, "Value equals expected value." if ok else "Value differs from expected value."
+    if operator == "not_equals":
+        ok = not (type(actual) is type(expected) and actual == expected)
+        return ok, "Value differs from forbidden value." if ok else "Value equals forbidden value."
+    if operator in {"gte", "lte"}:
+        if isinstance(actual, bool) or not isinstance(actual, (int, float)) or isinstance(expected, bool) or not isinstance(expected, (int, float)):
+            return False, "Numeric comparison requires numeric actual and expected values."
+        ok = actual >= expected if operator == "gte" else actual <= expected
+        return ok, "Numeric bound satisfied." if ok else "Numeric bound violated."
+    if operator == "non_empty":
+        ok = isinstance(actual, (str, list, dict)) and len(actual) > 0
+        return ok, "Value is non-empty." if ok else "Value is empty or not a string/array/object."
+    if operator == "unique":
+        if not isinstance(actual, list):
+            return False, "Unique check requires an array."
+        encoded = [json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")) for value in actual]
+        ok = len(encoded) == len(set(encoded))
+        return ok, "Array values are unique." if ok else "Array contains duplicate values."
+    if operator == "contains":
+        try:
+            ok = expected in actual
+        except TypeError:
+            ok = False
+        return ok, "Expected value is contained." if ok else "Expected value is not contained."
+    return False, f"Unsupported assertion operator: {operator}."
+
+
 def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> dict[str, Any]:
     record_path = record_path.expanduser().resolve()
     run_manifest_path = run_manifest_path.expanduser().resolve()
@@ -58,6 +119,7 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
     issues: list[dict[str, str]] = []
     source_checks: list[dict[str, Any]] = []
     evidence_checks: list[dict[str, Any]] = []
+    assertion_checks: list[dict[str, Any]] = []
 
     def issue(code: str, message: str) -> None:
         issues.append({"code": code, "message": message})
@@ -245,6 +307,73 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
                                     "actual_sha256": actual,
                                     "status": "CURRENT" if actual == expected else "MISSING_OR_CHANGED"})
 
+        checks = item.get("checks", [])
+        if not isinstance(checks, list):
+            issue("INVALID_STAGE_CHECKS", f"Checks for {stage_id} must be an array.")
+            checks = []
+        if status == "PASS" and not checks:
+            issue("PASS_WITHOUT_DETERMINISTIC_CHECKS", f"Stage {stage_id} is PASS but has no deterministic content assertions.")
+        seen_check_ids: set[str] = set()
+        stage_evidence_ids = {
+            entry.get("artifact_id") for entry in evidence
+            if isinstance(entry, dict) and isinstance(entry.get("artifact_id"), str)
+        }
+        for check in checks:
+            if not isinstance(check, dict):
+                issue("INVALID_STAGE_CHECK", f"Every check in {stage_id} must be an object.")
+                continue
+            check_id = check.get("check_id")
+            artifact_id = check.get("artifact_id")
+            pointer = check.get("json_pointer")
+            operator = check.get("operator")
+            if not isinstance(check_id, str) or not check_id.strip():
+                issue("INVALID_CHECK_ID", f"Check in {stage_id} requires a non-empty check_id.")
+                continue
+            if check_id in seen_check_ids:
+                issue("DUPLICATE_CHECK_ID", f"Duplicate check_id {check_id} in {stage_id}.")
+                continue
+            seen_check_ids.add(check_id)
+            if artifact_id not in stage_evidence_ids:
+                issue("CHECK_ARTIFACT_NOT_STAGE_EVIDENCE", f"Check {check_id} must reference evidence listed on stage {stage_id}.")
+                continue
+            if not isinstance(pointer, str) or (pointer != "" and not pointer.startswith("/")):
+                issue("INVALID_CHECK_JSON_POINTER", f"Check {check_id} requires an RFC 6901 JSON Pointer.")
+                continue
+            expected_required = operator in {"equals", "not_equals", "gte", "lte", "contains"}
+            if operator not in {"exists", "equals", "not_equals", "gte", "lte", "non_empty", "unique", "contains"}:
+                issue("INVALID_CHECK_OPERATOR", f"Check {check_id} uses an unsupported operator.")
+                continue
+            if expected_required and "expected" not in check:
+                issue("CHECK_EXPECTED_VALUE_MISSING", f"Check {check_id} requires expected.")
+                continue
+            bound = evidence_catalog.get(artifact_id)
+            check_result = {"stage_id": stage_id, "check_id": check_id, "artifact_id": artifact_id,
+                            "json_pointer": pointer, "operator": operator, "passed": False}
+            if bound is None:
+                check_result["message"] = "Evidence is not bound to a completed Run artifact."
+                issue("CHECK_ARTIFACT_NOT_RUN_BOUND", f"Check {check_id} references evidence not bound to this Run.")
+                assertion_checks.append(check_result)
+                continue
+            try:
+                payload = _read_json(Path(bound["path"]), f"Evidence JSON for check {check_id}")
+                found, actual_value = _json_pointer_get(payload, pointer)
+                if not found:
+                    check_result["message"] = "JSON Pointer does not resolve."
+                    issue("CHECK_POINTER_NOT_FOUND", f"JSON Pointer for check {check_id} does not resolve.")
+                else:
+                    passed, message = _evaluate_assertion(operator, actual_value, check.get("expected"))
+                    check_result.update({"passed": passed, "message": message})
+                    if "expected" in check:
+                        check_result["expected"] = check["expected"]
+                    if passed:
+                        check_result["actual"] = actual_value
+                    else:
+                        issue("CONTENT_ASSERTION_FAILED", f"Deterministic content assertion failed: {check_id}.")
+            except (OSError, ValueError, TypeError) as exc:
+                check_result["message"] = str(exc)
+                issue("CHECK_EVIDENCE_NOT_VALID_JSON", f"Check {check_id} evidence must be readable JSON: {exc}")
+            assertion_checks.append(check_result)
+
     if scope == "CONTROLLED_SINGLE_STUDY" and stage_statuses.get("modeling_validation") == "PASS":
         issue("SINGLE_STUDY_MODEL_VALIDATION_INVALID", "A single Study cannot PASS cross-Study modelling validation.")
 
@@ -291,6 +420,7 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
         "final_decision": decision,
         "source_checks": source_checks,
         "evidence_checks": evidence_checks,
+        "assertion_checks": assertion_checks,
         "issue_count": len(issues),
         "issues": issues,
         "scientific_review_required": True,

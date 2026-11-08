@@ -7,7 +7,9 @@
   "run_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "source_snapshot": {
     "study_count": 1,
-    "study_ids": ["STUDY_ID_FROM_CANONICAL_BUNDLE"],
+    "study_ids": [
+      "STUDY_ID_FROM_CANONICAL_BUNDLE"
+    ],
     "artifacts": [
       {
         "source_id": "primary_paper",
@@ -28,49 +30,57 @@
       "stage_id": "source_selection",
       "status": "NOT_STARTED",
       "evidence": [],
-      "limitations": []
+      "limitations": [],
+      "checks": []
     },
     {
       "stage_id": "source_integrity",
       "status": "NOT_STARTED",
       "evidence": [],
-      "limitations": []
+      "limitations": [],
+      "checks": []
     },
     {
       "stage_id": "extraction_review",
       "status": "NOT_STARTED",
       "evidence": [],
-      "limitations": []
+      "limitations": [],
+      "checks": []
     },
     {
       "stage_id": "semantic_mapping",
       "status": "NOT_STARTED",
       "evidence": [],
-      "limitations": []
+      "limitations": [],
+      "checks": []
     },
     {
       "stage_id": "canonical_reconciliation",
       "status": "NOT_STARTED",
       "evidence": [],
-      "limitations": []
+      "limitations": [],
+      "checks": []
     },
     {
       "stage_id": "cohort_feasibility",
       "status": "NOT_STARTED",
       "evidence": [],
-      "limitations": []
+      "limitations": [],
+      "checks": []
     },
     {
       "stage_id": "modeling_validation",
       "status": "NOT_STARTED",
       "evidence": [],
-      "limitations": []
+      "limitations": [],
+      "checks": []
     },
     {
       "stage_id": "publication_handoff",
       "status": "NOT_STARTED",
       "evidence": [],
-      "limitations": []
+      "limitations": [],
+      "checks": []
     }
   ],
   "final_assessment": {

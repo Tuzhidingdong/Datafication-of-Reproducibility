@@ -62,6 +62,13 @@ class V1AcceptanceContractTests(unittest.TestCase):
         self.assertEqual(rule["then"]["properties"]["stages"]["items"]["properties"]["status"]["const"], "PASS")
 
 
+    def test_stage_check_contract_is_declared_and_example_initially_has_no_claimed_checks(self):
+        stage_schema = self.schema["properties"]["stages"]["items"]
+        check_schema = stage_schema["properties"]["checks"]["items"]
+        self.assertEqual(check_schema["required"], ["check_id", "artifact_id", "json_pointer", "operator"])
+        self.assertIn("gte", check_schema["properties"]["operator"]["enum"])
+        self.assertTrue(all(stage["checks"] == [] for stage in self.example["stages"]))
+
     def test_study_ids_are_explicit_unique_and_required(self):
         snapshot = self.schema["properties"]["source_snapshot"]
         self.assertIn("study_ids", snapshot["required"])

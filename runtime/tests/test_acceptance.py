@@ -103,6 +103,13 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 "path": str(self.evidence_path),
                 "sha256": self.sha(self.evidence_path),
             }]
+            stage["checks"] = [{
+                "check_id": f"{stage_id}_synthetic_fixture_present",
+                "artifact_id": "audit_report",
+                "json_pointer": "/synthetic",
+                "operator": "equals",
+                "expected": True,
+            }]
         self.write_record()
 
     def validate(self):
@@ -238,6 +245,44 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.record["final_assessment"]["blocking_issue_ids"] = ["ISSUE_1"]
         self.write_record()
         self.assertIn("FULL_PASS_HAS_BLOCKERS", {item["code"] for item in self.validate()["issues"]})
+
+
+    def test_passing_stage_requires_deterministic_content_check(self):
+        self.set_stage("source_selection", "PASS")
+        self.record["stages"][0]["checks"] = []
+        self.write_record()
+        self.assertIn("PASS_WITHOUT_DETERMINISTIC_CHECKS", {item["code"] for item in self.validate()["issues"]})
+
+    def test_content_assertion_is_evaluated_against_actual_json(self):
+        self.set_stage("source_selection", "PASS")
+        self.record["stages"][0]["checks"][0]["expected"] = False
+        self.write_record()
+        report = self.validate()
+        self.assertIn("CONTENT_ASSERTION_FAILED", {item["code"] for item in report["issues"]})
+        self.assertFalse(report["assertion_checks"][0]["passed"])
+
+    def test_json_pointer_supports_escaped_keys_and_array_indices(self):
+        self.evidence_path.write_text(json.dumps({"a/b": [{"~key": 7}]}), encoding="utf-8")
+        self.set_stage("source_selection", "PASS")
+        check = self.record["stages"][0]["checks"][0]
+        check.update({"json_pointer": "/a~1b/0/~0key", "operator": "gte", "expected": 7})
+        self.write_record()
+        report = self.validate()
+        self.assertTrue(report["valid"], report["issues"])
+        self.assertEqual(report["assertion_checks"][0]["actual"], 7)
+
+    def test_unique_assertion_detects_duplicate_array_values(self):
+        self.evidence_path.write_text(json.dumps({"ids": ["S1", "S1"]}), encoding="utf-8")
+        self.set_stage("source_selection", "PASS")
+        self.record["stages"][0]["checks"][0].update({"json_pointer": "/ids", "operator": "unique"})
+        self.write_record()
+        self.assertIn("CONTENT_ASSERTION_FAILED", {item["code"] for item in self.validate()["issues"]})
+
+    def test_check_must_reference_evidence_attached_to_same_stage(self):
+        self.set_stage("source_selection", "PASS")
+        self.record["stages"][0]["checks"][0]["artifact_id"] = "paper"
+        self.write_record()
+        self.assertIn("CHECK_ARTIFACT_NOT_STAGE_EVIDENCE", {item["code"] for item in self.validate()["issues"]})
 
 
 if __name__ == "__main__":

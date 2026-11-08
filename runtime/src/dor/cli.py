@@ -164,7 +164,7 @@ def build_parser() -> argparse.ArgumentParser:
     gate_status = subparsers.add_parser("gate-status", help="Verify event history, artifact hashes, and current G0-G4 approval state")
     gate_status.add_argument("--workflow-ledger", type=Path, required=True)
 
-    acceptance = subparsers.add_parser("validate-acceptance", help="Verify V1.0 acceptance stage semantics, run binding, and cited file hashes")
+    acceptance = subparsers.add_parser("validate-acceptance", help="Verify V1.0 acceptance semantics, Run binding, hashes, and deterministic JSON assertions")
     acceptance.add_argument("--record", type=Path, required=True, help="V1.0 acceptance record JSON")
     acceptance.add_argument("--run-manifest", type=Path, required=True, help="Exact run_manifest.json referenced by the record")
     acceptance.add_argument("--out", type=Path, help="Optional validation report JSON")
