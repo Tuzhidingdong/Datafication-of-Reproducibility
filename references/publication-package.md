@@ -62,7 +62,7 @@ Store machine-readable values alongside narrative drafts. Every reported number 
 For every figure/table include rendered file, source data file, plotting/generation configuration, caption, and provenance links to models, interactions, or observations.
 
 ### Interaction and mechanism records
-Include interaction definitions, method/statistic, joint support, independent study coverage, robustness results, counterexamples, evidence chain, mechanism status, and validation status.
+Include interaction definitions, method/statistic, joint support, independent Study coverage, robustness results, response-surface scope, counterexamples, and source-linked mechanism evidence. When present, include the Mechanism Evidence Bridge report, evidence ledger, review queue, and structured mechanism Findings. Preserve the explicit pending-review state and do not promote candidate hypotheses into established mechanisms.
 
 ### Limitations
 Record limitations in data coverage, missing variables, selection/reporting bias, study heterogeneity, measurement incompatibility, leakage risk, external validity, extrapolation, and unverified mechanisms.
@@ -73,7 +73,7 @@ Record limitations in data coverage, missing variables, selection/reporting bias
 2. Use the manifest to locate the correct artifact for each manuscript section.
 3. Use structured records as the source of truth; narrative drafts are aids, not authority when they conflict with structured records.
 4. Never infer an unreported model parameter, sample count, condition, or result.
-5. Do not convert candidate mechanisms into established mechanisms.
+5. Do not convert candidate mechanisms into established mechanisms. A generated mechanism Finding with `claim_type = mechanism_hypothesis`, `status = candidate`, or report state `PENDING_USER_MECHANISM_REVIEW` must remain a hypothesis unless a separate explicit human review record authorizes stronger wording.
 6. Cite original papers using the supplied DOI and evidence pointers; verify bibliographic details before submission.
 7. Do not invent references or cite the data package itself as the primary source for a scientific claim.
 8. If a required fact is absent or ambiguous, create a concise author query rather than guessing.
