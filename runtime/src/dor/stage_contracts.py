@@ -475,7 +475,11 @@ def _validate_reproducibility_evaluation(payload: Any) -> list[dict[str, str]]:
         for study_id in test_ids:
             held_out[study_id] = held_out.get(study_id, 0) + 1
     performance = payload.get("per_study_performance")
-    performance_ids = {item.get("study_id") for item in performance if isinstance(item, dict)} if isinstance(performance, list) else set()
+    performance_values = [
+        item.get("study_id") for item in performance
+        if isinstance(item, dict) and _nonempty(item.get("study_id"))
+    ] if isinstance(performance, list) else []
+    performance_ids = set(performance_values)
     performance_rows_valid = (
         isinstance(performance, list) and len(performance) == len(performance_ids)
         and all(isinstance(item, dict) and _nonempty(item.get("study_id")) for item in performance)
