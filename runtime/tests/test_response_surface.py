@@ -43,9 +43,9 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
         self.assertGreater(report["empirical_support"]["distance_threshold"], 0)
         self.assertLessEqual(report["cohort"]["partial_dependence_prediction_evaluations"], 500000)
         self.assertAlmostEqual(report["marginal_effects"]["cross_partial_derivative"], 1.0, places=2)
-        self.assertEqual(report["marginal_effects"]["marginal_effect_feature_a_unit"], "unit-y / arb-x")
-        self.assertEqual(report["marginal_effects"]["marginal_effect_feature_b_unit"], "unit-y / arb-z")
-        self.assertEqual(report["marginal_effects"]["cross_partial_derivative_unit"], "unit-y / (arb-x * arb-z)")
+        self.assertEqual(report["marginal_effects"]["marginal_effect_feature_a_unit"], "unit-y / arb-z")
+        self.assertEqual(report["marginal_effects"]["marginal_effect_feature_b_unit"], "unit-y / arb-x")
+        self.assertEqual(report["marginal_effects"]["cross_partial_derivative_unit"], "unit-y / (arb-z * arb-x)")
         with (output / "interaction_response_surface.csv").open(encoding="utf-8") as handle:
             rows = list(__import__("csv").DictReader(handle))
         center = min(rows, key=lambda item: abs(float(item["feature_a_value"])) + abs(float(item["feature_b_value"])))
