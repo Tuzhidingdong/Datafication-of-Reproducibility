@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/v1_stage_evidence_contract.schema.json",
+  "title": "DOR V1.0 fixed stage evidence contract registry",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "stages"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "1.0"
+    },
+    "stages": {
+      "type": "object",
+      "required": [
+        "source_selection",
+        "source_integrity",
+        "extraction_review",
+        "semantic_mapping",
+        "canonical_reconciliation",
+        "cohort_feasibility",
+        "modeling_validation",
+        "publication_handoff"
+      ],
+      "properties": {
+        "source_selection": {
+          "type": "object",
+          "required": [
+            "required_artifact_types",
+            "checks"
+          ],
+          "properties": {
+            "required_artifact_types": {
+              "const": [
+                "source_inventory"
+              ]
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "source_integrity": {
+          "type": "object",
+          "required": [
+            "required_artifact_types",
+            "checks"
+          ],
+          "properties": {
+            "required_artifact_types": {
+              "const": [
+                "run_manifest"
+              ]
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "extraction_review": {
+          "type": "object",
+          "required": [
+            "required_artifact_types",
+            "checks"
+          ],
+          "properties": {
+            "required_artifact_types": {
+              "const": [
+                "extraction_review_record"
+              ]
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "semantic_mapping": {
+          "type": "object",
+          "required": [
+            "required_artifact_types",
+            "checks"
+          ],
+          "properties": {
+            "required_artifact_types": {
+              "const": [
+                "mapping_plan"
+              ]
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "canonical_reconciliation": {
+          "type": "object",
+          "required": [
+            "required_artifact_types",
+            "checks"
+          ],
+          "properties": {
+            "required_artifact_types": {
+              "const": [
+                "canonical_bundle",
+                "reconciliation_report"
+              ]
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cohort_feasibility": {
+          "type": "object",
+          "required": [
+            "required_artifact_types",
+            "checks"
+          ],
+          "properties": {
+            "required_artifact_types": {
+              "const": [
+                "cohort_report",
+                "split_manifest"
+              ]
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "modeling_validation": {
+          "type": "object",
+          "required": [
+            "required_artifact_types",
+            "checks"
+          ],
+          "properties": {
+            "required_artifact_types": {
+              "const": [
+                "model_report",
+                "modeling_run_manifest"
+              ]
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "publication_handoff": {
+          "type": "object",
+          "required": [
+            "required_artifact_types",
+            "checks"
+          ],
+          "properties": {
+            "required_artifact_types": {
+              "const": [
+                "publication_package_manifest",
+                "publication_integrity_report"
+              ]
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "scope": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

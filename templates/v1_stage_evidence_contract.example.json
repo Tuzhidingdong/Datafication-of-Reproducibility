@@ -1,0 +1,96 @@
+{
+  "contract_version": "1.0",
+  "stages": {
+    "source_selection": {
+      "required_artifact_types": [
+        "source_inventory"
+      ],
+      "checks": [
+        "inventory_shape",
+        "inventory_ids_unique",
+        "source_hashes_present"
+      ],
+      "scope": "Explicit inventory of selected source files and locators; filenames are labels, not semantics."
+    },
+    "source_integrity": {
+      "required_artifact_types": [
+        "run_manifest"
+      ],
+      "checks": [
+        "run_manifest_identity",
+        "source_snapshot_exact"
+      ],
+      "scope": "Run Manager source snapshot and hash-chain verification are authoritative."
+    },
+    "extraction_review": {
+      "required_artifact_types": [
+        "extraction_review_record"
+      ],
+      "checks": [
+        "review_record_shape",
+        "locators_grounded",
+        "human_review_decision"
+      ],
+      "scope": "Human spot-check record; no assumption about an upstream extractor's private schema."
+    },
+    "semantic_mapping": {
+      "required_artifact_types": [
+        "mapping_plan"
+      ],
+      "checks": [
+        "mapping_plan_shape",
+        "no_unreviewed_proposals",
+        "approved_rules_explicit"
+      ],
+      "scope": "Explicit source-item to canonical-field mapping, exact transformations, and review decisions."
+    },
+    "canonical_reconciliation": {
+      "required_artifact_types": [
+        "canonical_bundle",
+        "reconciliation_report"
+      ],
+      "checks": [
+        "canonical_entity_integrity",
+        "cross_entity_references",
+        "reconciliation_bundle_binding"
+      ],
+      "scope": "Study/System/Condition/Experiment/Observation/Comparison/Evidence graph integrity."
+    },
+    "cohort_feasibility": {
+      "required_artifact_types": [
+        "cohort_report",
+        "split_manifest"
+      ],
+      "checks": [
+        "cohort_report_identity",
+        "study_group_split_integrity",
+        "split_study_coverage"
+      ],
+      "scope": "Endpoint-specific cohort and explicit Study-level split feasibility."
+    },
+    "modeling_validation": {
+      "required_artifact_types": [
+        "model_report",
+        "modeling_run_manifest"
+      ],
+      "checks": [
+        "model_report_identity",
+        "model_manifest_split_integrity",
+        "study_leakage_absent"
+      ],
+      "scope": "Model outputs bound to cohort/task hashes and Study-grouped split; no performance threshold is invented."
+    },
+    "publication_handoff": {
+      "required_artifact_types": [
+        "publication_package_manifest",
+        "publication_integrity_report"
+      ],
+      "checks": [
+        "package_identity",
+        "writing_guide_present",
+        "package_integrity_valid"
+      ],
+      "scope": "Publication package, Writing Skill guide, hashes, and explicit completeness state."
+    }
+  }
+}
