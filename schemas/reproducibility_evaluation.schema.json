@@ -1,0 +1,30 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/reproducibility_evaluation.schema.json",
+  "title":"Nested study-group reproducibility evaluation",
+  "type":"object",
+  "required":["schema_version","task_id","target_id","endpoint_definition","outcome_type","fold_count","study_count","observation_count","seed","outer_split_strategy","inner_selection_strategy","pooled_out_of_fold_metrics","pooled_baseline_metrics","per_study_performance","folds","model_selection_frequency","applicability_domain","uncertainty","validation_scope"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "task_id":{"type":"string","minLength":1},
+    "target_id":{"type":"string","minLength":1},
+    "endpoint_definition":{"type":"string","minLength":1},
+    "outcome_type":{"enum":["NUMERIC","CATEGORICAL"]},
+    "fold_count":{"type":"integer","minimum":4},
+    "study_count":{"type":"integer","minimum":4},
+    "observation_count":{"type":"integer","minimum":1},
+    "seed":{"type":"integer"},
+    "outer_split_strategy":{"const":"DETERMINISTIC_GROUPED_K_FOLD_BY_STUDY"},
+    "inner_selection_strategy":{"const":"NESTED_STUDY_HOLDOUT_WITHIN_OUTER_TRAINING_STUDIES"},
+    "pooled_out_of_fold_metrics":{"type":"object"},
+    "pooled_baseline_metrics":{"type":"object"},
+    "per_study_performance":{"type":"array","items":{"type":"object","required":["study_id","fold","n","selected_model"],"properties":{"study_id":{"type":"string"},"fold":{"type":"integer","minimum":1},"n":{"type":"integer","minimum":1},"selected_model":{"type":"string"}},"additionalProperties":true}},
+    "between_study_error_or_bias_distribution":{"type":"object"},
+    "folds":{"type":"array","minItems":4,"items":{"type":"object","required":["fold","test_study_ids","outer_training_study_ids","inner_training_study_ids","inner_validation_study_ids","selected_model","inner_validation_comparison","outer_test_metrics","outer_test_baseline_metrics"],"properties":{"fold":{"type":"integer","minimum":1},"test_study_ids":{"type":"array","items":{"type":"string"}},"outer_training_study_ids":{"type":"array","items":{"type":"string"}},"inner_training_study_ids":{"type":"array","items":{"type":"string"}},"inner_validation_study_ids":{"type":"array","items":{"type":"string"}},"selected_model":{"type":"string"},"inner_validation_comparison":{"type":"array","items":{"type":"object"}},"outer_test_metrics":{"type":"object"},"outer_test_baseline_metrics":{"type":"object"}},"additionalProperties":true}},
+    "model_selection_frequency":{"type":"object","additionalProperties":{"type":"integer","minimum":0}},
+    "applicability_domain":{"type":"object","required":["method","distance_definition","reference_threshold","quantile","counts","warning"],"properties":{"method":{"const":"MIXED_FEATURE_NEAREST_NEIGHBOUR_DISTANCE"},"distance_definition":{"type":"string"},"reference_threshold":{"type":"string"},"quantile":{"type":"number","minimum":0,"maximum":1},"counts":{"type":"object","additionalProperties":{"type":"integer","minimum":0}},"warning":{"type":"string"}},"additionalProperties":false},
+    "uncertainty":{"type":"object","required":["status","reason","descriptive_absolute_error_distribution"],"properties":{"status":{"const":"NOT_CALIBRATED"},"reason":{"type":"string"},"descriptive_absolute_error_distribution":{"type":"object"}},"additionalProperties":false},
+    "validation_scope":{"const":"NESTED_STUDY_GROUPED_CROSS_VALIDATION_AND_HEURISTIC_FEATURE_SUPPORT_DIAGNOSTICS_NOT_PROSPECTIVE_VALIDATION"}
+  },
+  "additionalProperties":true
+}
