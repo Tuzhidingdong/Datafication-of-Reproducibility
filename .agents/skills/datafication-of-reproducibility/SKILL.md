@@ -101,7 +101,7 @@ After G2 approval:
 - The initial engine evaluates one encoded feature pair at a time by comparing additive Ridge with Ridge plus that pair's encoded product terms. It is a predictive bilinear screen for numeric endpoints, not a universal test of all nonlinear interactions. Categorical endpoints are not supported by this initial method.
 - Treat a cross-Study predictive interaction label as a statistical/predictive candidate only. It is not a p-value, FDR-controlled discovery, causal estimate, synergy claim, or mechanism.
 - Check whether pair combinations are confounded by Study, protocol, material family, or laboratory and whether joint coverage actually overlaps across Studies.
-- Produce an Interaction Catalogue with supporting data and plots; proceed to mechanism interpretation only after Gate G3 selection and independent evidence review.
+- For user-selected numeric × numeric pairs, generate a descriptive response surface with `dor generate-interaction-surface`. Review the 2D support mask, observed pair points, partial-dependence caveat, raw-unit marginal effects, and cross-partial derivative. The full-cohort refit is descriptive only and must not be used as independent validation.\n- Produce an Interaction Catalogue with supporting data and plots; proceed to mechanism interpretation only after Gate G3 selection and independent evidence review.
 
 ### Stage 5 — Mechanism interpretation
 
