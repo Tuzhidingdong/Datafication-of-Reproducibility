@@ -260,7 +260,11 @@ def _evidence_status(assessments: list[dict[str, Any]]) -> tuple[str, dict[str, 
         "theoretical_support": sum(1 for item in supporting if item["effective_class"] == "THEORETICAL_SUPPORT"),
         "independent_prospective_support": sum(1 for item in supporting if item["effective_class"] == "PROSPECTIVE_VALIDATION"),
         "pending_source_verification": sum(1 for item in assessments if item["verification_status"] != "VERIFIED"),
-        "contextual_or_unclassified": sum(1 for item in assessments if not item["counted_for_evidence_summary"])
+        "contextual_or_unclassified": sum(1 for item in assessments
+                                          if item["not_counted_reason"] == "CONTEXTUAL_OR_UNCLASSIFIED_EVIDENCE_NOT_COUNTED_AS_MECHANISM_SUPPORT"),
+        "not_counted_evidence": sum(1 for item in assessments if not item["counted_for_evidence_summary"]),
+        "non_independent_prospective_evidence": sum(1 for item in assessments
+                                                   if item["not_counted_reason"] == "PROSPECTIVE_SOURCE_STUDY_OVERLAPS_INTERACTION_DISCOVERY_COHORT")
     }
     if supporting and contradicting:
         status = "SUPPORT_AND_CONTRADICTION_RECORDED"
@@ -425,6 +429,24 @@ def build_mechanism_evidence_bridge_files(
                 "interpretation_summary": item["interpretation_summary"]
             })
         status, counts, supporting_studies, contradicting_ids = _evidence_status(enriched)
+        if status == "SUPPORT_AND_CONTRADICTION_RECORDED":
+            review_rows.append({
+                "hypothesis_id": hypothesis["hypothesis_id"], "issue_code": "SUPPORT_AND_CONTRADICTION_RECORDED",
+                "evidence_id": ";".join(contradicting_ids), "review_action": "COMPARE_ALTERNATIVE_EXPLANATIONS_AND_RETAIN_COUNTEREVIDENCE",
+                "detail": "Both supporting and contradictory verified evidence are linked; do not summarize this hypothesis as unambiguously supported."
+            })
+        elif status == "CONTRADICTION_RECORDED":
+            review_rows.append({
+                "hypothesis_id": hypothesis["hypothesis_id"], "issue_code": "CONTRADICTION_RECORDED",
+                "evidence_id": ";".join(contradicting_ids), "review_action": "REVIEW_CONTRADICTORY_EVIDENCE_AND_REASSESS_HYPOTHESIS",
+                "detail": "Verified evidence recorded against this hypothesis; preserve the contradiction."
+            })
+        elif status in {"HYPOTHESIS_ONLY", "EVIDENCE_REVIEW_REQUIRED", "NO_CLASSIFIED_MECHANISM_SUPPORT"}:
+            review_rows.append({
+                "hypothesis_id": hypothesis["hypothesis_id"], "issue_code": status,
+                "evidence_id": "", "review_action": "REVIEW_EVIDENCE_GAPS_AND_KEEP_HYPOTHESIS_UNCONFIRMED",
+                "detail": "The current evidence package does not contain classified verified support sufficient to move beyond a hypothesis."
+            })
         mechanism_id = _stable_id("MEC", plan["plan_id"], hypothesis["hypothesis_id"], interaction_id)
         finding_id = _stable_id("FND", mechanism_id)
         limitations = [
@@ -467,7 +489,7 @@ def build_mechanism_evidence_bridge_files(
             "supporting_study_ids": supporting_studies,
             "contradicting_evidence_ids": contradicting_ids,
             "evidence_assessments": enriched,
-            "review_state": "PENDING_G3_USER_REVIEW",
+            "review_state": "PENDING_USER_MECHANISM_REVIEW",
             "manuscript_wording": manuscript_wording,
             "limitations": limitations
         })
@@ -488,16 +510,16 @@ def build_mechanism_evidence_bridge_files(
         "response_surface_scope": surface_status,
         "evidence_label_contract": {
             "E0_STATISTICAL": "Predictive statistical interaction candidate from the interaction-discovery report.",
-            "E1_CROSS_STUDY": "Split-seed and Study-held-out predictive stability indicators; not independent causal evidence.",
+            "E1_CROSS_STUDY": "Study-grouped held-out predictive assessment; repeated seeds assess split sensitivity only, not external reproducibility or causal evidence.",
             "E2_DIRECT_OBSERVATION": "Verified canonical Evidence linked to REPORTED Observation records and explicitly classified as direct observation.",
             "E3_THEORETICAL_SUPPORT": "Verified canonical Evidence explicitly classified as theoretical, simulation, or mechanistic calculation support.",
-            "E4_PROSPECTIVE_VALIDATION": "Verified prospective Evidence from a Study outside the interaction-discovery cohort, linked to REPORTED observation records."
+            "E4_PROSPECTIVE_VALIDATION": "Verified prospective Evidence from a Study outside the interaction-discovery cohort, linked to REPORTED observation records; the linked result may support or contradict the hypothesis."
         },
         "mechanism_catalogue": hypotheses_out,
         "review_queue": review_rows,
         "review_issue_count": len(review_rows),
         "claim_scope": "EXPLICIT_EVIDENCE_LINKED_MECHANISM_HYPOTHESES_PENDING_G3_REVIEW_NOT_AUTOMATIC_MECHANISM_DISCOVERY",
-        "review_state": "PENDING_G3_USER_REVIEW",
+        "review_state": "PENDING_USER_MECHANISM_REVIEW",
         "interpretation_limits": [
             "The engine does not generate mechanism hypotheses; it packages explicitly supplied hypotheses and evidence assessments.",
             "A predictive interaction or seed-stable label is not a causal effect, physical synergy, or mechanism.",
@@ -514,7 +536,7 @@ def build_mechanism_evidence_bridge_files(
     findings_package = {
         "schema_version": "1.0", "task_id": task["task_id"], "interaction_id": interaction_id,
         "finding_count": len(findings_out), "findings": findings_out,
-        "claim_scope": "ALL_FINDINGS_REMAIN_MECHANISM_HYPOTHESES_PENDING_G3_USER_REVIEW"
+        "claim_scope": "ALL_FINDINGS_REMAIN_MECHANISM_HYPOTHESES_PENDING_USER_MECHANISM_REVIEW"
     }
 
     output_dir.mkdir(parents=True, exist_ok=True)
