@@ -94,12 +94,14 @@ After G2 approval:
 
 ### Stage 4 — Interaction discovery
 
-- Screen candidate interactions only where joint data coverage is adequate.
-- Prefer interpretable second-order interactions first. Higher-order interactions require explicit rationale and sufficient support.
-- Separate main effects, statistical interactions, predictive contribution, and causal interpretation.
-- Test interaction stability across study-level resampling, alternative specifications, and held-out studies.
-- Retain counterexamples and null findings.
-- Produce an Interaction Catalogue with supporting data and plots.
+- Read the V0.4 interaction discovery contract at ../../../docs/V0.4_INTERACTION_DISCOVERY.md and the interaction methodology at ../../../references/interaction-discovery.md.
+- Define candidate feature pairs from the approved feature bindings. Prefer scientifically justified pairs with adequate joint Observation and Study coverage; do not screen an unbounded Cartesian product.
+- For numeric endpoints, run: dor discover-interactions --cohort-dir 04_modeling/cohort --task modeling_task.json --out-dir 04_modeling/interactions after G2 approval.
+- Review the interaction catalogue, fold-level RMSE improvements, per-Study MAE improvements, joint coverage, exclusions, and held-out predictions. Keep pairs that fail to improve as null/negative findings; retain counterexamples where the interaction worsens prediction.
+- The initial engine evaluates one encoded feature pair at a time by comparing additive Ridge with Ridge plus that pair's encoded product terms. It is a predictive bilinear screen for numeric endpoints, not a universal test of all nonlinear interactions. Categorical endpoints are not supported by this initial method.
+- Treat a cross-Study predictive interaction label as a statistical/predictive candidate only. It is not a p-value, FDR-controlled discovery, causal estimate, synergy claim, or mechanism.
+- Check whether pair combinations are confounded by Study, protocol, material family, or laboratory and whether joint coverage actually overlaps across Studies.
+- Produce an Interaction Catalogue with supporting data and plots; proceed to mechanism interpretation only after Gate G3 selection and independent evidence review.
 
 ### Stage 5 — Mechanism interpretation
 
