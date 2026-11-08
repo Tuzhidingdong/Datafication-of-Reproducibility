@@ -249,7 +249,7 @@ The Run Manager initializes run_events.jsonl with an immutable RUN_INITIALIZED r
 
 ## V1.0 controlled real-data acceptance (mandatory)
 
-V1.0 is a controlled acceptance, not a bulk-corpus run. Use only a user-selected primary paper and its SI for the first pilot. Do not select the paper or start real-data processing on the user's behalf. Before execution, read ../../../docs/V1.0_CONTROLLED_ACCEPTANCE.md and create an acceptance record from ../../../templates/v1_acceptance_record.example.json conforming to ../../../schemas/v1_acceptance_record.schema.json.
+V1.0 is a controlled acceptance, not a bulk-corpus run. Use only a user-selected primary paper and its SI for the first pilot. Do not select the paper or start real-data processing on the user's behalf. Before execution, read ../../../docs/V1.0_CONTROLLED_ACCEPTANCE.md and create an acceptance record from ../../../templates/v1_acceptance_record.example.json conforming to ../../../schemas/v1_acceptance_record.schema.json. Populate source_snapshot.study_ids with the exact explicit Study IDs present in the reviewed canonical bundle; never derive them from row counts, filenames, or a guessed paper-to-study mapping. study_count must equal the number of unique listed IDs.
 
 The eight acceptance stages are fixed and ordered: source_selection, source_integrity, extraction_review, semantic_mapping, canonical_reconciliation, cohort_feasibility, modeling_validation, publication_handoff. Do not combine or omit stages. Record exact evidence paths and SHA-256 hashes for every PASS. NOT_APPLICABLE requires a scientific reason; FAIL/BLOCKED requires a concrete blocker. A successful CLI exit is not by itself scientific acceptance.
 
