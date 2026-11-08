@@ -13,7 +13,7 @@ CONTRACT_VERSION = "1.0"
 STAGE_CONTRACTS: dict[str, dict[str, Any]] = {
     "source_selection": {
         "required_artifact_types": ["source_selection_manifest", "source_inventory"],
-        "checks": ["selected_source_set_exact", "inventory_ids_unique", "source_hashes_present"],
+        "checks": ["selected_excluded_partition_exact", "selected_source_set_matches_run_snapshot", "excluded_source_reasons_present", "inventory_references_selected_sources_only"],
         "scope": "User-selected source inventory and explicit exclusions; filenames are labels, not semantics.",
     },
     "source_integrity": {
@@ -76,46 +76,64 @@ def _validate_source_selection(payload: Any, source_snapshot: list[dict[str, Any
         return [_error("SOURCE_SELECTION_SCHEMA_INVALID", "source_selection_manifest requires schema_version 1.0.", "source_selection_manifest")]
     if not _nonempty(payload.get("selection_rationale")) or not _nonempty(payload.get("scope_statement")):
         errors.append(_error("SOURCE_SELECTION_RATIONALE_MISSING", "A non-empty selection_rationale and scope_statement are required.", "source_selection_manifest"))
+
+    expected: dict[str, dict[str, Any]] = {}
+    for item in source_snapshot:
+        if isinstance(item, dict) and _nonempty(item.get("source_id")):
+            source_id = item["source_id"]
+            if source_id in expected:
+                errors.append(_error("SOURCE_SNAPSHOT_DUPLICATE_ID", f"Run source snapshot contains duplicate source_id {source_id}.", "source_selection_manifest"))
+            expected[source_id] = item
+
     selected = payload.get("selected_sources")
     if not isinstance(selected, list) or not selected:
-        return errors + [_error("SOURCE_SELECTION_SOURCES_MISSING", "selected_sources must be a non-empty array.", "source_selection_manifest")]
-    expected = {
-        item.get("source_id"): item for item in source_snapshot
-        if isinstance(item, dict) and _nonempty(item.get("source_id"))
-    }
-    seen: set[str] = set()
-    for index, item in enumerate(selected):
-        if not isinstance(item, dict) or not all(_nonempty(item.get(key)) for key in ("source_id", "role", "path")) or not _sha256(item.get("sha256")):
-            errors.append(_error("SOURCE_SELECTION_ITEM_INVALID", f"selected_sources[{index}] requires source_id, role, path, and SHA-256.", "source_selection_manifest"))
-            continue
-        source_id = item["source_id"]
-        if source_id in seen:
-            errors.append(_error("SOURCE_SELECTION_DUPLICATE_ID", f"Duplicate selected source_id: {source_id}.", "source_selection_manifest"))
-        seen.add(source_id)
-        bound = expected.get(source_id)
-        if bound is None or Path(str(bound.get("path", ""))).expanduser().resolve(strict=False) != Path(item["path"]).expanduser().resolve(strict=False) or bound.get("sha256") != item["sha256"] or bound.get("role") != item["role"]:
-            errors.append(_error("SOURCE_SELECTION_NOT_BOUND_TO_SNAPSHOT", f"Selected source {source_id} differs from the acceptance source snapshot.", "source_selection_manifest"))
-    if seen != set(expected):
-        errors.append(_error("SOURCE_SELECTION_SET_MISMATCH", "selected_sources must contain exactly the acceptance source_snapshot IDs.", "source_selection_manifest"))
-    if payload.get("study_ids") != sorted(study_ids):
-        errors.append(_error("SOURCE_SELECTION_STUDY_SET_MISMATCH", "source_selection_manifest.study_ids must equal the sorted explicit acceptance Study IDs.", "source_selection_manifest"))
+        errors.append(_error("SOURCE_SELECTION_SOURCES_MISSING", "selected_sources must be a non-empty array.", "source_selection_manifest"))
+        selected = []
     exclusions = payload.get("excluded_sources")
     if not isinstance(exclusions, list):
         errors.append(_error("SOURCE_SELECTION_EXCLUSIONS_INVALID", "excluded_sources must be an array, even when empty.", "source_selection_manifest"))
-    else:
-        for index, entry in enumerate(exclusions):
-            if not isinstance(entry, dict) or not _nonempty(entry.get("source_label")) or not _nonempty(entry.get("reason")):
-                errors.append(_error("SOURCE_EXCLUSION_INCOMPLETE", f"excluded_sources[{index}] requires source_label and reason.", "source_selection_manifest"))
+        exclusions = []
+
+    assigned: dict[str, str] = {}
+
+    def check_binding(item: Any, index: int, collection: str, required: tuple[str, ...]) -> None:
+        if not isinstance(item, dict) or any(not _nonempty(item.get(key)) for key in required) or not _sha256(item.get("sha256")):
+            errors.append(_error("SOURCE_SELECTION_ITEM_INVALID", f"{collection}[{index}] requires source_id, role, path, SHA-256" + (", and reason." if collection == "excluded_sources" else "."), "source_selection_manifest"))
+            return
+        source_id = item["source_id"]
+        if source_id in assigned:
+            errors.append(_error("SOURCE_SELECTION_DUPLICATE_OR_OVERLAPPING_ID", f"Source {source_id} is duplicated or appears in both selected_sources and excluded_sources.", "source_selection_manifest"))
+        assigned[source_id] = collection
+        bound = expected.get(source_id)
+        if (bound is None
+                or Path(str(bound.get("path", ""))).expanduser().resolve(strict=False) != Path(item["path"]).expanduser().resolve(strict=False)
+                or bound.get("sha256") != item["sha256"]
+                or bound.get("role") != item["role"]):
+            errors.append(_error("SOURCE_SELECTION_NOT_BOUND_TO_SNAPSHOT", f"{collection}[{index}] source {source_id} differs from the acceptance source snapshot.", "source_selection_manifest"))
+
+    for index, item in enumerate(selected):
+        check_binding(item, index, "selected_sources", ("source_id", "role", "path"))
+    for index, item in enumerate(exclusions):
+        check_binding(item, index, "excluded_sources", ("source_id", "role", "path", "reason"))
+
+    if set(assigned) != set(expected):
+        missing = sorted(set(expected) - set(assigned))
+        unknown = sorted(set(assigned) - set(expected))
+        errors.append(_error("SOURCE_SELECTION_PARTITION_MISMATCH", f"selected_sources and excluded_sources must partition the exact Run source snapshot; missing={missing}, unknown={unknown}.", "source_selection_manifest"))
+    if payload.get("study_ids") != sorted(study_ids):
+        errors.append(_error("SOURCE_SELECTION_STUDY_SET_MISMATCH", "source_selection_manifest.study_ids must equal the sorted explicit acceptance Study IDs.", "source_selection_manifest"))
     return errors
 
 
-def _validate_source_inventory(payload: Any, source_snapshot: list[dict[str, Any]]) -> list[dict[str, str]]:
+def _validate_source_inventory(payload: Any, source_snapshot: list[dict[str, Any]],
+                               selected_source_ids: set[str] | None = None) -> list[dict[str, str]]:
     errors: list[dict[str, str]] = []
     if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or not isinstance(payload.get("items"), list) or not payload["items"]:
         return [_error("SOURCE_INVENTORY_SHAPE_INVALID", "source_inventory requires schema_version 1.0 and a non-empty items array.", "source_inventory")]
     snapshot_by_name_hash = {
         (Path(str(item.get("path", ""))).name, item.get("sha256"))
         for item in source_snapshot if isinstance(item, dict)
+        and (selected_source_ids is None or item.get("source_id") in selected_source_ids)
     }
     seen: set[str] = set()
     for index, item in enumerate(payload["items"]):
@@ -594,13 +612,14 @@ def _validate_publication_integrity_report(payload: Any) -> list[dict[str, str]]
 def validate_stage_payload(artifact_type: str, payload: Any, *, run_id: str, project_id: str,
                            study_ids: set[str], source_snapshot: list[dict[str, Any]] | None = None,
                            canonical_sha256: str | None = None,
-                           eligible_study_ids: set[str] | None = None) -> list[dict[str, str]]:
+                           eligible_study_ids: set[str] | None = None,
+                           selected_source_ids: set[str] | None = None) -> list[dict[str, str]]:
     """Validate one typed evidence payload using fixed V1.0 implementation rules."""
     sources = source_snapshot or []
     if artifact_type == "source_selection_manifest":
         return _validate_source_selection(payload, sources, study_ids)
     if artifact_type == "source_inventory":
-        return _validate_source_inventory(payload, sources)
+        return _validate_source_inventory(payload, sources, selected_source_ids)
     if artifact_type == "run_manifest":
         return _validate_run_manifest(payload, run_id, project_id, sources)
     if artifact_type == "extraction_review_record":
@@ -686,6 +705,15 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
         if isinstance(values, list) and all(_nonempty(value) for value in values):
             eligible_ids = set(values)
 
+    selection_item = by_type.get("source_selection_manifest")
+    selected_source_ids = None
+    if isinstance(selection_item, dict) and isinstance(selection_item.get("payload"), dict):
+        rows = selection_item["payload"].get("selected_sources", [])
+        if isinstance(rows, list):
+            selected_source_ids = {
+                row.get("source_id") for row in rows
+                if isinstance(row, dict) and _nonempty(row.get("source_id"))
+            }
     for artifact_type, item in by_type.items():
         if artifact_type in {"mapping_plan", "reconciliation_decisions"}:
             continue
@@ -693,6 +721,7 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
             artifact_type, item["payload"], run_id=run_id, project_id=project_id,
             study_ids=study_ids, source_snapshot=source_snapshot,
             canonical_sha256=canonical_sha, eligible_study_ids=eligible_ids,
+            selected_source_ids=selected_source_ids,
         ))
 
     if stage_id == "semantic_mapping" and "mapping_plan" in by_type:

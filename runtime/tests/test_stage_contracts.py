@@ -22,6 +22,70 @@ class StageEvidenceContractTests(unittest.TestCase):
                 self.assertTrue(contract["required_artifact_types"])
                 self.assertTrue(contract["checks"])
 
+    def test_source_selection_allows_explicit_exclusion_as_snapshot_partition(self):
+        snapshot = [
+            {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
+            {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+        ]
+        payload = {
+            "schema_version": "1.0", "selection_rationale": "Selected the primary article for this scope.",
+            "scope_statement": "One-study extraction pilot.", "study_ids": ["S1"],
+            "selected_sources": [{
+                "source_id": "paper", "role": "PRIMARY_PAPER",
+                "path": "/data/paper.pdf", "sha256": "a" * 64,
+            }],
+            "excluded_sources": [{
+                "source_id": "si", "role": "SUPPLEMENTARY_INFORMATION",
+                "path": "/data/paper_si.pdf", "sha256": "b" * 64,
+                "reason": "Supplementary file is outside this extraction scope.",
+            }],
+        }
+        errors = validate_stage_payload(
+            "source_selection_manifest", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=snapshot,
+        )
+        self.assertEqual([], errors)
+
+    def test_source_selection_rejects_source_omitted_from_both_selected_and_excluded(self):
+        snapshot = [
+            {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
+            {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+        ]
+        payload = {
+            "schema_version": "1.0", "selection_rationale": "Selected the primary article.",
+            "scope_statement": "Pilot.", "study_ids": ["S1"],
+            "selected_sources": [{
+                "source_id": "paper", "role": "PRIMARY_PAPER",
+                "path": "/data/paper.pdf", "sha256": "a" * 64,
+            }],
+            "excluded_sources": [],
+        }
+        codes = {item["code"] for item in validate_stage_payload(
+            "source_selection_manifest", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=snapshot,
+        )}
+        self.assertIn("SOURCE_SELECTION_PARTITION_MISMATCH", codes)
+
+    def test_source_inventory_cannot_reference_an_explicitly_excluded_source(self):
+        payload = {
+            "schema_version": "1.0",
+            "items": [{
+                "inventory_id": "INV_1", "source_file": "paper_si.pdf",
+                "source_sha256": "b" * 64, "source_format": "pdf",
+                "locator_type": "pdf_page", "locator": "page 1",
+                "mapping_status": "UNRESOLVED",
+            }],
+        }
+        snapshot = [
+            {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
+            {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+        ]
+        codes = {item["code"] for item in validate_stage_payload(
+            "source_inventory", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=snapshot, selected_source_ids={"paper"},
+        )}
+        self.assertIn("SOURCE_INVENTORY_SOURCE_NOT_SELECTED", codes)
+
     def test_source_inventory_requires_real_locator_and_sha_fields(self):
         bad = {"schema_version": "1.0", "items": [{"inventory_id": "I1", "source_file": "x.csv"}]}
         codes = {item["code"] for item in validate_stage_payload(

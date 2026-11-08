@@ -7,9 +7,10 @@
         "source_inventory"
       ],
       "checks": [
-        "selected_source_set_exact",
-        "inventory_ids_unique",
-        "source_hashes_present"
+        "selected_excluded_partition_exact",
+        "selected_source_set_matches_run_snapshot",
+        "excluded_source_reasons_present",
+        "inventory_references_selected_sources_only"
       ],
       "scope": "Explicit inventory of selected source files and locators; filenames are labels, not semantics."
     },

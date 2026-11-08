@@ -69,6 +69,17 @@ class V1AcceptanceContractTests(unittest.TestCase):
         self.assertIn("gte", check_schema["properties"]["operator"]["enum"])
         self.assertTrue(all(stage["checks"] == [] for stage in self.example["stages"]))
 
+    def test_source_selection_schema_and_example_express_selected_excluded_partition(self):
+        schema = json.loads((ROOT / "schemas/v1_source_selection_manifest.schema.json").read_text(encoding="utf-8"))
+        example = json.loads((ROOT / "templates/v1_source_selection_manifest.example.json").read_text(encoding="utf-8"))
+        self.assertEqual(schema["properties"]["schema_version"]["const"], "1.0")
+        self.assertIn("reason", schema["properties"]["excluded_sources"]["items"]["required"])
+        selected_ids = {item["source_id"] for item in example["selected_sources"]}
+        excluded_ids = {item["source_id"] for item in example["excluded_sources"]}
+        self.assertTrue(selected_ids)
+        self.assertTrue(selected_ids.isdisjoint(excluded_ids))
+        self.assertTrue(all(item["reason"].strip() for item in example["excluded_sources"]))
+
     def test_acceptance_evidence_requires_declared_type(self):
         evidence = self.schema["properties"]["stages"]["items"]["properties"]["evidence"]["items"]
         self.assertIn("artifact_type", evidence["required"])
