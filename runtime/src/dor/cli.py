@@ -10,6 +10,7 @@ from dor.diagnostics import diagnose_canonical_bundle
 from dor.mapping import validate_mapping_files
 from dor.modeling import run_baseline_models_files
 from dor.reproducibility import evaluate_reproducibility_files
+from dor.interactions import discover_interactions_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 
 def _write_json(path: Path | None, report: dict) -> str:
@@ -64,6 +65,12 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--out-dir", type=Path, required=True, help="New or empty derived reproducibility evaluation directory")
     evaluate.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
     evaluate.add_argument("--seed", type=int, default=42, help="Deterministic grouped-fold seed")
+    interaction = subparsers.add_parser("discover-interactions", help="Screen pairwise predictive interactions with nested Study-grouped validation")
+    interaction.add_argument("--cohort-dir", type=Path, required=True, help="Completed hash-verified numeric modeling cohort directory")
+    interaction.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON with explicit interaction settings")
+    interaction.add_argument("--out-dir", type=Path, required=True, help="New or empty derived interaction output directory")
+    interaction.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
+    interaction.add_argument("--seed", type=int, default=42, help="Deterministic grouped-fold seed")
     return parser
 
 def main() -> int:
@@ -96,6 +103,14 @@ def main() -> int:
             report=validate_mapping_files(args.plan,args.inventory)
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
+        if args.command == "discover-interactions":
+            result=discover_interactions_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "candidate_pair_count":report["candidate_pair_count"],"eligible_pair_count":report["eligible_pair_count"],
+                "interaction_candidates":sum(1 for item in report["interaction_catalogue"] if item["interpretation_status"]=="CROSS_STUDY_PREDICTIVE_INTERACTION_CANDIDATE"),
+                "claim_scope":"PREDICTIVE_STATISTICAL_INTERACTION_CANDIDATE_NOT_CAUSAL_OR_MECHANISTIC_EVIDENCE"},ensure_ascii=False,indent=2))
+            return 0
         if args.command == "evaluate-reproducibility":
             result=evaluate_reproducibility_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
             report=result["report"]
