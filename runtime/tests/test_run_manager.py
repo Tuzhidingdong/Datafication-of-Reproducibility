@@ -158,6 +158,13 @@ class RunManagerTests(unittest.TestCase):
         self.assertEqual(actions["worker_review"], "WAITING_FOR_DEPENDENCIES")
         self.assertEqual(actions["independent_summary"], "REUSE")
 
+        artifact_manifest = build_artifact_manifest(self.manifest_path)
+        artifact_states = {item["artifact_id"]: item["status"] for item in artifact_manifest["artifacts"]}
+        for output in self.stage("mapping")["outputs"]:
+            self.assertEqual(artifact_states[output["artifact_id"]], "STALE_OR_MISSING")
+        for output in self.stage("independent_summary")["outputs"]:
+            self.assertEqual(artifact_states[output["artifact_id"]], "CURRENT")
+
     def test_stale_stage_can_be_rebuilt_as_new_attempt_without_overwrite(self):
         self.run_to_mapping()
         self.run_local("independent_summary")
