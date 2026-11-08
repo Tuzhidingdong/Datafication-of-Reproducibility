@@ -11,6 +11,7 @@ from dor.audit import run_audit
 from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
 from dor.cohort import build_modeling_cohort_files
+from dor.cli import build_parser
 from dor.interactions import discover_interactions_files
 from dor.mapping import sha256_file, validate_mapping_files
 from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
@@ -715,6 +716,34 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         self.assertEqual(current, self.source_bytes_after_build)
         self.assertEqual(sha256_file(self.csv_path), self.raw_source_hashes[self.csv_path.name])
         self.assertEqual(sha256_file(self.json_path), self.raw_source_hashes[self.json_path.name])
+
+
+    def test_cli_parser_exposes_each_pipeline_command(self):
+        parser = build_parser()
+        cases = [
+            ["audit", "--csv", "input.csv", "--json", "input.json", "--out", "audit"],
+            ["validate-mapping", "--plan", "mapping.json", "--inventory", "inventory.json"],
+            ["build-canonical", "--plan", "mapping.json", "--inventory", "inventory.json",
+             "--spec", "build.json", "--source-root", "sources", "--out-dir", "canonical"],
+            ["validate-bundle", "--input", "canonical_bundle.json"],
+            ["reconcile-bundle", "--input", "canonical_bundle.json", "--out-dir", "reconciliation"],
+            ["build-cohort", "--bundle", "canonical_bundle.json", "--task", "task.json", "--out-dir", "cohort"],
+            ["fit-baselines", "--cohort-dir", "cohort", "--task", "task.json", "--out-dir", "model"],
+            ["evaluate-reproducibility", "--cohort-dir", "cohort", "--task", "task.json", "--out-dir", "evaluation"],
+            ["discover-interactions", "--cohort-dir", "cohort", "--task", "task.json", "--out-dir", "interactions"],
+            ["assess-interaction-robustness", "--cohort-dir", "cohort", "--task", "task.json", "--out-dir", "robustness"],
+            ["generate-interaction-surface", "--cohort-dir", "cohort", "--task", "task.json",
+             "--interaction-dir", "interactions", "--interaction-id", "INT_1", "--out-dir", "surface"],
+            ["build-mechanism-evidence-bridge", "--bundle", "canonical_bundle.json", "--cohort-dir", "cohort",
+             "--task", "task.json", "--interaction-dir", "interactions", "--plan", "mechanism.json",
+             "--out-dir", "mechanism"],
+            ["predict-virtual-condition", "--model-run-dir", "model", "--query", "query.json", "--out", "prediction.json"],
+            ["build-publication-package", "--plan", "package_plan.json", "--workspace-root", ".", "--out-dir", "package"],
+            ["audit-publication-package", "--package-dir", "package"],
+        ]
+        for arguments in cases:
+            with self.subTest(command=arguments[0]):
+                self.assertEqual(parser.parse_args(arguments).command, arguments[0])
 
     def test_z_package_audit_detects_downstream_tampering(self):
         copied = self.package_dir / "data/canonical_bundle.json"
