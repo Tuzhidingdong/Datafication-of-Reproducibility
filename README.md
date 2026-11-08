@@ -14,7 +14,7 @@ The project aims to reconstruct relationships among reported experimental condit
 
 ## Repository status
 
-This Draft development branch now contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, and the first V0.3 modelling component: endpoint-specific cohort construction with deterministic Study-level train/validation/test splits. Model fitting, baseline comparison, uncertainty evaluation, and interaction discovery are not yet implemented. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
+This Draft development branch now contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, and the V0.3 endpoint-specific cohort builder, deterministic Study-level train/validation/test splits, and dependency-free baseline model engine for numeric and categorical endpoints. Advanced model comparison, uncertainty calibration, applicability-domain evaluation, and interaction discovery remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
 
 ## Planned layout
 
@@ -25,6 +25,7 @@ This Draft development branch now contains the V0.1 research foundation, V0.2 da
 - `schemas/`: machine-readable contracts for projects, datasets, workflow state, tasks, findings, and publication manifests.
 - `runtime/`: deterministic Python engine, including audit, canonical build, reconciliation, and modelling-cohort preparation.
 - `docs/V0.3_MODELING_COHORTS.md`: modelling task, cohort eligibility, split, and output contract.
+- `docs/V0.3_BASELINE_MODELS.md`: baseline algorithms, validation-only selection, held-out test evaluation, and model artifact contract.
 - `templates/`: reusable reports and paper-output templates.
 - `tests/`: V0.1 contract and immutability tests.
 
