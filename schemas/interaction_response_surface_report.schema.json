@@ -223,7 +223,9 @@
         "feature_a_unit",
         "feature_b_unit",
         "cross_partial_derivative",
-        "cross_partial_derivative_unit"
+        "cross_partial_derivative_unit",
+        "marginal_effect_feature_a_unit",
+        "marginal_effect_feature_b_unit"
       ],
       "properties": {
         "definition": {
@@ -245,6 +247,12 @@
           "type": "number"
         },
         "cross_partial_derivative_unit": {
+          "type": "string"
+        },
+        "marginal_effect_feature_a_unit": {
+          "type": "string"
+        },
+        "marginal_effect_feature_b_unit": {
           "type": "string"
         }
       },
