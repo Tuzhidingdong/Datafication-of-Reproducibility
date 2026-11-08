@@ -30,6 +30,7 @@ Never use source code or old chat history as the authority for an executed param
 | Methods: machine learning | methods/machine_learning.md, model cards, hyperparameters, split definitions |
 | Methods: interaction analysis | methods/interaction_analysis.md, interaction method records |
 | Results: model performance | results/prediction_performance.md, model metrics, predictions, validation records |
+| Results: virtual condition estimates | the exact virtual prediction report path in package_manifest.json; preserve prediction_status, marginal support warnings, and NOT_CALIBRATED |
 | Results: interaction discoveries | results/interaction_discovery.md, interaction records and robustness outputs |
 | Discussion: mechanisms | mechanisms/mechanism_evidence_bridge_report.json, mechanisms/mechanism_evidence_ledger.csv, mechanisms/mechanism_review_queue.csv, findings/mechanism_findings.json |
 | Figures and captions | figures/figure_manifest.json, figure files, source data, plotting configuration |
@@ -85,3 +86,10 @@ When drafting, maintain a claim-to-evidence map containing:
 - figure/table IDs;
 - original DOI and evidence pointers;
 - any author query or unresolved limitation.
+
+
+## Package integrity and virtual prediction boundaries
+
+When a package_integrity_report.json is supplied outside the package, inspect it before relying on copied files. A valid integrity audit verifies package consistency only; it does not certify scientific completeness.
+
+A virtual condition result is a model-based scenario estimate, not an experimental observation. Preserve its exact endpoint, units, prediction_status, NOT_CALIBRATED uncertainty status, and warnings. Marginal training ranges do not prove joint support. Never convert a scenario prediction into a measured result or a causal/mechanistic claim.
