@@ -161,9 +161,15 @@ def _validate_mapping_plan(payload: Any) -> list[dict[str, str]]:
 
 def _validate_canonical_bundle(payload: Any) -> list[dict[str, str]]:
     from dor.canonical import validate_canonical_bundle
+    errors = []
+    if not isinstance(payload, dict):
+        return [_error("CANONICAL_BUNDLE_INVALID", "canonical_bundle must be a JSON object.", "canonical_bundle")]
+    if payload.get("schema_version") != "1.0" or not _is_nonempty_string(payload.get("project_id")) or not _is_nonempty_string(payload.get("mapping_version")):
+        errors.append(_error("CANONICAL_BUNDLE_METADATA_INVALID", "canonical_bundle requires schema_version 1.0, project_id, and mapping_version.", "canonical_bundle"))
     result = validate_canonical_bundle(payload)
-    return [_error("CANONICAL_BUNDLE_INVALID", f"{item.get('path')}: {item.get('message')}", "canonical_bundle")
-            for item in result.get("errors", [])]
+    errors.extend(_error("CANONICAL_BUNDLE_INVALID", f"{item.get('path')}: {item.get('message')}", "canonical_bundle")
+                  for item in result.get("errors", []))
+    return errors
 
 
 def _validate_reconciliation(payload: Any, canonical_sha256: str) -> list[dict[str, str]]:
