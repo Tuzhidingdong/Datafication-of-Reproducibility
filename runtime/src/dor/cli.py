@@ -189,6 +189,11 @@ def main() -> int:
             return 0
         if args.command == "audit-publication-package":
             report=audit_publication_package_files(args.package_dir)
+            if args.out is not None:
+                report_path=args.out.expanduser().resolve()
+                package_path=args.package_dir.expanduser().resolve()
+                if report_path.is_relative_to(package_path):
+                    raise ValueError("Package integrity report must be written outside the package directory.")
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
         if args.command == "predict-virtual-condition":
