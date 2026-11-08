@@ -97,6 +97,45 @@ class PublicationPackageTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertTrue(any("Writing Skill guide SHA-256" in item for item in report["errors"]))
 
+    def test_symlinked_directory_cannot_hide_unindexed_external_files(self):
+        build_publication_package_files(self.plan_path, self.root, self.package_dir)
+        outside = self.root / "outside"
+        outside.mkdir()
+        (outside / "secret.txt").write_text("outside the package", encoding="utf-8")
+        link = self.package_dir / "linked_directory"
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest("Symlink creation is unavailable in this environment: " + str(exc))
+        report = audit_publication_package_files(self.package_dir)
+        self.assertFalse(report["valid"])
+        self.assertTrue(any("Symbolic links are not permitted" in item for item in report["errors"]))
+
+    def test_symlinked_artifact_file_is_rejected_even_when_target_is_inside_package(self):
+        build_publication_package_files(self.plan_path, self.root, self.package_dir)
+        target = self.package_dir / "results" / "result.json"
+        linked = self.package_dir / "linked-result.json"
+        try:
+            linked.symlink_to(target)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest("Symlink creation is unavailable in this environment: " + str(exc))
+        report = audit_publication_package_files(self.package_dir)
+        self.assertFalse(report["valid"])
+        self.assertTrue(any("Symbolic links are not permitted" in item for item in report["errors"]))
+
+    def test_package_manifest_symlink_is_rejected(self):
+        build_publication_package_files(self.plan_path, self.root, self.package_dir)
+        manifest = self.package_dir / "package_manifest.json"
+        external = self.root / "external_manifest.json"
+        external.write_bytes(manifest.read_bytes())
+        manifest.unlink()
+        try:
+            manifest.symlink_to(external)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest("Symlink creation is unavailable in this environment: " + str(exc))
+        with self.assertRaisesRegex(ValueError, "must not be a symbolic link"):
+            audit_publication_package_files(self.package_dir)
+
     def test_integrity_report_must_be_outside_package(self):
         build_publication_package_files(self.plan_path, self.root, self.package_dir)
         with self.assertRaisesRegex(ValueError, "outside the package"):

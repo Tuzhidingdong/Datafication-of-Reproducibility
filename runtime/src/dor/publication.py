@@ -203,6 +203,8 @@ def audit_publication_package_files(package_dir: Path) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     if not package_dir.is_dir():
         raise NotADirectoryError("Publication package path is not a directory: " + str(package_dir))
+    if manifest_path.is_symlink():
+        raise ValueError("package_manifest.json must not be a symbolic link.")
     if not manifest_path.is_file():
         raise FileNotFoundError("package_manifest.json is missing.")
     manifest = _read_json(manifest_path)
@@ -213,12 +215,15 @@ def audit_publication_package_files(package_dir: Path) -> dict[str, Any]:
         errors.append("writing_guide must be README_FOR_WRITING_SKILL.md.")
     guide_path = package_dir / "README_FOR_WRITING_SKILL.md"
     expected_guide_hash = manifest.get("writing_guide_sha256")
-    try:
-        guide_path = _within(package_dir, guide_path, "Writing Skill guide")
-    except ValueError as exc:
-        errors.append(str(exc))
-    if not guide_path.is_file():
-        errors.append("Writing Skill guide is missing.")
+    if guide_path.is_symlink():
+        errors.append("Writing Skill guide must not be a symbolic link.")
+    else:
+        try:
+            guide_path = _within(package_dir, guide_path, "Writing Skill guide")
+        except ValueError as exc:
+            errors.append(str(exc))
+    if not guide_path.is_file() or guide_path.is_symlink():
+        errors.append("Writing Skill guide is missing or is not a regular file.")
     elif (not isinstance(expected_guide_hash, str)
           or not SHA256_RE.fullmatch(expected_guide_hash)
           or sha256_file(guide_path) != expected_guide_hash):
@@ -273,7 +278,15 @@ def audit_publication_package_files(package_dir: Path) -> dict[str, Any]:
             ok = status in {"not_generated", "not_applicable"}
         checks.append({"artifact_id": aid, "path": rel_text, "status": status,
                        "exists": exists, "hash_valid": ok if exists else None})
-    actual_files = {path.relative_to(package_dir).as_posix() for path in package_dir.rglob("*") if path.is_file()}
+    package_entries = list(package_dir.rglob("*"))
+    for entry in package_entries:
+        if entry.is_symlink():
+            errors.append("Symbolic links are not permitted in publication packages: "
+                          + entry.relative_to(package_dir).as_posix())
+    actual_files = {
+        path.relative_to(package_dir).as_posix()
+        for path in package_entries if path.is_file() and not path.is_symlink()
+    }
     for extra in sorted(actual_files - indexed_files):
         errors.append("Unindexed file exists in package: " + extra)
     return {"valid": not errors, "package_dir": str(package_dir),
