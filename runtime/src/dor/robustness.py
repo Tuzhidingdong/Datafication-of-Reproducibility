@@ -96,6 +96,7 @@ def assess_interaction_robustness_files(
                 "observation_count": report["observation_count"],
                 "candidate_pair_count": report["candidate_pair_count"],
                 "eligible_pair_count": report["eligible_pair_count"],
+                "exclusions": report["exclusions"],
                 "fold_protocol": report["fold_protocol"]
             })
             for item in report["interaction_catalogue"]:
