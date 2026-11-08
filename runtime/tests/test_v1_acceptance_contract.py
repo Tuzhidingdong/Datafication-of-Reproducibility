@@ -1,0 +1,66 @@
+import json
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+STAGE_ORDER = [
+    "source_selection",
+    "source_integrity",
+    "extraction_review",
+    "semantic_mapping",
+    "canonical_reconciliation",
+    "cohort_feasibility",
+    "modeling_validation",
+    "publication_handoff",
+]
+
+
+class V1AcceptanceContractTests(unittest.TestCase):
+    def setUp(self):
+        self.schema = json.loads((ROOT / "schemas/v1_acceptance_record.schema.json").read_text(encoding="utf-8"))
+        self.example = json.loads((ROOT / "templates/v1_acceptance_record.example.json").read_text(encoding="utf-8"))
+
+    def test_schema_and_example_parse(self):
+        self.assertEqual(self.schema["$schema"], "https://json-schema.org/draft/2020-12/schema")
+        self.assertEqual(self.example["schema_version"], "1.0")
+
+    def test_example_declares_all_stages_once_in_fixed_order(self):
+        ids = [item["stage_id"] for item in self.example["stages"]]
+        self.assertEqual(ids, STAGE_ORDER)
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_single_study_scope_is_not_misrepresented_as_multistudy(self):
+        self.assertEqual(self.example["scope"], "CONTROLLED_SINGLE_STUDY")
+        self.assertEqual(self.example["source_snapshot"]["study_count"], 1)
+        conditional = next(
+            item for item in self.schema["allOf"]
+            if item.get("if", {}).get("properties", {}).get("scope", {}).get("const") == "CONTROLLED_SINGLE_STUDY"
+        )
+        self.assertEqual(conditional["then"]["properties"]["source_snapshot"]["properties"]["study_count"]["const"], 1)
+
+    def test_passing_stages_require_evidence(self):
+        stage_schema = self.schema["properties"]["stages"]["items"]
+        pass_rule = next(
+            item for item in stage_schema["allOf"]
+            if item.get("if", {}).get("properties", {}).get("status", {}).get("const") == "PASS"
+        )
+        self.assertEqual(pass_rule["then"]["properties"]["evidence"]["minItems"], 1)
+
+    def test_not_applicable_requires_scientific_reason(self):
+        stage_schema = self.schema["properties"]["stages"]["items"]
+        na_rule = next(
+            item for item in stage_schema["allOf"]
+            if item.get("if", {}).get("properties", {}).get("status", {}).get("const") == "NOT_APPLICABLE"
+        )
+        self.assertIn("not_applicable_reason", na_rule["then"]["required"])
+
+    def test_full_pass_requires_all_stages_to_pass(self):
+        rule = next(
+            item for item in self.schema["allOf"]
+            if item.get("if", {}).get("properties", {}).get("final_assessment", {}).get("properties", {}).get("decision", {}).get("const") == "PASS"
+        )
+        self.assertEqual(rule["then"]["properties"]["stages"]["items"]["properties"]["status"]["const"], "PASS")
+
+
+if __name__ == "__main__":
+    unittest.main()

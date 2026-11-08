@@ -245,3 +245,14 @@ A stage whose declared source input differs from the run-init SHA-256 is reporte
 
 
 The Run Manager initializes run_events.jsonl with an immutable RUN_INITIALIZED record binding the manifest's project/run scope, exact plan hash, source roots and source hashes, workflow-ledger path, and stage order. Runtime compares this record to run_manifest.json on every operation. Do not edit either control file by hand.
+
+
+## V1.0 controlled real-data acceptance (mandatory)
+
+V1.0 is a controlled acceptance, not a bulk-corpus run. Use only a user-selected primary paper and its SI for the first pilot. Do not select the paper or start real-data processing on the user's behalf. Before execution, read ../../../docs/V1.0_CONTROLLED_ACCEPTANCE.md and create an acceptance record from ../../../templates/v1_acceptance_record.example.json conforming to ../../../schemas/v1_acceptance_record.schema.json.
+
+The eight acceptance stages are fixed and ordered: source_selection, source_integrity, extraction_review, semantic_mapping, canonical_reconciliation, cohort_feasibility, modeling_validation, publication_handoff. Do not combine or omit stages. Record exact evidence paths and SHA-256 hashes for every PASS. NOT_APPLICABLE requires a scientific reason; FAIL/BLOCKED requires a concrete blocker. A successful CLI exit is not by itself scientific acceptance.
+
+A single Study cannot support Study-held-out evaluation. For a one-paper pilot, cohort_feasibility and modeling_validation may be NOT_APPLICABLE with an explicit reason; do not split rows and call them independent Studies. A multi-Study modelling pilot is a separate scope requiring adequate independent Studies and explicit G2 approval.
+
+The acceptance record is a review ledger, not an automatic scientific truth score. A schema-valid record still requires human inspection of the cited evidence. Do not mark full PASS unless all eight stages pass; a one-Study pilot should normally conclude CONDITIONAL_PASS with its limitations stated. See ../../../docs/V1.0_CONTROLLED_ACCEPTANCE.md.
