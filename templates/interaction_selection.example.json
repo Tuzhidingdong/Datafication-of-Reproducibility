@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "task_id": "TASK_EXAMPLE",
+  "interaction_report_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "selected_interaction_ids": [
+    "INT_EXAMPLE_001"
+  ],
+  "not_selected_interaction_ids": [],
+  "reviewer": "REPLACE_WITH_REVIEWER",
+  "reviewed_at": "2026-01-01T00:00:00Z",
+  "rationale": "Replace with a concise explanation grounded in the reported support, robustness, Study coverage, and counterexamples."
+}

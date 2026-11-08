@@ -17,6 +17,7 @@ from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 from dor.publication import build_publication_package_files, audit_publication_package_files
 from dor.virtual_reproduction import predict_virtual_condition_files
+from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
 
 def _write_json(path: Path | None, report: dict) -> str:
     rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
@@ -24,6 +25,39 @@ def _write_json(path: Path | None, report: dict) -> str:
         path.parent.mkdir(parents=True,exist_ok=True)
         path.write_text(rendered,encoding="utf-8")
     return rendered
+
+
+def _add_gate_args(command_parser: argparse.ArgumentParser) -> None:
+    command_parser.add_argument("--workflow-ledger", type=Path, default=None,
+        help="Hash-bound G0-G4 approval ledger; required for guided project execution.")
+    command_parser.add_argument("--allow-untracked-legacy", action="store_true",
+        help="Explicit legacy-only bypass for archived scripts; never use in a real project.")
+
+
+def _enforce_gate(args: argparse.Namespace, gate_id: str,
+                  expected_artifacts: dict[str, Path] | None = None) -> None:
+    if args.workflow_ledger is None:
+        if args.allow_untracked_legacy:
+            print(json.dumps({"warning":"UNTRACKED_LEGACY_WORKFLOW",
+                "required_gate":gate_id,
+                "message":"Workflow gate enforcement was explicitly bypassed for legacy compatibility."}),
+                file=sys.stderr)
+            return
+        raise ValueError("This command requires --workflow-ledger and a current APPROVE decision for " + gate_id +
+            ". The explicit --allow-untracked-legacy override is reserved for archived scripts.")
+    require_gate(args.workflow_ledger, gate_id, expected_artifacts)
+
+
+def _parse_artifact_bindings(values: list[str]) -> list[tuple[str, Path]]:
+    bindings = []
+    for value in values:
+        if "=" not in value:
+            raise ValueError("--artifact must use ARTIFACT_ID=FILE_PATH syntax.")
+        artifact_id, path = value.split("=", 1)
+        if not artifact_id.strip() or not path.strip():
+            raise ValueError("--artifact must contain a non-empty ID and file path.")
+        bindings.append((artifact_id.strip(), Path(path)))
+    return bindings
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dor", description="Datafication of Reproducibility runtime")
@@ -112,11 +146,33 @@ def build_parser() -> argparse.ArgumentParser:
     virtual.add_argument("--model-run-dir", type=Path, required=True, help="Exact output directory from dor fit-baselines")
     virtual.add_argument("--query", type=Path, required=True, help="Explicit virtual_reproduction_query.json")
     virtual.add_argument("--out", type=Path, required=True, help="New JSON prediction report path")
+    for gated_parser in (build, cohort, models, evaluate, interaction, robustness,
+                         surface, mechanism, package, virtual):
+        _add_gate_args(gated_parser)
+    gate_record = subparsers.add_parser("gate-record", help="Append a hash-bound human decision to the G0-G4 workflow ledger")
+    gate_record.add_argument("--workflow-ledger", type=Path, required=True)
+    gate_record.add_argument("--gate", dest="gate_id", choices=["G0","G1","G2","G3","G4"], required=True)
+    gate_record.add_argument("--decision", choices=["APPROVE","REVISE","STOP"], required=True)
+    gate_record.add_argument("--reviewer", required=True, help="Human reviewer identifier; not independently authenticated")
+    gate_record.add_argument("--rationale", required=True, help="Why this exact gate scope is approved, revised, or stopped")
+    gate_record.add_argument("--artifact", dest="artifacts", action="append", default=[],
+        help="Hash-bind a reviewed file as ARTIFACT_ID=FILE_PATH; repeat for every required artifact")
+    gate_status = subparsers.add_parser("gate-status", help="Verify event history, artifact hashes, and current G0-G4 approval state")
+    gate_status.add_argument("--workflow-ledger", type=Path, required=True)
     return parser
 
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        if args.command == "gate-record":
+            result=record_gate_decision(args.workflow_ledger,args.gate_id,args.decision,
+                args.reviewer,args.rationale,_parse_artifact_bindings(args.artifacts or []))
+            print(_write_json(None,result),end="")
+            return 0
+        if args.command == "gate-status":
+            report=inspect_gate_ledger(args.workflow_ledger)
+            print(_write_json(None,report),end="")
+            return 0
         if args.command == "audit":
             result = run_audit(args.csv, args.json, args.out)
             print(json.dumps({"status":"completed","audit_id":result["audit_id"],
@@ -145,6 +201,7 @@ def main() -> int:
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
         if args.command == "discover-interactions":
+            _enforce_gate(args,"G2",{"modeling_task":args.task})
             result=discover_interactions_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
             report=result["report"]
             print(json.dumps({"status":"completed","output_dir":result["output_dir"],
@@ -153,6 +210,7 @@ def main() -> int:
                 "claim_scope":"PREDICTIVE_STATISTICAL_INTERACTION_CANDIDATE_NOT_CAUSAL_OR_MECHANISTIC_EVIDENCE"},ensure_ascii=False,indent=2))
             return 0
         if args.command == "assess-interaction-robustness":
+            _enforce_gate(args,"G2",{"modeling_task":args.task})
             seeds=[int(value.strip()) for value in args.seeds.split(",") if value.strip()]
             result=assess_interaction_robustness_files(args.cohort_dir,args.task,args.out_dir,seeds,
                 args.folds,args.minimum_candidate_run_fraction)
@@ -163,6 +221,9 @@ def main() -> int:
                 "claim_scope":"SEED_SENSITIVITY_NOT_INFERENTIAL_SIGNIFICANCE_CAUSALITY_OR_MECHANISM"},ensure_ascii=False,indent=2))
             return 0
         if args.command == "generate-interaction-surface":
+            _enforce_gate(args,"G3",{"interaction_report":args.interaction_dir/"interaction_discovery_report.json"})
+            if args.workflow_ledger is not None:
+                require_selected_interaction_id(args.workflow_ledger,args.interaction_id)
             result=generate_interaction_surface_files(args.cohort_dir,args.task,args.interaction_dir,
                 args.interaction_id,args.out_dir,args.robustness_dir,args.grid_size,args.background_max)
             report=result["report"]
@@ -172,6 +233,11 @@ def main() -> int:
                 "method":report["method"],"validation_scope":report["validation_scope"]},ensure_ascii=False,indent=2))
             return 0
         if args.command == "build-mechanism-evidence-bridge":
+            _enforce_gate(args,"G3",{
+                "interaction_report":args.interaction_dir/"interaction_discovery_report.json",
+                "mechanism_plan":args.plan})
+            if args.workflow_ledger is not None:
+                require_selected_interaction(args.workflow_ledger,args.plan)
             result=build_mechanism_evidence_bridge_files(args.bundle,args.cohort_dir,args.task,
                 args.interaction_dir,args.plan,args.out_dir,args.robustness_dir,args.response_surface_dir)
             report=result["report"]
@@ -182,6 +248,7 @@ def main() -> int:
                 "claim_scope":report["claim_scope"]},ensure_ascii=False,indent=2))
             return 0
         if args.command == "build-publication-package":
+            _enforce_gate(args,"G4",{"publication_plan":args.plan})
             result=build_publication_package_files(args.plan,args.workspace_root,args.out_dir)
             print(json.dumps({"status":"completed","output_dir":result["output_dir"],
                 "artifact_count":result["artifact_count"],"copied_artifact_count":result["copied_artifact_count"],
@@ -197,6 +264,7 @@ def main() -> int:
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
         if args.command == "predict-virtual-condition":
+            _enforce_gate(args,"G2")
             result=predict_virtual_condition_files(args.model_run_dir,args.query,args.out)
             report=result["report"]
             print(json.dumps({"status":"completed","output_path":result["output_path"],
@@ -205,6 +273,7 @@ def main() -> int:
                 ensure_ascii=False,indent=2))
             return 0
         if args.command == "evaluate-reproducibility":
+            _enforce_gate(args,"G2",{"modeling_task":args.task})
             result=evaluate_reproducibility_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
             report=result["report"]
             print(json.dumps({"status":"completed","output_dir":result["output_dir"],
@@ -214,6 +283,7 @@ def main() -> int:
                 "uncertainty_status":report["uncertainty"]["status"]},ensure_ascii=False,indent=2))
             return 0
         if args.command == "fit-baselines":
+            _enforce_gate(args,"G2",{"modeling_task":args.task})
             result=run_baseline_models_files(args.cohort_dir,args.task,args.out_dir)
             report=result["report"]
             print(json.dumps({"status":"completed","output_dir":result["output_dir"],
@@ -222,6 +292,9 @@ def main() -> int:
                 "test_evaluation":report["test_evaluation"]},ensure_ascii=False,indent=2))
             return 0
         if args.command == "build-cohort":
+            _enforce_gate(args,"G2",{
+                "canonical_bundle":args.bundle,
+                "modeling_task":args.task})
             result=build_modeling_cohort_files(args.bundle,args.task,args.out_dir)
             report=result["report"]
             print(json.dumps({"status":"completed" if result["valid"] else "failed",
@@ -230,6 +303,10 @@ def main() -> int:
                 "split_counts":report.get("split_counts",{}),"errors":report.get("errors",[])},ensure_ascii=False,indent=2))
             return 0 if result["valid"] else 2
         if args.command == "build-canonical":
+            _enforce_gate(args,"G1",{
+                "mapping_plan":args.plan,
+                "source_inventory":args.inventory,
+                "build_spec":args.spec})
             output_dir=args.out_dir.expanduser().resolve()
             if output_dir.exists():
                 if not output_dir.is_dir():

@@ -94,9 +94,19 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
 
     @classmethod
     def _run_cli(cls, *arguments):
+        gated_commands = {
+            "build-canonical", "build-cohort", "fit-baselines",
+            "evaluate-reproducibility", "discover-interactions",
+            "assess-interaction-robustness", "generate-interaction-surface",
+            "build-mechanism-evidence-bridge", "predict-virtual-condition",
+            "build-publication-package",
+        }
+        cli_arguments = ["dor", *arguments]
+        if arguments and arguments[0] in gated_commands:
+            cli_arguments.append("--allow-untracked-legacy")
         stdout = io.StringIO()
         stderr = io.StringIO()
-        with patch.object(sys, "argv", ["dor", *arguments]), redirect_stdout(stdout), redirect_stderr(stderr):
+        with patch.object(sys, "argv", cli_arguments), redirect_stdout(stdout), redirect_stderr(stderr):
             exit_code = cli_main()
         if exit_code != 0:
             raise AssertionError(
@@ -814,9 +824,27 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         self.assertEqual(sha256_file(self.json_path), self.raw_source_hashes[self.json_path.name])
 
 
+
+    def test_gated_cli_command_fails_closed_without_ledger_or_explicit_legacy_flag(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        arguments = [
+            "dor", "build-canonical", "--plan", "mapping.json",
+            "--inventory", "inventory.json", "--spec", "build.json",
+            "--source-root", ".", "--out-dir", "canonical",
+        ]
+        with patch.object(sys, "argv", arguments), redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = cli_main()
+        self.assertEqual(exit_code, 2)
+        self.assertIn("requires --workflow-ledger", stderr.getvalue())
+
     def test_cli_parser_exposes_each_pipeline_command(self):
         parser = build_parser()
         cases = [
+            ["gate-status", "--workflow-ledger", "workflow_gate_ledger.jsonl"],
+            ["gate-record", "--workflow-ledger", "workflow_gate_ledger.jsonl", "--gate", "G0",
+             "--decision", "APPROVE", "--reviewer", "reviewer", "--rationale", "scope approved",
+             "--artifact", "dataset_manifest=manifest.json", "--artifact", "source_inventory=inventory.json"],
             ["audit", "--csv", "input.csv", "--json", "input.json", "--out", "audit"],
             ["validate-mapping", "--plan", "mapping.json", "--inventory", "inventory.json"],
             ["build-canonical", "--plan", "mapping.json", "--inventory", "inventory.json",

@@ -14,7 +14,7 @@ The project aims to reconstruct relationships among reported experimental condit
 
 ## Repository status
 
-This Draft development branch contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, V0.3 endpoint-specific cohort builder, deterministic Study-level splits, dependency-free baseline models and nested cross-study evaluation, V0.4 numeric pairwise interaction screening, repeated-seed robustness assessment, descriptive response surfaces and evidence-linked mechanism hypothesis bridge, and V0.5 explicit-plan publication package assembly plus guarded virtual condition prediction. V0.6 adds a full synthetic project acceptance path executed through the dor CLI: read-only CSV/JSON audit, approved mapping, cross-format canonical construction, reconciliation, cohort/splits, models, nested evaluation, interactions, response surface, mechanism evidence, virtual prediction, and package integrity audit. The synthetic pipeline includes hash-substitution, package-tampering, source-immutability, and CLI-registration checks. It does not load the real zinc-battery corpus or establish scientific validity; full scientific end-to-end acceptance remains reserved for V1.0.
+This Draft development branch contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, V0.3 endpoint-specific cohorts, Study-level splits, baseline models and nested evaluation, V0.4 interaction discovery/robustness, response surfaces and mechanism-evidence bridge, and V0.5 publication-package assembly plus virtual condition prediction. V0.6 adds a complete synthetic CLI acceptance path from source audit through package integrity audit. V0.7 adds a hash-bound G0–G4 human approval ledger, fail-closed CLI gate enforcement, explicit G3 interaction selection, and non-destructive scientific entity-grain diagnostics. The synthetic pipeline includes hash-substitution, package-tampering, source-immutability, and CLI-registration checks. It does not load the real zinc-battery corpus or establish scientific validity; full scientific end-to-end acceptance remains reserved for V1.0.
 
 ## Planned layout
 
@@ -33,6 +33,7 @@ This Draft development branch contains the V0.1 research foundation, V0.2 data-u
 - `docs/V0.4_MECHANISM_EVIDENCE_BRIDGE.md`: source-linked mechanism hypotheses, evidence classification, prospective-independence checks, and contradiction review.
 - `docs/V0.5_PUBLICATION_AND_VIRTUAL_REPRODUCTION.md`: explicit publication package plans, SHA-256 integrity audit, serialized-model condition predictions, and applicability-domain boundaries.
 - `docs/V0.6_END_TO_END_SYNTHETIC_ACCEPTANCE.md`: cross-module synthetic project acceptance, CLI execution, provenance consistency, tamper detection, and scientific test boundaries.
+- `docs/V0.7_APPROVAL_GATES_AND_SCIENTIFIC_CONTRACTS.md`: append-only hash-bound G0–G4 approval events, CLI enforcement, explicit interaction selection, and Observation/Condition grain diagnostics.
 - `templates/`: reusable reports and paper-output templates.
 - `tests/`: V0.1 contract and immutability tests.
 

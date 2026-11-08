@@ -156,3 +156,20 @@ Run the complete runtime suite:
     python -m unittest discover -s runtime/tests -v
 
 The fixture is artificial and is not a substitute for scientific review or V1.0 acceptance on the real literature corpus. It does not test Antigravity GUI interaction or Worker orchestration.
+
+
+## V0.7 hash-bound human approval gates
+
+Maintain one ledger per project run (outside raw-source directories). After explicit user approval of scope and audit artifacts, record G0:
+
+    dor gate-record --workflow-ledger workflow_gate_ledger.jsonl --gate G0 --decision APPROVE --reviewer "human-reviewer" --rationale "Reviewed scope and source inventory." --artifact dataset_manifest=01_audit/dataset_manifest.json --artifact source_inventory=01_audit/source_inventory.json
+
+Exact artifact requirements and additional commands are documented in ../docs/V0.7_APPROVAL_GATES_AND_SCIENTIFIC_CONTRACTS.md. Each event records absolute artifact paths and SHA-256 hashes, the reviewer/rationale/timestamp, an upstream decision dependency, and a ledger-wide hash-chain link. Inspect status with:
+
+    dor gate-status --workflow-ledger workflow_gate_ledger.jsonl
+
+Gated CLI operations fail closed unless a current approval exists. A modified or missing artifact makes its approval stale; a changed upstream decision blocks downstream approvals. The reviewer field is self-declared, not authenticated. This is an integrity/provenance record, not a cryptographic signature system.
+
+`--allow-untracked-legacy` exists only for archived pre-V0.7 scripts and compatibility tests. Do not use it in a research run. The Antigravity Skill must obtain explicit user decisions before executing `gate-record`; an Agent, Worker, completed command, or silence cannot approve a gate.
+
+Cohort reports include non-destructive Observation/Condition grain diagnostics. Repeated records remain separate; explicit identifiers are reported but do not establish replication or independence.

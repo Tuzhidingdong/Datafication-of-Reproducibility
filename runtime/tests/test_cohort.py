@@ -59,6 +59,39 @@ class ModelingCohortTests(unittest.TestCase):
         second=build_modeling_cohort(fixture_bundle(),task())[2]
         self.assertEqual(first["study_to_split"],second["study_to_split"])
 
+
+    def test_repeated_observations_without_ids_are_flagged_but_never_collapsed(self):
+        data=fixture_bundle()
+        extra=copy.deepcopy(data["observations"][0])
+        extra.update({"observation_id":"OB1_REPEAT","raw_value":88,"normalized_value":88})
+        data["observations"].append(extra)
+        rows,report,split=build_modeling_cohort(data,task())
+        self.assertEqual(len(rows),5)
+        grain=report["scientific_data_contract"]
+        self.assertEqual(grain["observation_grain"]["groups_without_explicit_identity"],1)
+        issue=next(item for item in grain["warnings"]
+                   if item["code"]=="REPEATED_OBSERVATIONS_WITHOUT_EXPLICIT_IDENTITY")
+        self.assertEqual(set(issue["observation_ids"]),{"OB1","OB1_REPEAT","OB_MISSING"})
+        self.assertFalse(grain["observation_grain"]["automatic_observation_aggregation"])
+        self.assertFalse(grain["observation_grain"]["assumed_independence"])
+
+    def test_explicit_replicate_label_is_recorded_without_inferred_independence(self):
+        data=fixture_bundle()
+        extra=copy.deepcopy(data["observations"][0])
+        extra.update({"observation_id":"OB1_REPEAT","raw_value":88,"normalized_value":88,
+                      "replicate_id":"R2"})
+        data["observations"][0]["replicate_id"]="R1"
+        data["observations"][-1]["replicate_id"]="R0"
+        data["observations"].append(extra)
+        rows,report,split=build_modeling_cohort(data,task())
+        self.assertEqual(len(rows),5)
+        grain=report["scientific_data_contract"]
+        self.assertEqual(grain["observation_grain"]["groups_with_explicit_identity_but_unverified_semantics"],1)
+        issue=next(item for item in grain["warnings"]
+                   if item["code"]=="EXPLICIT_IDENTIFIERS_PRESENT_SEMANTICS_UNVERIFIED")
+        self.assertIn("not proof of independent replication",issue["interpretation"])
+        self.assertFalse(grain["observation_grain"]["assumed_independence"])
+
     def test_multiple_observations_are_not_averaged_or_collapsed(self):
         data=fixture_bundle()
         extra=copy.deepcopy(data["observations"][0])
@@ -79,6 +112,9 @@ class ModelingCohortTests(unittest.TestCase):
         self.assertEqual(len(rows),3)
         excluded={item["observation_id"]:item["reason"] for item in report["excluded"]}
         self.assertEqual(excluded["OB1"],"FEATURE_CONDITION_MULTIPLE")
+        self.assertEqual(report["scientific_data_contract"]["condition_grain"]["multiple_same_type_groups"],1)
+        self.assertIn("MULTIPLE_CONDITIONS_SAME_TYPE_IN_EXPERIMENT",
+                      [item["code"] for item in report["scientific_data_contract"]["warnings"]])
 
     def test_units_must_match_exactly(self):
         data=fixture_bundle()

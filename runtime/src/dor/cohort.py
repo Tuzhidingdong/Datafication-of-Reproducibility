@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 from dor.canonical import validate_canonical_bundle
 from dor.mapping import sha256_file
+from dor.scientific_contracts import inspect_scientific_data_grain
 
 OUTCOME_FIELDS = {"raw_value", "normalized_value"}
 RESERVED_FEATURE_IDS = {"cohort_row_id", "study_id", "system_id", "experiment_id", "observation_id", "target_id", "endpoint_definition", "outcome_value", "outcome_unit", "split"}
@@ -139,6 +140,7 @@ def build_modeling_cohort(bundle: Any, task: Any, bundle_sha256: str | None = No
     integrity=validate_canonical_bundle(bundle)
     if not integrity.get("valid"):
         return None,{"valid":False,"errors":integrity.get("errors",[]),"validation_scope":"CANONICAL_INTEGRITY_REQUIRED"},None
+    scientific_data_contract=inspect_scientific_data_grain(bundle)
     experiments={item["experiment_id"]:item for item in bundle["experiments"]}
     conditions={item["condition_id"]:item for item in bundle["conditions"]}
     task_id,target_id,endpoint=task["task_id"],task["target_id"],task["endpoint_definition"]
@@ -210,11 +212,14 @@ def build_modeling_cohort(bundle: Any, task: Any, bundle_sha256: str | None = No
     selected.sort(key=lambda row:(row["study_id"],row["experiment_id"],row["observation_id"]))
     if not selected:
         return None,{"valid":False,"errors":[{"code":"EMPTY_ELIGIBLE_COHORT","path":"observations","message":"No observations satisfy the exact task, endpoint, outcome, unit, and feature-binding rules."}],
-            "excluded_count":len(excluded),"excluded":excluded,"validation_scope":"NO_MODELING_COHORT_CREATED"},None
+            "excluded_count":len(excluded),"excluded":excluded,
+            "scientific_data_contract":scientific_data_contract,
+            "validation_scope":"NO_MODELING_COHORT_CREATED"},None
     assignment,split_errors=_split_studies([row["study_id"] for row in selected],task["split"])
     if split_errors:
         return None,{"valid":False,"errors":split_errors,"excluded_count":len(excluded),"excluded":excluded,
             "eligible_observation_count":len(selected),"eligible_study_count":len({row["study_id"] for row in selected}),
+            "scientific_data_contract":scientific_data_contract,
             "validation_scope":"NO_MODELING_COHORT_CREATED"},None
     for row in selected:
         row["split"]=assignment[row["study_id"]]
@@ -237,6 +242,7 @@ def build_modeling_cohort(bundle: Any, task: Any, bundle_sha256: str | None = No
         "excluded_count":len(excluded),
         "excluded_by_reason":{reason:sum(1 for item in excluded if item["reason"]==reason) for reason in sorted({item["reason"] for item in excluded})},
         "excluded":excluded,
+        "scientific_data_contract":scientific_data_contract,
         "split_counts":{name:{"study_count":len(split_manifest["leakage_check"]["study_ids_by_split"][name]),
             "observation_count":len(split_manifest["observation_ids_by_split"][name])} for name in ("train","validation","test")},
         "bundle_sha256":bundle_sha256,"task_sha256":task_sha256,

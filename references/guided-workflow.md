@@ -51,3 +51,18 @@ A revised scientific plan should create a new plan version. Preserve previous re
 Every gate packet should contain a concise decision summary, evidence/artifact paths, unresolved questions, options and consequences, recommended next step, and exact actions that will occur after approval.
 
 A gate is not approved by silence.
+
+
+## Runtime approval ledger (V0.7)
+
+The user-facing meanings of G0–G4 remain unchanged. The runtime records the user's explicit decision as a hash-bound JSONL event:
+
+- G0 binds the research-scope decision to dataset_manifest and source_inventory.
+- G1 binds approved mapping_plan, source_inventory, and build_spec.
+- G2 binds canonical_bundle, reconciliation_report, and modeling_task.
+- G3 binds interaction_report and a complete interaction_selection record; at most one interaction may be selected per packet. A selected interaction also requires the matching mechanism_plan.
+- G4 binds publication_plan and at least one reviewed scientific result artifact.
+
+The Supervisor must present the exact artifacts, unresolved issues, proposed decision, and consequences. It must wait for an explicit user decision before running dor gate-record. It must not create APPROVE events on the user's behalf. REVISE and STOP are decisions, not failures to be silently overwritten.
+
+Use dor gate-status before resuming. The runtime checks file hashes and upstream decision hashes; any stale artifact or changed upstream approval blocks dependent gates. The reviewer string is provenance metadata and is not independently authenticated.
