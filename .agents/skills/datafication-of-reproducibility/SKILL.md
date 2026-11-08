@@ -107,12 +107,16 @@ After G2 approval:
 
 ### Stage 5 — Mechanism interpretation
 
-Read `../../../references/mechanism-evidence.md`.
+Read `../../../references/mechanism-evidence.md` and `../../../docs/V0.4_MECHANISM_EVIDENCE_BRIDGE.md`.
 
-- Interpret only interactions that pass the agreed statistical and robustness checks.
+- Interpret only interactions selected by the user at Gate G3. A predictive interaction is a motivation for a testable hypothesis, not a mechanism claim.
 - Trace each interpretation to source evidence, experimental observations, and relevant theory/calculation.
 - Label statements as statistical observation, cross-study replication, mechanism hypothesis, direct experimental support, theoretical support, or prospective validation.
 - Record contradictory evidence.
+- Create a `mechanism_plan.json` using `templates/mechanism_plan.example.json`. Hypotheses may be drafted by the user, an Agent, or a Worker, but every Evidence ID, relationship, evidence class, and Observation ID must be explicit and checked against the canonical bundle.
+- Run `dor build-mechanism-evidence-bridge` with the exact canonical bundle, task, cohort, interaction report, and selected interaction ID. Optional robustness and response-surface packages must match the same task and interaction.
+- Review `mechanism_evidence_bridge_report.json`, `mechanism_evidence_ledger.csv`, `mechanism_review_queue.csv`, and `mechanism_findings.json`. Keep contradictory evidence, unverified extraction, and non-independent prospective evidence visible.
+- The generated Research Finding remains `claim_type = mechanism_hypothesis`, `status = candidate`, and `mechanism_status = hypothesis`. The report remains `PENDING_USER_MECHANISM_REVIEW`; no automated evidence count upgrades a mechanism to established or validated.
 - Never upgrade a hypothesis into an established mechanism merely because it is scientifically plausible.
 
 ### Stage 6 — Independent validation and virtual reproduction
