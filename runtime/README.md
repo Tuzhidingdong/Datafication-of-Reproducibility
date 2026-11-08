@@ -112,3 +112,30 @@ All commands read original sources. Audit and build outputs go to separate deriv
 ## Interpretation boundary
 
 A nested path or column is only a structural observation. It does not establish that a value is an experimental setpoint, measured local state, or valid model feature. Domain mapping, grouping, and relationship rules remain explicit scientific review decisions.
+
+
+## V0.5 publication package and virtual condition operations
+
+### Assemble an explicit Writing Skill package
+
+Prepare a run-specific plan from ../templates/publication_package_plan.example.json, then run from the repository root:
+
+    dor build-publication-package --plan publication_package_plan.json --workspace-root . --out-dir 06_publication/package
+
+The builder copies only declared files. Complete/partial entries must point to existing source files under the workspace root; not-generated/not-applicable entries remain manifest-only. Review-required entries may be included with a source file or retained as unresolved. The output must be new or empty.
+
+Audit the package with the integrity report outside the package:
+
+    dor audit-publication-package --package-dir 06_publication/package --out 06_publication/package_integrity_report.json
+
+A passing audit verifies hashes and package structure only; it does not certify scientific completeness or publication readiness.
+
+### Predict a specified condition set
+
+Prepare a query from ../templates/virtual_reproduction_query.example.json and use the exact output directory from dor fit-baselines:
+
+    dor predict-virtual-condition --model-run-dir 04_modeling/baseline_run --query virtual_reproduction_query.json --out 06_publication/virtual_prediction.json
+
+The query must match the model artifact's task/target/endpoint, feature IDs, and exact expected units. Numeric values must be finite JSON numbers. No implicit unit conversion, feature omission, or retraining is performed.
+
+New model artifacts record feature ranges/category sets from train plus validation only; the held-out test set is excluded. Values outside numeric ranges and unknown categories are flagged, but the model may still return a mathematical estimate. Every report marks uncertainty NOT_CALIBRATED, checks only marginal feature domains, and explicitly states that a virtual prediction is not a physical experiment or atomistic simulation. Keep all warnings when transferring the report to the publication package.
