@@ -333,10 +333,29 @@ def build_mechanism_evidence_bridge_files(
         if any(output_dir.iterdir()):
             raise FileExistsError("Refusing to overwrite a non-empty mechanism bridge output directory: " + str(output_dir))
 
+    input_paths = {
+        "canonical_bundle_sha256": bundle_path,
+        "task_sha256": task_path,
+        "mechanism_plan_sha256": mechanism_plan_path,
+        "cohort_sha256": cohort_dir / "modeling_cohort.csv",
+        "cohort_report_sha256": cohort_dir / "cohort_report.json",
+        "split_manifest_sha256": cohort_dir / "split_manifest.json",
+        "cohort_manifest_sha256": cohort_dir / "modeling_cohort_manifest.json",
+        "interaction_report_sha256": interaction_dir / "interaction_discovery_report.json",
+        "interaction_manifest_sha256": interaction_dir / "interaction_discovery_manifest.json"
+    }
+    if robustness_dir:
+        input_paths["robustness_report_sha256"] = robustness_dir / "interaction_robustness_report.json"
+        input_paths["robustness_manifest_sha256"] = robustness_dir / "interaction_robustness_manifest.json"
+    if response_surface_dir:
+        input_paths["response_surface_report_sha256"] = response_surface_dir / "interaction_response_surface_report.json"
+        input_paths["response_surface_manifest_sha256"] = response_surface_dir / "interaction_response_surface_manifest.json"
+    initial_input_hashes = {key: sha256_file(path) for key, path in input_paths.items()}
+
     _rows_raw, task, _split_manifest, cohort_manifest = _load_cohort(cohort_dir, task_path)
     if task.get("outcome_type") != "NUMERIC":
         raise ValueError("The initial mechanism bridge requires a numeric-endpoint interaction catalogue.")
-    bundle_hash = sha256_file(bundle_path)
+    bundle_hash = initial_input_hashes["canonical_bundle_sha256"]
     if cohort_manifest.get("bundle_sha256") != bundle_hash:
         raise ValueError("Canonical bundle hash does not match the bundle used to build the modeling cohort.")
     bundle = _read_object(bundle_path, "canonical bundle")
@@ -348,8 +367,8 @@ def build_mechanism_evidence_bridge_files(
     interaction_report, interaction_manifest, interaction_report_path, interaction_manifest_path = _read_manifest_pair(
         interaction_dir, "interaction_discovery_report.json", "interaction_discovery_manifest.json")
     _check_input_hashes(interaction_manifest, {
-        "cohort_sha256": sha256_file(cohort_dir / "modeling_cohort.csv"),
-        "task_sha256": sha256_file(task_path)
+        "cohort_sha256": initial_input_hashes["cohort_sha256"],
+        "task_sha256": initial_input_hashes["task_sha256"]
     }, "Interaction discovery")
     if interaction_report.get("target_id") != task.get("target_id") or interaction_report.get("endpoint_definition") != task.get("endpoint_definition") or interaction_report.get("task_id") != task.get("task_id"):
         raise ValueError("Interaction discovery report target/endpoint/task differs from current task.")
@@ -380,8 +399,8 @@ def build_mechanism_evidence_bridge_files(
         robustness_report, robustness_manifest, robustness_report_path, robustness_manifest_path = _read_manifest_pair(
             robustness_dir, "interaction_robustness_report.json", "interaction_robustness_manifest.json")
         _check_input_hashes(robustness_manifest, {
-            "cohort_sha256": sha256_file(cohort_dir / "modeling_cohort.csv"),
-            "task_sha256": sha256_file(task_path)
+            "cohort_sha256": initial_input_hashes["cohort_sha256"],
+            "task_sha256": initial_input_hashes["task_sha256"]
         }, "Interaction robustness")
         matches = [item for item in robustness_report.get("interaction_catalogue", [])
                    if item.get("interaction_id") == interaction_id]
@@ -398,9 +417,9 @@ def build_mechanism_evidence_bridge_files(
         surface_report, surface_manifest, surface_report_path, surface_manifest_path = _read_manifest_pair(
             response_surface_dir, "interaction_response_surface_report.json", "interaction_response_surface_manifest.json")
         _check_input_hashes(surface_manifest, {
-            "cohort_sha256": sha256_file(cohort_dir / "modeling_cohort.csv"),
-            "task_sha256": sha256_file(task_path),
-            "interaction_discovery_report_sha256": sha256_file(interaction_report_path)
+            "cohort_sha256": initial_input_hashes["cohort_sha256"],
+            "task_sha256": initial_input_hashes["task_sha256"],
+            "interaction_discovery_report_sha256": initial_input_hashes["interaction_report_sha256"]
         }, "Interaction response surface")
         if surface_report.get("interaction_id") != interaction_id or surface_report.get("target_id") != task.get("target_id") or surface_report.get("endpoint_definition") != task.get("endpoint_definition"):
             raise ValueError("Response surface report does not match selected interaction and endpoint.")
@@ -587,24 +606,7 @@ def build_mechanism_evidence_bridge_files(
         writer.writeheader()
         writer.writerows(review_rows)
 
-    input_paths = {
-        "canonical_bundle_sha256": bundle_path,
-        "task_sha256": task_path,
-        "mechanism_plan_sha256": mechanism_plan_path,
-        "cohort_sha256": cohort_dir / "modeling_cohort.csv",
-        "cohort_report_sha256": cohort_dir / "cohort_report.json",
-        "split_manifest_sha256": cohort_dir / "split_manifest.json",
-        "cohort_manifest_sha256": cohort_dir / "modeling_cohort_manifest.json",
-        "interaction_report_sha256": interaction_report_path,
-        "interaction_manifest_sha256": interaction_manifest_path
-    }
-    if robustness_report_path and robustness_manifest_path:
-        input_paths["robustness_report_sha256"] = robustness_report_path
-        input_paths["robustness_manifest_sha256"] = robustness_manifest_path
-    if surface_report_path and surface_manifest_path:
-        input_paths["response_surface_report_sha256"] = surface_report_path
-        input_paths["response_surface_manifest_sha256"] = surface_manifest_path
-    input_hashes = {key: sha256_file(path) for key, path in input_paths.items()}
+    input_hashes = initial_input_hashes
     output_names = [report_path.name, findings_path.name, ledger_path.name, review_path.name]
     output_hashes = {name: sha256_file(output_dir / name) for name in output_names}
     manifest = {
