@@ -40,6 +40,8 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
         self.assertEqual(report["prediction_mode"], "PARTIAL_DEPENDENCE_AVERAGED_OVER_EMPIRICAL_BACKGROUND")
         self.assertEqual(report["grid"]["grid_point_count"], 81)
         self.assertEqual(report["cohort"]["study_count"], 8)
+        self.assertGreater(report["empirical_support"]["distance_threshold"], 0)
+        self.assertLessEqual(report["cohort"]["partial_dependence_prediction_evaluations"], 500000)
         self.assertAlmostEqual(report["marginal_effects"]["cross_partial_derivative"], 1.0, places=2)
         with (output / "interaction_response_surface.csv").open(encoding="utf-8") as handle:
             rows = list(__import__("csv").DictReader(handle))
@@ -90,6 +92,21 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
         generate_interaction_surface_files(self.cohort_dir, self.task_path,
             self.interaction_dir, self.interaction_id, self.root / "readonly")
         self.assertEqual(before, {path: path.read_bytes() for path in paths})
+
+    def test_partial_dependence_work_is_bounded(self):
+        task = dict(self.task)
+        task["interaction_surface"] = {"grid_size": 61, "background_max_observations": 5000}
+        task_path = self.root / "large_task.json"
+        task_path.write_text(json.dumps(task), encoding="utf-8")
+        cohort_dir = self.root / "large_cohort"
+        built = build_modeling_cohort_files(self.bundle_path, task_path, cohort_dir)
+        self.assertTrue(built["valid"], built)
+        interaction_dir = self.root / "large_interactions"
+        discovered = discover_interactions_files(cohort_dir, task_path, interaction_dir, folds=4)
+        iid = discovered["report"]["interaction_catalogue"][0]["interaction_id"]
+        with self.assertRaisesRegex(ValueError, "bounded partial-dependence evaluation budget"):
+            generate_interaction_surface_files(cohort_dir, task_path, interaction_dir, iid,
+                self.root / "large_surface")
 
     def test_nonempty_output_is_not_overwritten(self):
         output = self.root / "existing"
