@@ -118,7 +118,9 @@ def _load_robustness_selection(robustness_dir: Path | None, interaction_id: str,
         raise ValueError("Interaction robustness report hash does not match its manifest.")
     matches = [item for item in report.get("interaction_catalogue", [])
                if item.get("interaction_id") == interaction_id]
-    return matches[0] if len(matches) == 1 else None
+    if len(matches) != 1:
+        raise ValueError("The supplied robustness report does not contain the selected interaction_id.")
+    return matches[0]
 
 
 def _convex_hull(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
