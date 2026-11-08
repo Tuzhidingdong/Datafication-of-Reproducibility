@@ -69,6 +69,8 @@ def _interaction_settings(task: dict[str, Any], feature_ids: set[str]) -> dict[s
         raise ValueError("maximum_interaction_columns must be a positive integer.")
     if len(pair_ids) > maximum_pairs:
         raise ValueError("Candidate pair count exceeds maximum_feature_pairs; explicitly restrict the scientifically justified candidate list.")
+    if not pair_ids:
+        raise ValueError("At least two distinct feature bindings or one explicit feature pair are required.")
     return {"feature_pairs": pair_ids, "minimum_joint_observations": minimum_observations,
             "minimum_joint_studies": minimum_studies,
             "minimum_positive_fold_fraction": float(positive_fraction),
@@ -256,6 +258,7 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
     fold_groups = _grouped_folds(study_ids, folds, seed)
     all_results: dict[tuple[str,str], list[dict[str,Any]]] = {pair:[] for pair in candidates}
     all_predictions: dict[tuple[str,str], list[dict[str,Any]]] = {pair:[] for pair in candidates}
+    failed_pairs: set[tuple[str,str]] = set()
     fold_protocol = []
     max_columns = interaction_settings["maximum_interaction_columns"]
     for fold_index, held_studies in enumerate(fold_groups, start=1):
@@ -284,6 +287,7 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
                 pair_alpha,pair_validation = _fit_pair_candidate(inner_train,inner_validation,bindings,pair,settings,max_columns)
                 pair_predictions,pair_converged = _fit_predict_outer(outer_train,outer_test,bindings,pair_alpha,pair,settings,max_columns)
             except OverflowError:
+                failed_pairs.add(pair)
                 exclusions.append({"feature_a":pair[0],"feature_b":pair[1],"reason":"PAIR_INTERACTION_ENCODING_EXCEEDS_LIMIT","fold":fold_index})
                 continue
             pair_metrics = _regression_metrics(y_test,pair_predictions)
@@ -307,7 +311,7 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
     prediction_rows = []
     for pair in candidates:
         fold_results = all_results[pair]
-        if not fold_results:
+        if not fold_results or pair in failed_pairs:
             continue
         study_results = _per_study_uplift(all_predictions[pair])
         summary = _summarize_candidate(pair,coverage_by_pair[pair],fold_results,study_results,
