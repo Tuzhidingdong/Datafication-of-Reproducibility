@@ -14,7 +14,7 @@ The project aims to reconstruct relationships among reported experimental condit
 
 ## Repository status
 
-This Draft development branch now contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, and the V0.3 endpoint-specific cohort builder, deterministic Study-level train/validation/test splits, and dependency-free baseline model engine for numeric and categorical endpoints. Advanced model comparison, uncertainty calibration, applicability-domain evaluation, and interaction discovery remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
+This Draft development branch now contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, and the V0.3 endpoint-specific cohort builder, deterministic Study-level train/validation/test splits, dependency-free baseline model engine for numeric and categorical endpoints, nested study-group cross-validation, per-Study performance analysis, and heuristic feature-space applicability diagnostics. Calibrated uncertainty, advanced model families, and interaction discovery remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
 
 ## Planned layout
 
@@ -26,6 +26,7 @@ This Draft development branch now contains the V0.1 research foundation, V0.2 da
 - `runtime/`: deterministic Python engine, including audit, canonical build, reconciliation, and modelling-cohort preparation.
 - `docs/V0.3_MODELING_COHORTS.md`: modelling task, cohort eligibility, split, and output contract.
 - `docs/V0.3_BASELINE_MODELS.md`: baseline algorithms, validation-only selection, held-out test evaluation, and model artifact contract.
+- `docs/V0.3_REPRODUCIBILITY_EVALUATION.md`: nested Study-level cross-validation, between-Study performance, applicability-domain heuristics, and uncertainty limits.
 - `templates/`: reusable reports and paper-output templates.
 - `tests/`: V0.1 contract and immutability tests.
 
