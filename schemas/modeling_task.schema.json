@@ -14,7 +14,18 @@
     "outcome_unit":{"type":["string","null"],"description":"Exact required unit, or null for explicitly unitless values."},
     "feature_bindings":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/featureBinding"}},
     "split":{"$ref":"#/$defs/split"},
-    "notes":{"type":"string"}
+    "notes":{"type":"string"},
+    "modeling":{
+      "type":"object",
+      "properties":{
+        "ridge_alphas":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"number","exclusiveMinimum":0}},
+        "max_iter":{"type":"integer","minimum":1,"default":2000},
+        "tolerance":{"type":"number","exclusiveMinimum":0,"default":1e-8},
+        "naive_bayes_smoothing":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"number","exclusiveMinimum":0}},
+        "naive_bayes_variance_floor":{"type":"number","exclusiveMinimum":0,"default":1e-6}
+      },
+      "additionalProperties":false
+    }
   },
   "additionalProperties":false,
   "$defs":{
