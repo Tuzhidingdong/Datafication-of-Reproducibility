@@ -225,7 +225,7 @@ def _distribution(values: list[float]) -> dict[str, Any]:
 
 
 def evaluate_reproducibility_files(cohort_dir: Path, task_path: Path, output_dir: Path,
-                                   folds: int = DEFAULT_FOLDS, seed: int = 42) -> dict[str, Any]:
+                                   folds: int | None = None, seed: int = 42) -> dict[str, Any]:
     cohort_dir = cohort_dir.expanduser().resolve()
     task_path = task_path.expanduser().resolve()
     output_dir = output_dir.expanduser().resolve()
@@ -238,8 +238,10 @@ def evaluate_reproducibility_files(cohort_dir: Path, task_path: Path, output_dir
     settings = _settings(task)
     rows = _typed_rows(rows_raw, task)
     study_ids = sorted({row["study_id"] for row in rows})
+    if folds is None:
+        folds = min(DEFAULT_FOLDS, len(study_ids))
     if not isinstance(folds, int) or isinstance(folds, bool) or folds < 4:
-        raise ValueError("Grouped nested evaluation requires folds >= 4.")
+        raise ValueError("Grouped nested evaluation requires folds >= 4 and at least four eligible Studies.")
     if folds > len(study_ids):
         raise ValueError("Requested folds exceed the number of eligible Studies.")
     if not isinstance(seed, int) or isinstance(seed, bool):
