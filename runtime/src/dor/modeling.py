@@ -27,9 +27,8 @@ def _settings(task: dict[str, Any]) -> dict[str, Any]:
     settings = task.get("modeling", {})
     if not isinstance(settings, dict):
         raise ValueError("The optional modeling settings must be an object.")
-    allowed = {"ridge_alphas", "max_iter", "tolerance"} if task["outcome_type"] == "NUMERIC" else {
-        "naive_bayes_smoothing", "naive_bayes_variance_floor"
-    }
+    allowed = {"ridge_alphas", "max_iter", "tolerance",
+               "naive_bayes_smoothing", "naive_bayes_variance_floor"}
     unknown = sorted(set(settings) - allowed)
     if unknown:
         raise ValueError("Unsupported modeling settings: " + ", ".join(unknown))
