@@ -18,6 +18,7 @@
     "model",
     "cohort",
     "grid",
+    "study_pair_coverage",
     "empirical_support",
     "marginal_effects",
     "interpretation_limits",
@@ -287,6 +288,49 @@
     },
     "fit_population": {
       "const": "ALL_ELIGIBLE_COHORT_OBSERVATIONS_ALL_SPLITS_INCLUDING_HELD_OUT_TEST"
+    },
+    "study_pair_coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "study_id",
+          "observation_count",
+          "distinct_observed_feature_pairs",
+          "feature_a_range",
+          "feature_b_range"
+        ],
+        "properties": {
+          "study_id": {
+            "type": "string"
+          },
+          "observation_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "distinct_observed_feature_pairs": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "feature_a_range": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          },
+          "feature_b_range": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": true,
