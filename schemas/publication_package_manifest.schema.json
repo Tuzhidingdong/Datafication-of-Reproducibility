@@ -13,6 +13,7 @@
     "domain_profile": {"type": "string"},
     "source_hashes": {"type": "object", "additionalProperties": {"type": "string"}},
     "writing_guide": {"type": "string", "const": "README_FOR_WRITING_SKILL.md"},
+    "writing_guide_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
     "artifacts": {
       "type": "array",
       "items": {
