@@ -302,7 +302,7 @@ class StageEvidenceContractTests(unittest.TestCase):
 
             manifest = {
                 "schema_version": "1.0", "project_id": "P1", "run_id": "R1",
-                "package_version": "1.0", "source_hashes": {},
+                "package_version": "1.0", "source_hashes": {"paper": "a" * 64},
                 "writing_guide": "README_FOR_WRITING_SKILL.md",
                 "writing_guide_sha256": digest(guide),
                 "artifacts": [{
@@ -323,17 +323,39 @@ class StageEvidenceContractTests(unittest.TestCase):
                 {"artifact_id": "package_audit", "artifact_type": "publication_integrity_report",
                  "path": str(audit_path), "sha256": digest(audit_path), "payload": audit},
             ]
+            source_snapshot = [{"source_id": "paper", "role": "PRIMARY_PAPER",
+                                "path": str(root / "paper.pdf"), "sha256": "a" * 64}]
+            prior = {"source_selection_manifest": {"payload": {
+                "selected_sources": [{"source_id": "paper", "role": "PRIMARY_PAPER",
+                                      "path": str(root / "paper.pdf"), "sha256": "a" * 64}],
+                "excluded_sources": [],
+            }, "sha256": "9" * 64}}
             errors = validate_stage_evidence(
                 "publication_handoff", evidence, run_id="R1", project_id="P1",
-                study_ids={"S1"}, source_snapshot=[],
+                study_ids={"S1"}, source_snapshot=source_snapshot, prior_payloads=prior,
             )
             self.assertEqual([], errors)
+
+            # Recomputing the package audit cannot legitimize a source hash from another selection.
+            manifest["source_hashes"] = {"paper": "b" * 64}
+            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+            audit = audit_publication_package_files(package)
+            audit_path.write_text(json.dumps(audit, indent=2) + "\n", encoding="utf-8")
+            evidence[0]["sha256"] = digest(manifest_path)
+            evidence[0]["payload"] = manifest
+            evidence[1]["sha256"] = digest(audit_path)
+            evidence[1]["payload"] = audit
+            errors = validate_stage_evidence(
+                "publication_handoff", evidence, run_id="R1", project_id="P1",
+                study_ids={"S1"}, source_snapshot=source_snapshot, prior_payloads=prior,
+            )
+            self.assertIn("PUBLICATION_SOURCE_HASHES_NOT_BOUND", {item["code"] for item in errors})
 
             # A stale report that still says valid=true cannot override a changed package file.
             result.write_text('{"value": 2}\n', encoding="utf-8")
             errors = validate_stage_evidence(
                 "publication_handoff", evidence, run_id="R1", project_id="P1",
-                study_ids={"S1"}, source_snapshot=[],
+                study_ids={"S1"}, source_snapshot=source_snapshot, prior_payloads=prior,
             )
             self.assertIn("PUBLICATION_PACKAGE_ACTUAL_AUDIT_FAILED", {item["code"] for item in errors})
 

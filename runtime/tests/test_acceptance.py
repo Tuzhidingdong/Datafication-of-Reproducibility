@@ -426,7 +426,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         package_result.write_text('{"fixture":"synthetic"}\\n', encoding="utf-8")
         publication_manifest = {
             "schema_version": "1.0", "project_id": "PROJECT_1", "run_id": self.run_id,
-            "package_version": "1.0", "source_hashes": {},
+            "package_version": "1.0", "source_hashes": source_hashes,
             "writing_guide": "README_FOR_WRITING_SKILL.md",
             "writing_guide_sha256": self.sha(guide_path),
             "artifacts": [{

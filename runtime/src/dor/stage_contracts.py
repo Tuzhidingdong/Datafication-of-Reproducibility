@@ -940,6 +940,24 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
         from dor.publication import audit_publication_package_files
         manifest_item = by_type["publication_package_manifest"]
         integrity_item = by_type["publication_integrity_report"]
+        manifest_payload = manifest_item.get("payload")
+        selection_item = all_payloads.get("source_selection_manifest")
+        selection_payload = selection_item.get("payload") if isinstance(selection_item, dict) else None
+        selected_rows = selection_payload.get("selected_sources") if isinstance(selection_payload, dict) else None
+        expected_source_hashes: dict[str, str] = {}
+        if not isinstance(selected_rows, list):
+            errors.append(_error("PUBLICATION_SOURCE_SELECTION_MISSING", "Publication handoff requires the preceding accepted source-selection manifest.", "publication_package_manifest"))
+        else:
+            for row in selected_rows:
+                if not isinstance(row, dict) or not _nonempty(row.get("source_id")) or not _sha256(row.get("sha256")):
+                    errors.append(_error("PUBLICATION_SELECTED_SOURCE_BINDING_INVALID", "Selected source rows must expose exact source IDs and SHA-256 values.", "publication_package_manifest"))
+                    continue
+                source_id = row["source_id"]
+                if source_id in expected_source_hashes:
+                    errors.append(_error("PUBLICATION_SELECTED_SOURCE_DUPLICATE", f"Duplicate selected source ID in publication provenance: {source_id}.", "publication_package_manifest"))
+                expected_source_hashes[source_id] = row["sha256"]
+            if isinstance(manifest_payload, dict) and manifest_payload.get("source_hashes") != expected_source_hashes:
+                errors.append(_error("PUBLICATION_SOURCE_HASHES_NOT_BOUND", "Publication package source_hashes must exactly equal the IDs and hashes of the accepted selected sources; labels or stale/unselected hashes are not accepted.", "publication_package_manifest"))
         manifest_path = Path(str(manifest_item.get("path", ""))).expanduser().resolve(strict=False)
         stored_audit = integrity_item.get("payload")
         if manifest_path.name != "package_manifest.json":
