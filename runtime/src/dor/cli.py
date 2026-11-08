@@ -8,6 +8,7 @@ from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
 from dor.diagnostics import diagnose_canonical_bundle
 from dor.mapping import validate_mapping_files
+from dor.modeling import run_baseline_models_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 
 def _write_json(path: Path | None, report: dict) -> str:
@@ -52,6 +53,10 @@ def build_parser() -> argparse.ArgumentParser:
     cohort.add_argument("--bundle", type=Path, required=True, help="Validated canonical_bundle.json")
     cohort.add_argument("--task", type=Path, required=True, help="Explicit modeling_task.json")
     cohort.add_argument("--out-dir", type=Path, required=True, help="New or empty derived cohort output directory")
+    models = subparsers.add_parser("fit-baselines", help="Fit deterministic baseline models and evaluate the selected model on held-out studies")
+    models.add_argument("--cohort-dir", type=Path, required=True, help="Cohort output directory from dor build-cohort")
+    models.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON used to build the cohort")
+    models.add_argument("--out-dir", type=Path, required=True, help="New or empty derived model output directory")
     return parser
 
 def main() -> int:
@@ -84,6 +89,14 @@ def main() -> int:
             report=validate_mapping_files(args.plan,args.inventory)
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
+        if args.command == "fit-baselines":
+            result=run_baseline_models_files(args.cohort_dir,args.task,args.out_dir)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "selected_model":report["selected_model"],"selected_candidate_id":report["selected_candidate_id"],
+                "primary_selection_metric":report["primary_selection_metric"],
+                "test_evaluation":report["test_evaluation"]},ensure_ascii=False,indent=2))
+            return 0
         if args.command == "build-cohort":
             result=build_modeling_cohort_files(args.bundle,args.task,args.out_dir)
             report=result["report"]
