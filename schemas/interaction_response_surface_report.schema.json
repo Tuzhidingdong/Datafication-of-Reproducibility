@@ -286,7 +286,6 @@
       "additionalProperties": false
     },
     "fit_population": {
-      "type": "const",
       "const": "ALL_ELIGIBLE_COHORT_OBSERVATIONS_ALL_SPLITS_INCLUDING_HELD_OUT_TEST"
     }
   },
