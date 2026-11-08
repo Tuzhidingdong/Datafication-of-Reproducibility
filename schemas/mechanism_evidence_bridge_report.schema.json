@@ -204,7 +204,7 @@
             }
           },
           "review_state": {
-            "const": "PENDING_G3_USER_REVIEW"
+            "const": "PENDING_USER_MECHANISM_REVIEW"
           },
           "manuscript_wording": {
             "type": "string"
@@ -258,7 +258,7 @@
       "const": "EXPLICIT_EVIDENCE_LINKED_MECHANISM_HYPOTHESES_PENDING_G3_REVIEW_NOT_AUTOMATIC_MECHANISM_DISCOVERY"
     },
     "review_state": {
-      "const": "PENDING_G3_USER_REVIEW"
+      "const": "PENDING_USER_MECHANISM_REVIEW"
     },
     "interpretation_limits": {
       "type": "array",
