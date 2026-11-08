@@ -275,13 +275,17 @@ def generate_interaction_surface_files(
     scale_b = math.sqrt(sum((value - mean_b) ** 2 for value in values_b) / len(values_b))
     scale_a = scale_a if scale_a > 1e-12 else 1.0
     scale_b = scale_b if scale_b > 1e-12 else 1.0
+    # Repeated observations at identical setpoints must not collapse the density threshold to zero.
+    unique_points = sorted(set(points))
+    if len(unique_points) < 3:
+        raise ValueError("At least three distinct observed feature-pair coordinates are required to estimate a 2D response-surface support region.")
     nearest_distances = []
-    for index, point in enumerate(points):
-        distances = _nearest_distances(points[:index] + points[index+1:], point, (scale_a, scale_b))
+    for index, point in enumerate(unique_points):
+        distances = _nearest_distances(unique_points[:index] + unique_points[index+1:], point, (scale_a, scale_b))
         if distances:
             nearest_distances.append(min(distances))
     support_threshold = _percentile(nearest_distances, settings["support_distance_quantile"])
-    hull = _convex_hull(points)
+    hull = _convex_hull(unique_points)
 
     # The derivative is in outcome units per raw feature unit. Ridge uses standardized features.
     feature_a_column = next(i for i, item in enumerate(encoder["columns"]) if item["feature_id"] == feature_a)
@@ -339,6 +343,7 @@ def generate_interaction_surface_files(
                   "alpha_values_from_nested_folds": selection_meta["selected_alpha_values"],
                   "converged": model["converged"], "iterations": model["iterations"]},
         "cohort": {"observation_count": len(rows), "study_count": len({row["study_id"] for row in rows}),
+                   "distinct_observed_feature_pairs": len(unique_points),
                    "background_observation_count": len(background),
                    "background_sampling": "DETERMINISTIC_EVENLY_SPACED_ROWS" if len(background) < len(rows) else "ALL_ELIGIBLE_ROWS"},
         "grid": {"grid_size_per_axis": settings["grid_size"], "grid_point_count": len(rows_out),
