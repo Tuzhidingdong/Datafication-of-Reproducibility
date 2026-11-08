@@ -59,7 +59,8 @@
         "feature_a",
         "feature_b",
         "interpretation_status",
-        "discovery_study_ids"
+        "discovery_study_ids",
+        "discovery_dois"
       ],
       "properties": {
         "feature_a": {
@@ -84,6 +85,12 @@
           ]
         },
         "discovery_study_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "discovery_dois": {
           "type": "array",
           "items": {
             "type": "string"
