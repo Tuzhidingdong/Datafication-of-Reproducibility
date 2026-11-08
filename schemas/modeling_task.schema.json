@@ -1,80 +1,342 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/modeling_task.schema.json",
-  "title":"Endpoint-specific modeling task",
-  "type":"object",
-  "required":["schema_version","task_id","target_id","endpoint_definition","outcome_type","outcome_value_field","outcome_unit","feature_bindings","split"],
-  "properties":{
-    "schema_version":{"const":"1.0"},
-    "task_id":{"type":"string","minLength":1},
-    "target_id":{"type":"string","minLength":1},
-    "endpoint_definition":{"type":"string","minLength":1,"description":"Exact canonical endpoint_definition match. No fuzzy matching."},
-    "outcome_type":{"enum":["NUMERIC","CATEGORICAL"]},
-    "outcome_value_field":{"enum":["raw_value","normalized_value"]},
-    "outcome_unit":{"type":["string","null"],"description":"Exact required unit, or null for explicitly unitless values."},
-    "feature_bindings":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/featureBinding"}},
-    "split":{"$ref":"#/$defs/split"},
-    "notes":{"type":"string"},
-    "interaction_discovery":{
-      "type":"object",
-      "properties":{
-        "feature_pairs":{"type":"array","minItems":1,"items":{"type":"object","required":["feature_a","feature_b"],"properties":{"feature_a":{"type":"string","minLength":1},"feature_b":{"type":"string","minLength":1}},"additionalProperties":false}},
-        "minimum_joint_observations":{"type":"integer","minimum":2,"default":10},
-        "minimum_joint_studies":{"type":"integer","minimum":2,"default":3},
-        "minimum_positive_fold_fraction":{"type":"number","exclusiveMinimum":0,"maximum":1,"default":0.6},
-        "maximum_feature_pairs":{"type":"integer","minimum":1,"default":100},
-        "maximum_interaction_columns":{"type":"integer","minimum":1,"default":500}
-      },
-      "additionalProperties":false
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/modeling_task.schema.json",
+  "title": "Endpoint-specific modeling task",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "target_id",
+    "endpoint_definition",
+    "outcome_type",
+    "outcome_value_field",
+    "outcome_unit",
+    "feature_bindings",
+    "split"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
     },
-    "modeling":{
-      "type":"object",
-      "properties":{
-        "ridge_alphas":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"number","exclusiveMinimum":0}},
-        "max_iter":{"type":"integer","minimum":1,"default":2000},
-        "tolerance":{"type":"number","exclusiveMinimum":0,"default":1e-8},
-        "naive_bayes_smoothing":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"number","exclusiveMinimum":0}},
-        "naive_bayes_variance_floor":{"type":"number","exclusiveMinimum":0,"default":1e-6}
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint_definition": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Exact canonical endpoint_definition match. No fuzzy matching."
+    },
+    "outcome_type": {
+      "enum": [
+        "NUMERIC",
+        "CATEGORICAL"
+      ]
+    },
+    "outcome_value_field": {
+      "enum": [
+        "raw_value",
+        "normalized_value"
+      ]
+    },
+    "outcome_unit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exact required unit, or null for explicitly unitless values."
+    },
+    "feature_bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/featureBinding"
+      }
+    },
+    "split": {
+      "$ref": "#/$defs/split"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "interaction_discovery": {
+      "type": "object",
+      "properties": {
+        "feature_pairs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "feature_a",
+              "feature_b"
+            ],
+            "properties": {
+              "feature_a": {
+                "type": "string",
+                "minLength": 1
+              },
+              "feature_b": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "minimum_joint_observations": {
+          "type": "integer",
+          "minimum": 2,
+          "default": 10
+        },
+        "minimum_joint_studies": {
+          "type": "integer",
+          "minimum": 2,
+          "default": 3
+        },
+        "minimum_positive_fold_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 0.6
+        },
+        "maximum_feature_pairs": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 100
+        },
+        "maximum_interaction_columns": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 500
+        }
       },
-      "additionalProperties":false
+      "additionalProperties": false
+    },
+    "modeling": {
+      "type": "object",
+      "properties": {
+        "ridge_alphas": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "max_iter": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 2000
+        },
+        "tolerance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 1e-8
+        },
+        "naive_bayes_smoothing": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "naive_bayes_variance_floor": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.000001
+        }
+      },
+      "additionalProperties": false
+    },
+    "interaction_surface": {
+      "type": "object",
+      "properties": {
+        "grid_size": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 61,
+          "default": 21
+        },
+        "background_max_observations": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 5000,
+          "default": 500
+        },
+        "range_quantiles": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "default": [
+            0,
+            1
+          ]
+        },
+        "support_distance_quantile": {
+          "type": "number",
+          "minimum": 0.5,
+          "exclusiveMaximum": 1,
+          "default": 0.95
+        }
+      },
+      "additionalProperties": false
     }
   },
-  "additionalProperties":false,
-  "$defs":{
-    "featureBinding":{
-      "type":"object",
-      "required":["feature_id","condition_type","value_field","value_type","expected_unit"],
-      "properties":{
-        "feature_id":{"type":"string","minLength":1},
-        "condition_type":{"type":"string","minLength":1,"description":"Exact canonical Condition.condition_type match."},
-        "value_field":{"enum":["raw_value","normalized_value"]},
-        "value_type":{"enum":["NUMERIC","CATEGORICAL"]},
-        "expected_unit":{"type":["string","null"],"description":"Exact required unit; no conversion is performed by the cohort builder."}
-      },
-      "additionalProperties":false
-    },
-    "split":{
-      "type":"object",
-      "required":["strategy"],
-      "properties":{
-        "strategy":{"enum":["GROUPED_HOLDOUT","EXPLICIT_STUDIES"]},
-        "seed":{"type":"integer","default":42},
-        "fractions":{
-          "type":"object","required":["train","validation","test"],
-          "properties":{
-            "train":{"type":"number","exclusiveMinimum":0,"exclusiveMaximum":1},
-            "validation":{"type":"number","exclusiveMinimum":0,"exclusiveMaximum":1},
-            "test":{"type":"number","exclusiveMinimum":0,"exclusiveMaximum":1}
-          },"additionalProperties":false
-        },
-        "validation_study_ids":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}},
-        "test_study_ids":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}}
-      },
-      "allOf":[
-        {"if":{"properties":{"strategy":{"const":"GROUPED_HOLDOUT"}},"required":["strategy"]},"then":{"required":["fractions"]}},
-        {"if":{"properties":{"strategy":{"const":"EXPLICIT_STUDIES"}},"required":["strategy"]},"then":{"required":["validation_study_ids","test_study_ids"]}}
+  "additionalProperties": false,
+  "$defs": {
+    "featureBinding": {
+      "type": "object",
+      "required": [
+        "feature_id",
+        "condition_type",
+        "value_field",
+        "value_type",
+        "expected_unit"
       ],
-      "additionalProperties":false
+      "properties": {
+        "feature_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "condition_type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact canonical Condition.condition_type match."
+        },
+        "value_field": {
+          "enum": [
+            "raw_value",
+            "normalized_value"
+          ]
+        },
+        "value_type": {
+          "enum": [
+            "NUMERIC",
+            "CATEGORICAL"
+          ]
+        },
+        "expected_unit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Exact required unit; no conversion is performed by the cohort builder."
+        }
+      },
+      "additionalProperties": false
+    },
+    "split": {
+      "type": "object",
+      "required": [
+        "strategy"
+      ],
+      "properties": {
+        "strategy": {
+          "enum": [
+            "GROUPED_HOLDOUT",
+            "EXPLICIT_STUDIES"
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "default": 42
+        },
+        "fractions": {
+          "type": "object",
+          "required": [
+            "train",
+            "validation",
+            "test"
+          ],
+          "properties": {
+            "train": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "validation": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "test": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "validation_study_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "test_study_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "strategy": {
+                "const": "GROUPED_HOLDOUT"
+              }
+            },
+            "required": [
+              "strategy"
+            ]
+          },
+          "then": {
+            "required": [
+              "fractions"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "strategy": {
+                "const": "EXPLICIT_STUDIES"
+              }
+            },
+            "required": [
+              "strategy"
+            ]
+          },
+          "then": {
+            "required": [
+              "validation_study_ids",
+              "test_study_ids"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
     }
   }
 }
