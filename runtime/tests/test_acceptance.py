@@ -74,6 +74,12 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.write_record()
         self.assertTrue(self.validate()["valid"])
 
+    def test_multi_study_scope_requires_multiple_studies(self):
+        self.record["scope"] = "MULTI_STUDY_PILOT"
+        self.record["source_snapshot"]["study_count"] = 1
+        self.write_record()
+        self.assertIn("MULTI_STUDY_SCOPE_MISMATCH", {item["code"] for item in self.validate()["issues"]})
+
     def test_single_study_cannot_pass_model_validation(self):
         self.set_stage("modeling_validation", "PASS")
         report = self.validate()

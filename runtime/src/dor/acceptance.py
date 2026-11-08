@@ -87,6 +87,8 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
         issue("INVALID_STUDY_COUNT", "source_snapshot.study_count must be a positive integer.")
     if scope == "CONTROLLED_SINGLE_STUDY" and study_count != 1:
         issue("SINGLE_STUDY_SCOPE_MISMATCH", "CONTROLLED_SINGLE_STUDY requires study_count=1.")
+    if scope == "MULTI_STUDY_PILOT" and (not isinstance(study_count, int) or isinstance(study_count, bool) or study_count < 2):
+        issue("MULTI_STUDY_SCOPE_MISMATCH", "MULTI_STUDY_PILOT requires at least two distinct Studies.")
     if scope not in {"CONTROLLED_SINGLE_STUDY", "MULTI_STUDY_PILOT"}:
         issue("INVALID_SCOPE", "scope must be CONTROLLED_SINGLE_STUDY or MULTI_STUDY_PILOT.")
 

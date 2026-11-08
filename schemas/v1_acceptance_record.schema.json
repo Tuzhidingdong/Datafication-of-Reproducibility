@@ -324,6 +324,29 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "scope": {
+            "const": "MULTI_STUDY_PILOT"
+          }
+        },
+        "required": [
+          "scope"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source_snapshot": {
+            "properties": {
+              "study_count": {
+                "minimum": 2
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "additionalProperties": false
