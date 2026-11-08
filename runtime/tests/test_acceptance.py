@@ -86,6 +86,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.plan_path.write_text(json.dumps(plan, indent=2), encoding="utf-8")
         initialized = initialize_run(self.plan_path, self.run_root, self.run_id)
         self.manifest = Path(initialized["manifest_path"])
+        record_stage_status(
+            self.manifest, "acceptance_evidence", "RUNNING", "local",
+            command="synthetic acceptance fixture",
+        )
 
         paths = {key: self.run_root / relpath for key, relpath in artifact_paths.items()}
         ids = list(study_ids)
@@ -292,10 +296,6 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "valid": True, "checked_file_count": 1, "errors": [],
         })
 
-        record_stage_status(
-            self.manifest, "acceptance_evidence", "RUNNING", "local",
-            command="synthetic acceptance fixture",
-        )
         record_stage_status(self.manifest, "acceptance_evidence", "SUCCEEDED", "local")
 
         self.output_paths = paths
