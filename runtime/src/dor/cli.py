@@ -11,6 +11,7 @@ from dor.mapping import validate_mapping_files
 from dor.modeling import run_baseline_models_files
 from dor.reproducibility import evaluate_reproducibility_files
 from dor.interactions import discover_interactions_files
+from dor.robustness import assess_interaction_robustness_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 
 def _write_json(path: Path | None, report: dict) -> str:
@@ -71,6 +72,13 @@ def build_parser() -> argparse.ArgumentParser:
     interaction.add_argument("--out-dir", type=Path, required=True, help="New or empty derived interaction output directory")
     interaction.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
     interaction.add_argument("--seed", type=int, default=42, help="Deterministic grouped-fold seed")
+    robustness = subparsers.add_parser("assess-interaction-robustness", help="Repeat nested pairwise interaction screening across Study-group split seeds")
+    robustness.add_argument("--cohort-dir", type=Path, required=True, help="Completed hash-verified numeric modeling cohort directory")
+    robustness.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON with explicit interaction settings")
+    robustness.add_argument("--out-dir", type=Path, required=True, help="New or empty derived robustness output directory")
+    robustness.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
+    robustness.add_argument("--seeds", type=str, default="11,23,42", help="At least three unique comma-separated integer seeds")
+    robustness.add_argument("--minimum-candidate-run-fraction", type=float, default=0.8, help="Required fraction of runs labelled as candidates for seed-stable status")
     return parser
 
 def main() -> int:
@@ -110,6 +118,16 @@ def main() -> int:
                 "candidate_pair_count":report["candidate_pair_count"],"eligible_pair_count":report["eligible_pair_count"],
                 "interaction_candidates":sum(1 for item in report["interaction_catalogue"] if item["interpretation_status"]=="CROSS_STUDY_PREDICTIVE_INTERACTION_CANDIDATE"),
                 "claim_scope":"PREDICTIVE_STATISTICAL_INTERACTION_CANDIDATE_NOT_CAUSAL_OR_MECHANISTIC_EVIDENCE"},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "assess-interaction-robustness":
+            seeds=[int(value.strip()) for value in args.seeds.split(",") if value.strip()]
+            result=assess_interaction_robustness_files(args.cohort_dir,args.task,args.out_dir,seeds,
+                args.folds,args.minimum_candidate_run_fraction)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "seed_count":report["seed_count"],
+                "seed_stable_candidates":sum(1 for item in report["interaction_catalogue"] if item["robustness_status"]=="SEED_STABLE_PREDICTIVE_INTERACTION_CANDIDATE"),
+                "claim_scope":"SEED_SENSITIVITY_NOT_INFERENTIAL_SIGNIFICANCE_CAUSALITY_OR_MECHANISM"},ensure_ascii=False,indent=2))
             return 0
         if args.command == "evaluate-reproducibility":
             result=evaluate_reproducibility_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
