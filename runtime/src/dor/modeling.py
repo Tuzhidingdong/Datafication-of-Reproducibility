@@ -446,7 +446,9 @@ def _run_regression(rows: list[dict[str, Any]], task: dict[str, Any], settings: 
                           "fit":final_fit,"encoder":selected_encoder}
         selected_predictions = _predict_ridge(_transform_rows(test,selected_encoder),final_fit)
     report = {
-        "task_id":task["task_id"],"outcome_type":"NUMERIC","primary_selection_metric":"validation_rmse_minimized",
+        "schema_version":"1.0","task_id":task["task_id"],"target_id":task["target_id"],
+        "endpoint_definition":task["endpoint_definition"],"outcome_value_field":task["outcome_value_field"],
+        "outcome_unit":task["outcome_unit"],"outcome_type":"NUMERIC","primary_selection_metric":"validation_rmse_minimized",
         "selected_model":selected_model["model_type"],"selected_candidate_id":selected_name,
         "validation_comparison":comparisons,
         "test_evaluation":{"selected_model":_regression_metrics(test_actual,selected_predictions),
@@ -510,7 +512,9 @@ def _run_classification(rows: list[dict[str, Any]], task: dict[str, Any], settin
         selected_predictions=_predict_naive_bayes(test,fitted)
     test_actual=[row["outcome"] for row in test]
     report={
-        "task_id":task["task_id"],"outcome_type":"CATEGORICAL","primary_selection_metric":"validation_macro_f1_maximized",
+        "schema_version":"1.0","task_id":task["task_id"],"target_id":task["target_id"],
+        "endpoint_definition":task["endpoint_definition"],"outcome_value_field":task["outcome_value_field"],
+        "outcome_unit":task["outcome_unit"],"outcome_type":"CATEGORICAL","primary_selection_metric":"validation_macro_f1_maximized",
         "selected_model":selected_model["model_type"],"selected_candidate_id":selected_name,
         "validation_comparison":comparisons,
         "test_evaluation":{"selected_model":_classification_metrics(test_actual,selected_predictions),
