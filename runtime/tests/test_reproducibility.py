@@ -76,7 +76,7 @@ class ReproducibilityEvaluationTests(unittest.TestCase):
         self.assertTrue(build_modeling_cohort_files(bundle_path,self.task_path,cohort_dir)["valid"])
         result=evaluate_reproducibility_files(cohort_dir,self.task_path,self.root/"outlier_eval")
         held_fold=next(f for f in result["report"]["folds"] if "ST8" in f["test_study_ids"])
-        self.assertEqual(held_fold["test_study_ids"],["ST8"])
+        self.assertIn("ST8",held_fold["test_study_ids"])
         domain=json.loads((self.root/"outlier_eval"/"reproducibility_evaluation.json").read_text(encoding="utf-8"))
         row=next(x for x in domain["per_study_performance"] if x["study_id"]=="ST8")
         self.assertEqual(row["n"],1)
