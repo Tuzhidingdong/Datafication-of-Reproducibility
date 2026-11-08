@@ -154,6 +154,7 @@ def _assess_evidence(
     experiments: dict[str, dict[str, Any]],
     studies: dict[str, dict[str, Any]],
     discovery_study_ids: set[str],
+    discovery_dois: set[str],
     hypothesis_path: str,
 ) -> tuple[dict[str, Any], list[dict[str, str]]]:
     errors: list[dict[str, str]] = []
@@ -219,7 +220,18 @@ def _assess_evidence(
         verification = "VERIFIED"
     else:
         verification = "PENDING_SOURCE_VERIFICATION"
-    independent = source_study_id not in discovery_study_ids
+    source_doi = studies[source_study_id].get("doi")
+    study_id_overlap = source_study_id in discovery_study_ids
+    doi_overlap = isinstance(source_doi, str) and bool(source_doi) and source_doi in discovery_dois
+    independent = not study_id_overlap and not doi_overlap
+    if study_id_overlap:
+        independence_basis = "STUDY_ID_OVERLAP"
+    elif doi_overlap:
+        independence_basis = "DOI_OVERLAP"
+    elif isinstance(source_doi, str) and source_doi:
+        independence_basis = "STUDY_ID_AND_EXACT_DOI_DISTINCT"
+    else:
+        independence_basis = "STUDY_ID_ONLY_NO_DOI_CROSS_CHECK"
     counted = verification == "VERIFIED" and relationship in {"SUPPORTS", "CONTRADICTS"}
     not_counted_reason = None
     effective_class = evidence_class
@@ -228,7 +240,7 @@ def _assess_evidence(
         not_counted_reason = "CANONICAL_EVIDENCE_NOT_VERIFIED"
     elif evidence_class == "PROSPECTIVE_VALIDATION" and not independent:
         counted = False
-        not_counted_reason = "PROSPECTIVE_SOURCE_STUDY_OVERLAPS_INTERACTION_DISCOVERY_COHORT"
+        not_counted_reason = "PROSPECTIVE_SOURCE_STUDY_OR_DOI_OVERLAPS_INTERACTION_DISCOVERY_COHORT"
         errors.append({
             "code": "PROSPECTIVE_EVIDENCE_NOT_INDEPENDENT",
             "evidence_id": evidence_id,
@@ -261,6 +273,7 @@ def _assess_evidence(
         "extraction_status": extraction_status,
         "verification_status": verification,
         "independent_of_interaction_cohort": independent,
+        "independence_basis": independence_basis,
         "linked_observations": linked_observations,
         "counted_for_evidence_summary": counted,
         "not_counted_reason": not_counted_reason
@@ -283,7 +296,7 @@ def _evidence_status(assessments: list[dict[str, Any]]) -> tuple[str, dict[str, 
                                           if item["not_counted_reason"] == "CONTEXTUAL_OR_UNCLASSIFIED_EVIDENCE_NOT_COUNTED_AS_MECHANISM_SUPPORT"),
         "not_counted_evidence": sum(1 for item in assessments if not item["counted_for_evidence_summary"]),
         "non_independent_prospective_evidence": sum(1 for item in assessments
-                                                   if item["not_counted_reason"] == "PROSPECTIVE_SOURCE_STUDY_OVERLAPS_INTERACTION_DISCOVERY_COHORT")
+                                                   if item["not_counted_reason"] == "PROSPECTIVE_SOURCE_STUDY_OR_DOI_OVERLAPS_INTERACTION_DISCOVERY_COHORT")
     }
     if supporting and contradicting:
         status = "SUPPORT_AND_CONTRADICTION_RECORDED"
@@ -426,6 +439,11 @@ def build_mechanism_evidence_bridge_files(
         surface_status = surface_report.get("validation_scope", "DESCRIPTIVE_ONLY")
 
     studies = {item["study_id"]: item for item in bundle["studies"]}
+    discovery_dois = {
+        studies[study_id].get("doi") for study_id in discovery_study_ids
+        if study_id in studies and isinstance(studies[study_id].get("doi"), str)
+        and studies[study_id].get("doi")
+    }
     evidence = {item["evidence_id"]: item for item in bundle["evidence"]}
     observations = {item["observation_id"]: item for item in bundle["observations"]}
     experiments = {item["experiment_id"]: item for item in bundle["experiments"]}
@@ -438,7 +456,7 @@ def build_mechanism_evidence_bridge_files(
         enriched = []
         for assessment in hypothesis.get("evidence_assessments", []):
             item, issues = _assess_evidence(assessment, evidence, observations, experiments, studies,
-                                            discovery_study_ids, hypothesis["hypothesis_id"])
+                                            discovery_study_ids, discovery_dois, hypothesis["hypothesis_id"])
             item["hypothesis_id"] = hypothesis["hypothesis_id"]
             enriched.append(item)
             for issue in issues:
@@ -548,7 +566,8 @@ def build_mechanism_evidence_bridge_files(
             "interpretation_status": interaction["interpretation_status"],
             "mean_fold_rmse_improvement": interaction.get("mean_fold_rmse_improvement"),
             "positive_improvement_fold_fraction": interaction.get("positive_improvement_fold_fraction"),
-            "discovery_study_ids": sorted(discovery_study_ids)
+            "discovery_study_ids": sorted(discovery_study_ids),
+            "discovery_dois": sorted(discovery_dois)
         },
         "robustness_status": robustness_status,
         "response_surface_scope": surface_status,
