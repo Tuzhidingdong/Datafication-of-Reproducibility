@@ -7,6 +7,7 @@
   "run_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "source_snapshot": {
     "study_count": 1,
+    "study_ids": ["STUDY_ID_FROM_CANONICAL_BUNDLE"],
     "artifacts": [
       {
         "source_id": "primary_paper",

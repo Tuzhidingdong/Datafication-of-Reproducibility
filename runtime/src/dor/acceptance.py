@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from dor.run_manager import _latest_stage_events, _manifest_context, verify_run
+
 STAGE_ORDER = (
     "source_selection",
     "source_integrity",
@@ -60,6 +62,17 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
     def issue(code: str, message: str) -> None:
         issues.append({"code": code, "message": message})
 
+    run_root = run_manifest_path.parent
+    run_plan: dict[str, Any] = {}
+    run_events: list[dict[str, Any]] = []
+    try:
+        run_root, manifest, run_plan, run_events = _manifest_context(run_manifest_path)
+        run_report = verify_run(run_manifest_path)
+        if run_report.get("source_integrity") != "CURRENT":
+            issue("RUN_SOURCE_INTEGRITY_CHANGED", "At least one Run Manager source artifact changed after run initialization.")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        issue("RUN_INTEGRITY_INVALID", f"Run Manager manifest/plan/event chain is invalid: {exc}")
+
     if record.get("schema_version") != "1.0":
         issue("UNSUPPORTED_SCHEMA_VERSION", "schema_version must be 1.0.")
     if not isinstance(record.get("acceptance_id"), str) or not record["acceptance_id"].strip():
@@ -98,6 +111,11 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
         source_items = []
     source_ids: set[str] = set()
     source_roles: set[str] = set()
+    manifest_sources = {
+        item.get("artifact_id"): item
+        for item in manifest.get("source_artifacts", [])
+        if isinstance(item, dict) and isinstance(item.get("artifact_id"), str)
+    }
     for item in source_items:
         if not isinstance(item, dict):
             issue("INVALID_SOURCE_ARTIFACT", "Every source artifact must be an object.")
@@ -113,6 +131,15 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
         source_ids.add(source_id)
         source_roles.add(role)
         path = _resolve_file(raw_path, record_path.parent)
+        bound_source = manifest_sources.get(source_id)
+        if bound_source is None:
+            issue("SOURCE_NOT_DECLARED_IN_RUN", f"Source {source_id} is not declared in the Run Plan/Manifest.")
+        else:
+            bound_path = Path(bound_source.get("path", "")).expanduser().resolve(strict=False)
+            if path != bound_path:
+                issue("SOURCE_PATH_NOT_BOUND_TO_RUN", f"Source {source_id} path differs from the Run Manifest.")
+            if expected != bound_source.get("sha256"):
+                issue("SOURCE_HASH_NOT_BOUND_TO_RUN", f"Source {source_id} SHA-256 differs from the Run Manifest snapshot.")
         actual = None
         try:
             actual = _sha256(path)
@@ -123,6 +150,17 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
         source_checks.append({"source_id": source_id, "path": str(path),
                               "expected_sha256": expected, "actual_sha256": actual,
                               "status": "CURRENT" if actual == expected else "MISSING_OR_CHANGED"})
+    if source_ids != set(manifest_sources):
+        issue("SOURCE_SET_DIFFERS_FROM_RUN", "Acceptance source_snapshot must include exactly the source artifacts declared by the Run Manifest.")
+
+    study_ids = snapshot.get("study_ids", [])
+    if (not isinstance(study_ids, list) or not study_ids
+            or any(not isinstance(value, str) or not value.strip() for value in study_ids)
+            or len(study_ids) != len(set(study_ids))):
+        issue("INVALID_STUDY_IDS", "source_snapshot.study_ids must contain unique, non-empty explicit Study IDs.")
+    elif study_count != len(study_ids):
+        issue("STUDY_ID_COUNT_MISMATCH", "study_count must equal the number of explicit unique study_ids.")
+
     if scope == "CONTROLLED_SINGLE_STUDY":
         for required_role in ("PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"):
             if required_role not in source_roles:
@@ -135,6 +173,20 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
     stage_ids = [item.get("stage_id") if isinstance(item, dict) else None for item in stages]
     if tuple(stage_ids) != STAGE_ORDER:
         issue("STAGE_ORDER_MISMATCH", "Stages must appear exactly once in the fixed V1.0 order.")
+    evidence_catalog: dict[str, dict[str, Any]] = {}
+    for source in manifest.get("source_artifacts", []):
+        evidence_catalog[source["artifact_id"]] = {
+            "path": str(Path(source["path"]).expanduser().resolve(strict=False)),
+            "sha256": source["sha256"],
+        }
+    latest_events = _latest_stage_events(run_events) if run_events else {}
+    for event in latest_events.values():
+        if event.get("status") == "SUCCEEDED":
+            for output in event.get("output_artifacts", []):
+                evidence_catalog[output.get("artifact_id")] = {
+                    "path": output.get("path"), "sha256": output.get("sha256"),
+                }
+
     stage_statuses: dict[str, str] = {}
     for item in stages:
         if not isinstance(item, dict):
@@ -172,6 +224,15 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
                 issue("INCOMPLETE_EVIDENCE_ARTIFACT", f"Evidence in {stage_id} requires artifact_id, path, and sha256.")
                 continue
             path = _resolve_file(raw_path, record_path.parent)
+            bound_evidence = evidence_catalog.get(artifact_id)
+            if bound_evidence is None:
+                issue("EVIDENCE_NOT_A_COMPLETED_RUN_ARTIFACT", f"Evidence {artifact_id} is not a source or successfully completed Run artifact.")
+            else:
+                bound_path = Path(bound_evidence.get("path", "")).expanduser().resolve(strict=False)
+                if path != bound_path:
+                    issue("EVIDENCE_PATH_NOT_BOUND_TO_RUN", f"Evidence {artifact_id} path differs from its Run artifact.")
+                if expected != bound_evidence.get("sha256"):
+                    issue("EVIDENCE_HASH_NOT_BOUND_TO_RUN", f"Evidence {artifact_id} SHA-256 differs from its Run event/source snapshot.")
             actual = None
             try:
                 actual = _sha256(path)

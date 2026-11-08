@@ -62,5 +62,13 @@ class V1AcceptanceContractTests(unittest.TestCase):
         self.assertEqual(rule["then"]["properties"]["stages"]["items"]["properties"]["status"]["const"], "PASS")
 
 
+    def test_study_ids_are_explicit_unique_and_required(self):
+        snapshot = self.schema["properties"]["source_snapshot"]
+        self.assertIn("study_ids", snapshot["required"])
+        self.assertTrue(snapshot["properties"]["study_ids"]["uniqueItems"])
+        self.assertGreaterEqual(snapshot["properties"]["study_ids"]["minItems"], 1)
+        self.assertEqual(self.example["source_snapshot"]["study_count"], len(self.example["source_snapshot"]["study_ids"]))
+
+
 if __name__ == "__main__":
     unittest.main()

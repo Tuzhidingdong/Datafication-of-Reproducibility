@@ -131,5 +131,36 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertIn('"valid": true', stdout.getvalue())
 
 
+    def test_acceptance_sources_must_exactly_match_run_snapshot(self):
+        self.record["source_snapshot"]["artifacts"].pop()
+        self.write_record()
+        self.assertIn("SOURCE_SET_DIFFERS_FROM_RUN", {item["code"] for item in self.validate()["issues"]})
+
+    def test_source_path_cannot_be_repointed_outside_run_snapshot(self):
+        self.record["source_snapshot"]["artifacts"][0]["path"] = str(self.si)
+        self.record["source_snapshot"]["artifacts"][0]["sha256"] = self.sha(self.si)
+        self.write_record()
+        self.assertIn("SOURCE_PATH_NOT_BOUND_TO_RUN", {item["code"] for item in self.validate()["issues"]})
+
+    def test_evidence_must_be_a_successful_run_artifact(self):
+        self.set_stage("source_integrity", "PASS")
+        self.record["stages"][1]["evidence"] = [{
+            "artifact_id":"invented_report","path":str(self.evidence_path),"sha256":self.sha(self.evidence_path)
+        }]
+        self.write_record()
+        self.assertIn("EVIDENCE_NOT_A_COMPLETED_RUN_ARTIFACT", {item["code"] for item in self.validate()["issues"]})
+
+    def test_evidence_hash_must_match_success_event_snapshot(self):
+        self.set_stage("source_integrity", "PASS")
+        self.record["stages"][1]["evidence"][0]["sha256"] = "f" * 64
+        self.write_record()
+        self.assertIn("EVIDENCE_HASH_NOT_BOUND_TO_RUN", {item["code"] for item in self.validate()["issues"]})
+
+    def test_study_count_must_match_explicit_unique_study_ids(self):
+        self.record["source_snapshot"]["study_count"] = 2
+        self.write_record()
+        self.assertIn("STUDY_ID_COUNT_MISMATCH", {item["code"] for item in self.validate()["issues"]})
+
+
 if __name__ == "__main__":
     unittest.main()
