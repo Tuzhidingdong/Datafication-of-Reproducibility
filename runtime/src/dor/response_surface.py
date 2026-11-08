@@ -341,6 +341,21 @@ def generate_interaction_surface_files(
         "feature_a_value": float(row[feature_a]), "feature_b_value": float(row[feature_b]),
         "actual_outcome": float(row["outcome"])
     } for row in rows]
+    by_study: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        by_study.setdefault(row["study_id"], []).append(row)
+    study_pair_coverage = []
+    for study_id in sorted(by_study):
+        study_rows = by_study[study_id]
+        study_a = [float(row[feature_a]) for row in study_rows]
+        study_b = [float(row[feature_b]) for row in study_rows]
+        study_pair_coverage.append({
+            "study_id": study_id,
+            "observation_count": len(study_rows),
+            "distinct_observed_feature_pairs": len({(float(row[feature_a]), float(row[feature_b])) for row in study_rows}),
+            "feature_a_range": [min(study_a), max(study_a)],
+            "feature_b_range": [min(study_b), max(study_b)]
+        })
     report = {
         "schema_version": "1.0", "task_id": task["task_id"], "target_id": task["target_id"],
         "endpoint_definition": task["endpoint_definition"], "interaction_id": interaction_id,
@@ -371,6 +386,7 @@ def generate_interaction_surface_files(
         "grid": {"grid_size_per_axis": settings["grid_size"], "grid_point_count": len(rows_out),
                  "feature_a_range": list(range_a), "feature_b_range": list(range_b),
                  "range_quantiles": range_q},
+        "study_pair_coverage": study_pair_coverage,
         "empirical_support": {"method": "2D_CONVEX_HULL_AND_Q_NEAREST_NEIGHBOUR_DISTANCE",
                               "distance_quantile": settings["support_distance_quantile"],
                               "distance_threshold": support_threshold,
@@ -389,6 +405,8 @@ def generate_interaction_surface_files(
             "The response surface is a descriptive full-cohort refit using the median Ridge alpha selected in the nested interaction folds; it is not an independent validation result.",
             "Partial dependence averages over observed values of all other features. When covariates are correlated, some constructed combinations may be unrealistic.",
             "The 2D support mask describes only the selected feature pair; it does not establish support in the full multivariable condition space.",
+            "The pooled convex hull can bridge gaps between disjoint Study clusters; inspect per-Study coverage and the Study-labelled observed points before interpreting a region as cross-Study support.",
+            "The pooled Ridge surface does not include Study-level random effects or study-specific response functions; study heterogeneity can be absorbed into apparent feature effects.",
             "Convex-hull and nearest-neighbour support labels are empirical heuristics, not physical boundaries or calibrated probabilities.",
             "Predictions in LOW_LOCAL_DENSITY, OUTSIDE_OBSERVED_CONVEX_HULL, or SUPPORT_NOT_ESTIMABLE regions must not be presented as empirically supported response.",
             "Marginal effects are model-derived slopes, not causal effects. The cross-partial derivative is a property of this bilinear model basis, not proof of a physical mechanism."
