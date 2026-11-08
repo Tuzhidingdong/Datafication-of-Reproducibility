@@ -244,7 +244,7 @@ def _assess_evidence(
         errors.append({
             "code": "PROSPECTIVE_EVIDENCE_NOT_INDEPENDENT",
             "evidence_id": evidence_id,
-            "message": "Evidence is labelled prospective but its Study is part of the interaction-discovery cohort."
+            "message": "Evidence is labelled prospective but its Study ID or exact canonical DOI overlaps the interaction-discovery cohort."
         })
     elif relationship == "CONTEXTUAL" or evidence_class in {"METHOD_CONTEXT", "OTHER"}:
         counted = False
@@ -588,7 +588,7 @@ def build_mechanism_evidence_bridge_files(
             "A predictive interaction or seed-stable label is not a causal effect, physical synergy, or mechanism.",
             "Evidence classes are descriptive categories, not a universal ordinal evidence hierarchy.",
             "Direct observation support is counted only when VERIFIED canonical Evidence is linked to REPORTED Observation records.",
-            "Prospective support is counted only when the evidence Study is outside the interaction-discovery Study cohort and has linked REPORTED observations.",
+            "Prospective support is counted only when the evidence Study ID and any recorded exact DOI do not overlap the interaction-discovery cohort and it has linked REPORTED observations; DOI strings are compared exactly without silent normalization.",
             "Unverified, conflicting, or unrecorded extraction status is retained for review and never counted as verified support.",
             "Contradictory evidence remains visible and is never averaged away or silently discarded.",
             "A response surface is descriptive model output and cannot be used as direct or theoretical mechanism evidence."
