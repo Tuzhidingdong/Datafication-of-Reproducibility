@@ -69,6 +69,14 @@ class InteractionDiscoveryTests(unittest.TestCase):
         built=build_modeling_cohort_files(self.bundle_path,self.task_path,self.cohort_dir)
         self.assertTrue(built["valid"],built)
 
+    def _build_custom_cohort(self, task, name):
+        task_path=self.root/(name+"_task.json")
+        cohort_dir=self.root/(name+"_cohort")
+        task_path.write_text(json.dumps(task),encoding="utf-8")
+        result=build_modeling_cohort_files(self.bundle_path,task_path,cohort_dir)
+        self.assertTrue(result["valid"],result)
+        return task_path,cohort_dir
+
     def tearDown(self):
         self.temp.cleanup()
 
@@ -108,36 +116,32 @@ class InteractionDiscoveryTests(unittest.TestCase):
     def test_categorical_endpoint_is_rejected_explicitly(self):
         task=interaction_task()
         task["outcome_type"]="CATEGORICAL"
-        task["outcome_unit"]="class"
-        task_path=self.root/"categorical_task.json"
-        task_path.write_text(json.dumps(task),encoding="utf-8")
+        task["outcome_unit"]="unit-y"
+        task_path,cohort_dir=self._build_custom_cohort(task,"categorical")
         with self.assertRaisesRegex(ValueError,"NUMERIC endpoints only"):
-            discover_interactions_files(self.cohort_dir,task_path,self.root/"categorical")
+            discover_interactions_files(cohort_dir,task_path,self.root/"categorical")
 
     def test_insufficient_joint_study_support_is_reported(self):
         task=interaction_task()
         task["interaction_discovery"]["minimum_joint_studies"]=9
-        task_path=self.root/"strict_task.json"
-        task_path.write_text(json.dumps(task),encoding="utf-8")
+        task_path,cohort_dir=self._build_custom_cohort(task,"strict")
         with self.assertRaisesRegex(ValueError,"No candidate feature pairs meet"):
-            discover_interactions_files(self.cohort_dir,task_path,self.root/"strict")
+            discover_interactions_files(cohort_dir,task_path,self.root/"strict")
 
     def test_unknown_or_duplicate_pair_is_rejected(self):
         task=interaction_task()
         task["interaction_discovery"]["feature_pairs"]=[
             {"feature_a":"temperature","feature_b":"missing"}]
-        task_path=self.root/"bad_pair_task.json"
-        task_path.write_text(json.dumps(task),encoding="utf-8")
+        task_path,cohort_dir=self._build_custom_cohort(task,"bad_pair")
         with self.assertRaisesRegex(ValueError,"feature_id values"):
-            discover_interactions_files(self.cohort_dir,task_path,self.root/"bad_pair")
+            discover_interactions_files(cohort_dir,task_path,self.root/"bad_pair")
 
     def test_pair_count_cap_prevents_unbounded_combinatorics(self):
         task=interaction_task()
         task["interaction_discovery"]["maximum_feature_pairs"]=0
-        task_path=self.root/"bad_cap_task.json"
-        task_path.write_text(json.dumps(task),encoding="utf-8")
+        task_path,cohort_dir=self._build_custom_cohort(task,"bad_cap")
         with self.assertRaisesRegex(ValueError,"maximum_feature_pairs"):
-            discover_interactions_files(self.cohort_dir,task_path,self.root/"bad_cap")
+            discover_interactions_files(cohort_dir,task_path,self.root/"bad_cap")
 
     def test_inputs_remain_unchanged(self):
         paths=[self.task_path,self.cohort_dir/"modeling_cohort.csv",
