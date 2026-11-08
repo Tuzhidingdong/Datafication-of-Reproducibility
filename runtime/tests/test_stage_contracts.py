@@ -1,5 +1,10 @@
+import hashlib
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
+from dor.publication import audit_publication_package_files
 from dor.stage_contracts import CONTRACT_VERSION, STAGE_CONTRACTS, validate_stage_payload, validate_stage_evidence
 
 
@@ -197,6 +202,76 @@ class StageEvidenceContractTests(unittest.TestCase):
             }, "sha256": "d" * 64}},
         )
         self.assertIn("COHORT_TASK_STUDY_NOT_ELIGIBLE", {item["code"] for item in errors})
+
+    def test_publication_manifest_completeness_is_derived_from_artifact_states(self):
+        payload = {
+            "schema_version": "1.0", "project_id": "P1", "run_id": "R1",
+            "package_version": "1.0", "source_hashes": {},
+            "writing_guide": "README_FOR_WRITING_SKILL.md",
+            "writing_guide_sha256": "a" * 64,
+            "artifacts": [{
+                "artifact_id": "FIGURE_1", "path": "figures/figure1.svg",
+                "type": "figure", "description": "Figure not generated.",
+                "status": "not_generated",
+            }],
+            "completeness": {"status": "complete", "unresolved_items": []},
+        }
+        codes = {item["code"] for item in validate_stage_payload(
+            "publication_package_manifest", payload, run_id="R1",
+            project_id="P1", study_ids={"S1"},
+        )}
+        self.assertIn("PUBLICATION_COMPLETENESS_DERIVATION_MISMATCH", codes)
+
+    def test_publication_handoff_recomputes_package_integrity_from_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            package = root / "package"
+            package.mkdir()
+            guide = package / "README_FOR_WRITING_SKILL.md"
+            guide.write_text("# Synthetic writing guide\n", encoding="utf-8")
+            result = package / "results" / "result.json"
+            result.parent.mkdir()
+            result.write_text('{"value": 1}\n', encoding="utf-8")
+
+            def digest(path):
+                return hashlib.sha256(path.read_bytes()).hexdigest()
+
+            manifest = {
+                "schema_version": "1.0", "project_id": "P1", "run_id": "R1",
+                "package_version": "1.0", "source_hashes": {},
+                "writing_guide": "README_FOR_WRITING_SKILL.md",
+                "writing_guide_sha256": digest(guide),
+                "artifacts": [{
+                    "artifact_id": "RESULT_1", "path": "results/result.json",
+                    "type": "result", "description": "Synthetic result",
+                    "status": "complete", "sha256": digest(result),
+                }],
+                "completeness": {"status": "complete", "unresolved_items": []},
+            }
+            manifest_path = package / "package_manifest.json"
+            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+            audit = audit_publication_package_files(package)
+            audit_path = root / "publication_integrity_report.json"
+            audit_path.write_text(json.dumps(audit, indent=2) + "\n", encoding="utf-8")
+            evidence = [
+                {"artifact_id": "package_manifest", "artifact_type": "publication_package_manifest",
+                 "path": str(manifest_path), "sha256": digest(manifest_path), "payload": manifest},
+                {"artifact_id": "package_audit", "artifact_type": "publication_integrity_report",
+                 "path": str(audit_path), "sha256": digest(audit_path), "payload": audit},
+            ]
+            errors = validate_stage_evidence(
+                "publication_handoff", evidence, run_id="R1", project_id="P1",
+                study_ids={"S1"}, source_snapshot=[],
+            )
+            self.assertEqual([], errors)
+
+            # A stale report that still says valid=true cannot override a changed package file.
+            result.write_text('{"value": 2}\n', encoding="utf-8")
+            errors = validate_stage_evidence(
+                "publication_handoff", evidence, run_id="R1", project_id="P1",
+                study_ids={"S1"}, source_snapshot=[],
+            )
+            self.assertIn("PUBLICATION_PACKAGE_ACTUAL_AUDIT_FAILED", {item["code"] for item in errors})
 
     def test_nested_study_evaluation_rejects_fold_leakage(self):
         study_ids = ["S1", "S2", "S3", "S4"]

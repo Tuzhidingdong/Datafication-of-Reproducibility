@@ -99,8 +99,11 @@
       ],
       "checks": [
         "package_identity",
-        "writing_guide_present",
-        "package_integrity_valid"
+        "package_manifest_path_exact",
+        "writing_guide_sha256_verified",
+        "artifact_index_and_hashes_valid",
+        "completeness_derived_from_artifact_statuses",
+        "independent_package_tree_audit"
       ],
       "scope": "Publication package, Writing Skill guide, hashes, and explicit completeness state."
     }

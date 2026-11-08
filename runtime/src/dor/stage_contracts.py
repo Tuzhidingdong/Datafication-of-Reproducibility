@@ -48,7 +48,7 @@ STAGE_CONTRACTS: dict[str, dict[str, Any]] = {
     },
     "publication_handoff": {
         "required_artifact_types": ["publication_package_manifest", "publication_integrity_report"],
-        "checks": ["package_identity", "writing_guide_hash", "package_integrity_valid"],
+        "checks": ["package_identity", "package_manifest_path_exact", "writing_guide_sha256_verified", "independent_package_tree_audit"],
         "scope": "Publication package, Writing Skill guide, hashes, and explicit completeness state.",
     },
 }
@@ -527,12 +527,67 @@ def _validate_publication_manifest(payload: Any, run_id: str, project_id: str) -
         return [_error("PUBLICATION_MANIFEST_INVALID", "publication_package_manifest requires schema_version 1.0.", "publication_package_manifest")]
     if payload.get("run_id") != run_id or payload.get("project_id") != project_id:
         errors.append(_error("PUBLICATION_PACKAGE_IDENTITY_MISMATCH", "Publication package run_id/project_id does not match this acceptance.", "publication_package_manifest"))
+    if not _nonempty(payload.get("package_version")):
+        errors.append(_error("PUBLICATION_PACKAGE_VERSION_INVALID", "package_version must be a non-empty string.", "publication_package_manifest"))
     if payload.get("writing_guide") != "README_FOR_WRITING_SKILL.md" or not _sha256(payload.get("writing_guide_sha256")):
         errors.append(_error("PUBLICATION_WRITING_GUIDE_INVALID", "Publication package must hash-bind README_FOR_WRITING_SKILL.md.", "publication_package_manifest"))
-    if not isinstance(payload.get("artifacts"), list) or not isinstance(payload.get("completeness"), dict):
-        errors.append(_error("PUBLICATION_PACKAGE_CONTENT_INVALID", "Publication package requires artifacts and completeness.", "publication_package_manifest"))
-    elif payload["completeness"].get("status") not in {"complete", "partial", "requires_review"} or not isinstance(payload["completeness"].get("unresolved_items"), list):
-        errors.append(_error("PUBLICATION_COMPLETENESS_INVALID", "Publication completeness requires a supported status and unresolved_items array.", "publication_package_manifest"))
+    source_hashes = payload.get("source_hashes")
+    if not isinstance(source_hashes, dict) or any(not _nonempty(key) or not _sha256(value) for key, value in source_hashes.items()):
+        errors.append(_error("PUBLICATION_SOURCE_HASHES_INVALID", "source_hashes must be an object of explicit source IDs/labels to SHA-256 values.", "publication_package_manifest"))
+    artifacts = payload.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts or not isinstance(payload.get("completeness"), dict):
+        errors.append(_error("PUBLICATION_PACKAGE_CONTENT_INVALID", "Publication package requires a non-empty artifact index and completeness object.", "publication_package_manifest"))
+    else:
+        seen_ids: set[str] = set()
+        seen_paths: set[str] = set()
+        for index, artifact in enumerate(artifacts):
+            if not isinstance(artifact, dict) or any(not _nonempty(artifact.get(key)) for key in ("artifact_id", "path", "type", "description", "status")):
+                errors.append(_error("PUBLICATION_ARTIFACT_ENTRY_INVALID", f"artifacts[{index}] requires artifact_id/path/type/description/status.", "publication_package_manifest"))
+                continue
+            if artifact["artifact_id"] in seen_ids or artifact["path"] in seen_paths:
+                errors.append(_error("PUBLICATION_ARTIFACT_ID_OR_PATH_DUPLICATE", f"artifacts[{index}] duplicates an artifact ID or package path.", "publication_package_manifest"))
+            seen_ids.add(artifact["artifact_id"])
+            seen_paths.add(artifact["path"])
+            if artifact["status"] not in {"complete", "partial", "not_generated", "not_applicable", "requires_review"}:
+                errors.append(_error("PUBLICATION_ARTIFACT_STATUS_INVALID", f"artifacts[{index}] has an unsupported status.", "publication_package_manifest"))
+            if artifact["status"] in {"complete", "partial"} and not _sha256(artifact.get("sha256")):
+                errors.append(_error("PUBLICATION_ARTIFACT_HASH_MISSING", f"artifacts[{index}] requires an exact SHA-256 for complete/partial status.", "publication_package_manifest"))
+    completeness = payload.get("completeness")
+    if isinstance(completeness, dict):
+        if (completeness.get("status") not in {"complete", "partial", "requires_review"}
+                or not isinstance(completeness.get("unresolved_items"), list)):
+            errors.append(_error("PUBLICATION_COMPLETENESS_INVALID", "Publication completeness requires a supported status and unresolved_items array.", "publication_package_manifest"))
+        elif isinstance(artifacts, list):
+            has_review = any(isinstance(item, dict) and item.get("status") == "requires_review" for item in artifacts)
+            has_partial = any(isinstance(item, dict) and item.get("status") in {"partial", "not_generated"} for item in artifacts)
+            derived_status = "requires_review" if has_review else ("partial" if has_partial else "complete")
+            derived_unresolved = [
+                f"{item['artifact_id']} [{item['status']}]: {item['description']}"
+                for item in artifacts if isinstance(item, dict)
+                and item.get("status") not in {"complete", "not_applicable"}
+                and all(_nonempty(item.get(key)) for key in ("artifact_id", "status", "description"))
+            ]
+            if completeness.get("status") != derived_status or completeness.get("unresolved_items") != derived_unresolved:
+                errors.append(_error("PUBLICATION_COMPLETENESS_DERIVATION_MISMATCH", "Completeness status and unresolved_items must be deterministically derived from artifact statuses/descriptions.", "publication_package_manifest"))
+    return errors
+
+
+def _validate_publication_integrity_report(payload: Any) -> list[dict[str, str]]:
+    required = ("valid", "package_dir", "artifact_count", "checked_file_count",
+                "errors", "artifact_checks", "completeness")
+    if not isinstance(payload, dict) or any(key not in payload for key in required):
+        return [_error("PUBLICATION_INTEGRITY_REPORT_INVALID", "Integrity report must contain the complete package audit result.", "publication_integrity_report")]
+    errors: list[dict[str, str]] = []
+    if payload.get("valid") is not True or not isinstance(payload.get("errors"), list) or payload["errors"]:
+        errors.append(_error("PUBLICATION_INTEGRITY_AUDIT_FAILED", "Integrity report must report valid=true with an empty errors array.", "publication_integrity_report"))
+    for key in ("artifact_count", "checked_file_count"):
+        value = payload.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < (1 if key == "artifact_count" else 2):
+            errors.append(_error("PUBLICATION_INTEGRITY_COUNT_INVALID", f"{key} must be a positive artifact count or at least two checked root/package files.", "publication_integrity_report"))
+    if not isinstance(payload.get("artifact_checks"), list):
+        errors.append(_error("PUBLICATION_INTEGRITY_CHECKS_INVALID", "artifact_checks must be an array.", "publication_integrity_report"))
+    if not isinstance(payload.get("completeness"), dict):
+        errors.append(_error("PUBLICATION_INTEGRITY_COMPLETENESS_MISSING", "Audit report must include manifest completeness.", "publication_integrity_report"))
     return errors
 
 
@@ -581,11 +636,7 @@ def validate_stage_payload(artifact_type: str, payload: Any, *, run_id: str, pro
     if artifact_type == "publication_package_manifest":
         return _validate_publication_manifest(payload, run_id, project_id)
     if artifact_type == "publication_integrity_report":
-        if (not isinstance(payload, dict) or payload.get("valid") is not True
-                or not isinstance(payload.get("errors"), list) or payload["errors"]
-                or not isinstance(payload.get("checked_file_count"), int) or payload["checked_file_count"] < 1):
-            return [_error("PUBLICATION_INTEGRITY_AUDIT_FAILED", "publication_integrity_report must report valid=true, checked files, and an empty errors array.", artifact_type)]
-        return []
+        return _validate_publication_integrity_report(payload)
     return [_error("UNKNOWN_STAGE_ARTIFACT_TYPE", f"Unsupported fixed evidence type: {artifact_type}.", artifact_type)]
 
 
@@ -771,6 +822,29 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
             ids = report.get("eligible_study_ids", [])
             if isinstance(ids, list) and set(split.get("study_to_split", {})) != set(ids):
                 errors.append(_error("COHORT_SPLIT_STUDY_SET_MISMATCH", "split_manifest Study IDs must exactly match cohort_report.eligible_study_ids.", "split_manifest"))
+    if stage_id == "publication_handoff" and all(
+        kind in by_type for kind in ("publication_package_manifest", "publication_integrity_report")
+    ):
+        from pathlib import Path
+        from dor.publication import audit_publication_package_files
+        manifest_item = by_type["publication_package_manifest"]
+        integrity_item = by_type["publication_integrity_report"]
+        manifest_path = Path(str(manifest_item.get("path", ""))).expanduser().resolve(strict=False)
+        stored_audit = integrity_item.get("payload")
+        if manifest_path.name != "package_manifest.json":
+            errors.append(_error("PUBLICATION_MANIFEST_PATH_INVALID", "publication_package_manifest evidence path must name package_manifest.json.", "publication_package_manifest"))
+        else:
+            try:
+                actual_audit = audit_publication_package_files(manifest_path.parent)
+                if actual_audit.get("valid") is not True:
+                    errors.append(_error("PUBLICATION_PACKAGE_ACTUAL_AUDIT_FAILED", "Recomputed audit of the exact publication package found missing, extra, unsafe, or hash-mismatched files.", "publication_package_manifest"))
+                for field in ("valid", "package_dir", "artifact_count", "checked_file_count",
+                              "errors", "artifact_checks", "completeness"):
+                    if not isinstance(stored_audit, dict) or stored_audit.get(field) != actual_audit.get(field):
+                        errors.append(_error("PUBLICATION_AUDIT_REPORT_STALE_OR_INCONSISTENT", f"Stored publication_integrity_report.{field} does not match a fresh audit of the Run-bound package.", "publication_integrity_report"))
+            except (OSError, ValueError, TypeError) as exc:
+                errors.append(_error("PUBLICATION_PACKAGE_AUDIT_UNREADABLE", f"Could not independently audit publication package: {exc}", "publication_package_manifest"))
+
     if stage_id == "modeling_validation" and all(kind in by_type for kind in (
         "model_report", "model_artifact", "modeling_run_manifest",
         "reproducibility_evaluation", "reproducibility_evaluation_manifest"

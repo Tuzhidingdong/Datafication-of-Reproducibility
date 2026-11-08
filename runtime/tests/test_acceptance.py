@@ -12,6 +12,7 @@ from unittest.mock import patch
 from dor.acceptance import STAGE_ORDER, validate_acceptance_record
 from dor.cli import build_parser, main
 from dor.run_manager import initialize_run, record_stage_status
+from dor.publication import audit_publication_package_files
 
 
 class AcceptanceValidatorTests(unittest.TestCase):
@@ -68,7 +69,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "modeling_run_manifest": "evidence/modeling_run_manifest.json",
             "reproducibility_evaluation": "evidence/reproducibility_evaluation.json",
             "reproducibility_evaluation_manifest": "evidence/reproducibility_evaluation_manifest.json",
-            "publication_manifest": "evidence/publication_package_manifest.json",
+            "publication_manifest": "evidence/publication_package/package_manifest.json",
             "publication_integrity": "evidence/publication_integrity_report.json",
         }
         outputs = [{"artifact_id": artifact_id, "path": relpath}
@@ -415,16 +416,29 @@ class AcceptanceValidatorTests(unittest.TestCase):
         }
         self._write_json(paths["reproducibility_evaluation_manifest"], evaluation_manifest)
 
+        package_dir = paths["publication_manifest"].parent
+        package_dir.mkdir(parents=True, exist_ok=True)
+        guide_path = package_dir / "README_FOR_WRITING_SKILL.md"
+        guide_path.write_text("# Synthetic writing guide\\n", encoding="utf-8")
+        package_result = package_dir / "results" / "result.json"
+        package_result.parent.mkdir(parents=True, exist_ok=True)
+        package_result.write_text('{"fixture":"synthetic"}\\n', encoding="utf-8")
         publication_manifest = {
             "schema_version": "1.0", "project_id": "PROJECT_1", "run_id": self.run_id,
-            "package_version": "1.0", "writing_guide": "README_FOR_WRITING_SKILL.md",
-            "writing_guide_sha256": "e" * 64, "artifacts": [],
+            "package_version": "1.0", "source_hashes": {},
+            "writing_guide": "README_FOR_WRITING_SKILL.md",
+            "writing_guide_sha256": self.sha(guide_path),
+            "artifacts": [{
+                "artifact_id": "SYNTHETIC_RESULT", "path": "results/result.json",
+                "type": "synthetic_result", "description": "Synthetic fixture result.",
+                "status": "complete", "sha256": self.sha(package_result),
+                "linked_record_ids": [], "manuscript_sections": ["Results"],
+            }],
             "completeness": {"status": "complete", "unresolved_items": []},
         }
         self._write_json(paths["publication_manifest"], publication_manifest)
-        self._write_json(paths["publication_integrity"], {
-            "valid": True, "checked_file_count": 1, "errors": [],
-        })
+        integrity_report = audit_publication_package_files(package_dir)
+        self._write_json(paths["publication_integrity"], integrity_report)
 
         record_stage_status(self.manifest, "acceptance_evidence", "SUCCEEDED", "local")
 

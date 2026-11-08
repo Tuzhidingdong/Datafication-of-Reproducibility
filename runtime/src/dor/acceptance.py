@@ -319,11 +319,11 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
                                     "status": "CURRENT" if actual == expected else "MISSING_OR_CHANGED"})
             if isinstance(artifact_type, str) and artifact_type.strip() and actual == expected:
                 if artifact_type == "modeling_cohort_csv":
-                    typed_evidence.append({**artifact, "payload": None})
+                    typed_evidence.append({**artifact, "path": str(path), "payload": None})
                 else:
                     try:
                         payload = _read_json(path, f"Stage evidence {artifact_id}")
-                        typed_evidence.append({**artifact, "payload": payload})
+                        typed_evidence.append({**artifact, "path": str(path), "payload": payload})
                     except (OSError, ValueError, TypeError) as exc:
                         issue("STAGE_EVIDENCE_JSON_INVALID", f"Typed evidence {artifact_id} must be a readable JSON object: {exc}")
 
