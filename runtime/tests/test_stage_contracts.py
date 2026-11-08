@@ -39,7 +39,7 @@ class StageEvidenceContractTests(unittest.TestCase):
         codes = {item["code"] for item in validate_stage_payload(
             "canonical_bundle", payload, run_id="R1", project_id="P1", study_ids={"S1"}
         )}
-        self.assertTrue({"CANONICAL_BUNDLE_INVALID", "CANONICAL_BUNDLE_METADATA_INVALID"} & codes)
+        self.assertTrue({"CANONICAL_BUNDLE_INVALID", "CANONICAL_BUNDLE_METADATA_INVALID", "CANONICAL_BUILD_PROVENANCE_INVALID"} & codes)
 
     def test_reconciliation_report_must_bind_exact_bundle_hash(self):
         payload = {"schema_version": "1.0", "bundle_sha256": "b" * 64, "valid_bundle": True,
@@ -156,6 +156,47 @@ class StageEvidenceContractTests(unittest.TestCase):
         )
         codes = {item["code"] for item in errors}
         self.assertNotIn("MODEL_ARTIFACT_FEATURE_BINDINGS_INVALID", codes)
+
+    def test_modeling_task_rejects_explicit_study_not_in_eligible_cohort(self):
+        task = {
+            "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
+            "endpoint_definition": "endpoint", "outcome_type": "NUMERIC",
+            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "feature_bindings": [{
+                "feature_id": "concentration", "condition_type": "concentration",
+                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+            }],
+            "split": {
+                "strategy": "EXPLICIT_STUDIES",
+                "validation_study_ids": ["S2"], "test_study_ids": ["S3"],
+            },
+        }
+        report = {"eligible_study_ids": ["S1", "S2"]}
+        split = {"task_id": "T1", "strategy": "EXPLICIT_STUDIES",
+                 "study_to_split": {"S1": "train", "S2": "validation"}}
+        evidence = [
+            {"artifact_id": "task", "artifact_type": "modeling_task", "payload": task, "sha256": "a" * 64},
+            {"artifact_id": "report", "artifact_type": "cohort_report", "payload": report, "sha256": "b" * 64},
+            {"artifact_id": "split", "artifact_type": "split_manifest", "payload": split, "sha256": "c" * 64},
+            {"artifact_id": "manifest", "artifact_type": "modeling_cohort_manifest",
+             "payload": {"schema_version": "1.0", "task_id": "T1",
+                         "bundle_sha256": "d" * 64, "task_sha256": "a" * 64,
+                         "eligible_observation_count": 2, "eligible_study_count": 2,
+                         "artifact_sha256": {
+                             "modeling_cohort.csv": "e" * 64,
+                             "cohort_report.json": "b" * 64,
+                             "split_manifest.json": "c" * 64}},
+             "sha256": "f" * 64},
+            {"artifact_id": "csv", "artifact_type": "modeling_cohort_csv", "payload": None, "sha256": "e" * 64},
+        ]
+        errors = validate_stage_evidence(
+            "cohort_feasibility", evidence, run_id="R1", project_id="P1",
+            study_ids={"S1", "S2"}, source_snapshot=[],
+            prior_payloads={"canonical_bundle": {"payload": {
+                "studies": [{"study_id": "S1"}, {"study_id": "S2"}]
+            }, "sha256": "d" * 64}},
+        )
+        self.assertIn("COHORT_TASK_STUDY_NOT_ELIGIBLE", {item["code"] for item in errors})
 
     def test_nested_study_evaluation_rejects_fold_leakage(self):
         study_ids = ["S1", "S2", "S3", "S4"]

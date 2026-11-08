@@ -261,8 +261,8 @@ For every stage evidence entry, include `artifact_type` in addition to the exact
 - `source_integrity`: `run_manifest`
 - `extraction_review`: `extraction_review_record`
 - `semantic_mapping`: `mapping_plan`
-- `canonical_reconciliation`: `canonical_bundle`, `reconciliation_report`
-- `cohort_feasibility`: `cohort_report`, `split_manifest`
+- `canonical_reconciliation`: `canonical_bundle`, `reconciliation_report`, `reconciliation_decisions`
+- `cohort_feasibility`: `modeling_task`, `cohort_report`, `split_manifest`, `modeling_cohort_manifest`, `modeling_cohort_csv`
 - `modeling_validation`: `model_report`, `model_artifact`, `modeling_run_manifest`, `reproducibility_evaluation`, `reproducibility_evaluation_manifest`
 - `publication_handoff`: `publication_package_manifest`, `publication_integrity_report`
 
@@ -276,3 +276,6 @@ Validate a completed acceptance record with the deterministic Runtime validator:
     dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --out acceptance_validation_report.json
 
 This checks the fixed stage order, stage/decision semantics, exact Run Manifest binding, and current SHA-256 hashes of every cited source/evidence file. A valid report confirms structural and file-integrity conditions only; the human scientific review remains mandatory.
+
+
+Reconciliation PASS is blocked until all CRITICAL and REVIEW_REQUIRED queue items have explicit human decisions, bound to the exact report and canonical bundle hashes; an item cannot remain REMAINS_UNRESOLVED. Cohort PASS must bind the modeling task to the canonical bundle, report, split manifest, Cohort manifest, and actual hash-verified CSV file. The Cohort report's `eligible_study_ids` (not all source Studies) defines split coverage; explicit validation/test IDs must be eligible. The Cohort manifest must repeat exact hashes for CSV, report, and split. Model run and nested evaluation manifests must in turn bind the exact task, CSV, Cohort manifest, report, and split hashes.

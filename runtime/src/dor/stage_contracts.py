@@ -32,12 +32,12 @@ STAGE_CONTRACTS: dict[str, dict[str, Any]] = {
         "scope": "Explicit source-item to canonical-field mappings, transformations, and review decisions.",
     },
     "canonical_reconciliation": {
-        "required_artifact_types": ["canonical_bundle", "reconciliation_report"],
+        "required_artifact_types": ["canonical_bundle", "reconciliation_report", "reconciliation_decisions"],
         "checks": ["canonical_entity_integrity", "cross_entity_references", "reconciliation_bundle_binding"],
         "scope": "Study/System/Condition/Experiment/Observation/Comparison/Evidence graph integrity.",
     },
     "cohort_feasibility": {
-        "required_artifact_types": ["cohort_report", "split_manifest"],
+        "required_artifact_types": ["modeling_task", "cohort_report", "split_manifest", "modeling_cohort_manifest", "modeling_cohort_csv"],
         "checks": ["cohort_report_identity", "study_group_split_integrity", "split_study_coverage"],
         "scope": "Endpoint-specific cohort and explicit Study-level split feasibility.",
     },
@@ -238,6 +238,11 @@ def _validate_canonical_bundle(payload: Any) -> list[dict[str, str]]:
         return [_error("CANONICAL_BUNDLE_INVALID", "canonical_bundle must be a JSON object.", "canonical_bundle")]
     if payload.get("schema_version") != "1.0" or not _nonempty(payload.get("project_id")) or not _nonempty(payload.get("mapping_version")):
         errors.append(_error("CANONICAL_BUNDLE_METADATA_INVALID", "canonical_bundle requires schema_version 1.0, project_id, and mapping_version.", "canonical_bundle"))
+    provenance = payload.get("build_provenance")
+    if (not isinstance(provenance, dict)
+            or not _sha256(provenance.get("mapping_plan_sha256"))
+            or not _sha256(provenance.get("source_inventory_sha256"))):
+        errors.append(_error("CANONICAL_BUILD_PROVENANCE_INVALID", "canonical_bundle requires exact mapping_plan and source_inventory SHA-256 provenance.", "canonical_bundle"))
     result = validate_canonical_bundle(payload)
     errors.extend(_error("CANONICAL_BUNDLE_INVALID", f"{item.get('path')}: {item.get('message')}", "canonical_bundle")
                   for item in result.get("errors", []))
@@ -257,16 +262,94 @@ def _validate_reconciliation(payload: Any, canonical_sha256: str | None) -> list
     return errors
 
 
+def _validate_modeling_task(payload: Any) -> list[dict[str, str]]:
+    required = ("task_id", "target_id", "endpoint_definition", "outcome_type",
+                "outcome_value_field", "outcome_unit", "feature_bindings", "split")
+    if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or any(key not in payload for key in required):
+        return [_error("MODELING_TASK_INVALID", "modeling_task must contain exact task/endpoint, outcome, feature, unit, and split definitions.", "modeling_task")]
+    errors: list[dict[str, str]] = []
+    if not all(_nonempty(payload.get(key)) for key in ("task_id", "target_id", "endpoint_definition")):
+        errors.append(_error("MODELING_TASK_IDENTITY_INVALID", "task_id, target_id, and endpoint_definition must be non-empty strings.", "modeling_task"))
+    if payload.get("outcome_type") not in {"NUMERIC", "CATEGORICAL"} or payload.get("outcome_value_field") not in {"raw_value", "normalized_value"}:
+        errors.append(_error("MODELING_TASK_OUTCOME_INVALID", "outcome_type or outcome_value_field is unsupported.", "modeling_task"))
+    if payload.get("outcome_unit") is not None and not isinstance(payload.get("outcome_unit"), str):
+        errors.append(_error("MODELING_TASK_UNIT_INVALID", "outcome_unit must be an exact string or null.", "modeling_task"))
+    bindings = payload.get("feature_bindings")
+    if not isinstance(bindings, list) or not bindings:
+        errors.append(_error("MODELING_TASK_FEATURES_MISSING", "At least one explicit feature binding is required.", "modeling_task"))
+    else:
+        feature_ids: set[str] = set()
+        for index, binding in enumerate(bindings):
+            fields = ("feature_id", "condition_type", "value_field", "value_type")
+            if not isinstance(binding, dict) or any(not _nonempty(binding.get(key)) for key in fields) or "expected_unit" not in binding:
+                errors.append(_error("MODELING_TASK_FEATURE_INVALID", f"feature_bindings[{index}] requires exact feature/condition/field/type/unit fields.", "modeling_task"))
+                continue
+            if binding["value_field"] not in {"raw_value", "normalized_value"} or binding["value_type"] not in {"NUMERIC", "CATEGORICAL"}:
+                errors.append(_error("MODELING_TASK_FEATURE_TYPE_INVALID", f"feature_bindings[{index}] has unsupported field/type.", "modeling_task"))
+            if binding["feature_id"] in feature_ids:
+                errors.append(_error("MODELING_TASK_FEATURE_ID_DUPLICATE", f"Duplicate feature_id: {binding['feature_id']}.", "modeling_task"))
+            feature_ids.add(binding["feature_id"])
+            if binding["expected_unit"] is not None and not isinstance(binding["expected_unit"], str):
+                errors.append(_error("MODELING_TASK_FEATURE_UNIT_INVALID", f"feature_bindings[{index}].expected_unit must be a string or null.", "modeling_task"))
+    split = payload.get("split")
+    if not isinstance(split, dict) or split.get("strategy") not in {"GROUPED_HOLDOUT", "EXPLICIT_STUDIES"}:
+        errors.append(_error("MODELING_TASK_SPLIT_INVALID", "split.strategy must be GROUPED_HOLDOUT or EXPLICIT_STUDIES.", "modeling_task"))
+    elif split["strategy"] == "EXPLICIT_STUDIES":
+        explicit_groups: dict[str, set[str]] = {}
+        for key in ("validation_study_ids", "test_study_ids"):
+            values = split.get(key)
+            if not isinstance(values, list) or not values or any(not _nonempty(value) for value in values) or len(values) != len(set(values)):
+                errors.append(_error("MODELING_TASK_EXPLICIT_SPLIT_INVALID", f"split.{key} must contain unique explicit Study IDs.", "modeling_task"))
+            else:
+                explicit_groups[key] = set(values)
+        if len(explicit_groups) == 2 and explicit_groups["validation_study_ids"].intersection(explicit_groups["test_study_ids"]):
+            errors.append(_error("MODELING_TASK_EXPLICIT_SPLIT_OVERLAP", "Validation and test Study IDs must be disjoint in modeling_task.", "modeling_task"))
+    elif split["strategy"] == "GROUPED_HOLDOUT":
+        fractions = split.get("fractions")
+        if not isinstance(fractions, dict) or any(not isinstance(fractions.get(key), (int, float)) or isinstance(fractions.get(key), bool) for key in ("train", "validation", "test")):
+            errors.append(_error("MODELING_TASK_SPLIT_FRACTIONS_INVALID", "GROUPED_HOLDOUT requires numeric train/validation/test fractions.", "modeling_task"))
+        elif any(fractions[key] <= 0 for key in ("train", "validation", "test")) or abs(sum(fractions[key] for key in ("train", "validation", "test")) - 1.0) > 1e-9:
+            errors.append(_error("MODELING_TASK_SPLIT_FRACTIONS_INVALID", "Study split fractions must be positive and sum to 1.", "modeling_task"))
+    return errors
+
+
+def _validate_cohort_manifest(payload: Any) -> list[dict[str, str]]:
+    required = ("task_id", "bundle_sha256", "task_sha256", "artifact_sha256",
+                "eligible_observation_count", "eligible_study_count")
+    if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or any(key not in payload for key in required):
+        return [_error("COHORT_MANIFEST_INVALID", "modeling_cohort_manifest lacks task/bundle hashes, counts, or artifact hashes.", "modeling_cohort_manifest")]
+    errors: list[dict[str, str]] = []
+    if not _sha256(payload.get("bundle_sha256")) or not _sha256(payload.get("task_sha256")):
+        errors.append(_error("COHORT_MANIFEST_INPUT_HASH_INVALID", "Cohort manifest bundle/task hashes must be SHA-256.", "modeling_cohort_manifest"))
+    hashes = payload.get("artifact_sha256")
+    if not isinstance(hashes, dict) or not all(_sha256(hashes.get(key)) for key in ("modeling_cohort.csv", "cohort_report.json", "split_manifest.json")):
+        errors.append(_error("COHORT_MANIFEST_OUTPUT_HASH_INVALID", "Cohort manifest must hash-bind cohort CSV, report, and split manifest.", "modeling_cohort_manifest"))
+    for key in ("eligible_observation_count", "eligible_study_count"):
+        value = payload.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            errors.append(_error("COHORT_MANIFEST_COUNT_INVALID", f"{key} must be a positive integer.", "modeling_cohort_manifest"))
+    return errors
+
+
 def _validate_cohort_report(payload: Any) -> list[dict[str, str]]:
-    required = ("task_id", "target_id", "endpoint_definition", "eligible_observation_count", "eligible_study_count", "eligible_study_ids", "split_counts")
-    if not isinstance(payload, dict) or payload.get("valid") is not True or any(key not in payload for key in required):
-        return [_error("COHORT_REPORT_INVALID", "cohort_report must expose a valid endpoint-specific task, explicit Study IDs, counts, and split_counts.", "cohort_report")]
+    required = ("task_id", "target_id", "endpoint_definition", "eligible_observation_count",
+                "eligible_study_count", "eligible_study_ids", "split_counts",
+                "bundle_sha256", "task_sha256")
+    if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or payload.get("valid") is not True or any(key not in payload for key in required):
+        return [_error("COHORT_REPORT_INVALID", "cohort_report must expose a valid schema, exact task identity, Study IDs, counts, and input hashes.", "cohort_report")]
+    errors: list[dict[str, str]] = []
     study_ids = payload.get("eligible_study_ids")
-    if not isinstance(study_ids, list) or any(not _nonempty(value) for value in study_ids) or len(study_ids) != len(set(study_ids)):
-        return [_error("COHORT_ELIGIBLE_STUDY_IDS_INVALID", "eligible_study_ids must be a unique list of non-empty Study IDs.", "cohort_report")]
+    if not isinstance(study_ids, list) or not study_ids or any(not _nonempty(value) for value in study_ids) or len(study_ids) != len(set(study_ids)):
+        return [_error("COHORT_ELIGIBLE_STUDY_IDS_INVALID", "eligible_study_ids must be a non-empty unique list of Study IDs.", "cohort_report")]
     if payload.get("eligible_study_count") != len(study_ids):
-        return [_error("COHORT_STUDY_COUNT_MISMATCH", "eligible_study_count must equal eligible_study_ids length.", "cohort_report")]
-    return []
+        errors.append(_error("COHORT_STUDY_COUNT_MISMATCH", "eligible_study_count must equal eligible_study_ids length.", "cohort_report"))
+    for key in ("eligible_study_count", "eligible_observation_count"):
+        value = payload.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            errors.append(_error("COHORT_COUNT_INVALID", f"{key} must be a positive integer.", "cohort_report"))
+    if not _sha256(payload.get("bundle_sha256")) or not _sha256(payload.get("task_sha256")):
+        errors.append(_error("COHORT_INPUT_HASH_INVALID", "cohort_report must bind the exact bundle and modeling task SHA-256 values.", "cohort_report"))
+    return errors
 
 
 def _validate_split_manifest(payload: Any, eligible_study_ids: set[str] | None) -> list[dict[str, str]]:
@@ -392,13 +475,7 @@ def _validate_reproducibility_evaluation(payload: Any) -> list[dict[str, str]]:
         for study_id in test_ids:
             held_out[study_id] = held_out.get(study_id, 0) + 1
     performance = payload.get("per_study_performance")
-    performance_values = [
-        item.get("study_id") for item in performance
-        if isinstance(item, dict)
-    ] if isinstance(performance, list) else []
-    performance_ids = {
-        value for value in performance_values if _nonempty(value)
-    }
+    performance_ids = {item.get("study_id") for item in performance if isinstance(item, dict)} if isinstance(performance, list) else set()
     performance_rows_valid = (
         isinstance(performance, list) and len(performance) == len(performance_ids)
         and all(isinstance(item, dict) and _nonempty(item.get("study_id")) for item in performance)
@@ -475,8 +552,16 @@ def validate_stage_payload(artifact_type: str, payload: Any, *, run_id: str, pro
         return _validate_canonical_bundle(payload)
     if artifact_type == "reconciliation_report":
         return _validate_reconciliation(payload, canonical_sha256)
+    if artifact_type == "reconciliation_decisions":
+        return []
+    if artifact_type == "modeling_task":
+        return _validate_modeling_task(payload)
     if artifact_type == "cohort_report":
         return _validate_cohort_report(payload)
+    if artifact_type == "modeling_cohort_manifest":
+        return _validate_cohort_manifest(payload)
+    if artifact_type == "modeling_cohort_csv":
+        return []
     if artifact_type == "split_manifest":
         return _validate_split_manifest(payload, eligible_study_ids)
     if artifact_type == "model_report":
@@ -547,7 +632,7 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
             eligible_ids = set(values)
 
     for artifact_type, item in by_type.items():
-        if artifact_type == "mapping_plan":
+        if artifact_type in {"mapping_plan", "reconciliation_decisions"}:
             continue
         errors.extend(validate_stage_payload(
             artifact_type, item["payload"], run_id=run_id, project_id=project_id,
@@ -559,15 +644,125 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
         inventory = all_payloads.get("source_inventory")
         errors.extend(_validate_mapping_plan(by_type["mapping_plan"]["payload"], inventory))
     if stage_id == "canonical_reconciliation" and "canonical_bundle" in by_type:
-        bundle = by_type["canonical_bundle"]["payload"]
+        bundle_item = by_type["canonical_bundle"]
+        bundle = bundle_item["payload"]
         canonical_studies = {
             row.get("study_id") for row in bundle.get("studies", [])
             if isinstance(row, dict) and _nonempty(row.get("study_id"))
         } if isinstance(bundle, dict) else set()
         if canonical_studies != study_ids:
             errors.append(_error("CANONICAL_STUDY_SET_MISMATCH", "Canonical Study IDs must exactly match source_snapshot.study_ids.", "canonical_bundle"))
-    if stage_id == "cohort_feasibility" and "cohort_report" in by_type and "split_manifest" in by_type:
-        report, split = by_type["cohort_report"]["payload"], by_type["split_manifest"]["payload"]
+        if isinstance(bundle, dict):
+            if bundle.get("project_id") != project_id:
+                errors.append(_error("CANONICAL_PROJECT_ID_MISMATCH", "canonical_bundle.project_id must match the Run project_id.", "canonical_bundle"))
+            mapping = all_payloads.get("mapping_plan")
+            inventory = all_payloads.get("source_inventory")
+            provenance_value = bundle.get("build_provenance")
+            provenance = provenance_value if isinstance(provenance_value, dict) else {}
+            if mapping and bundle.get("mapping_version") != mapping["payload"].get("mapping_version"):
+                errors.append(_error("CANONICAL_MAPPING_VERSION_MISMATCH", "canonical_bundle.mapping_version must match the approved mapping_plan.", "canonical_bundle"))
+            if mapping and provenance.get("mapping_plan_sha256") != mapping.get("sha256"):
+                errors.append(_error("CANONICAL_MAPPING_PLAN_HASH_MISMATCH", "canonical_bundle.build_provenance.mapping_plan_sha256 must bind the accepted mapping_plan.", "canonical_bundle"))
+            if inventory and provenance.get("source_inventory_sha256") != inventory.get("sha256"):
+                errors.append(_error("CANONICAL_SOURCE_INVENTORY_HASH_MISMATCH", "canonical_bundle.build_provenance.source_inventory_sha256 must bind the accepted source_inventory.", "canonical_bundle"))
+            selected_hashes = {item.get("sha256") for item in source_snapshot if isinstance(item, dict)}
+            for index, item in enumerate(bundle.get("evidence", [])):
+                locator = item.get("source_locator") if isinstance(item, dict) else None
+                if isinstance(locator, dict) and locator.get("source_sha256") not in selected_hashes:
+                    errors.append(_error("CANONICAL_EVIDENCE_SOURCE_HASH_UNKNOWN", f"Evidence item {index} does not cite a selected source snapshot hash.", "canonical_bundle"))
+
+    if stage_id == "canonical_reconciliation" and all(
+        kind in by_type for kind in ("canonical_bundle", "reconciliation_report", "reconciliation_decisions")
+    ):
+        from dor.reconciliation import validate_reconciliation_decisions
+        bundle_item = by_type["canonical_bundle"]
+        report_item = by_type["reconciliation_report"]
+        decision_item = by_type["reconciliation_decisions"]
+        decision_report = validate_reconciliation_decisions(
+            decision_item["payload"], report_item["payload"], bundle_item["payload"],
+            report_item["sha256"], bundle_item["sha256"],
+        )
+        for error in decision_report.get("errors", []):
+            errors.append(_error("RECONCILIATION_DECISIONS_INVALID", error.get("message", error.get("code", "Invalid reconciliation decision.")), "reconciliation_decisions"))
+        report_payload, decision_payload = report_item["payload"], decision_item["payload"]
+        issue_by_id = {
+            issue.get("issue_id"): issue for issue in report_payload.get("issues", [])
+            if isinstance(issue, dict)
+        } if isinstance(report_payload, dict) else {}
+        decision_by_id = {
+            decision.get("issue_id"): decision for decision in decision_payload.get("decisions", [])
+            if isinstance(decision, dict)
+        } if isinstance(decision_payload, dict) and isinstance(decision_payload.get("decisions"), list) else {}
+        for issue_id, issue in issue_by_id.items():
+            if issue.get("severity") not in {"CRITICAL", "REVIEW_REQUIRED"}:
+                continue
+            decision = decision_by_id.get(issue_id)
+            if decision is None or decision.get("decision") == "REMAINS_UNRESOLVED":
+                errors.append(_error("RECONCILIATION_BLOCKING_ISSUE_UNRESOLVED", f"Blocking reconciliation issue {issue_id} requires an explicit human decision before PASS.", "reconciliation_decisions"))
+
+    if stage_id == "cohort_feasibility" and all(
+        kind in by_type for kind in ("modeling_task", "cohort_report", "split_manifest",
+                                     "modeling_cohort_manifest", "modeling_cohort_csv")
+    ):
+        task_item = by_type["modeling_task"]
+        report_item = by_type["cohort_report"]
+        split_item = by_type["split_manifest"]
+        manifest_item = by_type["modeling_cohort_manifest"]
+        csv_item = by_type["modeling_cohort_csv"]
+        task, report = task_item["payload"], report_item["payload"]
+        split, cohort_manifest = split_item["payload"], manifest_item["payload"]
+        canonical = all_payloads.get("canonical_bundle")
+        if isinstance(task, dict) and isinstance(report, dict):
+            for field in ("task_id", "target_id", "endpoint_definition"):
+                if report.get(field) != task.get(field):
+                    errors.append(_error("COHORT_TASK_IDENTITY_MISMATCH", f"cohort_report.{field} must match the exact approved modeling_task.", "cohort_report"))
+            if report.get("task_sha256") != task_item.get("sha256"):
+                errors.append(_error("COHORT_TASK_HASH_NOT_BOUND", "cohort_report must bind the exact modeling_task evidence hash.", "cohort_report"))
+            if canonical and report.get("bundle_sha256") != canonical.get("sha256"):
+                errors.append(_error("COHORT_CANONICAL_BUNDLE_HASH_NOT_BOUND", "cohort_report must bind the exact canonical_bundle evidence hash.", "cohort_report"))
+            if canonical and not set(report.get("eligible_study_ids", [])).issubset(set(
+                row.get("study_id") for row in canonical["payload"].get("studies", [])
+                if isinstance(row, dict) and _nonempty(row.get("study_id"))
+            )):
+                errors.append(_error("COHORT_STUDY_NOT_IN_CANONICAL_BUNDLE", "Cohort eligible_study_ids must be a subset of canonical Study IDs.", "cohort_report"))
+        if isinstance(task, dict) and isinstance(split, dict):
+            if split.get("task_id") != task.get("task_id"):
+                errors.append(_error("COHORT_SPLIT_TASK_MISMATCH", "split_manifest.task_id must match modeling_task.task_id.", "split_manifest"))
+            task_split = task.get("split") if isinstance(task.get("split"), dict) else {}
+            if task_split.get("strategy") != split.get("strategy"):
+                errors.append(_error("COHORT_SPLIT_STRATEGY_MISMATCH", "split_manifest strategy must match the approved modeling_task strategy.", "split_manifest"))
+            if task_split.get("strategy") == "EXPLICIT_STUDIES":
+                explicit_ids = set(task_split.get("validation_study_ids", [])) | set(task_split.get("test_study_ids", []))
+                eligible_ids = set(report.get("eligible_study_ids", [])) if isinstance(report, dict) else set()
+                if not explicit_ids.issubset(eligible_ids):
+                    errors.append(_error("COHORT_TASK_STUDY_NOT_ELIGIBLE", "Explicit validation/test Study IDs must be contained in the eligible Cohort Study set.", "modeling_task"))
+                expected_map = {
+                    sid: ("test" if sid in task_split.get("test_study_ids", []) else
+                          "validation" if sid in task_split.get("validation_study_ids", []) else "train")
+                    for sid in report.get("eligible_study_ids", [])
+                } if isinstance(report, dict) else {}
+                if expected_map != split.get("study_to_split"):
+                    errors.append(_error("COHORT_EXPLICIT_SPLIT_TASK_MISMATCH", "split_manifest Study assignments must be derived exactly from modeling_task explicit validation/test Study IDs.", "split_manifest"))
+            elif task_split.get("strategy") == "GROUPED_HOLDOUT":
+                if split.get("seed", 42) != task_split.get("seed", 42):
+                    errors.append(_error("COHORT_SPLIT_SEED_MISMATCH", "split_manifest seed must match the approved modeling_task seed.", "split_manifest"))
+        if isinstance(cohort_manifest, dict) and isinstance(report, dict) and isinstance(split, dict):
+            if (cohort_manifest.get("task_id") != task.get("task_id")
+                    or cohort_manifest.get("task_sha256") != task_item.get("sha256")
+                    or cohort_manifest.get("bundle_sha256") != (canonical.get("sha256") if canonical else None)):
+                errors.append(_error("COHORT_MANIFEST_INPUT_BINDING_MISMATCH", "modeling_cohort_manifest must bind the exact task and canonical bundle hashes.", "modeling_cohort_manifest"))
+            hashes = cohort_manifest.get("artifact_sha256", {})
+            if not isinstance(hashes, dict):
+                hashes = {}
+            if hashes.get("cohort_report.json") != report_item.get("sha256"):
+                errors.append(_error("COHORT_MANIFEST_REPORT_HASH_MISMATCH", "modeling_cohort_manifest must bind the exact cohort_report hash.", "modeling_cohort_manifest"))
+            if hashes.get("split_manifest.json") != split_item.get("sha256"):
+                errors.append(_error("COHORT_MANIFEST_SPLIT_HASH_MISMATCH", "modeling_cohort_manifest must bind the exact split_manifest hash.", "modeling_cohort_manifest"))
+            if hashes.get("modeling_cohort.csv") != csv_item.get("sha256"):
+                errors.append(_error("COHORT_MANIFEST_CSV_HASH_MISMATCH", "modeling_cohort_manifest must bind the exact modeling_cohort.csv hash.", "modeling_cohort_manifest"))
+            if (cohort_manifest.get("eligible_study_count") != report.get("eligible_study_count")
+                    or cohort_manifest.get("eligible_observation_count") != report.get("eligible_observation_count")):
+                errors.append(_error("COHORT_MANIFEST_COUNTS_MISMATCH", "Cohort manifest counts must equal cohort_report counts.", "modeling_cohort_manifest"))
         if isinstance(report, dict) and isinstance(split, dict):
             ids = report.get("eligible_study_ids", [])
             if isinstance(ids, list) and set(split.get("study_to_split", {})) != set(ids):
@@ -617,6 +812,15 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
                     errors.append(_error("MODEL_SPLIT_HASH_NOT_BOUND", "modeling_run_manifest must bind the exact accepted split_manifest hash.", "modeling_run_manifest"))
                 if cohort_item and inputs.get("cohort_report_sha256") != cohort_item.get("sha256"):
                     errors.append(_error("MODEL_COHORT_REPORT_HASH_NOT_BOUND", "modeling_run_manifest must bind the exact accepted cohort_report hash.", "modeling_run_manifest"))
+                cohort_manifest_item = all_payloads.get("modeling_cohort_manifest")
+                task_item = all_payloads.get("modeling_task")
+                csv_item = all_payloads.get("modeling_cohort_csv")
+                if cohort_manifest_item and inputs.get("cohort_manifest_sha256") != cohort_manifest_item.get("sha256"):
+                    errors.append(_error("MODEL_COHORT_MANIFEST_HASH_NOT_BOUND", "modeling_run_manifest must bind the exact modeling_cohort_manifest hash.", "modeling_run_manifest"))
+                if task_item and inputs.get("task_sha256") != task_item.get("sha256"):
+                    errors.append(_error("MODEL_TASK_HASH_NOT_BOUND", "modeling_run_manifest must bind the exact approved modeling_task hash.", "modeling_run_manifest"))
+                if csv_item and inputs.get("cohort_sha256") != csv_item.get("sha256"):
+                    errors.append(_error("MODEL_COHORT_CSV_HASH_NOT_BOUND", "modeling_run_manifest must bind the exact modeling_cohort.csv hash.", "modeling_run_manifest"))
                 if isinstance(artifact, dict):
                     expected_training_studies = sorted(expected_groups["train"] + expected_groups["validation"])
                     if sorted(artifact.get("training_study_ids", [])) != expected_training_studies:
@@ -652,4 +856,13 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
                         errors.append(_error("REPRODUCIBILITY_SPLIT_HASH_NOT_BOUND", "Nested evaluation manifest must bind the exact accepted split_manifest hash.", "reproducibility_evaluation_manifest"))
                     if eval_inputs.get("cohort_report_sha256") != cohort_item.get("sha256"):
                         errors.append(_error("REPRODUCIBILITY_COHORT_HASH_NOT_BOUND", "Nested evaluation manifest must bind the exact accepted cohort_report hash.", "reproducibility_evaluation_manifest"))
+                    cohort_manifest_item = all_payloads.get("modeling_cohort_manifest")
+                    task_item = all_payloads.get("modeling_task")
+                    csv_item = all_payloads.get("modeling_cohort_csv")
+                    if cohort_manifest_item and eval_inputs.get("cohort_manifest_sha256") != cohort_manifest_item.get("sha256"):
+                        errors.append(_error("REPRODUCIBILITY_COHORT_MANIFEST_HASH_NOT_BOUND", "Nested evaluation manifest must bind the exact modeling_cohort_manifest hash.", "reproducibility_evaluation_manifest"))
+                    if task_item and eval_inputs.get("task_sha256") != task_item.get("sha256"):
+                        errors.append(_error("REPRODUCIBILITY_TASK_HASH_NOT_BOUND", "Nested evaluation manifest must bind the exact approved modeling_task hash.", "reproducibility_evaluation_manifest"))
+                    if csv_item and eval_inputs.get("cohort_sha256") != csv_item.get("sha256"):
+                        errors.append(_error("REPRODUCIBILITY_COHORT_CSV_HASH_NOT_BOUND", "Nested evaluation manifest must bind the exact modeling_cohort.csv hash.", "reproducibility_evaluation_manifest"))
     return errors

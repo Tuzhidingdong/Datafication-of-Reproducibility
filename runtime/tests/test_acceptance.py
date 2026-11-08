@@ -57,8 +57,12 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "mapping_plan": "evidence/mapping_plan.json",
             "canonical_bundle": "evidence/canonical_bundle.json",
             "reconciliation_report": "evidence/reconciliation_report.json",
+            "reconciliation_decisions": "evidence/reconciliation_decisions.json",
+            "modeling_task": "evidence/modeling_task.json",
             "cohort_report": "evidence/cohort_report.json",
             "split_manifest": "evidence/split_manifest.json",
+            "modeling_cohort_manifest": "evidence/modeling_cohort_manifest.json",
+            "modeling_cohort_csv": "evidence/modeling_cohort.csv",
             "model_report": "evidence/model_report.json",
             "model_artifact": "evidence/model_artifact.json",
             "modeling_run_manifest": "evidence/modeling_run_manifest.json",
@@ -219,6 +223,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
         canonical = {
             "schema_version": "1.0", "project_id": "PROJECT_1",
             "mapping_version": "MAPPING_1",
+            "build_provenance": {
+                "mapping_plan_sha256": self.sha(paths["mapping_plan"]),
+                "source_inventory_sha256": inventory_hash,
+            },
             "studies": studies, "systems": systems, "conditions": conditions,
             "experiments": experiments, "observations": observations,
             "comparisons": [], "evidence": evidence,
@@ -230,13 +238,37 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "decision_policy": "HUMAN_REVIEW_ONLY_NO_CANONICAL_DATA_MUTATION",
             "validation_scope": "DETERMINISTIC_CANDIDATE_DETECTION_NOT_SCIENTIFIC_RECONCILIATION",
         }
-        self._write_json(paths["reconciliation_report"], reconciliation)
+        reconciliation_hash = self._write_json(paths["reconciliation_report"], reconciliation)
+        decisions = {
+            "schema_version": "1.0",
+            "reconciliation_report_sha256": reconciliation_hash,
+            "decisions": [],
+        }
+        self._write_json(paths["reconciliation_decisions"], decisions)
+
+        task = {
+            "schema_version": "1.0", "task_id": "TASK_1",
+            "target_id": "CAPACITY", "endpoint_definition": "specific discharge capacity",
+            "outcome_type": "NUMERIC", "outcome_value_field": "raw_value",
+            "outcome_unit": "mAh/g",
+            "feature_bindings": [{
+                "feature_id": "concentration", "condition_type": "concentration",
+                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+            }],
+            "split": {
+                "strategy": "EXPLICIT_STUDIES",
+                "validation_study_ids": sorted(sid for sid, part in groups.items() if part == "validation"),
+                "test_study_ids": sorted(sid for sid, part in groups.items() if part == "test"),
+            },
+        }
+        task_hash = self._write_json(paths["modeling_task"], task)
 
         cohort = {
             "schema_version": "1.0", "valid": True, "task_id": "TASK_1",
             "target_id": "CAPACITY", "endpoint_definition": "specific discharge capacity",
             "eligible_observation_count": len(ids), "eligible_study_count": len(ids),
             "eligible_study_ids": sorted(ids),
+            "bundle_sha256": canonical_hash, "task_sha256": task_hash,
             "split_counts": {
                 name: {"study_count": len(study_groups[name]), "observation_count": len(study_groups[name])}
                 for name in ("train", "validation", "test")
@@ -257,7 +289,25 @@ class AcceptanceValidatorTests(unittest.TestCase):
             },
             "validation_scope": "DETERMINISTIC_GROUPED_STUDY_SPLIT_NOT_SCIENTIFIC_VALIDATION",
         }
-        self._write_json(paths["split_manifest"], split_manifest)
+        split_hash = self._write_json(paths["split_manifest"], split_manifest)
+        csv_text = "study_id,observation_id,split\\n" + "".join(
+            f"{sid},OBS_{sid.replace('-', '_')},{groups[sid]}\\n" for sid in sorted(ids)
+        )
+        paths["modeling_cohort_csv"].parent.mkdir(parents=True, exist_ok=True)
+        paths["modeling_cohort_csv"].write_text(csv_text, encoding="utf-8")
+        cohort_manifest = {
+            "schema_version": "1.0", "task_id": "TASK_1",
+            "bundle_sha256": canonical_hash, "task_sha256": task_hash,
+            "artifacts": ["modeling_cohort.csv", "cohort_report.json", "split_manifest.json"],
+            "eligible_observation_count": len(ids), "eligible_study_count": len(ids),
+            "artifact_sha256": {
+                "modeling_cohort.csv": self.sha(paths["modeling_cohort_csv"]),
+                "cohort_report.json": self.sha(paths["cohort_report"]),
+                "split_manifest.json": split_hash,
+            },
+            "source_policy": "SYNTHETIC_FIXTURE_ONLY",
+        }
+        cohort_manifest_hash = self._write_json(paths["modeling_cohort_manifest"], cohort_manifest)
 
         training_study_ids = sorted(study_id for study_id, partition in groups.items() if partition != "test")
         test_study_ids = sorted(study_id for study_id, partition in groups.items() if partition == "test")
@@ -291,9 +341,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
         model_manifest = {
             "schema_version": "1.0", "task_id": "TASK_1", "engine_version": "synthetic",
             "input_hashes": {
-                "cohort_sha256": "a" * 64, "cohort_report_sha256": self.sha(paths["cohort_report"]),
+                "cohort_sha256": self.sha(paths["modeling_cohort_csv"]),
+                "cohort_report_sha256": self.sha(paths["cohort_report"]),
                 "split_manifest_sha256": self.sha(paths["split_manifest"]),
-                "cohort_manifest_sha256": "b" * 64, "task_sha256": "c" * 64,
+                "cohort_manifest_sha256": cohort_manifest_hash, "task_sha256": task_hash,
             },
             "output_hashes": {
                 "model_report.json": model_report_hash,
@@ -349,10 +400,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
         evaluation_manifest = {
             "schema_version": "1.0", "task_id": "TASK_1", "engine_version": "synthetic",
             "input_hashes": {
-                "cohort_sha256": "a" * 64,
+                "cohort_sha256": self.sha(paths["modeling_cohort_csv"]),
                 "cohort_report_sha256": self.sha(paths["cohort_report"]),
                 "split_manifest_sha256": self.sha(paths["split_manifest"]),
-                "cohort_manifest_sha256": "b" * 64, "task_sha256": "c" * 64,
+                "cohort_manifest_sha256": cohort_manifest_hash, "task_sha256": task_hash,
             },
             "output_hashes": {"reproducibility_evaluation.json": evaluation_hash},
             "fold_count": len(ids), "seed": 42, "study_ids": sorted(ids),
@@ -385,9 +436,13 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "extraction_review": [("extraction_review_record", "extraction_review")],
             "semantic_mapping": [("mapping_plan", "mapping_plan")],
             "canonical_reconciliation": [("canonical_bundle", "canonical_bundle"),
-                                         ("reconciliation_report", "reconciliation_report")],
-            "cohort_feasibility": [("cohort_report", "cohort_report"),
-                                   ("split_manifest", "split_manifest")],
+                                         ("reconciliation_report", "reconciliation_report"),
+                                         ("reconciliation_decisions", "reconciliation_decisions")],
+            "cohort_feasibility": [("modeling_task", "modeling_task"),
+                                   ("cohort_report", "cohort_report"),
+                                   ("split_manifest", "split_manifest"),
+                                   ("modeling_cohort_manifest", "modeling_cohort_manifest"),
+                                   ("modeling_cohort_csv", "modeling_cohort_csv")],
             "modeling_validation": [("model_report", "model_report"),
                                     ("model_artifact", "model_artifact"),
                                     ("modeling_run_manifest", "modeling_run_manifest"),
@@ -409,7 +464,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
                         "selection_manifest": "selection_manifest", "source_inventory": "source_inventory",
                         "extraction_review": "extraction_review", "mapping_plan": "mapping_plan",
                         "canonical_bundle": "canonical_bundle", "reconciliation_report": "reconciliation_report",
-                        "cohort_report": "cohort_report", "split_manifest": "split_manifest",
+                        "reconciliation_decisions": "reconciliation_decisions",
+                        "modeling_task": "modeling_task", "cohort_report": "cohort_report",
+                        "split_manifest": "split_manifest", "modeling_cohort_manifest": "modeling_cohort_manifest",
+                        "modeling_cohort_csv": "modeling_cohort_csv",
                         "model_report": "model_report", "model_artifact": "model_artifact",
                         "modeling_run_manifest": "modeling_run_manifest",
                         "reproducibility_evaluation": "reproducibility_evaluation",

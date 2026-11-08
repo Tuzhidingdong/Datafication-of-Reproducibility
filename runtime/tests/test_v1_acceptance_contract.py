@@ -75,6 +75,9 @@ class V1AcceptanceContractTests(unittest.TestCase):
         self.assertIn("canonical_bundle", evidence["properties"]["artifact_type"]["enum"])
         self.assertIn("model_artifact", evidence["properties"]["artifact_type"]["enum"])
         self.assertIn("reproducibility_evaluation_manifest", evidence["properties"]["artifact_type"]["enum"])
+        for artifact_type in ("reconciliation_decisions", "modeling_task",
+                              "modeling_cohort_manifest", "modeling_cohort_csv"):
+            self.assertIn(artifact_type, evidence["properties"]["artifact_type"]["enum"])
 
     def test_modeling_stage_contract_requires_serialized_model_and_nested_evaluation(self):
         from dor.stage_contracts import STAGE_CONTRACTS

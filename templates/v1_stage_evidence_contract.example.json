@@ -48,24 +48,30 @@
     "canonical_reconciliation": {
       "required_artifact_types": [
         "canonical_bundle",
-        "reconciliation_report"
+        "reconciliation_report",
+        "reconciliation_decisions"
       ],
       "checks": [
         "canonical_entity_integrity",
         "cross_entity_references",
-        "reconciliation_bundle_binding"
+        "reconciliation_bundle_binding",
+        "human_reconciliation_decisions_bind_exact_report_and_bundle_hashes"
       ],
       "scope": "Study/System/Condition/Experiment/Observation/Comparison/Evidence graph integrity."
     },
     "cohort_feasibility": {
       "required_artifact_types": [
+        "modeling_task",
         "cohort_report",
-        "split_manifest"
+        "split_manifest",
+        "modeling_cohort_manifest",
+        "modeling_cohort_csv"
       ],
       "checks": [
-        "cohort_report_identity",
-        "study_group_split_integrity",
-        "split_study_coverage"
+        "approved_task_identity_and_units",
+        "canonical_bundle_and_task_hash_binding",
+        "cohort_manifest_output_hashes",
+        "eligible_study_split_coverage"
       ],
       "scope": "Endpoint-specific cohort and explicit Study-level split feasibility."
     },

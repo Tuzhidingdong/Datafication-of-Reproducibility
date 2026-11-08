@@ -175,7 +175,11 @@
                     "publication_integrity_report",
                     "model_artifact",
                     "reproducibility_evaluation",
-                    "reproducibility_evaluation_manifest"
+                    "reproducibility_evaluation_manifest",
+                    "reconciliation_decisions",
+                    "modeling_task",
+                    "modeling_cohort_manifest",
+                    "modeling_cohort_csv"
                   ]
                 }
               },
