@@ -91,3 +91,27 @@ Statuses should distinguish complete, partial, not_generated, not_applicable, an
 The package must not depend on absolute local paths for navigation. Use package-relative paths. Private source locations may be recorded in local run manifests, but must not be copied into public manuscript packages unless explicitly approved.
 
 A package is not publication-ready merely because drafts exist. It must disclose unverified claims, missing data, and unresolved validation.
+
+
+## V0.5 deterministic package assembly
+
+The runtime accepts an explicit publication package plan (see schemas/publication_package_plan.schema.json and templates/publication_package_plan.example.json). Each entry identifies one existing source file, its package-relative destination, artifact type, description, completeness status, linked record IDs, and manuscript sections.
+
+The builder never crawls the workspace or classifies files by name. Complete/partial artifacts require an existing workspace-relative file. Paths that are absolute, traverse outside the workspace, or resolve through an escaping symlink are rejected. Not-generated/not-applicable items are represented in the manifest without creating empty placeholder files. Requires-review items may be included with their hash or remain an explicitly unresolved planned path.
+
+Build with:
+
+~~~bash
+dor build-publication-package --plan publication_package_plan.json --workspace-root . --out-dir 06_publication/package
+dor audit-publication-package --package-dir 06_publication/package --out 06_publication/package_integrity_report.json
+~~~
+
+The manifest includes the guide checksum and SHA-256 for every copied artifact. The audit checks missing/extra files, duplicate IDs/paths, artifact states, and hashes. Store the audit report outside the package so it does not become an unindexed package file. A passing audit verifies internal package integrity only; it does not establish scientific validity or publication readiness.
+
+## V0.5 virtual prediction records
+
+A prediction query is tied to one exact modelling task and endpoint and supplies every task feature ID with an explicit value and exact unit. The runtime uses the selected serialized mean, Ridge, majority, or mixed Naive Bayes model and verifies the model artifact/report hashes against modeling_run_manifest.json. It does not retrain or use test observations.
+
+New model artifacts record feature-level marginal domains from train plus validation only: numeric minimum/maximum and categorical vocabulary. Test observations remain excluded. Predictions outside those ranges or using unseen categories are returned only with explicit extrapolation/unknown-category status. Marginal ranges do not establish joint multivariable support.
+
+The virtual report must retain NOT_CALIBRATED, the exact endpoint and units, the fitting/test ID provenance, and the interpretation boundary that this is a model-based scenario estimate rather than a physical experiment. V0.5 does not calculate calibrated intervals, probabilities, or nearest-neighbour support.
