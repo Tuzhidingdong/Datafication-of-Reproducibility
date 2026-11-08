@@ -90,6 +90,40 @@ class VirtualReproductionTests(unittest.TestCase):
             predict_virtual_condition_files(self.model_dir, self.query, self.output)
         self.assertEqual(self.output.read_text(encoding="utf-8"), "keep")
 
+    def test_prediction_output_must_not_be_written_into_model_run(self):
+        self.write_query()
+        target = self.model_dir / "virtual_prediction.json"
+        with self.assertRaisesRegex(ValueError, "outside the immutable model-run"):
+            predict_virtual_condition_files(self.model_dir, self.query, target)
+        self.assertFalse(target.exists())
+
+    def test_categorical_model_path_returns_label_and_domain_state(self):
+        bundle = self.root / "categorical_bundle.json"
+        task = self.root / "categorical_task.json"
+        cohort = self.root / "categorical_cohort"
+        model_dir = self.root / "categorical_model"
+        bundle.write_text(json.dumps(make_bundle(categorical=True)), encoding="utf-8")
+        task.write_text(json.dumps(make_task(categorical=True)), encoding="utf-8")
+        self.assertTrue(build_modeling_cohort_files(bundle, task, cohort)["valid"])
+        run_baseline_models_files(cohort, task, model_dir)
+        artifact = json.loads((model_dir / "model_artifact.json").read_text(encoding="utf-8"))
+        query = {
+            "schema_version": "1.0", "task_id": "TASK_MODEL", "target_id": "TARGET_Y",
+            "endpoint_definition": "exact endpoint A",
+            "features": {
+                "temperature": {"value": 24.0, "unit": "degC"},
+                "electrolyte": {"value": "salt-A", "unit": None}
+            }
+        }
+        query_path = self.root / "categorical_query.json"
+        query_path.write_text(json.dumps(query), encoding="utf-8")
+        result_path = self.root / "categorical_prediction.json"
+        report = predict_virtual_condition_files(model_dir, query_path, result_path)["report"]
+        self.assertIn(report["prediction"], ["A", "B"])
+        self.assertEqual(report["uncertainty_status"], "NOT_CALIBRATED")
+        domain = {item["feature_id"]: item["status"] for item in report["support_assessment"]["per_feature"]}
+        self.assertEqual(domain["electrolyte"], "KNOWN_CATEGORY")
+
 
 if __name__ == "__main__":
     unittest.main()
