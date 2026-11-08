@@ -14,7 +14,7 @@ The project aims to reconstruct relationships among reported experimental condit
 
 ## Repository status
 
-This Draft development branch now contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, and the V0.3 endpoint-specific cohort builder, deterministic Study-level train/validation/test splits, dependency-free baseline model engine for numeric and categorical endpoints, nested study-group cross-validation, per-Study performance analysis, heuristic feature-space applicability diagnostics, and initial numeric-endpoint pairwise predictive interaction screening with repeated-seed split-sensitivity assessment and descriptive numeric-pair response surfaces with empirical support masks and marginal-effect data. Alternative encodings/model families, categorical endpoint interaction methods, inferential multiplicity control, and mechanism interpretation remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
+This Draft development branch now contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, and the V0.3 endpoint-specific cohort builder, deterministic Study-level train/validation/test splits, dependency-free baseline model engine for numeric and categorical endpoints, nested study-group cross-validation, per-Study performance analysis, heuristic feature-space applicability diagnostics, and initial numeric-endpoint pairwise predictive interaction screening with repeated-seed split-sensitivity assessment descriptive numeric-pair response surfaces with empirical support masks and marginal-effect data, and an evidence-linked mechanism hypothesis bridge with source verification and contradiction tracking. Alternative encodings/model families, categorical endpoint interaction methods, inferential multiplicity control, and mechanism interpretation remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
 
 ## Planned layout
 
@@ -30,6 +30,7 @@ This Draft development branch now contains the V0.1 research foundation, V0.2 da
 - `docs/V0.4_INTERACTION_DISCOVERY.md`: pairwise predictive interaction definition, nested validation, joint support, and claim limits.
 - `docs/V0.4_INTERACTION_ROBUSTNESS.md`: repeated-seed sensitivity analysis and its interpretation limits.
 - `docs/V0.4_INTERACTION_RESPONSE_SURFACE.md`: descriptive partial-dependence surfaces, empirical two-feature support masks, and marginal-effect outputs.
+- `docs/V0.4_MECHANISM_EVIDENCE_BRIDGE.md`: source-linked mechanism hypotheses, evidence classification, prospective-independence checks, and contradiction review.
 - `templates/`: reusable reports and paper-output templates.
 - `tests/`: V0.1 contract and immutability tests.
 
