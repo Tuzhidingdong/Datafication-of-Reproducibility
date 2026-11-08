@@ -11,7 +11,7 @@
     "package_version": {"type": "string", "minLength": 1},
     "domain_profile": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
     "writing_guide_source": {"type": ["string", "null"]},
-    "source_hashes": {"type": "object", "additionalProperties": {"type": "string"}},
+    "source_hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}},
     "artifacts": {
       "type": "array",
       "minItems": 1,
