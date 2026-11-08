@@ -33,6 +33,7 @@
           "properties": {
             "required_artifact_types": {
               "const": [
+                "source_selection_manifest",
                 "source_inventory"
               ]
             },

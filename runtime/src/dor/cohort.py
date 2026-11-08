@@ -233,7 +233,7 @@ def build_modeling_cohort(bundle: Any, task: Any, bundle_sha256: str | None = No
         "validation_scope":"DETERMINISTIC_GROUPED_STUDY_SPLIT_NOT_SCIENTIFIC_VALIDATION"
     }
     report={
-        "valid":True,"task_id":task_id,"target_id":target_id,"endpoint_definition":endpoint,
+        "schema_version":"1.0","valid":True,"task_id":task_id,"target_id":target_id,"endpoint_definition":endpoint,"eligible_study_ids":sorted(assignment),
         "outcome_type":task["outcome_type"],"outcome_value_field":outcome_field,"outcome_unit":outcome_unit,
         "feature_count":len(task["feature_bindings"]),
         "feature_coverage":{b["feature_id"]:{"eligible_observation_count":len(selected),"missing_count":0,

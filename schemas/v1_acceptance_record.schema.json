@@ -141,6 +141,7 @@
               "type": "object",
               "required": [
                 "artifact_id",
+                "artifact_type",
                 "path",
                 "sha256"
               ],
@@ -156,6 +157,23 @@
                 "sha256": {
                   "type": "string",
                   "pattern": "^[a-f0-9]{64}$"
+                },
+                "artifact_type": {
+                  "enum": [
+                    "source_selection_manifest",
+                    "source_inventory",
+                    "run_manifest",
+                    "extraction_review_record",
+                    "mapping_plan",
+                    "canonical_bundle",
+                    "reconciliation_report",
+                    "cohort_report",
+                    "split_manifest",
+                    "model_report",
+                    "modeling_run_manifest",
+                    "publication_package_manifest",
+                    "publication_integrity_report"
+                  ]
                 }
               },
               "additionalProperties": false

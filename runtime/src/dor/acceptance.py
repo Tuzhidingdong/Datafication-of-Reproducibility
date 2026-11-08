@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from dor.run_manager import _latest_stage_events, _manifest_context, verify_run
+from dor.stage_contracts import validate_stage_evidence
 
 STAGE_ORDER = (
     "source_selection",
@@ -241,6 +242,11 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
             "path": str(Path(source["path"]).expanduser().resolve(strict=False)),
             "sha256": source["sha256"],
         }
+    if manifest_hash:
+        evidence_catalog["run_manifest"] = {
+            "path": str(run_manifest_path),
+            "sha256": manifest_hash,
+        }
     latest_events = _latest_stage_events(run_events) if run_events else {}
     for event in latest_events.values():
         if event.get("status") == "SUCCEEDED":
@@ -250,6 +256,7 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
                 }
 
     stage_statuses: dict[str, str] = {}
+    accepted_stage_payloads: dict[str, dict[str, Any]] = {}
     for item in stages:
         if not isinstance(item, dict):
             issue("INVALID_STAGE", "Every stage must be an object.")
@@ -275,16 +282,19 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
         if not isinstance(evidence, list):
             issue("INVALID_EVIDENCE_LIST", f"Evidence for {stage_id} must be an array.")
             continue
+        typed_evidence: list[dict[str, Any]] = []
         for artifact in evidence:
             if not isinstance(artifact, dict):
                 issue("INVALID_EVIDENCE_ARTIFACT", f"Evidence artifact in {stage_id} must be an object.")
                 continue
-            artifact_id, raw_path, expected = (
-                artifact.get("artifact_id"), artifact.get("path"), artifact.get("sha256")
+            artifact_id, raw_path, expected, artifact_type = (
+                artifact.get("artifact_id"), artifact.get("path"), artifact.get("sha256"), artifact.get("artifact_type")
             )
             if not all(isinstance(value, str) and value.strip() for value in (artifact_id, raw_path, expected)):
                 issue("INCOMPLETE_EVIDENCE_ARTIFACT", f"Evidence in {stage_id} requires artifact_id, path, and sha256.")
                 continue
+            if not isinstance(artifact_type, str) or not artifact_type.strip():
+                issue("EVIDENCE_TYPE_MISSING", f"Evidence {artifact_id} in {stage_id} requires artifact_type.")
             path = _resolve_file(raw_path, record_path.parent)
             bound_evidence = evidence_catalog.get(artifact_id)
             if bound_evidence is None:
@@ -303,9 +313,29 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
             if actual is not None and actual != expected:
                 issue("EVIDENCE_HASH_MISMATCH", f"Evidence hash changed: {path}")
             evidence_checks.append({"stage_id": stage_id, "artifact_id": artifact_id,
+                                    "artifact_type": artifact_type,
                                     "path": str(path), "expected_sha256": expected,
                                     "actual_sha256": actual,
                                     "status": "CURRENT" if actual == expected else "MISSING_OR_CHANGED"})
+            if isinstance(artifact_type, str) and artifact_type.strip() and actual == expected:
+                try:
+                    payload = _read_json(path, f"Stage evidence {artifact_id}")
+                    typed_evidence.append({**artifact, "payload": payload})
+                except (OSError, ValueError, TypeError) as exc:
+                    issue("STAGE_EVIDENCE_JSON_INVALID", f"Typed evidence {artifact_id} must be a readable JSON object: {exc}")
+
+        if status == "PASS":
+            contract_issues = validate_stage_evidence(
+                stage_id, typed_evidence, run_id=str(manifest.get("run_id", "")),
+                project_id=str(manifest.get("project_id", "")),
+                study_ids=set(study_ids) if isinstance(study_ids, list) else set(),
+                source_snapshot=snapshot.get("artifacts", []) if isinstance(snapshot.get("artifacts"), list) else [],
+                prior_payloads=accepted_stage_payloads,
+            )
+            for contract_issue in contract_issues:
+                issue(contract_issue["code"], contract_issue["message"])
+            for typed_item in typed_evidence:
+                accepted_stage_payloads[typed_item["artifact_type"]] = typed_item
 
         checks = item.get("checks", [])
         if not isinstance(checks, list):

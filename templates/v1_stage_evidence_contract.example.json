@@ -3,10 +3,11 @@
   "stages": {
     "source_selection": {
       "required_artifact_types": [
+        "source_selection_manifest",
         "source_inventory"
       ],
       "checks": [
-        "inventory_shape",
+        "selected_source_set_exact",
         "inventory_ids_unique",
         "source_hashes_present"
       ],

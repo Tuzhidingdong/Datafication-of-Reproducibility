@@ -1,6 +1,6 @@
 import unittest
 
-from dor.stage_contracts import CONTRACT_VERSION, STAGE_CONTRACTS, validate_stage_payload
+from dor.stage_contracts import CONTRACT_VERSION, STAGE_CONTRACTS, validate_stage_payload, validate_stage_evidence
 
 
 class StageEvidenceContractTests(unittest.TestCase):
@@ -68,6 +68,45 @@ class StageEvidenceContractTests(unittest.TestCase):
             "modeling_run_manifest", payload, run_id="R1", project_id="P1", study_ids={"S1", "S2", "S3"}
         )}
         self.assertIn("MODELING_STUDY_LEAKAGE", codes)
+
+    def test_stage_evidence_rejects_missing_fixed_artifact_types(self):
+        errors = validate_stage_evidence(
+            "source_selection", [], run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=[],
+        )
+        codes = {item["code"] for item in errors}
+        self.assertIn("STAGE_REQUIRED_EVIDENCE_TYPE_MISSING", codes)
+
+    def test_source_selection_manifest_must_match_selected_source_snapshot(self):
+        payload = {
+            "schema_version": "1.0", "selection_rationale": "Selected by user.",
+            "scope_statement": "One-study pilot.", "study_ids": ["S1"],
+            "selected_sources": [{
+                "source_id": "paper", "role": "PRIMARY_PAPER", "path": "/tmp/paper.pdf",
+                "sha256": "a" * 64,
+            }],
+            "excluded_sources": [],
+        }
+        errors = validate_stage_payload(
+            "source_selection_manifest", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"},
+            source_snapshot=[{
+                "source_id": "paper", "role": "PRIMARY_PAPER", "path": "/tmp/other.pdf",
+                "sha256": "a" * 64,
+            }],
+        )
+        self.assertIn("SOURCE_SELECTION_NOT_BOUND_TO_SNAPSHOT", {item["code"] for item in errors})
+
+    def test_cohort_report_requires_explicit_eligible_study_ids(self):
+        payload = {
+            "valid": True, "task_id": "T1", "target_id": "Y", "endpoint_definition": "endpoint",
+            "eligible_observation_count": 3, "eligible_study_count": 3,
+            "split_counts": {},
+        }
+        errors = validate_stage_payload(
+            "cohort_report", payload, run_id="R1", project_id="P1", study_ids={"S1", "S2", "S3"},
+        )
+        self.assertIn("COHORT_REPORT_INVALID", {item["code"] for item in errors})
 
     def test_unknown_evidence_type_is_rejected(self):
         codes = {item["code"] for item in validate_stage_payload(

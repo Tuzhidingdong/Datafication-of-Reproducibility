@@ -69,6 +69,11 @@ class V1AcceptanceContractTests(unittest.TestCase):
         self.assertIn("gte", check_schema["properties"]["operator"]["enum"])
         self.assertTrue(all(stage["checks"] == [] for stage in self.example["stages"]))
 
+    def test_acceptance_evidence_requires_declared_type(self):
+        evidence = self.schema["properties"]["stages"]["items"]["properties"]["evidence"]["items"]
+        self.assertIn("artifact_type", evidence["required"])
+        self.assertIn("canonical_bundle", evidence["properties"]["artifact_type"]["enum"])
+
     def test_study_ids_are_explicit_unique_and_required(self):
         snapshot = self.schema["properties"]["source_snapshot"]
         self.assertIn("study_ids", snapshot["required"])
