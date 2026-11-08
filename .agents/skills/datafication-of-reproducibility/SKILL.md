@@ -272,10 +272,41 @@ The validator reads the exact hash-matched JSON evidence. It checks selected and
 
 The acceptance record is a review ledger, not an automatic scientific truth score. A schema-valid record still requires human inspection of the cited evidence. Do not mark full PASS unless all eight stages pass; a one-Study pilot should normally conclude CONDITIONAL_PASS with its limitations stated. See ../../../docs/V1.0_CONTROLLED_ACCEPTANCE.md.
 
+### Acceptance revision ledger — mandatory operational procedure
+
+The acceptance JSON is the current review state; the append-only Acceptance Ledger and its immutable revision snapshots are the review history. Keep the ledger and its sibling `acceptance_events.jsonl.revisions/` directory beside the acceptance record (or at another explicitly declared, stable path). Do not treat the Run execution ledger or the G0-G4 workflow approval ledger as a substitute: they record different events.
+
+1. **Create the initial record, then initialize its history exactly once.** Complete its immutable identity, Run binding, source snapshot, fixed stage list, and initial `NOT_ASSESSED` final assessment. Then run:
+   ```bash
+   dor init-acceptance-ledger --record acceptance_record.json --ledger acceptance_events.jsonl --actor "USER_CONFIRMED_REVIEWER_LABEL" --rationale "Created the controlled acceptance record."
+   ```
+   Use only a reviewer/actor label the user has supplied or explicitly authorized. The string is provenance metadata, not identity authentication.
+
+2. **Review one stage at a time, strictly in the fixed stage order.** Inspect the exact required evidence and deterministic checks before deciding its status. For a terminal status (`PASS`, `FAIL`, `BLOCKED`, or `NOT_APPLICABLE`), write fresh `reviewed_by`, timezone-aware `reviewed_at`, and `review_rationale` fields into that stage. `PASS` must also contain exact Run-bound evidence and passing `checks[]`; `FAIL`/`BLOCKED` needs a concrete blocker; `NOT_APPLICABLE` needs a scientific rationale. Record the edit immediately:
+   ```bash
+   dor record-acceptance-revision --record acceptance_record.json --ledger acceptance_events.jsonl --actor "USER_CONFIRMED_REVIEWER_LABEL" --rationale "Reviewed <stage_id> against its exact evidence and declared acceptance criteria."
+   ```
+   Do not batch-edit later stages before recording the current stage. The command captures an immutable snapshot and automatically clears every downstream stage's stale status, evidence, checks, limitations, and reviewer metadata. It also resets the final assessment to `NOT_ASSESSED`. Re-read the record after each command and proceed only from the resulting state.
+
+3. **Record the final human decision separately.** Only after all stages have been reviewed and the exact current evidence validates, update `final_assessment` with the authorized `assessed_by` label, a timezone-aware `assessed_at`, rationale, and decision. Then run `dor record-acceptance-revision` again. A changed final decision without fresh assessor metadata is rejected. Do not infer or generate a PASS merely from a green validator report.
+
+4. **Inspect history and validate the current record.** Run both commands:
+   ```bash
+   dor acceptance-history --ledger acceptance_events.jsonl
+   dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --ledger acceptance_events.jsonl --out acceptance_validation_report.json
+   ```
+   Confirm the history is valid, the latest revision matches the current record, reviewer labels/timestamps/rationales are present, all expected stage invalidations are visible, and the validator reports no issues. The validator's `acceptance_ledger` section must be valid. Include the record, ledger, snapshot directory, history report, and validation report in the final handoff; never hide a prior failed or superseded review.
+
+5. **Handle immutable-scope changes by creating a new Run and Acceptance Record.** Never revise `acceptance_id`, project/run identity, scope, Run Manifest hash, or source snapshot in place. An unregistered direct edit fails validation; do not repair history by deleting or rewriting old events/snapshots. Preserve the previous record and ledger unchanged.
+
+The Acceptance Ledger records review history only. It does not replace G0-G4 approval, grant authorization, authenticate the reviewer, or establish scientific truth. It must never cause the Skill to create a human approval on the user's behalf.
+
+
+
 
 Validate a completed acceptance record with the deterministic Runtime validator:
 
-    dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --out acceptance_validation_report.json
+    dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --ledger acceptance_events.jsonl --out acceptance_validation_report.json
 
 This checks the fixed stage order, stage/decision semantics, exact Run Manifest binding, and current SHA-256 hashes of every cited source/evidence file. A valid report confirms structural and file-integrity conditions only; the human scientific review remains mandatory.
 

@@ -20,6 +20,33 @@ class V1AcceptanceContractTests(unittest.TestCase):
         self.schema = json.loads((ROOT / "schemas/v1_acceptance_record.schema.json").read_text(encoding="utf-8"))
         self.example = json.loads((ROOT / "templates/v1_acceptance_record.example.json").read_text(encoding="utf-8"))
 
+
+    def test_skill_enforces_acceptance_ledger_lifecycle_and_separate_ledgers(self):
+        skill = (ROOT / ".agents" / "skills" / "datafication-of-reproducibility" / "SKILL.md").read_text(encoding="utf-8")
+        required = [
+            "dor init-acceptance-ledger",
+            "dor record-acceptance-revision",
+            "dor acceptance-history",
+            "dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --ledger acceptance_events.jsonl",
+            "reviewed_by",
+            "reviewed_at",
+            "review_rationale",
+            "automatically clears every downstream stage",
+            "resets the final assessment to `NOT_ASSESSED`",
+            "does not replace G0-G4",
+        ]
+        for text in required:
+            with self.subTest(required=text):
+                self.assertIn(text, skill)
+        stale_command = "dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --out"
+        self.assertNotIn(stale_command, skill)
+
+    def test_guided_workflow_separates_acceptance_history_from_run_and_gate_ledgers(self):
+        guide = (ROOT / "references" / "guided-workflow.md").read_text(encoding="utf-8")
+        self.assertIn("V1.0 acceptance review revisions", guide)
+        self.assertIn("separate from both the Run Manager execution event ledger and the G0-G4 scientific approval ledger", guide)
+        self.assertIn("dor acceptance-history", guide)
+
     def test_schema_and_example_parse(self):
         self.assertEqual(self.schema["$schema"], "https://json-schema.org/draft/2020-12/schema")
         self.assertEqual(self.example["schema_version"], "1.0")

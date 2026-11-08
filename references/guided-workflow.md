@@ -52,6 +52,14 @@ Every gate packet should contain a concise decision summary, evidence/artifact p
 
 A gate is not approved by silence.
 
+## V1.0 acceptance review revisions
+
+The eight-stage Acceptance Record has its own review-history ledger, separate from both the Run Manager execution event ledger and the G0-G4 scientific approval ledger. Initialize it once with `dor init-acceptance-ledger`. Register every stage review and final decision with `dor record-acceptance-revision`; never use an unregistered JSON edit as an accepted review.
+
+A revision to a stage automatically resets all later stages and the final decision. Re-review those stages in order against current Run artifacts. Inspect the immutable revision timeline with `dor acceptance-history`, then validate the exact current record with `dor validate-acceptance --record ... --run-manifest ... --ledger ...`. The latest snapshot must match the current record. A changed Run/source scope requires a new Run and a new Acceptance Record, not an in-place edit. Actor/reviewer labels are recorded provenance, not authenticated identities. See `docs/V1.0_CONTROLLED_ACCEPTANCE.md`.
+
+
+
 
 ## Runtime approval ledger (V0.7)
 
