@@ -19,7 +19,7 @@ from dor.publication import build_publication_package_files, audit_publication_p
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
 from dor.acceptance import validate_acceptance_record
-from dor.acceptance_ledger import initialize_acceptance_ledger, record_acceptance_revision
+from dor.acceptance_ledger import initialize_acceptance_ledger, record_acceptance_revision, inspect_acceptance_history
 from dor.run_manager import (
     authorize_worker, build_artifact_manifest, build_resume_plan, initialize_run, record_stage_status, verify_run,
 )
@@ -183,6 +183,10 @@ def build_parser() -> argparse.ArgumentParser:
     acceptance_revision.add_argument("--actor", required=True)
     acceptance_revision.add_argument("--rationale", required=True)
 
+    acceptance_history = subparsers.add_parser("acceptance-history", help="List verified acceptance revisions, reviewers, stage changes, and invalidations")
+    acceptance_history.add_argument("--ledger", type=Path, required=True)
+    acceptance_history.add_argument("--out", type=Path, help="Optional path for the history report JSON")
+
     run_init = subparsers.add_parser("run-init", help="Create a new isolated run workspace from an explicit stage/artifact plan")
     run_init.add_argument("--plan", type=Path, required=True)
     run_init.add_argument("--run-root", type=Path, required=True)
@@ -248,6 +252,10 @@ def main() -> int:
             result = record_acceptance_revision(args.record, args.ledger, args.actor, args.rationale)
             print(_write_json(None, result), end="")
             return 0
+        if args.command == "acceptance-history":
+            result = inspect_acceptance_history(args.ledger)
+            print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
         if args.command == "validate-acceptance":
             result = validate_acceptance_record(args.record, args.run_manifest, args.ledger)
             print(_write_json(args.out, result), end="")

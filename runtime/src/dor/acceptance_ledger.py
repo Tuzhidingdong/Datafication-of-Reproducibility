@@ -502,3 +502,43 @@ def validate_acceptance_ledger(record_path: Path, ledger_path: Path) -> dict[str
             "latest_event_hash": None, "latest_record_sha256": None,
             "ledger_path": str(ledger_path), "issues": [{"code": "ACCEPTANCE_LEDGER_INVALID", "message": str(exc)}],
         }
+
+
+def inspect_acceptance_history(ledger_path: Path) -> dict[str, Any]:
+    """Return the verified revision timeline without modifying any files."""
+    try:
+        ledger_path, snapshots_dir = _safe_paths(ledger_path)
+        events, snapshots = _load_history(ledger_path)
+        timeline = []
+        for event, snapshot in zip(events, snapshots):
+            timeline.append({
+                "revision": event["sequence"],
+                "event_type": event["event_type"],
+                "recorded_at": event["recorded_at"],
+                "actor": event["actor"],
+                "rationale": event["rationale"],
+                "changed_stage_ids": event["changed_stage_ids"],
+                "invalidated_stage_ids": event["invalidated_stage_ids"],
+                "stage_statuses": event["stage_statuses"],
+                "final_decision": event["final_decision"],
+                "record_sha256": event["record_sha256"],
+                "previous_record_sha256": event["previous_record_sha256"],
+                "event_hash": event["event_hash"],
+                "snapshot_path": str(snapshots_dir / event["snapshot_file"]),
+            })
+        return {
+            "valid": True,
+            "acceptance_id": events[-1]["acceptance_id"],
+            "project_id": events[-1]["project_id"],
+            "run_id": events[-1]["run_id"],
+            "event_count": len(events),
+            "latest_event_hash": events[-1]["event_hash"],
+            "events": timeline,
+            "issues": [],
+        }
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, json.JSONDecodeError) as exc:
+        return {
+            "valid": False, "acceptance_id": None, "project_id": None,
+            "run_id": None, "event_count": None, "latest_event_hash": None,
+            "events": [], "issues": [{"code": "ACCEPTANCE_LEDGER_INVALID", "message": str(exc)}],
+        }

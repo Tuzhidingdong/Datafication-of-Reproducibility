@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from dor.acceptance import STAGE_ORDER, validate_acceptance_record
-from dor.acceptance_ledger import initialize_acceptance_ledger, record_acceptance_revision, validate_acceptance_ledger
+from dor.acceptance_ledger import initialize_acceptance_ledger, record_acceptance_revision, validate_acceptance_ledger, inspect_acceptance_history
 from dor.cli import build_parser, main
 from dor.run_manager import initialize_run, record_stage_status
 from dor.publication import audit_publication_package_files
@@ -831,6 +831,25 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertEqual(revised["stages"][0]["status"], "PASS")
         self.assertTrue(all(item["status"] == "NOT_STARTED" for item in revised["stages"][1:]))
         self.assertEqual(revised["final_assessment"]["decision"], "NOT_ASSESSED")
+
+    def test_acceptance_history_cli_lists_review_and_invalidation_basis(self):
+        self.set_stage("source_selection", "BLOCKED", evidence=False,
+            blocker_reason="Synthetic review found a source selection blocker.")
+        args = ["dor", "acceptance-history", "--ledger", str(self.ledger_path)]
+        stdout = io.StringIO()
+        with patch.object(sys, "argv", args), contextlib.redirect_stdout(stdout):
+            code = main()
+        self.assertEqual(code, 0, stdout.getvalue())
+        history = json.loads(stdout.getvalue())
+        self.assertTrue(history["valid"])
+        self.assertEqual(history["event_count"], 2)
+        latest = history["events"][-1]
+        self.assertEqual(latest["event_type"], "STAGE_REVIEW_RECORDED")
+        self.assertEqual(latest["changed_stage_ids"], ["source_selection"])
+        self.assertEqual(latest["invalidated_stage_ids"], list(STAGE_ORDER[1:]))
+        self.assertEqual(latest["actor"], "synthetic-reviewer")
+        self.assertTrue(latest["rationale"].strip())
+        self.assertEqual(latest["final_decision"], "NOT_ASSESSED")
 
     def test_acceptance_ledger_event_tampering_is_detected(self):
         lines = self.ledger_path.read_text(encoding="utf-8").splitlines()
