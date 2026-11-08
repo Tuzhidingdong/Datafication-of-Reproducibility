@@ -97,6 +97,19 @@ class PublicationPackageTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertTrue(any("Writing Skill guide SHA-256" in item for item in report["errors"]))
 
+    def test_integrity_report_must_be_outside_package(self):
+        build_publication_package_files(self.plan_path, self.root, self.package_dir)
+        with self.assertRaisesRegex(ValueError, "outside the package"):
+            from dor.publication import audit_publication_package_file
+            audit_publication_package_file(self.package_dir, self.package_dir / "audit.json")
+
+    def test_absolute_domain_profile_path_is_rejected(self):
+        plan = json.loads(self.plan_path.read_text(encoding="utf-8"))
+        plan["domain_profile"] = "C:/private/profile.yaml"
+        self.plan_path.write_text(json.dumps(plan), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "relative path"):
+            build_publication_package_files(self.plan_path, self.root, self.package_dir)
+
 
 if __name__ == "__main__":
     unittest.main()
