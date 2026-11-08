@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/mechanism_plan.schema.json",
+  "title": "Human/agent-proposed mechanism hypothesis and evidence assessment plan",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "plan_id",
+    "task_id",
+    "target_id",
+    "endpoint_definition",
+    "interaction_id",
+    "prepared_by",
+    "proposal_origin",
+    "mechanism_hypotheses"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "plan_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint_definition": {
+      "type": "string",
+      "minLength": 1
+    },
+    "interaction_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prepared_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposal_origin": {
+      "enum": [
+        "USER_DRAFT",
+        "AGENT_DRAFT",
+        "WORKER_DRAFT"
+      ]
+    },
+    "notes": {
+      "type": "string"
+    },
+    "mechanism_hypotheses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/hypothesis"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "hypothesis": {
+      "type": "object",
+      "required": [
+        "hypothesis_id",
+        "title",
+        "hypothesis_statement",
+        "scope_statement",
+        "evidence_assessments"
+      ],
+      "properties": {
+        "hypothesis_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hypothesis_statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proposed_process_chain": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "scope_statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "predicted_observations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "alternative_explanations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "unresolved_variables": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence_assessments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceAssessment"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidenceAssessment": {
+      "type": "object",
+      "required": [
+        "evidence_id",
+        "relationship",
+        "evidence_class",
+        "interpretation_summary"
+      ],
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "relationship": {
+          "enum": [
+            "SUPPORTS",
+            "CONTRADICTS",
+            "CONTEXTUAL"
+          ]
+        },
+        "evidence_class": {
+          "enum": [
+            "DIRECT_OBSERVATION",
+            "THEORETICAL_SUPPORT",
+            "PROSPECTIVE_VALIDATION",
+            "METHOD_CONTEXT",
+            "OTHER"
+          ]
+        },
+        "interpretation_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observation_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
