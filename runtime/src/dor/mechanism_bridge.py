@@ -165,8 +165,24 @@ def _assess_evidence(
     if not isinstance(source_study_id, str) or source_study_id not in studies:
         raise ValueError("Evidence " + evidence_id + " has no valid canonical Study reference.")
     locator = source.get("source_locator")
-    if not isinstance(locator, dict) or not locator.get("source_file") or not locator.get("locator"):
-        raise ValueError("Evidence " + evidence_id + " has no usable source locator.")
+    locator_types = {"csv_row", "csv_column", "json_path", "json_pointer", "pdf_page",
+                     "table_cell", "figure_panel", "supplementary_item", "other"}
+    if (not isinstance(locator, dict) or
+        not isinstance(locator.get("source_file"), str) or not locator.get("source_file").strip() or
+        not isinstance(locator.get("locator"), str) or not locator.get("locator").strip() or
+        locator.get("locator_type") not in locator_types or
+        not isinstance(locator.get("source_sha256"), str) or
+        len(locator.get("source_sha256")) != 64 or
+        any(char not in "0123456789abcdefABCDEF" for char in locator.get("source_sha256"))):
+        raise ValueError("Evidence " + evidence_id + " has an invalid or incomplete canonical source locator.")
+    if source.get("evidence_type") not in {"direct_quote", "table_value", "figure_value",
+                                          "supplementary_value", "method_description", "metadata", "other"}:
+        raise ValueError("Evidence " + evidence_id + " has an unsupported canonical evidence_type.")
+    extraction_status = source.get("extraction_status")
+    if extraction_status is None:
+        extraction_status = "NOT_RECORDED"
+    elif extraction_status not in {"VERIFIED", "REVIEW_REQUIRED", "CONFLICTING", "UNVERIFIED"}:
+        raise ValueError("Evidence " + evidence_id + " has an unsupported extraction_status.")
 
     obs_ids = assessment.get("observation_ids", [])
     linked_observations = []
@@ -194,8 +210,11 @@ def _assess_evidence(
             raise ValueError(hypothesis_path + " must provide observation_ids for " + evidence_class + ".")
         if any(item["value_state"] != "REPORTED" for item in linked_observations):
             raise ValueError("Direct/prospective evidence must link only to REPORTED canonical observations.")
+        for observation_id in obs_ids:
+            observation = observations[observation_id]
+            if observation.get("raw_value") is None and observation.get("normalized_value") is None:
+                raise ValueError("Direct/prospective evidence must link to a REPORTED Observation with a recorded value.")
 
-    extraction_status = source.get("extraction_status", "NOT_RECORDED")
     if extraction_status == "VERIFIED":
         verification = "VERIFIED"
     else:
@@ -408,6 +427,12 @@ def build_mechanism_evidence_bridge_files(
                     "hypothesis_id": hypothesis["hypothesis_id"], "issue_code": issue["code"],
                     "evidence_id": issue["evidence_id"], "review_action": "VERIFY_INDEPENDENCE_OR_RECLASSIFY",
                     "detail": issue["message"]
+                })
+            if item["relationship"] == "CONTRADICTS" and not item["counted_for_evidence_summary"]:
+                review_rows.append({
+                    "hypothesis_id": hypothesis["hypothesis_id"], "issue_code": "CONTRADICTORY_EVIDENCE_NOT_CLASSIFIED_OR_VERIFIED",
+                    "evidence_id": item["evidence_id"], "review_action": "REVIEW_SOURCE_VERIFICATION_AND_EVIDENCE_CLASSIFICATION",
+                    "detail": "This record is marked as contradicting the hypothesis but was not counted because it is unverified, contextual, or unclassified."
                 })
             if item["verification_status"] != "VERIFIED":
                 review_rows.append({
