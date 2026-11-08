@@ -45,6 +45,8 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
         self.assertEqual(report["prediction_mode"], "PARTIAL_DEPENDENCE_AVERAGED_OVER_EMPIRICAL_BACKGROUND")
         self.assertEqual(report["grid"]["grid_point_count"], 81)
         self.assertEqual(report["cohort"]["study_count"], 8)
+        self.assertEqual(report["feature_definitions"]["feature_a"]["condition_type"], "pressure")
+        self.assertEqual(report["feature_definitions"]["feature_b"]["condition_type"], "temperature")
         self.assertGreater(report["empirical_support"]["distance_threshold"], 0)
         self.assertLessEqual(report["cohort"]["partial_dependence_prediction_evaluations"], 500000)
         self.assertAlmostEqual(report["marginal_effects"]["cross_partial_derivative"], 1.0, places=2)
