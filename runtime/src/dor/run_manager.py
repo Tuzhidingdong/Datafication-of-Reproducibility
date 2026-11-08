@@ -1072,6 +1072,8 @@ def record_stage_status(
         allowed = {"READY_TO_RUN", "RETRY_REQUIRED", "REBUILD_REQUIRED"}
         if state["action"] == "RUNNING_NEEDS_RECONCILIATION" and confirm_abandoned:
             allowed.add("RUNNING_NEEDS_RECONCILIATION")
+        if state["action"] == "SOURCE_CHANGED_NEW_RUN_REQUIRED":
+            raise ValueError("A protected source input changed after run initialization; create a new run from the revised source snapshot.")
         if state["action"] not in allowed:
             raise ValueError(f"Stage cannot start a new attempt (action={state['action']}).")
         gate_approval = _check_gate(stage, manifest)
