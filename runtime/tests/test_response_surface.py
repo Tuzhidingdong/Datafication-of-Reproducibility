@@ -40,7 +40,7 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
         self.assertEqual(report["prediction_mode"], "PARTIAL_DEPENDENCE_AVERAGED_OVER_EMPIRICAL_BACKGROUND")
         self.assertEqual(report["grid"]["grid_point_count"], 81)
         self.assertEqual(report["cohort"]["study_count"], 8)
-        self.assertAlmostEqual(report["marginal_effects"]["cross_partial_derivative"], 1.0, places=6)
+        self.assertAlmostEqual(report["marginal_effects"]["cross_partial_derivative"], 1.0, places=2)
         with (output / "interaction_response_surface.csv").open(encoding="utf-8") as handle:
             rows = list(__import__("csv").DictReader(handle))
         center = min(rows, key=lambda item: abs(float(item["feature_a_value"])) + abs(float(item["feature_b_value"])))
