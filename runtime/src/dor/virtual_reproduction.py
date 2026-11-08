@@ -113,6 +113,8 @@ def predict_virtual_condition_files(model_run_dir: Path, query_path: Path, outpu
     model_run_dir = model_run_dir.expanduser().resolve()
     query_path = query_path.expanduser().resolve()
     output_path = output_path.expanduser().resolve()
+    if output_path.is_relative_to(model_run_dir):
+        raise ValueError("Virtual reproduction output must be outside the immutable model-run directory.")
     artifact_path = model_run_dir / "model_artifact.json"
     report_path = model_run_dir / "model_report.json"
     manifest_path = model_run_dir / "modeling_run_manifest.json"
