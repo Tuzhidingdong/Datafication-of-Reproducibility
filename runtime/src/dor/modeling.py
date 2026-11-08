@@ -421,6 +421,29 @@ def _classification_metrics(actual: list[str], predicted: list[str]) -> dict[str
             "macro_f1": sum(f1s) / len(f1s), "labels": labels, "confusion_matrix": matrix}
 
 
+def _training_feature_domain(rows: list[dict[str, Any]], bindings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Record marginal feature values from the final train+validation fitting population only."""
+    domain: dict[str, Any] = {}
+    for binding in bindings:
+        fid = binding["feature_id"]
+        values = [row[fid] for row in rows]
+        if binding["value_type"] == "NUMERIC":
+            numeric = [float(value) for value in values]
+            if not numeric or any(not math.isfinite(value) for value in numeric):
+                raise ValueError("Cannot record a finite training domain for feature " + fid)
+            domain[fid] = {
+                "value_type": "NUMERIC", "expected_unit": binding.get("expected_unit"),
+                "n": len(numeric), "minimum": min(numeric), "maximum": max(numeric)
+            }
+        else:
+            categories = sorted({str(value) for value in values})
+            domain[fid] = {
+                "value_type": "CATEGORICAL", "expected_unit": binding.get("expected_unit"),
+                "n": len(values), "categories": categories
+            }
+    return domain
+
+
 def _partition(rows: list[dict[str, Any]], name: str) -> list[dict[str, Any]]:
     return [row for row in rows if row["split"] == name]
 
@@ -486,7 +509,8 @@ def _run_regression(rows: list[dict[str, Any]], task: dict[str, Any], settings: 
         "training_observation_ids":[row["observation_id"] for row in train_validation],
         "training_study_ids":sorted({row["study_id"] for row in train_validation}),
         "test_observation_ids":[row["observation_id"] for row in test],
-        "model_parameters":selected_model
+        "model_parameters":selected_model,
+        "training_feature_domain":_training_feature_domain(train_validation,task["feature_bindings"])
     }
     predictions = [{"observation_id":row["observation_id"],"study_id":row["study_id"],
                     "actual":row["outcome"],"prediction":selected_predictions[i],
@@ -552,7 +576,8 @@ def _run_classification(rows: list[dict[str, Any]], task: dict[str, Any], settin
         "training_observation_ids":[row["observation_id"] for row in train_validation],
         "training_study_ids":sorted({row["study_id"] for row in train_validation}),
         "test_observation_ids":[row["observation_id"] for row in test],
-        "model_parameters":selected_model
+        "model_parameters":selected_model,
+        "training_feature_domain":_training_feature_domain(train_validation,task["feature_bindings"])
     }
     predictions=[{"observation_id":row["observation_id"],"study_id":row["study_id"],
                   "actual":row["outcome"],"prediction":selected_predictions[i],
