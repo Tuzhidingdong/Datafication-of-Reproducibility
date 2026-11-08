@@ -1,0 +1,31 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/modeling_run_manifest.schema.json",
+  "title":"Reproducible baseline modelling run manifest",
+  "type":"object",
+  "required":["schema_version","task_id","engine_version","input_hashes","output_hashes","split_strategy","split_seed","study_ids_by_split","selected_model","selection_rule","source_policy"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "task_id":{"type":"string"},
+    "engine_version":{"type":"string"},
+    "input_hashes":{"type":"object","required":["cohort_sha256","cohort_report_sha256","split_manifest_sha256","cohort_manifest_sha256","task_sha256"],"properties":{
+      "cohort_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},
+      "cohort_report_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},
+      "split_manifest_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},
+      "cohort_manifest_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},
+      "task_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"}
+    },"additionalProperties":false},
+    "output_hashes":{"type":"object","additionalProperties":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"}},
+    "split_strategy":{"enum":["GROUPED_HOLDOUT","EXPLICIT_STUDIES"]},
+    "split_seed":{"type":"integer"},
+    "study_ids_by_split":{"type":"object","required":["train","validation","test"],"properties":{
+      "train":{"type":"array","items":{"type":"string"}},
+      "validation":{"type":"array","items":{"type":"string"}},
+      "test":{"type":"array","items":{"type":"string"}}
+    },"additionalProperties":false},
+    "selected_model":{"type":"string"},
+    "selection_rule":{"type":"string"},
+    "source_policy":{"type":"string"}
+  },
+  "additionalProperties":false
+}
