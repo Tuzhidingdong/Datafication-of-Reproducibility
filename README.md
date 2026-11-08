@@ -14,7 +14,7 @@ The project aims to reconstruct relationships among reported experimental condit
 
 ## Repository status
 
-This Draft development branch now contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, and the V0.3 endpoint-specific cohort builder, deterministic Study-level train/validation/test splits, dependency-free baseline model engine for numeric and categorical endpoints, nested study-group cross-validation, per-Study performance analysis, heuristic feature-space applicability diagnostics, and initial numeric-endpoint pairwise predictive interaction screening with repeated-seed split-sensitivity assessment descriptive numeric-pair response surfaces with empirical support masks and marginal-effect data, and an evidence-linked mechanism hypothesis bridge with source verification and contradiction tracking. Alternative encodings/model families, categorical endpoint interaction methods, inferential multiplicity control, and mechanism interpretation remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
+This Draft development branch contains the V0.1 research foundation, V0.2 data-understanding/canonical-construction/reconciliation engine, V0.3 endpoint-specific cohort builder, deterministic Study-level splits, dependency-free baseline models, nested cross-study evaluation, and V0.4 numeric pairwise interaction screening, repeated-seed robustness assessment, descriptive response surfaces, and an evidence-linked mechanism hypothesis bridge. The bridge validates canonical source evidence links, preserves contradictions, checks prospective Study independence, and emits candidate mechanism Findings pending user review. Alternative model/encoding families, categorical interaction methods, inferential multiplicity control, calibrated uncertainty, and broader causal/mechanistic validation remain future increments. Full end-to-end acceptance on the real literature corpus remains reserved for V1.0.
 
 ## Planned layout
 
@@ -23,7 +23,7 @@ This Draft development branch now contains the V0.1 research foundation, V0.2 da
 - `domain_profiles/template/`: reusable domain-adapter templates.
 - `domain_profiles/zinc_battery/`: initial adapter scaffold; mappings remain provisional until the actual CSV/JSON are audited.
 - `schemas/`: machine-readable contracts for projects, datasets, workflow state, tasks, findings, and publication manifests.
-- `runtime/`: deterministic Python engine, including audit, canonical build, reconciliation, modelling cohorts, baseline models, nested cross-study evaluation, pairwise interaction screening, repeated-seed robustness assessment, and descriptive response-surface generation.
+- `runtime/`: deterministic Python engine, including audit, canonical build, reconciliation, modelling cohorts, baseline models, nested cross-study evaluation, pairwise interaction screening, repeated-seed robustness assessment, descriptive response-surface generation, and the evidence-linked mechanism hypothesis bridge.
 - `docs/V0.3_MODELING_COHORTS.md`: modelling task, cohort eligibility, split, and output contract.
 - `docs/V0.3_BASELINE_MODELS.md`: baseline algorithms, validation-only selection, held-out test evaluation, and model artifact contract.
 - `docs/V0.3_REPRODUCIBILITY_EVALUATION.md`: nested Study-level cross-validation, between-Study performance, applicability-domain heuristics, and uncertainty limits.
