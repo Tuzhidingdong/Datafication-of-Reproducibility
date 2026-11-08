@@ -103,7 +103,8 @@
         "study_count",
         "background_observation_count",
         "background_sampling",
-        "distinct_observed_feature_pairs"
+        "distinct_observed_feature_pairs",
+        "partial_dependence_prediction_evaluations"
       ],
       "properties": {
         "observation_count": {
@@ -121,6 +122,11 @@
         "distinct_observed_feature_pairs": {
           "type": "integer",
           "minimum": 1
+        },
+        "partial_dependence_prediction_evaluations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500000
         }
       },
       "additionalProperties": false
