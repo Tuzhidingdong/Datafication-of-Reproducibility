@@ -590,7 +590,7 @@ def _snapshot_artifacts(root: Path, manifest: Mapping[str, Any], plan: Mapping[s
         if not path.is_file():
             raise ValueError(f"Required artifact {artifact_id} is missing: {path}.")
         digest = sha256_file(path)
-        if definition["kind"] == "source" and digest != source_hashes[artifact_id]:
+        if definition.get("kind", "derived") == "source" and digest != source_hashes[artifact_id]:
             raise ValueError(f"Protected source artifact {artifact_id} changed after run initialization; create a new run.")
         snapshots.append({"artifact_id": artifact_id, "path": str(path), "sha256": digest})
     return snapshots
@@ -685,7 +685,7 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                     actual = sha256_file(path) if path.is_file() else None
                 except OSError:
                     actual = None
-                if definition["kind"] == "source" and actual != source_hashes.get(artifact_id):
+                if definition.get("kind", "derived") == "source" and actual != source_hashes.get(artifact_id):
                     reasons.append(f"Protected source changed: {artifact_id}.")
                 if actual is None or actual != expected:
                     reasons.append(f"Input artifact changed or missing: {artifact_id}.")
@@ -889,7 +889,7 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
             else:
                 state = "CURRENT" if actual == expected else "STALE_OR_MISSING"
             artifacts.append({
-                "artifact_id": output["artifact_id"], "kind": output["kind"],
+                "artifact_id": output["artifact_id"], "kind": output.get("kind", "derived"),
                 "producer_stage_id": producers[output["artifact_id"]],
                 "path": str(path), "expected_sha256": expected,
                 "actual_sha256": actual,
@@ -1138,7 +1138,7 @@ def record_stage_status(
                 raise ValueError("Stage inputs changed while the stage was running; completion is rejected.")
             output_snapshots = _snapshot_artifacts(root, manifest, plan, [item["artifact_id"] for item in stage["outputs"]])
             for output in stage["outputs"]:
-                if output["kind"] == "worker_staging" and latest["producer"]["kind"] != "worker":
+                if output.get("kind", "derived") == "worker_staging" and latest["producer"]["kind"] != "worker":
                     raise ValueError("Only the Worker may create worker_staging outputs.")
             event_payload = {
                 "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "SUCCEEDED",

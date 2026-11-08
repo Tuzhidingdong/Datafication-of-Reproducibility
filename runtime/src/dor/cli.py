@@ -178,6 +178,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_resume.add_argument("--manifest", type=Path, required=True)
     run_resume.add_argument("--out", type=Path, default=None)
 
+    run_artifacts = subparsers.add_parser("run-artifacts", help="Generate a regenerable artifact manifest with exact source/output hashes and provenance")
+    run_artifacts.add_argument("--manifest", type=Path, required=True)
+    run_artifacts.add_argument("--out", type=Path, default=None)
+
     worker_authorize = subparsers.add_parser("run-worker-authorize", help="Record an explicit pre-dispatch Worker authorization and emit its bounded task packet")
     worker_authorize.add_argument("--manifest", type=Path, required=True)
     worker_authorize.add_argument("--stage", dest="stage_id", required=True)

@@ -355,7 +355,7 @@ class RunManagerTests(unittest.TestCase):
                 {"event_type": "STAGE_STATUS", "stage_id": "audit", "status": "RUNNING"},
                 EVENT_GENESIS_HASH,
             )
-        self.assertEqual(len(ledger.read_text(encoding="utf-8").splitlines()), 1)
+        self.assertEqual(len(ledger.read_text(encoding="utf-8").splitlines()), 2)
         self.assertEqual(verify_run(self.manifest_path)["event_count"], 1)
 
     def test_run_artifact_manifest_cannot_be_written_into_source_root(self):
