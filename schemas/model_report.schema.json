@@ -1,26 +1,96 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/model_report.schema.json",
-  "title":"Baseline model evaluation report",
-  "type":"object",
-  "required":["schema_version","task_id","target_id","endpoint_definition","outcome_type","selected_model","selected_candidate_id","primary_selection_metric","validation_comparison","test_evaluation","training_observation_count","validation_observation_count","refit_observation_count","test_observation_count"],
-  "properties":{
-    "schema_version":{"const":"1.0"},
-    "task_id":{"type":"string","minLength":1},
-    "target_id":{"type":"string","minLength":1},
-    "endpoint_definition":{"type":"string","minLength":1},
-    "outcome_value_field":{"enum":["raw_value","normalized_value"]},
-    "outcome_unit":{"type":["string","null"]},
-    "outcome_type":{"enum":["NUMERIC","CATEGORICAL"]},
-    "primary_selection_metric":{"type":"string"},
-    "selected_model":{"type":"string"},
-    "selected_candidate_id":{"type":"string"},
-    "validation_comparison":{"type":"array","minItems":1,"items":{"type":"object"}},
-    "test_evaluation":{"type":"object","minProperties":1},
-    "training_observation_count":{"type":"integer","minimum":1},
-    "validation_observation_count":{"type":"integer","minimum":1},
-    "refit_observation_count":{"type":"integer","minimum":2},
-    "test_observation_count":{"type":"integer","minimum":1}
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/model_report.schema.json",
+  "title": "Baseline model evaluation report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "target_id",
+    "endpoint_definition",
+    "outcome_type",
+    "outcome_unit",
+    "outcome_value_field",
+    "selected_model",
+    "selected_candidate_id",
+    "primary_selection_metric",
+    "validation_comparison",
+    "test_evaluation",
+    "training_observation_count",
+    "validation_observation_count",
+    "refit_observation_count",
+    "test_observation_count"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint_definition": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outcome_value_field": {
+      "enum": [
+        "raw_value",
+        "normalized_value"
+      ]
+    },
+    "outcome_unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "outcome_type": {
+      "enum": [
+        "NUMERIC",
+        "CATEGORICAL"
+      ]
+    },
+    "primary_selection_metric": {
+      "type": "string"
+    },
+    "selected_model": {
+      "type": "string"
+    },
+    "selected_candidate_id": {
+      "type": "string"
+    },
+    "validation_comparison": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object"
+      }
+    },
+    "test_evaluation": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "training_observation_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "validation_observation_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "refit_observation_count": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "test_observation_count": {
+      "type": "integer",
+      "minimum": 1
+    }
   },
-  "additionalProperties":false
+  "additionalProperties": false
 }

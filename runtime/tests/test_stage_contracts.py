@@ -365,6 +365,136 @@ class StageEvidenceContractTests(unittest.TestCase):
         )
         self.assertIn("REPRODUCIBILITY_FOLD_LEAKAGE", {item["code"] for item in errors})
 
+    def _valid_modeling_validation_evidence(self):
+        study_ids = ["S1", "S2", "S3", "S4"]
+        feature_bindings = [{
+            "feature_id": "concentration", "condition_type": "concentration",
+            "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+        }]
+        task = {
+            "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
+            "endpoint_definition": "specific endpoint", "outcome_type": "NUMERIC",
+            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "feature_bindings": feature_bindings,
+            "split": {"strategy": "GROUPED_HOLDOUT", "fractions": {
+                "train": 0.5, "validation": 0.25, "test": 0.25,
+            }},
+        }
+        report = {
+            "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
+            "endpoint_definition": "specific endpoint", "outcome_type": "NUMERIC",
+            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "primary_selection_metric": "validation_rmse_minimized",
+            "selected_model": "ridge_regression", "selected_candidate_id": "ridge_1",
+            "validation_comparison": [{"candidate_id": "ridge_1"}],
+            "test_evaluation": {"n": 1},
+        }
+        artifact = {
+            "schema_version": "1.0", "engine_version": "synthetic", "task_id": "T1",
+            "model_type": "ridge_regression", "target_id": "Y",
+            "endpoint_definition": "specific endpoint", "outcome_value_field": "raw_value",
+            "outcome_unit": "mAh/g", "feature_bindings": json.loads(json.dumps(feature_bindings)),
+            "selected_candidate_id": "ridge_1", "selection_metric": "validation_rmse_minimized",
+            "training_observation_ids": ["O1", "O2", "O3"],
+            "training_study_ids": ["S1", "S2", "S3"], "test_observation_ids": ["O4"],
+            "model_parameters": {"alpha": 1.0},
+        }
+        groups = {"train": ["S1", "S2"], "validation": ["S3"], "test": ["S4"]}
+        split = {
+            "study_to_split": {"S1": "train", "S2": "train", "S3": "validation", "S4": "test"},
+            "observation_ids_by_split": {"train": ["O1", "O2"], "validation": ["O3"], "test": ["O4"]},
+        }
+        hashes = {
+            "cohort_sha256": "e" * 64, "cohort_report_sha256": "c" * 64,
+            "split_manifest_sha256": "b" * 64, "cohort_manifest_sha256": "d" * 64,
+            "task_sha256": "a" * 64,
+        }
+        model_manifest = {
+            "schema_version": "1.0", "task_id": "T1", "selected_model": "ridge_regression",
+            "input_hashes": dict(hashes),
+            "output_hashes": {"model_report.json": "f" * 64, "model_artifact.json": "1" * 64},
+            "study_ids_by_split": groups,
+        }
+        folds = []
+        for index, held_out in enumerate(study_ids, start=1):
+            outer = [sid for sid in study_ids if sid != held_out]
+            folds.append({
+                "fold": index, "test_study_ids": [held_out],
+                "outer_training_study_ids": outer,
+                "inner_training_study_ids": outer[1:],
+                "inner_validation_study_ids": outer[:1],
+            })
+        evaluation = {
+            "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
+            "endpoint_definition": "specific endpoint", "fold_count": 4, "study_count": 4,
+            "observation_count": 4, "folds": folds,
+            "per_study_performance": [{"study_id": sid} for sid in study_ids],
+            "validation_scope": "NESTED_STUDY_GROUPED_CROSS_VALIDATION_AND_HEURISTIC_FEATURE_SUPPORT_DIAGNOSTICS_NOT_PROSPECTIVE_VALIDATION",
+            "uncertainty": {"status": "NOT_CALIBRATED"},
+        }
+        evaluation_manifest = {
+            "schema_version": "1.0", "task_id": "T1", "fold_count": 4,
+            "study_ids": study_ids, "input_hashes": dict(hashes),
+            "output_hashes": {"reproducibility_evaluation.json": "3" * 64},
+            "selection_protocol": "NESTED_INNER_STUDY_HOLDOUT",
+            "test_protocol": "OUTER_GROUPED_K_FOLD_EACH_STUDY_HELD_OUT_ONCE",
+            "uncertainty_status": "DESCRIPTIVE_CROSS_STUDY_ERROR_ONLY_NOT_CALIBRATED",
+        }
+        evidence = [
+            {"artifact_id": "model_report", "artifact_type": "model_report", "payload": report, "sha256": "f" * 64},
+            {"artifact_id": "model_artifact", "artifact_type": "model_artifact", "payload": artifact, "sha256": "1" * 64},
+            {"artifact_id": "model_manifest", "artifact_type": "modeling_run_manifest", "payload": model_manifest, "sha256": "2" * 64},
+            {"artifact_id": "evaluation", "artifact_type": "reproducibility_evaluation", "payload": evaluation, "sha256": "3" * 64},
+            {"artifact_id": "evaluation_manifest", "artifact_type": "reproducibility_evaluation_manifest", "payload": evaluation_manifest, "sha256": "4" * 64},
+        ]
+        prior = {
+            "modeling_task": {"payload": task, "sha256": "a" * 64},
+            "cohort_report": {"payload": {"eligible_study_ids": study_ids}, "sha256": "c" * 64},
+            "split_manifest": {"payload": split, "sha256": "b" * 64},
+            "modeling_cohort_manifest": {"payload": {}, "sha256": "d" * 64},
+            "modeling_cohort_csv": {"payload": None, "sha256": "e" * 64},
+        }
+        return evidence, prior, set(study_ids)
+
+    def test_model_validation_accepts_exact_task_feature_and_unit_bindings(self):
+        evidence, prior, study_ids = self._valid_modeling_validation_evidence()
+        errors = validate_stage_evidence(
+            "modeling_validation", evidence, run_id="R1", project_id="P1",
+            study_ids=study_ids, source_snapshot=[], prior_payloads=prior,
+        )
+        self.assertEqual([], errors)
+
+    def test_model_validation_rejects_feature_binding_drift_from_task(self):
+        evidence, prior, study_ids = self._valid_modeling_validation_evidence()
+        evidence[1]["payload"]["feature_bindings"][0]["expected_unit"] = "mmol/L"
+        codes = {item["code"] for item in validate_stage_evidence(
+            "modeling_validation", evidence, run_id="R1", project_id="P1",
+            study_ids=study_ids, source_snapshot=[], prior_payloads=prior,
+        )}
+        self.assertIn("MODEL_ARTIFACT_FEATURE_BINDING_MISMATCH", codes)
+
+    def test_model_validation_rejects_outcome_unit_drift_from_task(self):
+        evidence, prior, study_ids = self._valid_modeling_validation_evidence()
+        evidence[1]["payload"]["outcome_unit"] = "g/Ah"
+        evidence[0]["payload"]["outcome_unit"] = "g/Ah"
+        codes = {item["code"] for item in validate_stage_evidence(
+            "modeling_validation", evidence, run_id="R1", project_id="P1",
+            study_ids=study_ids, source_snapshot=[], prior_payloads=prior,
+        )}
+        self.assertIn("MODEL_ARTIFACT_TASK_BINDING_MISMATCH", codes)
+        self.assertIn("MODEL_REPORT_TASK_BINDING_MISMATCH", codes)
+
+    def test_model_validation_rejects_selection_model_and_metric_mismatch(self):
+        evidence, prior, study_ids = self._valid_modeling_validation_evidence()
+        evidence[1]["payload"]["model_type"] = "mean_baseline"
+        evidence[1]["payload"]["selection_metric"] = "validation_mae"
+        codes = {item["code"] for item in validate_stage_evidence(
+            "modeling_validation", evidence, run_id="R1", project_id="P1",
+            study_ids=study_ids, source_snapshot=[], prior_payloads=prior,
+        )}
+        self.assertIn("MODEL_TYPE_SELECTION_MISMATCH", codes)
+        self.assertIn("MODEL_SELECTION_METRIC_MISMATCH", codes)
+
     def test_unknown_evidence_type_is_rejected(self):
         codes = {item["code"] for item in validate_stage_payload(
             "invented_type", {}, run_id="R1", project_id="P1", study_ids={"S1"}

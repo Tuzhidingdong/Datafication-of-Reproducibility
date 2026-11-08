@@ -315,8 +315,9 @@ class AcceptanceValidatorTests(unittest.TestCase):
         model_report = {
             "schema_version": "1.0", "task_id": "TASK_1", "target_id": "CAPACITY",
             "endpoint_definition": "specific discharge capacity", "outcome_type": "NUMERIC",
-            "selected_model": "Ridge", "selected_candidate_id": "ridge_1",
-            "primary_selection_metric": "mae", "validation_comparison": [{"candidate_id": "ridge_1"}],
+            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "selected_model": "ridge_regression", "selected_candidate_id": "ridge_1",
+            "primary_selection_metric": "validation_mae", "validation_comparison": [{"candidate_id": "ridge_1"}],
             "test_evaluation": {"n": 1, "mae": 0.1},
             "training_observation_count": len(training_study_ids),
             "validation_observation_count": 1, "refit_observation_count": len(training_study_ids),
@@ -352,7 +353,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 "model_artifact.json": model_artifact_hash,
             },
             "split_strategy": "EXPLICIT_STUDIES", "split_seed": 42,
-            "study_ids_by_split": study_groups, "selected_model": "Ridge",
+            "study_ids_by_split": study_groups, "selected_model": "ridge_regression",
             "selection_rule": "Validation metric only; test set evaluated after selection.",
             "source_policy": "SYNTHETIC_FIXTURE_ONLY",
         }

@@ -407,11 +407,21 @@ def _validate_split_manifest(payload: Any, eligible_study_ids: set[str] | None) 
 
 
 def _validate_model_report(payload: Any) -> list[dict[str, str]]:
-    required = ("task_id", "target_id", "endpoint_definition", "selected_model",
-                "selected_candidate_id", "validation_comparison", "test_evaluation")
+    required = ("task_id", "target_id", "endpoint_definition", "outcome_type",
+                "outcome_value_field", "outcome_unit", "primary_selection_metric",
+                "selected_model", "selected_candidate_id", "validation_comparison",
+                "test_evaluation")
     if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or any(key not in payload for key in required):
-        return [_error("MODEL_REPORT_INVALID", "model_report lacks task identity, selection, validation, or test fields.", "model_report")]
+        return [_error("MODEL_REPORT_INVALID", "model_report lacks task/endpoint outcome definitions, selection metric, or validation/test fields.", "model_report")]
     errors: list[dict[str, str]] = []
+    if payload.get("outcome_type") not in {"NUMERIC", "CATEGORICAL"}:
+        errors.append(_error("MODEL_REPORT_OUTCOME_TYPE_INVALID", "model_report.outcome_type must be NUMERIC or CATEGORICAL.", "model_report"))
+    if payload.get("outcome_value_field") not in {"raw_value", "normalized_value"}:
+        errors.append(_error("MODEL_REPORT_OUTCOME_FIELD_INVALID", "model_report.outcome_value_field must be an explicit canonical value field.", "model_report"))
+    if payload.get("outcome_unit") is not None and not isinstance(payload.get("outcome_unit"), str):
+        errors.append(_error("MODEL_REPORT_OUTCOME_UNIT_INVALID", "model_report.outcome_unit must be an exact string or null.", "model_report"))
+    if not all(_nonempty(payload.get(key)) for key in ("task_id", "target_id", "endpoint_definition", "primary_selection_metric", "selected_model", "selected_candidate_id")):
+        errors.append(_error("MODEL_REPORT_IDENTITY_INVALID", "model_report identity and model-selection fields must be non-empty strings.", "model_report"))
     if not isinstance(payload.get("validation_comparison"), list) or not payload["validation_comparison"]:
         errors.append(_error("MODEL_VALIDATION_COMPARISON_MISSING", "model_report.validation_comparison must be non-empty.", "model_report"))
     if not isinstance(payload.get("test_evaluation"), dict) or not payload["test_evaluation"]:
@@ -932,6 +942,23 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
                     or report.get("target_id") != artifact.get("target_id")
                     or report.get("endpoint_definition") != artifact.get("endpoint_definition")):
                 errors.append(_error("MODEL_REPORT_ARTIFACT_IDENTITY_MISMATCH", "model_report, model_artifact, and modeling_run_manifest task/model selections must match.", "model_report"))
+            if report.get("selected_model") != artifact.get("model_type"):
+                errors.append(_error("MODEL_TYPE_SELECTION_MISMATCH", "model_report.selected_model must equal the serialized model_artifact.model_type.", "model_artifact"))
+            if report.get("primary_selection_metric") != artifact.get("selection_metric"):
+                errors.append(_error("MODEL_SELECTION_METRIC_MISMATCH", "model_report.primary_selection_metric must equal model_artifact.selection_metric.", "model_artifact"))
+            task_item = all_payloads.get("modeling_task")
+            task_payload = task_item.get("payload") if isinstance(task_item, dict) else None
+            if not isinstance(task_payload, dict):
+                errors.append(_error("MODEL_TASK_EVIDENCE_MISSING", "Model validation must bind to the exact preceding modeling_task evidence.", "modeling_task"))
+            else:
+                artifact_task_fields = ("task_id", "target_id", "endpoint_definition", "outcome_value_field", "outcome_unit")
+                if any(artifact.get(field) != task_payload.get(field) for field in artifact_task_fields):
+                    errors.append(_error("MODEL_ARTIFACT_TASK_BINDING_MISMATCH", "Serialized model task/target/endpoint/outcome field/unit must exactly match the accepted modeling_task.", "model_artifact"))
+                if artifact.get("feature_bindings") != task_payload.get("feature_bindings"):
+                    errors.append(_error("MODEL_ARTIFACT_FEATURE_BINDING_MISMATCH", "Serialized model feature_bindings must exactly match the accepted modeling_task.", "model_artifact"))
+                report_task_fields = ("task_id", "target_id", "endpoint_definition", "outcome_type", "outcome_value_field", "outcome_unit")
+                if any(report.get(field) != task_payload.get(field) for field in report_task_fields):
+                    errors.append(_error("MODEL_REPORT_TASK_BINDING_MISMATCH", "Model report target/endpoint/outcome definition must exactly match the accepted modeling_task.", "model_report"))
             outputs = model_manifest.get("output_hashes", {})
             if outputs.get("model_report.json") != report_item.get("sha256"):
                 errors.append(_error("MODEL_REPORT_HASH_NOT_BOUND", "modeling_run_manifest.output_hashes.model_report.json must equal the cited model_report hash.", "modeling_run_manifest"))
