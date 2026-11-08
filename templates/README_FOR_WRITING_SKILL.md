@@ -31,7 +31,7 @@ Never use source code or old chat history as the authority for an executed param
 | Methods: interaction analysis | methods/interaction_analysis.md, interaction method records |
 | Results: model performance | results/prediction_performance.md, model metrics, predictions, validation records |
 | Results: interaction discoveries | results/interaction_discovery.md, interaction records and robustness outputs |
-| Discussion: mechanisms | mechanisms/, evidence chains, contradicting evidence |
+| Discussion: mechanisms | mechanisms/mechanism_evidence_bridge_report.json, mechanisms/mechanism_evidence_ledger.csv, mechanisms/mechanism_review_queue.csv, findings/mechanism_findings.json |
 | Figures and captions | figures/figure_manifest.json, figure files, source data, plotting configuration |
 | Tables | tables/, table manifest and source data |
 | Supporting Information | supporting_information/ |
@@ -45,6 +45,8 @@ Paths above are logical conventions. The exact paths for this run are given in p
 - Use only numbers and claims present in the structured records or verified evidence.
 - Preserve units, qualifiers, denominators, endpoint definitions, and significant figures.
 - Do not call a candidate statistical interaction a mechanism.
+- Keep generated mechanism findings at hypothesis/candidate status while the bridge report says `PENDING_USER_MECHANISM_REVIEW`. Do not promote them to established mechanisms without a separate explicit human review record.
+- Preserve contradictory source evidence and non-independent prospective evidence exactly as reported in the mechanism evidence ledger and review queue.
 - Do not imply causal relationships from observational associations alone.
 - Distinguish reported experimental setpoints from measured local/realized states.
 - Do not convert unreported conditions into assumed defaults.
