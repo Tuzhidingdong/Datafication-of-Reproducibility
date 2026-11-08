@@ -644,7 +644,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         self.assertEqual(len(self.bundle["observations"]), 33)
         self.assertEqual(len(self.bundle["evidence"]), 10)
         self.assertTrue(all(record["evidence_ids"] for record in self.bundle["observations"]))
-        self.assertTrue(all(self.bundle["evidence"] for _ in [0]))
+        evidence_ids = {item["evidence_id"] for item in self.bundle["evidence"]}
+        self.assertTrue(all(set(item["evidence_ids"]).issubset(evidence_ids) for item in self.bundle["observations"]))
 
     def test_endpoint_filter_and_study_grouping_survive_into_modeling(self):
         report = self.cohort_result["report"]
@@ -664,7 +665,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         interaction = self.interaction_result["report"]
         mechanism = self.mechanism_result["report"]
         self.assertEqual(interaction["task_id"], mechanism["task_id"])
-        self.assertEqual(self.interaction_id, mechanism["selected_interaction_id"])
+        self.assertEqual(self.interaction_id, mechanism["interaction_id"])
         self.assertEqual(self.robustness_result["report"]["seed_count"], 3)
         self.assertEqual(self.surface_result["report"]["interaction_id"], self.interaction_id)
         self.assertEqual(mechanism["review_state"], "PENDING_USER_MECHANISM_REVIEW")
