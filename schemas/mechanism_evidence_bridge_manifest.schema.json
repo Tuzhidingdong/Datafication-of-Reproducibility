@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/mechanism_evidence_bridge_manifest.schema.json",
+  "title": "Mechanism evidence bridge provenance manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "engine_version",
+    "plan_id",
+    "task_id",
+    "interaction_id",
+    "input_hashes",
+    "output_hashes",
+    "mechanism_hypothesis_count",
+    "evidence_assessment_count",
+    "review_issue_count",
+    "claim_scope",
+    "source_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "engine_version": {
+      "type": "string"
+    },
+    "plan_id": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "interaction_id": {
+      "type": "string"
+    },
+    "input_hashes": {
+      "type": "object",
+      "minProperties": 9,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "output_hashes": {
+      "type": "object",
+      "minProperties": 4,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "mechanism_hypothesis_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "evidence_assessment_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "review_issue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "claim_scope": {
+      "type": "string"
+    },
+    "source_policy": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}
