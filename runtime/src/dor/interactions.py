@@ -258,7 +258,7 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
     fold_groups = _grouped_folds(study_ids, folds, seed)
     all_results: dict[tuple[str,str], list[dict[str,Any]]] = {pair:[] for pair in candidates}
     all_predictions: dict[tuple[str,str], list[dict[str,Any]]] = {pair:[] for pair in candidates}
-    failed_pairs: set[tuple[str,str]] = set()
+    failed_pairs: dict[tuple[str,str], list[int]] = {}
     fold_protocol = []
     max_columns = interaction_settings["maximum_interaction_columns"]
     for fold_index, held_studies in enumerate(fold_groups, start=1):
@@ -287,8 +287,7 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
                 pair_alpha,pair_validation = _fit_pair_candidate(inner_train,inner_validation,bindings,pair,settings,max_columns)
                 pair_predictions,pair_converged = _fit_predict_outer(outer_train,outer_test,bindings,pair_alpha,pair,settings,max_columns)
             except OverflowError:
-                failed_pairs.add(pair)
-                exclusions.append({"feature_a":pair[0],"feature_b":pair[1],"reason":"PAIR_INTERACTION_ENCODING_EXCEEDS_LIMIT","fold":fold_index})
+                failed_pairs.setdefault(pair, []).append(fold_index)
                 continue
             pair_metrics = _regression_metrics(y_test,pair_predictions)
             improvement = additive_metrics["rmse"] - pair_metrics["rmse"]
@@ -307,6 +306,9 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
                     "additive_absolute_error":abs(additive_predictions[index]-row["outcome"]),
                     "interaction_absolute_error":abs(pair_predictions[index]-row["outcome"])
                 })
+    for pair, failed_folds in sorted(failed_pairs.items()):
+        exclusions.append({"feature_a":pair[0],"feature_b":pair[1],
+            "reason":"PAIR_INTERACTION_ENCODING_EXCEEDS_LIMIT","folds":failed_folds})
     catalogue = []
     prediction_rows = []
     for pair in candidates:
@@ -328,8 +330,8 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
         "method":"NESTED_STUDY_GROUPED_PAIRWISE_BILINEAR_RIDGE_ABLATION",
         "statistic_definition":"Fold RMSE improvement = additive Ridge outer-test RMSE minus Ridge outer-test RMSE with the single candidate feature-pair's encoded cross-products added. Positive means lower error for the interaction-augmented model.",
         "fold_count":len(fold_groups),"study_count":len(study_ids),"observation_count":len(rows),
-        "candidate_pair_count":len(pairs),"eligible_pair_count":len(candidates),
-        "excluded_pair_count":len(exclusions),"exclusions":exclusions,
+        "candidate_pair_count":len(pairs),"support_eligible_pair_count":len(candidates),
+        "eligible_pair_count":len(catalogue),"excluded_pair_count":len(exclusions),"exclusions":exclusions,
         "minimum_joint_observations":interaction_settings["minimum_joint_observations"],
         "minimum_joint_studies":interaction_settings["minimum_joint_studies"],
         "minimum_positive_fold_fraction":interaction_settings["minimum_positive_fold_fraction"],
@@ -378,8 +380,8 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
         ("interaction_discovery_report.json","interaction_catalogue.csv","interaction_oof_predictions.csv")}
     manifest={"schema_version":"1.0","task_id":task["task_id"],"engine_version":ENGINE_VERSION,
         "input_hashes":input_hashes,"output_hashes":output_hashes,"fold_count":len(fold_groups),
-        "seed":seed,"candidate_pair_count":len(pairs),"eligible_pair_count":len(candidates),
-        "method":"NESTED_STUDY_GROUPED_PAIRWISE_BILINEAR_RIDGE_ABLATION",
+        "seed":seed,"candidate_pair_count":len(pairs),"support_eligible_pair_count":len(candidates),
+        "eligible_pair_count":len(catalogue),"method":"NESTED_STUDY_GROUPED_PAIRWISE_BILINEAR_RIDGE_ABLATION",
         "claim_scope":"PREDICTIVE_STATISTICAL_INTERACTION_CANDIDATE_NOT_CAUSAL_OR_MECHANISTIC_EVIDENCE",
         "source_policy":"TASK_AND_COHORT_READ_ONLY; OUTER_HELD_OUT_STUDIES_EXCLUDED_FROM_FITTING_AND_SELECTION"}
     (output_dir/"interaction_discovery_manifest.json").write_text(
