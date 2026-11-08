@@ -11,6 +11,7 @@
     "interaction_id",
     "feature_a",
     "feature_b",
+    "feature_definitions",
     "method",
     "prediction_mode",
     "model",
@@ -266,7 +267,56 @@
     },
     "validation_scope": {
       "const": "DESCRIPTIVE_RESPONSE_SURFACE_NOT_INDEPENDENT_VALIDATION_OR_CAUSAL_INFERENCE"
+    },
+    "feature_definitions": {
+      "type": "object",
+      "required": [
+        "feature_a",
+        "feature_b"
+      ],
+      "properties": {
+        "feature_a": {
+          "$ref": "#/$defs/featureDefinition"
+        },
+        "feature_b": {
+          "$ref": "#/$defs/featureDefinition"
+        }
+      },
+      "additionalProperties": false
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "$defs": {
+    "featureDefinition": {
+      "type": "object",
+      "required": [
+        "feature_id",
+        "condition_type",
+        "value_field",
+        "value_type",
+        "unit"
+      ],
+      "properties": {
+        "feature_id": {
+          "type": "string"
+        },
+        "condition_type": {
+          "type": "string"
+        },
+        "value_field": {
+          "enum": [
+            "raw_value",
+            "normalized_value"
+          ]
+        },
+        "value_type": {
+          "const": "NUMERIC"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }
