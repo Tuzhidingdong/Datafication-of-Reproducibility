@@ -121,26 +121,25 @@ Read `../../../references/mechanism-evidence.md` and `../../../docs/V0.4_MECHANI
 
 ### Stage 6 — Independent validation and virtual reproduction
 
-- Define the intended use and applicability domain.
-- Evaluate predictions with held-out studies or independent experimental data where available.
-- For a requested condition set, report predicted outcome, uncertainty status (including NOT_CALIBRATED where applicable), nearest supported data region, missing critical variables, and extrapolation warnings. Use the cross-study evaluation as a support diagnostic, not a guarantee of prospective performance.
-- State explicitly that a virtual prediction is not a completed physical experiment.
+- Define the intended use, approved target/endpoint, and applicability domain. Review nested Study-level validation before offering a virtual estimate.
+- Prepare a query from templates/virtual_reproduction_query.example.json. Include every feature_id in the exact modelling task, the exact target_id/endpoint_definition/task_id, and each exact expected_unit. Do not perform unit conversion, fill missing conditions, or infer a feature mapping.
+- Run dor predict-virtual-condition --model-run-dir 04_modeling/baseline_run --query virtual_reproduction_query.json --out 06_publication/virtual_prediction.json.
+- The runtime must use the serialized selected baseline model and verify its hashes; it must not retrain on the query or use held-out test observations for fitting or selection.
+- Inspect each per-feature support state. Values outside the train+validation feature range and unseen categories must be explicitly labelled; a mathematical output may still be returned, but it is not a supported interpolation.
+- V0.5 checks marginal ranges/categories only. It does not calculate nearest-neighbour distance or establish joint multivariable support. Keep NOT_CALIBRATED uncertainty explicit; do not report confidence/prediction intervals or calibrated probabilities.
+- State explicitly that a virtual prediction is a model-based scenario estimate, not a completed physical experiment, atomistic simulation, causal effect, or mechanism validation.
 
 ### Stage 7 — Publication package
 
-Read `../../../references/publication-package.md`.
+Read ../../../references/publication-package.md and ../../../docs/V0.5_PUBLICATION_AND_VIRTUAL_REPRODUCTION.md.
 
-Generate the publication package with, at minimum:
-
-- `README_FOR_WRITING_SKILL.md`
-- `package_manifest.json`
-- structured data/method/model/result/finding records
-- source data for every figure and table
-- Methods and Results drafts generated from structured facts
-- limitations and evidence-status records
-- a computational reproduction package or an explicit statement of what is not yet executable
-
-The Writing Skill must first read the guide and manifest, then retrieve only the files needed for its current writing task.
+- Prepare a run-specific publication_package_plan.json from templates/publication_package_plan.example.json. Declare each source file explicitly; do not let the runtime crawl the workspace or infer scientific roles from file names.
+- Only mark an artifact complete when the actual output exists and has been reviewed. Use partial, requires_review, not_generated, or not_applicable honestly. Never create placeholder result files to satisfy the plan.
+- Include the model report/artifact, task and split records, validation and applicability-domain outputs, interaction and mechanism packages when present, figure source data, table source data, limitations, and virtual prediction reports where applicable.
+- Run dor build-publication-package --plan publication_package_plan.json --workspace-root . --out-dir 06_publication/package.
+- Run dor audit-publication-package --package-dir 06_publication/package --out 06_publication/package_integrity_report.json. Keep the audit report outside the package directory.
+- Inspect completeness and all requires_review/partial/not_generated items. A valid hash audit is not scientific approval and does not make the package publication-ready.
+- The Writing Skill must first read README_FOR_WRITING_SKILL.md and package_manifest.json, then retrieve only the files needed for its current writing task. Never invent missing scientific claims, methods, figures, tables, or references.
 
 ## Approval gates
 
