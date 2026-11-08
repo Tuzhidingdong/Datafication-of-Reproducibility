@@ -281,6 +281,11 @@ def build_modeling_cohort_files(bundle_path: Path,task_path: Path,output_dir: Pa
     manifest={"schema_version":"1.0","task_id":task["task_id"],"bundle_sha256":bundle_hash,"task_sha256":task_hash,
         "artifacts":["modeling_cohort.csv","cohort_report.json","split_manifest.json"],
         "eligible_observation_count":len(rows),"eligible_study_count":report["eligible_study_count"],
+        "artifact_sha256":{
+            "modeling_cohort.csv":sha256_file(output_dir/"modeling_cohort.csv"),
+            "cohort_report.json":sha256_file(output_dir/"cohort_report.json"),
+            "split_manifest.json":sha256_file(output_dir/"split_manifest.json")
+        },
         "source_policy":"READ_ONLY_INPUTS_NO_IMPLICIT_MAPPING_CONVERSION_IMPUTATION_OR_AGGREGATION"}
     (output_dir/"modeling_cohort_manifest.json").write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
     return {"valid":True,"report":report,"manifest":manifest,"output_dir":str(output_dir)}
