@@ -225,6 +225,33 @@ class MechanismEvidenceBridgeTests(unittest.TestCase):
         self.assertEqual(args.robustness_dir, Path("robustness"))
         self.assertEqual(args.response_surface_dir, Path("surface"))
 
+    def test_prospective_study_with_same_exact_doi_is_not_independent(self):
+        bundle = json.loads(self.bundle_path.read_text(encoding="utf-8"))
+        study_one_doi = next(item["doi"] for item in bundle["studies"] if item["study_id"] == "ST1")
+        next(item for item in bundle["studies"] if item["study_id"] == "ST9")["doi"] = study_one_doi
+        bundle_path = self.root / "doi_overlap_bundle.json"
+        bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+        cohort_dir = self.root / "doi_overlap_cohort"
+        built = build_modeling_cohort_files(bundle_path, self.task_path, cohort_dir)
+        self.assertTrue(built["valid"], built)
+        interaction_dir = self.root / "doi_overlap_interactions"
+        discovered = discover_interactions_files(cohort_dir, self.task_path,
+                                                  interaction_dir, folds=4, seed=19)
+        plan_path = self.root / "doi_overlap_plan.json"
+        plan_path.write_text(json.dumps(mechanism_plan(
+            discovered["report"]["interaction_catalogue"][0]["interaction_id"]
+        )), encoding="utf-8")
+        result = build_mechanism_evidence_bridge_files(
+            bundle_path, cohort_dir, self.task_path, interaction_dir, plan_path,
+            self.root / "doi_overlap_bridge"
+        )
+        mechanism = result["report"]["mechanism_catalogue"][0]
+        self.assertEqual(mechanism["evidence_counts"]["independent_prospective_support"], 0)
+        self.assertTrue(any(item["issue_code"] == "PROSPECTIVE_EVIDENCE_NOT_INDEPENDENT"
+                            for item in result["report"]["review_queue"]))
+        prospective = next(item for item in mechanism["evidence_assessments"] if item["evidence_id"] == "EV_PROS")
+        self.assertEqual(prospective["independence_basis"], "DOI_OVERLAP")
+
     def test_direct_observation_requires_an_exact_canonical_observation_link(self):
         plan = mechanism_plan(self.interaction_id)
         assessment = plan["mechanism_hypotheses"][0]["evidence_assessments"][0]
