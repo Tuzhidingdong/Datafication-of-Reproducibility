@@ -372,5 +372,120 @@ class StageEvidenceContractTests(unittest.TestCase):
         self.assertIn("UNKNOWN_STAGE_ARTIFACT_TYPE", codes)
 
 
+    def test_extraction_review_hashes_only_the_sources_selected_by_prior_stage(self):
+        snapshot = [
+            {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
+            {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+        ]
+        selection = {"payload": {
+            "selected_sources": [{"source_id": "paper", "role": "PRIMARY_PAPER",
+                                  "path": "/data/paper.pdf", "sha256": "a" * 64}],
+            "excluded_sources": [{"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION",
+                                  "path": "/data/paper_si.pdf", "sha256": "b" * 64,
+                                  "reason": "Outside the selected scope."}],
+        }, "sha256": "c" * 64}
+        review = {
+            "schema_version": "1.0", "source_hashes": {"paper": "a" * 64},
+            "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
+                                   "locator": "page 1", "review_status": "SPOT_CHECKED"}],
+            "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
+                             "decision": "ACCEPTED_WITH_LIMITATIONS"},
+        }
+        evidence = [{"artifact_id": "review", "artifact_type": "extraction_review_record",
+                     "payload": review, "sha256": "d" * 64}]
+        errors = validate_stage_evidence(
+            "extraction_review", evidence, run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=snapshot,
+            prior_payloads={"source_selection_manifest": selection},
+        )
+        self.assertEqual([], errors)
+
+    def test_extraction_review_rejects_hashes_for_excluded_source(self):
+        snapshot = [
+            {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
+            {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+        ]
+        selection = {"payload": {"selected_sources": [{
+            "source_id": "paper", "role": "PRIMARY_PAPER",
+            "path": "/data/paper.pdf", "sha256": "a" * 64,
+        }]}, "sha256": "c" * 64}
+        review = {
+            "schema_version": "1.0", "source_hashes": {"paper": "a" * 64, "si": "b" * 64},
+            "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
+                                   "locator": "page 1", "review_status": "SPOT_CHECKED"}],
+            "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
+                             "decision": "ACCEPTED_WITH_LIMITATIONS"},
+        }
+        errors = validate_stage_evidence(
+            "extraction_review", [{"artifact_id": "review", "artifact_type": "extraction_review_record",
+                                   "payload": review, "sha256": "d" * 64}],
+            run_id="R1", project_id="P1", study_ids={"S1"}, source_snapshot=snapshot,
+            prior_payloads={"source_selection_manifest": selection},
+        )
+        self.assertIn("EXTRACTION_SOURCE_HASH_BINDING_MISMATCH", {item["code"] for item in errors})
+
+    def test_extraction_review_rejects_rejected_or_follow_up_decision_for_pass(self):
+        base = {
+            "schema_version": "1.0", "source_hashes": {"paper": "a" * 64},
+            "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
+                                   "locator": "page 1", "review_status": "SPOT_CHECKED"}],
+            "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
+                             "decision": "REJECTED"},
+        }
+        for decision in ("REJECTED", "REQUIRES_FOLLOW_UP"):
+            with self.subTest(decision=decision):
+                payload = json.loads(json.dumps(base))
+                payload["human_review"]["decision"] = decision
+                codes = {item["code"] for item in validate_stage_payload(
+                    "extraction_review_record", payload, run_id="R1", project_id="P1",
+                    study_ids={"S1"}, source_snapshot=[{
+                        "source_id": "paper", "role": "PRIMARY_PAPER",
+                        "path": "/data/paper.pdf", "sha256": "a" * 64,
+                    }],
+                )}
+                self.assertIn("EXTRACTION_REVIEW_NOT_ACCEPTED", codes)
+
+    def test_extraction_review_requires_preceding_source_selection_evidence(self):
+        review = {
+            "schema_version": "1.0", "source_hashes": {},
+            "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
+                                   "locator": "page 1", "review_status": "SPOT_CHECKED"}],
+            "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
+                             "decision": "ACCEPTED_WITH_LIMITATIONS"},
+        }
+        errors = validate_stage_evidence(
+            "extraction_review", [{"artifact_id": "review", "artifact_type": "extraction_review_record",
+                                   "payload": review, "sha256": "d" * 64}],
+            run_id="R1", project_id="P1", study_ids={"S1"},
+            source_snapshot=[{"source_id": "paper", "role": "PRIMARY_PAPER",
+                              "path": "/data/paper.pdf", "sha256": "a" * 64}],
+        )
+        self.assertIn("EXTRACTION_SELECTION_MANIFEST_MISSING", {item["code"] for item in errors})
+
+    def test_run_manifest_rejects_duplicate_source_artifact_ids(self):
+        source = {"source_id": "paper", "role": "PRIMARY_PAPER",
+                  "path": "/data/paper.pdf", "sha256": "a" * 64}
+        payload = {
+            "schema_version": "1.0", "run_id": "R1", "project_id": "P1",
+            "source_artifacts": [
+                {"artifact_id": "paper", "path": "/data/paper.pdf", "sha256": "a" * 64},
+                {"artifact_id": "paper", "path": "/data/paper.pdf", "sha256": "a" * 64},
+            ],
+        }
+        codes = {item["code"] for item in validate_stage_payload(
+            "run_manifest", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=[source],
+        )}
+        self.assertIn("RUN_MANIFEST_SOURCE_ID_DUPLICATE", codes)
+
+    def test_stage_evidence_malformed_items_fail_closed_without_raising(self):
+        errors = validate_stage_evidence(
+            "source_selection", [None, "not-an-object"], run_id="R1",
+            project_id="P1", study_ids={"S1"}, source_snapshot=[],
+        )
+        codes = {item["code"] for item in errors}
+        self.assertIn("STAGE_EVIDENCE_ITEM_INVALID", codes)
+        self.assertIn("STAGE_REQUIRED_EVIDENCE_TYPE_MISSING", codes)
+
 if __name__ == "__main__":
     unittest.main()

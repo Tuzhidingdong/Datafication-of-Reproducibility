@@ -162,10 +162,20 @@ def _validate_run_manifest(payload: Any, run_id: str, project_id: str,
         return [_error("RUN_MANIFEST_SHAPE_INVALID", "run_manifest must be a JSON object.", "run_manifest")]
     if payload.get("schema_version") != "1.0" or payload.get("run_id") != run_id or payload.get("project_id") != project_id:
         errors.append(_error("RUN_MANIFEST_IDENTITY_MISMATCH", "run_manifest schema/run/project identity does not match this acceptance.", "run_manifest"))
-    actual = {
-        item.get("artifact_id"): item for item in payload.get("source_artifacts", [])
-        if isinstance(item, dict) and _nonempty(item.get("artifact_id"))
-    } if isinstance(payload.get("source_artifacts"), list) else {}
+    source_artifacts = payload.get("source_artifacts")
+    actual: dict[str, dict[str, Any]] = {}
+    if not isinstance(source_artifacts, list):
+        errors.append(_error("RUN_MANIFEST_SOURCE_SET_MISMATCH", "run_manifest.source_artifacts must be an array.", "run_manifest"))
+        source_artifacts = []
+    for index, artifact in enumerate(source_artifacts):
+        if not isinstance(artifact, dict) or not _nonempty(artifact.get("artifact_id")):
+            errors.append(_error("RUN_MANIFEST_SOURCE_ENTRY_INVALID", f"source_artifacts[{index}] requires an explicit artifact_id.", "run_manifest"))
+            continue
+        artifact_id = artifact["artifact_id"]
+        if artifact_id in actual:
+            errors.append(_error("RUN_MANIFEST_SOURCE_ID_DUPLICATE", f"run_manifest contains duplicate source artifact_id {artifact_id}.", "run_manifest"))
+            continue
+        actual[artifact_id] = artifact
     expected = {item.get("source_id"): item for item in source_snapshot if isinstance(item, dict)}
     if set(actual) != set(expected):
         errors.append(_error("RUN_MANIFEST_SOURCE_SET_MISMATCH", "run_manifest source_artifacts must exactly match source_snapshot IDs.", "run_manifest"))
@@ -204,6 +214,8 @@ def _validate_extraction_review(payload: Any, source_snapshot: list[dict[str, An
         errors.append(_error("EXTRACTION_HUMAN_REVIEW_MISSING", "human_review requires reviewer, reviewed_at, and decision.", "extraction_review_record"))
     elif review.get("decision") not in {"ACCEPTED_WITH_LIMITATIONS", "REJECTED", "REQUIRES_FOLLOW_UP"}:
         errors.append(_error("EXTRACTION_HUMAN_REVIEW_DECISION_INVALID", "human_review.decision is not an explicit supported decision.", "extraction_review_record"))
+    elif review.get("decision") != "ACCEPTED_WITH_LIMITATIONS":
+        errors.append(_error("EXTRACTION_REVIEW_NOT_ACCEPTED", "A PASS extraction_review stage requires ACCEPTED_WITH_LIMITATIONS; rejected or follow-up decisions must remain FAIL/BLOCKED.", "extraction_review_record"))
     return errors
 
 
@@ -670,7 +682,12 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
     by_type: dict[str, dict[str, Any]] = {}
     errors: list[dict[str, str]] = []
     seen_artifact_ids: set[str] = set()
-    for item in evidence:
+    if not isinstance(evidence, list):
+        return [_error("STAGE_EVIDENCE_LIST_INVALID", f"Evidence for {stage_id} must be an array.")]
+    for index, item in enumerate(evidence):
+        if not isinstance(item, dict):
+            errors.append(_error("STAGE_EVIDENCE_ITEM_INVALID", f"Evidence item {index} in {stage_id} must be an object."))
+            continue
         artifact_type = item.get("artifact_type")
         artifact_id = item.get("artifact_id")
         if not _nonempty(artifact_type):
@@ -717,9 +734,28 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
     for artifact_type, item in by_type.items():
         if artifact_type in {"mapping_plan", "reconciliation_decisions"}:
             continue
+        artifact_source_snapshot = source_snapshot
+        if artifact_type == "extraction_review_record":
+            selection_item = all_payloads.get("source_selection_manifest")
+            selection_payload = selection_item.get("payload") if isinstance(selection_item, dict) else None
+            selected_rows = selection_payload.get("selected_sources") if isinstance(selection_payload, dict) else None
+            if not isinstance(selected_rows, list):
+                errors.append(_error("EXTRACTION_SELECTION_MANIFEST_MISSING", "Extraction review PASS requires the preceding accepted source_selection_manifest.", artifact_type))
+                artifact_source_snapshot = []
+            else:
+                selected_ids = {
+                    row.get("source_id") for row in selected_rows
+                    if isinstance(row, dict) and _nonempty(row.get("source_id"))
+                }
+                artifact_source_snapshot = [
+                    row for row in source_snapshot
+                    if isinstance(row, dict) and row.get("source_id") in selected_ids
+                ]
+                if len(artifact_source_snapshot) != len(selected_ids):
+                    errors.append(_error("EXTRACTION_SELECTED_SOURCE_SET_INVALID", "The accepted source selection does not resolve exactly to the Run source snapshot.", artifact_type))
         errors.extend(validate_stage_payload(
             artifact_type, item["payload"], run_id=run_id, project_id=project_id,
-            study_ids=study_ids, source_snapshot=source_snapshot,
+            study_ids=study_ids, source_snapshot=artifact_source_snapshot,
             canonical_sha256=canonical_sha, eligible_study_ids=eligible_ids,
             selected_source_ids=selected_source_ids,
         ))
