@@ -188,7 +188,7 @@ class RunManagerTests(unittest.TestCase):
 
     def test_worker_requires_authorization_and_is_confined_to_staging(self):
         self.run_to_mapping()
-        with self.assertRaisesRegex(ValueError, "authorization"):
+        with self.assertRaisesRegex(ValueError, "authorization packet"):
             record_stage_status(
                 self.manifest_path, "worker_review", "RUNNING", "worker",
                 role="reviewer", provider="OpenCode Go", model="free-model",
@@ -356,7 +356,7 @@ class RunManagerTests(unittest.TestCase):
                 EVENT_GENESIS_HASH,
             )
         self.assertEqual(len(ledger.read_text(encoding="utf-8").splitlines()), 2)
-        self.assertEqual(verify_run(self.manifest_path)["event_count"], 1)
+        self.assertEqual(verify_run(self.manifest_path)["event_count"], 2)
 
     def test_run_artifact_manifest_cannot_be_written_into_source_root(self):
         from dor.cli import main

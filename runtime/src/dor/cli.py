@@ -252,10 +252,10 @@ def main() -> int:
                     (Path(result["workspace_root"]) / name).resolve(strict=False)
                     for name in ("run_manifest.json", "run_plan.json", "run_events.jsonl")
                 }
-                if output_path in declared_paths or output_path in protected_control_files:
-                    raise ValueError("Artifact manifest output cannot overwrite a declared artifact or Run Manager control file.")
                 if any(output_path.is_relative_to(source_root) for source_root in source_roots):
                     raise ValueError("Artifact manifest output must remain outside all protected source_roots.")
+                if output_path in declared_paths or output_path in protected_control_files:
+                    raise ValueError("Artifact manifest output cannot overwrite a declared artifact or Run Manager control file.")
             print(_write_json(args.out, result), end="")
             return 0
         if args.command == "run-worker-authorize":

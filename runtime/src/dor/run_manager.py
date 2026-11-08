@@ -1087,7 +1087,7 @@ def record_stage_status(
         if producer_kind == "worker":
             auth = _latest_worker_authorization(events, stage_id, attempt)
             if auth is None:
-                raise ValueError("Worker stage requires a matching run-worker-authorize event before dispatch.")
+                raise ValueError("Worker authorization packet is required; run dor run-worker-authorize before dispatch.")
             worker = auth["worker"]
             for key, value in (("role", role), ("provider", provider), ("model", model), ("project_root", project_root)):
                 if not isinstance(value, str) or value != worker[key]:
