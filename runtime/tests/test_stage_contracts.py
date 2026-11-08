@@ -108,6 +108,83 @@ class StageEvidenceContractTests(unittest.TestCase):
         )
         self.assertIn("COHORT_REPORT_INVALID", {item["code"] for item in errors})
 
+    def test_nested_evaluation_rejects_unhashable_per_study_ids_without_raising(self):
+        study_ids = ["S1", "S2", "S3", "S4"]
+        folds = []
+        for index, held_out in enumerate(study_ids, start=1):
+            outer = [sid for sid in study_ids if sid != held_out]
+            folds.append({
+                "fold": index, "test_study_ids": [held_out],
+                "outer_training_study_ids": outer,
+                "inner_training_study_ids": outer[1:],
+                "inner_validation_study_ids": outer[:1],
+                "selected_model": "Ridge", "inner_validation_comparison": [{}],
+                "outer_test_metrics": {}, "outer_test_baseline_metrics": {},
+            })
+        payload = {
+            "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
+            "endpoint_definition": "endpoint", "fold_count": 4, "study_count": 4,
+            "observation_count": 4, "folds": folds,
+            "per_study_performance": [{"study_id": ["not", "hashable"]}] + [
+                {"study_id": sid} for sid in study_ids[1:]
+            ],
+            "uncertainty": {"status": "NOT_CALIBRATED"},
+            "validation_scope": "NESTED_STUDY_GROUPED_CROSS_VALIDATION_AND_HEURISTIC_FEATURE_SUPPORT_DIAGNOSTICS_NOT_PROSPECTIVE_VALIDATION",
+        }
+        errors = validate_stage_payload(
+            "reproducibility_evaluation", payload, run_id="R1",
+            project_id="P1", study_ids=set(study_ids),
+        )
+        self.assertIn("REPRODUCIBILITY_PER_STUDY_COVERAGE_MISMATCH", {item["code"] for item in errors})
+
+    def test_model_artifact_accepts_explicit_feature_binding_objects(self):
+        payload = {
+            "schema_version": "1.0", "engine_version": "synthetic", "task_id": "T1",
+            "model_type": "ridge_regression", "target_id": "Y",
+            "endpoint_definition": "endpoint", "outcome_value_field": "raw_value",
+            "outcome_unit": "mAh/g",
+            "feature_bindings": [{
+                "feature_id": "concentration", "condition_type": "concentration",
+                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+            }],
+            "selected_candidate_id": "ridge_1", "selection_metric": "validation_mae",
+            "training_observation_ids": ["O1"], "training_study_ids": ["S1"],
+            "test_observation_ids": ["O2"], "model_parameters": {"alpha": 1.0},
+        }
+        errors = validate_stage_payload(
+            "model_artifact", payload, run_id="R1", project_id="P1", study_ids={"S1", "S2"},
+        )
+        codes = {item["code"] for item in errors}
+        self.assertNotIn("MODEL_ARTIFACT_FEATURE_BINDINGS_INVALID", codes)
+
+    def test_nested_study_evaluation_rejects_fold_leakage(self):
+        study_ids = ["S1", "S2", "S3", "S4"]
+        folds = []
+        for index, held_out in enumerate(study_ids, start=1):
+            outer = [sid for sid in study_ids if sid != held_out]
+            folds.append({
+                "fold": index, "test_study_ids": [held_out],
+                "outer_training_study_ids": outer,
+                "inner_training_study_ids": outer[1:],
+                "inner_validation_study_ids": outer[:1],
+                "selected_model": "Ridge", "inner_validation_comparison": [{}],
+                "outer_test_metrics": {}, "outer_test_baseline_metrics": {},
+            })
+        folds[0]["inner_validation_study_ids"] = [folds[0]["inner_training_study_ids"][0]]
+        payload = {
+            "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
+            "endpoint_definition": "endpoint", "fold_count": 4, "study_count": 4,
+            "observation_count": 4, "folds": folds,
+            "per_study_performance": [{"study_id": sid} for sid in study_ids],
+            "uncertainty": {"status": "NOT_CALIBRATED"},
+            "validation_scope": "NESTED_STUDY_GROUPED_CROSS_VALIDATION_AND_HEURISTIC_FEATURE_SUPPORT_DIAGNOSTICS_NOT_PROSPECTIVE_VALIDATION",
+        }
+        errors = validate_stage_payload(
+            "reproducibility_evaluation", payload, run_id="R1",
+            project_id="P1", study_ids=set(study_ids),
+        )
+        self.assertIn("REPRODUCIBILITY_FOLD_LEAKAGE", {item["code"] for item in errors})
+
     def test_unknown_evidence_type_is_rejected(self):
         codes = {item["code"] for item in validate_stage_payload(
             "invented_type", {}, run_id="R1", project_id="P1", study_ids={"S1"}

@@ -73,6 +73,16 @@ class V1AcceptanceContractTests(unittest.TestCase):
         evidence = self.schema["properties"]["stages"]["items"]["properties"]["evidence"]["items"]
         self.assertIn("artifact_type", evidence["required"])
         self.assertIn("canonical_bundle", evidence["properties"]["artifact_type"]["enum"])
+        self.assertIn("model_artifact", evidence["properties"]["artifact_type"]["enum"])
+        self.assertIn("reproducibility_evaluation_manifest", evidence["properties"]["artifact_type"]["enum"])
+
+    def test_modeling_stage_contract_requires_serialized_model_and_nested_evaluation(self):
+        from dor.stage_contracts import STAGE_CONTRACTS
+        self.assertEqual(
+            STAGE_CONTRACTS["modeling_validation"]["required_artifact_types"],
+            ["model_report", "model_artifact", "modeling_run_manifest",
+             "reproducibility_evaluation", "reproducibility_evaluation_manifest"],
+        )
 
     def test_study_ids_are_explicit_unique_and_required(self):
         snapshot = self.schema["properties"]["source_snapshot"]

@@ -187,7 +187,10 @@
             "required_artifact_types": {
               "const": [
                 "model_report",
-                "modeling_run_manifest"
+                "model_artifact",
+                "modeling_run_manifest",
+                "reproducibility_evaluation",
+                "reproducibility_evaluation_manifest"
               ]
             },
             "checks": {

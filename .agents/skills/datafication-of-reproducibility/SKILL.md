@@ -255,6 +255,19 @@ The eight acceptance stages are fixed and ordered: source_selection, source_inte
 
 A single Study cannot support Study-held-out evaluation. For a one-paper pilot, cohort_feasibility and modeling_validation may be NOT_APPLICABLE with an explicit reason; do not split rows and call them independent Studies. A multi-Study modelling pilot is a separate scope requiring adequate independent Studies and explicit G2 approval.
 
+For every stage evidence entry, include `artifact_type` in addition to the exact Run-bound `artifact_id`, `path`, and `sha256`. The implementation-owned evidence contract is authoritative; the acceptance author cannot substitute weaker JSON Pointer checks for required artifacts. The required type set is:
+
+- `source_selection`: `source_selection_manifest`, `source_inventory`
+- `source_integrity`: `run_manifest`
+- `extraction_review`: `extraction_review_record`
+- `semantic_mapping`: `mapping_plan`
+- `canonical_reconciliation`: `canonical_bundle`, `reconciliation_report`
+- `cohort_feasibility`: `cohort_report`, `split_manifest`
+- `modeling_validation`: `model_report`, `model_artifact`, `modeling_run_manifest`, `reproducibility_evaluation`, `reproducibility_evaluation_manifest`
+- `publication_handoff`: `publication_package_manifest`, `publication_integrity_report`
+
+The validator reads the exact hash-matched JSON evidence. It checks source selection against the initialized source snapshot, source hashes in extraction review, mapping-plan/source-inventory linkage, canonical graph integrity and Study membership, reconciliation-to-bundle hash linkage, the Cohort's explicit `eligible_study_ids`, and exact split coverage. For a multi-Study PASS, the model report, serialized model, and run manifest must agree; nested evaluation must hold every eligible Study out exactly once, keep inner and outer Study groups disjoint, and match the evaluation manifest and its hashes. At least four eligible Studies are required for the nested evaluation contract. These checks do not impose a model performance threshold or turn descriptive errors into calibrated uncertainty.
+
 The acceptance record is a review ledger, not an automatic scientific truth score. A schema-valid record still requires human inspection of the cited evidence. Do not mark full PASS unless all eight stages pass; a one-Study pilot should normally conclude CONDITIONAL_PASS with its limitations stated. See ../../../docs/V1.0_CONTROLLED_ACCEPTANCE.md.
 
 

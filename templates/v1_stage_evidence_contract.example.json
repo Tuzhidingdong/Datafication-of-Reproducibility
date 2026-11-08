@@ -72,11 +72,16 @@
     "modeling_validation": {
       "required_artifact_types": [
         "model_report",
-        "modeling_run_manifest"
+        "model_artifact",
+        "modeling_run_manifest",
+        "reproducibility_evaluation",
+        "reproducibility_evaluation_manifest"
       ],
       "checks": [
         "model_report_identity",
+        "serialized_model_hash",
         "model_manifest_split_integrity",
+        "nested_evaluation_fold_coverage",
         "study_leakage_absent"
       ],
       "scope": "Model outputs bound to cohort/task hashes and Study-grouped split; no performance threshold is invented."

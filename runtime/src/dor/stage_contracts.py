@@ -42,7 +42,7 @@ STAGE_CONTRACTS: dict[str, dict[str, Any]] = {
         "scope": "Endpoint-specific cohort and explicit Study-level split feasibility.",
     },
     "modeling_validation": {
-        "required_artifact_types": ["model_report", "modeling_run_manifest"],
+        "required_artifact_types": ["model_report", "model_artifact", "modeling_run_manifest", "reproducibility_evaluation", "reproducibility_evaluation_manifest"],
         "checks": ["model_report_identity", "model_manifest_split_integrity", "study_leakage_absent"],
         "scope": "Model artifacts and metrics bound to the exact cohort/task and Study split; no performance threshold is invented.",
     },
@@ -294,15 +294,44 @@ def _validate_split_manifest(payload: Any, eligible_study_ids: set[str] | None) 
 
 
 def _validate_model_report(payload: Any) -> list[dict[str, str]]:
-    required = ("task_id", "target_id", "endpoint_definition", "selected_model", "selected_candidate_id", "validation_comparison", "test_evaluation")
+    required = ("task_id", "target_id", "endpoint_definition", "selected_model",
+                "selected_candidate_id", "validation_comparison", "test_evaluation")
     if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or any(key not in payload for key in required):
         return [_error("MODEL_REPORT_INVALID", "model_report lacks task identity, selection, validation, or test fields.", "model_report")]
+    errors: list[dict[str, str]] = []
     if not isinstance(payload.get("validation_comparison"), list) or not payload["validation_comparison"]:
-        errors = [_error("MODEL_VALIDATION_COMPARISON_MISSING", "model_report.validation_comparison must be non-empty.", "model_report")]
-    else:
-        errors = []
+        errors.append(_error("MODEL_VALIDATION_COMPARISON_MISSING", "model_report.validation_comparison must be non-empty.", "model_report"))
     if not isinstance(payload.get("test_evaluation"), dict) or not payload["test_evaluation"]:
         errors.append(_error("MODEL_TEST_EVALUATION_MISSING", "model_report.test_evaluation must be non-empty.", "model_report"))
+    return errors
+
+
+def _validate_model_artifact(payload: Any) -> list[dict[str, str]]:
+    required = ("schema_version", "engine_version", "task_id", "model_type", "target_id",
+                "endpoint_definition", "outcome_value_field", "outcome_unit", "feature_bindings",
+                "selected_candidate_id", "selection_metric", "training_observation_ids",
+                "training_study_ids", "test_observation_ids", "model_parameters")
+    if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or any(key not in payload for key in required):
+        return [_error("MODEL_ARTIFACT_INVALID", "model_artifact lacks serialized model identity, feature binding, or training/test IDs.", "model_artifact")]
+    errors: list[dict[str, str]] = []
+    if payload.get("model_type") not in {"mean_baseline", "ridge_regression", "majority_class_baseline", "mixed_naive_bayes"}:
+        errors.append(_error("MODEL_ARTIFACT_TYPE_INVALID", "model_artifact.model_type is unsupported.", "model_artifact"))
+    feature_bindings = payload.get("feature_bindings")
+    if (not isinstance(feature_bindings, list) or not feature_bindings
+            or any(not isinstance(value, dict) or any(not _nonempty(value.get(key)) for key in (
+                "feature_id", "condition_type", "value_field", "value_type"
+            )) or "expected_unit" not in value for value in feature_bindings)):
+        errors.append(_error("MODEL_ARTIFACT_FEATURE_BINDINGS_INVALID", "model_artifact.feature_bindings must contain explicit feature, condition, field, type, and unit bindings.", "model_artifact"))
+    for key in ("training_observation_ids", "training_study_ids", "test_observation_ids"):
+        values = payload.get(key)
+        if (not isinstance(values, list) or any(not _nonempty(value) for value in values)
+                or len(values) != len(set(values))):
+            errors.append(_error("MODEL_ARTIFACT_LIST_INVALID", f"model_artifact.{key} must be an array of unique non-empty IDs.", "model_artifact"))
+    if not isinstance(payload.get("model_parameters"), dict):
+        errors.append(_error("MODEL_ARTIFACT_PARAMETERS_INVALID", "model_parameters must be an object.", "model_artifact"))
+    training, test = payload.get("training_study_ids"), payload.get("test_study_ids")
+    if isinstance(training, list) and isinstance(test, list) and set(training).intersection(test):
+        errors.append(_error("MODEL_ARTIFACT_STUDY_LEAKAGE", "Training and test Study IDs overlap in serialized model artifact.", "model_artifact"))
     return errors
 
 
@@ -323,6 +352,91 @@ def _validate_model_manifest(payload: Any) -> list[dict[str, str]]:
     elif (set(splits["train"]) & set(splits["validation"]) or set(splits["train"]) & set(splits["test"])
           or set(splits["validation"]) & set(splits["test"])):
         errors.append(_error("MODELING_STUDY_LEAKAGE", "Study IDs overlap across train/validation/test.", "modeling_run_manifest"))
+    return errors
+
+
+def _validate_reproducibility_evaluation(payload: Any) -> list[dict[str, str]]:
+    required = ("task_id", "target_id", "endpoint_definition", "fold_count", "study_count",
+                "observation_count", "folds", "per_study_performance", "validation_scope", "uncertainty")
+    if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or any(key not in payload for key in required):
+        return [_error("REPRODUCIBILITY_EVALUATION_INVALID", "Nested evaluation lacks task, fold, Study, or performance fields.", "reproducibility_evaluation")]
+    errors: list[dict[str, str]] = []
+    expected_scope = "NESTED_STUDY_GROUPED_CROSS_VALIDATION_AND_HEURISTIC_FEATURE_SUPPORT_DIAGNOSTICS_NOT_PROSPECTIVE_VALIDATION"
+    if payload.get("validation_scope") != expected_scope:
+        errors.append(_error("REPRODUCIBILITY_SCOPE_INVALID", "Nested evaluation scope must explicitly state Study-grouped validation and its limits.", "reproducibility_evaluation"))
+    studies, folds = payload.get("study_count"), payload.get("folds")
+    if not isinstance(studies, int) or isinstance(studies, bool) or studies < 4:
+        errors.append(_error("REPRODUCIBILITY_STUDY_COUNT_INVALID", "Nested Study-grouped validation requires at least four Studies.", "reproducibility_evaluation"))
+    if not isinstance(folds, list) or not isinstance(payload.get("fold_count"), int) or len(folds) != payload.get("fold_count") or len(folds) < 4:
+        return errors + [_error("REPRODUCIBILITY_FOLD_COUNT_INVALID", "fold_count must equal at least four fold records.", "reproducibility_evaluation")]
+    held_out: dict[str, int] = {}
+    for index, fold in enumerate(folds):
+        if not isinstance(fold, dict):
+            errors.append(_error("REPRODUCIBILITY_FOLD_INVALID", f"folds[{index}] must be an object.", "reproducibility_evaluation"))
+            continue
+        test_ids, outer_train = fold.get("test_study_ids"), fold.get("outer_training_study_ids")
+        inner_train, inner_valid = fold.get("inner_training_study_ids"), fold.get("inner_validation_study_ids")
+        groups = (test_ids, outer_train, inner_train, inner_valid)
+        if any(not isinstance(group, list) or not group or any(not _nonempty(value) for value in group) for group in groups):
+            errors.append(_error("REPRODUCIBILITY_FOLD_GROUPS_INVALID", f"folds[{index}] requires non-empty explicit Study ID groups.", "reproducibility_evaluation"))
+            continue
+        if any(len(group) != len(set(group)) for group in groups):
+            errors.append(_error("REPRODUCIBILITY_FOLD_GROUPS_DUPLICATE", f"folds[{index}] contains duplicate Study IDs within a group.", "reproducibility_evaluation"))
+            continue
+        if set(test_ids).intersection(outer_train) or set(inner_train).intersection(inner_valid):
+            errors.append(_error("REPRODUCIBILITY_FOLD_LEAKAGE", f"folds[{index}] contains test/outer-training or inner-training/validation overlap.", "reproducibility_evaluation"))
+        if not set(inner_train).issubset(set(outer_train)) or not set(inner_valid).issubset(set(outer_train)):
+            errors.append(_error("REPRODUCIBILITY_INNER_GROUP_OUTSIDE_OUTER_TRAIN", f"folds[{index}] inner groups must be subsets of outer-training Studies.", "reproducibility_evaluation"))
+        if set(inner_train) | set(inner_valid) != set(outer_train):
+            errors.append(_error("REPRODUCIBILITY_INNER_GROUP_COVERAGE", f"folds[{index}] inner training/validation groups must cover all outer-training Studies.", "reproducibility_evaluation"))
+        for study_id in test_ids:
+            held_out[study_id] = held_out.get(study_id, 0) + 1
+    performance = payload.get("per_study_performance")
+    performance_values = [
+        item.get("study_id") for item in performance
+        if isinstance(item, dict)
+    ] if isinstance(performance, list) else []
+    performance_ids = {
+        value for value in performance_values if _nonempty(value)
+    }
+    performance_rows_valid = (
+        isinstance(performance, list) and len(performance) == len(performance_ids)
+        and all(isinstance(item, dict) and _nonempty(item.get("study_id")) for item in performance)
+    )
+    if not performance_rows_valid or not performance_ids or performance_ids != set(held_out):
+        errors.append(_error("REPRODUCIBILITY_PER_STUDY_COVERAGE_MISMATCH", "per_study_performance must contain one record for every outer held-out Study ID.", "reproducibility_evaluation"))
+    if any(count != 1 for count in held_out.values()):
+        errors.append(_error("REPRODUCIBILITY_STUDY_NOT_HELD_OUT_ONCE", "Each Study must appear in exactly one outer test fold.", "reproducibility_evaluation"))
+    universe = set(held_out)
+    for index, fold in enumerate(folds):
+        if isinstance(fold, dict) and isinstance(fold.get("test_study_ids"), list) and isinstance(fold.get("outer_training_study_ids"), list):
+            test_group, outer_group = set(fold["test_study_ids"]), set(fold["outer_training_study_ids"])
+            if test_group | outer_group != universe:
+                errors.append(_error("REPRODUCIBILITY_OUTER_GROUP_COVERAGE", f"folds[{index}] outer test/training Studies must cover the complete evaluation Study set.", "reproducibility_evaluation"))
+
+    if isinstance(studies, int) and len(held_out) != studies:
+        errors.append(_error("REPRODUCIBILITY_STUDY_COUNT_MISMATCH", "study_count must equal the unique outer held-out Study count.", "reproducibility_evaluation"))
+    if not isinstance(payload.get("uncertainty"), dict) or payload["uncertainty"].get("status") != "NOT_CALIBRATED":
+        errors.append(_error("REPRODUCIBILITY_UNCERTAINTY_STATUS_INVALID", "Nested evaluation uncertainty must remain NOT_CALIBRATED.", "reproducibility_evaluation"))
+    return errors
+
+
+def _validate_reproducibility_manifest(payload: Any) -> list[dict[str, str]]:
+    if not isinstance(payload, dict) or payload.get("schema_version") != "1.0":
+        return [_error("REPRODUCIBILITY_MANIFEST_INVALID", "reproducibility_evaluation_manifest requires schema_version 1.0.", "reproducibility_evaluation_manifest")]
+    errors: list[dict[str, str]] = []
+    inputs, outputs, ids = payload.get("input_hashes"), payload.get("output_hashes"), payload.get("study_ids")
+    required_inputs = ("cohort_sha256", "cohort_report_sha256", "split_manifest_sha256", "cohort_manifest_sha256", "task_sha256")
+    if not isinstance(inputs, dict) or not all(_sha256(inputs.get(key)) for key in required_inputs):
+        errors.append(_error("REPRODUCIBILITY_INPUT_HASHES_INVALID", "Nested evaluation manifest must bind cohort/report/split/manifest/task hashes.", "reproducibility_evaluation_manifest"))
+    if not isinstance(outputs, dict) or not outputs or any(not _sha256(value) for value in outputs.values()):
+        errors.append(_error("REPRODUCIBILITY_OUTPUT_HASHES_INVALID", "Nested evaluation output_hashes must contain SHA-256 values.", "reproducibility_evaluation_manifest"))
+    if not isinstance(ids, list) or len(ids) < 4 or any(not _nonempty(value) for value in ids) or len(ids) != len(set(ids)):
+        errors.append(_error("REPRODUCIBILITY_MANIFEST_STUDY_IDS_INVALID", "Nested evaluation manifest requires at least four unique Study IDs.", "reproducibility_evaluation_manifest"))
+    if payload.get("selection_protocol") != "NESTED_INNER_STUDY_HOLDOUT" or payload.get("test_protocol") != "OUTER_GROUPED_K_FOLD_EACH_STUDY_HELD_OUT_ONCE":
+        errors.append(_error("REPRODUCIBILITY_PROTOCOL_INVALID", "Nested evaluation manifest protocols do not match the fixed supported protocols.", "reproducibility_evaluation_manifest"))
+    if payload.get("uncertainty_status") != "DESCRIPTIVE_CROSS_STUDY_ERROR_ONLY_NOT_CALIBRATED":
+        errors.append(_error("REPRODUCIBILITY_MANIFEST_UNCERTAINTY_INVALID", "Nested evaluation manifest must state that uncertainty is not calibrated.", "reproducibility_evaluation_manifest"))
     return errors
 
 
@@ -367,8 +481,14 @@ def validate_stage_payload(artifact_type: str, payload: Any, *, run_id: str, pro
         return _validate_split_manifest(payload, eligible_study_ids)
     if artifact_type == "model_report":
         return _validate_model_report(payload)
+    if artifact_type == "model_artifact":
+        return _validate_model_artifact(payload)
     if artifact_type == "modeling_run_manifest":
         return _validate_model_manifest(payload)
+    if artifact_type == "reproducibility_evaluation":
+        return _validate_reproducibility_evaluation(payload)
+    if artifact_type == "reproducibility_evaluation_manifest":
+        return _validate_reproducibility_manifest(payload)
     if artifact_type == "publication_package_manifest":
         return _validate_publication_manifest(payload, run_id, project_id)
     if artifact_type == "publication_integrity_report":
@@ -452,18 +572,38 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
             ids = report.get("eligible_study_ids", [])
             if isinstance(ids, list) and set(split.get("study_to_split", {})) != set(ids):
                 errors.append(_error("COHORT_SPLIT_STUDY_SET_MISMATCH", "split_manifest Study IDs must exactly match cohort_report.eligible_study_ids.", "split_manifest"))
-    if stage_id == "modeling_validation" and "model_report" in by_type and "modeling_run_manifest" in by_type:
-        report_item, manifest_item = by_type["model_report"], by_type["modeling_run_manifest"]
-        report, model_manifest = report_item["payload"], manifest_item["payload"]
-        if isinstance(report, dict) and isinstance(model_manifest, dict):
-            if report.get("task_id") != model_manifest.get("task_id") or report.get("selected_model") != model_manifest.get("selected_model"):
-                errors.append(_error("MODEL_REPORT_MANIFEST_IDENTITY_MISMATCH", "model_report task_id/selected_model must match modeling_run_manifest.", "model_report"))
-            expected_hash = model_manifest.get("output_hashes", {}).get("model_report.json")
-            if expected_hash != report_item.get("sha256"):
-                errors.append(_error("MODEL_REPORT_HASH_NOT_BOUND", "modeling_run_manifest.output_hashes.model_report.json must equal the cited model_report evidence hash.", "modeling_run_manifest"))
+    if stage_id == "modeling_validation" and all(kind in by_type for kind in (
+        "model_report", "model_artifact", "modeling_run_manifest",
+        "reproducibility_evaluation", "reproducibility_evaluation_manifest"
+    )):
+        report_item = by_type["model_report"]
+        artifact_item = by_type["model_artifact"]
+        model_item = by_type["modeling_run_manifest"]
+        evaluation_item = by_type["reproducibility_evaluation"]
+        evaluation_manifest_item = by_type["reproducibility_evaluation_manifest"]
+        report = report_item["payload"]
+        artifact = artifact_item["payload"]
+        model_manifest = model_item["payload"]
+        evaluation = evaluation_item["payload"]
+        evaluation_manifest = evaluation_manifest_item["payload"]
+        if isinstance(report, dict) and isinstance(artifact, dict) and isinstance(model_manifest, dict):
+            if (report.get("task_id") != model_manifest.get("task_id")
+                    or report.get("selected_model") != model_manifest.get("selected_model")
+                    or report.get("task_id") != artifact.get("task_id")
+                    or report.get("selected_candidate_id") != artifact.get("selected_candidate_id")
+                    or report.get("target_id") != artifact.get("target_id")
+                    or report.get("endpoint_definition") != artifact.get("endpoint_definition")):
+                errors.append(_error("MODEL_REPORT_ARTIFACT_IDENTITY_MISMATCH", "model_report, model_artifact, and modeling_run_manifest task/model selections must match.", "model_report"))
+            outputs = model_manifest.get("output_hashes", {})
+            if outputs.get("model_report.json") != report_item.get("sha256"):
+                errors.append(_error("MODEL_REPORT_HASH_NOT_BOUND", "modeling_run_manifest.output_hashes.model_report.json must equal the cited model_report hash.", "modeling_run_manifest"))
+            if outputs.get("model_artifact.json") != artifact_item.get("sha256"):
+                errors.append(_error("MODEL_ARTIFACT_HASH_NOT_BOUND", "modeling_run_manifest.output_hashes.model_artifact.json must equal the cited model_artifact hash.", "modeling_run_manifest"))
             split_item = all_payloads.get("split_manifest")
+            cohort_item = all_payloads.get("cohort_report")
             if split_item and isinstance(split_item.get("payload"), dict):
-                split_map = split_item["payload"].get("study_to_split", {})
+                split_payload = split_item["payload"]
+                split_map = split_payload.get("study_to_split", {})
                 expected_groups = {
                     key: sorted(sid for sid, partition in split_map.items() if partition == key)
                     for key in ("train", "validation", "test")
@@ -471,5 +611,45 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
                 actual_groups = model_manifest.get("study_ids_by_split", {})
                 actual_groups = {key: sorted(values) for key, values in actual_groups.items()} if isinstance(actual_groups, dict) else {}
                 if actual_groups != expected_groups:
-                    errors.append(_error("MODEL_SPLIT_MANIFEST_MISMATCH", "modeling_run_manifest Study assignments must exactly match the accepted cohort split_manifest.", "modeling_run_manifest"))
+                    errors.append(_error("MODEL_SPLIT_MANIFEST_MISMATCH", "Model Study assignments must exactly match the accepted cohort split_manifest.", "modeling_run_manifest"))
+                inputs = model_manifest.get("input_hashes", {})
+                if inputs.get("split_manifest_sha256") != split_item.get("sha256"):
+                    errors.append(_error("MODEL_SPLIT_HASH_NOT_BOUND", "modeling_run_manifest must bind the exact accepted split_manifest hash.", "modeling_run_manifest"))
+                if cohort_item and inputs.get("cohort_report_sha256") != cohort_item.get("sha256"):
+                    errors.append(_error("MODEL_COHORT_REPORT_HASH_NOT_BOUND", "modeling_run_manifest must bind the exact accepted cohort_report hash.", "modeling_run_manifest"))
+                if isinstance(artifact, dict):
+                    expected_training_studies = sorted(expected_groups["train"] + expected_groups["validation"])
+                    if sorted(artifact.get("training_study_ids", [])) != expected_training_studies:
+                        errors.append(_error("MODEL_ARTIFACT_TRAINING_STUDIES_MISMATCH", "Serialized model training_study_ids must equal train plus validation Studies in the accepted split.", "model_artifact"))
+                    observations = split_payload.get("observation_ids_by_split", {})
+                    expected_training_observations = set(observations.get("train", [])) | set(observations.get("validation", []))
+                    expected_test_observations = set(observations.get("test", []))
+                    if set(artifact.get("training_observation_ids", [])) != expected_training_observations:
+                        errors.append(_error("MODEL_ARTIFACT_TRAINING_OBSERVATIONS_MISMATCH", "Serialized model training observation IDs must equal train plus validation observations.", "model_artifact"))
+                    if set(artifact.get("test_observation_ids", [])) != expected_test_observations:
+                        errors.append(_error("MODEL_ARTIFACT_TEST_OBSERVATIONS_MISMATCH", "Serialized model test observation IDs must equal held-out test observations.", "model_artifact"))
+            if isinstance(evaluation, dict) and isinstance(evaluation_manifest, dict):
+                if (evaluation.get("task_id") != evaluation_manifest.get("task_id")
+                        or evaluation.get("task_id") != report.get("task_id")
+                        or evaluation.get("target_id") != report.get("target_id")
+                        or evaluation.get("endpoint_definition") != report.get("endpoint_definition")
+                        or evaluation.get("fold_count") != evaluation_manifest.get("fold_count")
+                        or evaluation.get("study_count") != len(evaluation_manifest.get("study_ids", []))):
+                    errors.append(_error("REPRODUCIBILITY_REPORT_MANIFEST_MISMATCH", "Nested evaluation report task/endpoint/fold/Study counts must match model_report and its manifest.", "reproducibility_evaluation"))
+                if evaluation_manifest.get("output_hashes", {}).get("reproducibility_evaluation.json") != evaluation_item.get("sha256"):
+                    errors.append(_error("REPRODUCIBILITY_REPORT_HASH_NOT_BOUND", "Nested evaluation manifest must bind the exact evaluation report hash.", "reproducibility_evaluation_manifest"))
+                if cohort_item and isinstance(cohort_item.get("payload"), dict):
+                    eligible_ids = set(cohort_item["payload"].get("eligible_study_ids", []))
+                    manifest_ids = set(evaluation_manifest.get("study_ids", []))
+                    held_out_ids = {
+                        sid for fold in evaluation.get("folds", []) if isinstance(fold, dict)
+                        for sid in fold.get("test_study_ids", []) if isinstance(sid, str)
+                    }
+                    if manifest_ids != eligible_ids or held_out_ids != eligible_ids:
+                        errors.append(_error("REPRODUCIBILITY_STUDY_SET_MISMATCH", "Nested evaluation manifest and outer held-out folds must cover exactly cohort_report.eligible_study_ids.", "reproducibility_evaluation_manifest"))
+                    eval_inputs = evaluation_manifest.get("input_hashes", {})
+                    if split_item and eval_inputs.get("split_manifest_sha256") != split_item.get("sha256"):
+                        errors.append(_error("REPRODUCIBILITY_SPLIT_HASH_NOT_BOUND", "Nested evaluation manifest must bind the exact accepted split_manifest hash.", "reproducibility_evaluation_manifest"))
+                    if eval_inputs.get("cohort_report_sha256") != cohort_item.get("sha256"):
+                        errors.append(_error("REPRODUCIBILITY_COHORT_HASH_NOT_BOUND", "Nested evaluation manifest must bind the exact accepted cohort_report hash.", "reproducibility_evaluation_manifest"))
     return errors

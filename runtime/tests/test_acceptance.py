@@ -60,7 +60,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "cohort_report": "evidence/cohort_report.json",
             "split_manifest": "evidence/split_manifest.json",
             "model_report": "evidence/model_report.json",
+            "model_artifact": "evidence/model_artifact.json",
             "modeling_run_manifest": "evidence/modeling_run_manifest.json",
+            "reproducibility_evaluation": "evidence/reproducibility_evaluation.json",
+            "reproducibility_evaluation_manifest": "evidence/reproducibility_evaluation_manifest.json",
             "publication_manifest": "evidence/publication_package_manifest.json",
             "publication_integrity": "evidence/publication_integrity_report.json",
         }
@@ -262,11 +265,29 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "selected_model": "Ridge", "selected_candidate_id": "ridge_1",
             "primary_selection_metric": "mae", "validation_comparison": [{"candidate_id": "ridge_1"}],
             "test_evaluation": {"n": 1, "mae": 0.1},
-            "training_observation_count": max(1, len(ids) - 2),
-            "validation_observation_count": 1, "refit_observation_count": max(2, len(ids) - 1),
+            "training_observation_count": len(training_study_ids),
+            "validation_observation_count": 1, "refit_observation_count": len(training_study_ids),
             "test_observation_count": 1,
         }
         model_report_hash = self._write_json(paths["model_report"], model_report)
+        training_study_ids = sorted(study_id for study_id, partition in groups.items() if partition != "test")
+        test_study_ids = sorted(study_id for study_id, partition in groups.items() if partition == "test")
+        model_artifact = {
+            "schema_version": "1.0", "engine_version": "synthetic", "task_id": "TASK_1",
+            "model_type": "ridge_regression", "target_id": "CAPACITY",
+            "endpoint_definition": "specific discharge capacity",
+            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "feature_bindings": [{
+                "feature_id": "concentration", "condition_type": "concentration",
+                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+            }], "selected_candidate_id": "ridge_1",
+            "selection_metric": "validation_mae",
+            "training_observation_ids": [f"OBS_{sid.replace('-', '_')}" for sid in training_study_ids],
+            "training_study_ids": training_study_ids,
+            "test_observation_ids": [f"OBS_{sid.replace('-', '_')}" for sid in test_study_ids],
+            "model_parameters": {"alpha": 1.0},
+        }
+        model_artifact_hash = self._write_json(paths["model_artifact"], model_artifact)
         model_manifest = {
             "schema_version": "1.0", "task_id": "TASK_1", "engine_version": "synthetic",
             "input_hashes": {
@@ -276,7 +297,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             },
             "output_hashes": {
                 "model_report.json": model_report_hash,
-                "model_artifact.json": "d" * 64,
+                "model_artifact.json": model_artifact_hash,
             },
             "split_strategy": "EXPLICIT_STUDIES", "split_seed": 42,
             "study_ids_by_split": study_groups, "selected_model": "Ridge",
@@ -284,6 +305,64 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "source_policy": "SYNTHETIC_FIXTURE_ONLY",
         }
         self._write_json(paths["modeling_run_manifest"], model_manifest)
+
+        evaluation_folds = []
+        per_study = []
+        for fold_index, held_out_id in enumerate(sorted(ids), start=1):
+            outer_training_ids = sorted(study_id for study_id in ids if study_id != held_out_id)
+            inner_validation_ids = outer_training_ids[:1]
+            inner_training_ids = outer_training_ids[1:]
+            evaluation_folds.append({
+                "fold": fold_index, "test_study_ids": [held_out_id],
+                "outer_training_study_ids": outer_training_ids,
+                "inner_training_study_ids": inner_training_ids,
+                "inner_validation_study_ids": inner_validation_ids,
+                "selected_model": "Ridge",
+                "inner_validation_comparison": [{}],
+                "outer_test_metrics": {"n": 1}, "outer_test_baseline_metrics": {"n": 1},
+            })
+            per_study.append({"study_id": held_out_id, "fold": fold_index, "n": 1, "selected_model": "Ridge"})
+        evaluation = {
+            "schema_version": "1.0", "task_id": "TASK_1", "target_id": "CAPACITY",
+            "endpoint_definition": "specific discharge capacity", "outcome_type": "NUMERIC",
+            "fold_count": len(ids), "study_count": len(ids), "observation_count": len(ids),
+            "seed": 42, "outer_split_strategy": "DETERMINISTIC_GROUPED_K_FOLD_BY_STUDY",
+            "inner_selection_strategy": "NESTED_STUDY_HOLDOUT_WITHIN_OUTER_TRAINING_STUDIES",
+            "pooled_out_of_fold_metrics": {}, "pooled_baseline_metrics": {},
+            "per_study_performance": per_study,
+            "between_study_error_or_bias_distribution": {},
+            "folds": evaluation_folds, "model_selection_frequency": {"Ridge": len(ids)},
+            "applicability_domain": {
+                "method": "MIXED_FEATURE_NEAREST_NEIGHBOUR_DISTANCE",
+                "distance_definition": "Synthetic grouped-fold fixture.",
+                "reference_threshold": "Synthetic fixture threshold.",
+                "quantile": 0.95, "counts": {"IN_DOMAIN": len(ids)},
+                "warning": "Synthetic fixture only; heuristic support diagnostic.",
+            },
+            "uncertainty": {
+                "status": "NOT_CALIBRATED", "reason": "Synthetic fixture; no calibrated prediction intervals.",
+                "descriptive_absolute_error_distribution": {},
+            },
+            "validation_scope": "NESTED_STUDY_GROUPED_CROSS_VALIDATION_AND_HEURISTIC_FEATURE_SUPPORT_DIAGNOSTICS_NOT_PROSPECTIVE_VALIDATION",
+        }
+        evaluation_hash = self._write_json(paths["reproducibility_evaluation"], evaluation)
+        evaluation_manifest = {
+            "schema_version": "1.0", "task_id": "TASK_1", "engine_version": "synthetic",
+            "input_hashes": {
+                "cohort_sha256": "a" * 64,
+                "cohort_report_sha256": self.sha(paths["cohort_report"]),
+                "split_manifest_sha256": self.sha(paths["split_manifest"]),
+                "cohort_manifest_sha256": "b" * 64, "task_sha256": "c" * 64,
+            },
+            "output_hashes": {"reproducibility_evaluation.json": evaluation_hash},
+            "fold_count": len(ids), "seed": 42, "study_ids": sorted(ids),
+            "selection_protocol": "NESTED_INNER_STUDY_HOLDOUT",
+            "test_protocol": "OUTER_GROUPED_K_FOLD_EACH_STUDY_HELD_OUT_ONCE",
+            "applicability_domain_method": "MIXED_FEATURE_NEAREST_NEIGHBOUR_EMPIRICAL_REFERENCE_Q95",
+            "uncertainty_status": "DESCRIPTIVE_CROSS_STUDY_ERROR_ONLY_NOT_CALIBRATED",
+            "source_policy": "SYNTHETIC_FIXTURE_ONLY",
+        }
+        self._write_json(paths["reproducibility_evaluation_manifest"], evaluation_manifest)
 
         publication_manifest = {
             "schema_version": "1.0", "project_id": "PROJECT_1", "run_id": self.run_id,
@@ -310,7 +389,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "cohort_feasibility": [("cohort_report", "cohort_report"),
                                    ("split_manifest", "split_manifest")],
             "modeling_validation": [("model_report", "model_report"),
-                                    ("modeling_run_manifest", "modeling_run_manifest")],
+                                    ("model_artifact", "model_artifact"),
+                                    ("modeling_run_manifest", "modeling_run_manifest"),
+                                    ("reproducibility_evaluation", "reproducibility_evaluation"),
+                                    ("reproducibility_evaluation_manifest", "reproducibility_evaluation_manifest")],
             "publication_handoff": [("publication_package_manifest", "publication_manifest"),
                                     ("publication_integrity_report", "publication_integrity")],
         }
@@ -328,7 +410,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
                         "extraction_review": "extraction_review", "mapping_plan": "mapping_plan",
                         "canonical_bundle": "canonical_bundle", "reconciliation_report": "reconciliation_report",
                         "cohort_report": "cohort_report", "split_manifest": "split_manifest",
-                        "model_report": "model_report", "modeling_run_manifest": "modeling_run_manifest",
+                        "model_report": "model_report", "model_artifact": "model_artifact",
+                        "modeling_run_manifest": "modeling_run_manifest",
+                        "reproducibility_evaluation": "reproducibility_evaluation",
+                        "reproducibility_evaluation_manifest": "reproducibility_evaluation_manifest",
                         "publication_manifest": "publication_manifest", "publication_integrity": "publication_integrity",
                     }[key]
                 items.append({
@@ -389,7 +474,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertTrue(report["scientific_review_required"])
 
     def test_all_pass_requires_typed_evidence_and_cross_stage_bindings(self):
-        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3"])
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
         for stage in STAGE_ORDER:
             self.set_stage(stage, "PASS")
         self.record["final_assessment"]["decision"] = "PASS"
@@ -494,7 +579,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertIn("SINGLE_STUDY_NA_NOT_ALLOWED", {item["code"] for item in self.validate()["issues"]})
 
     def test_full_pass_cannot_retain_blocking_issue_ids(self):
-        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3"])
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
         for stage in STAGE_ORDER:
             self.set_stage(stage, "PASS")
         self.record["final_assessment"]["decision"] = "PASS"

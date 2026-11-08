@@ -172,7 +172,10 @@
                     "model_report",
                     "modeling_run_manifest",
                     "publication_package_manifest",
-                    "publication_integrity_report"
+                    "publication_integrity_report",
+                    "model_artifact",
+                    "reproducibility_evaluation",
+                    "reproducibility_evaluation_manifest"
                   ]
                 }
               },
