@@ -143,6 +143,19 @@ class InteractionDiscoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"maximum_feature_pairs"):
             discover_interactions_files(cohort_dir,task_path,self.root/"bad_cap")
 
+    def test_pair_encoding_cap_excludes_pair_from_entire_cross_validation(self):
+        task=interaction_task()
+        task["feature_bindings"][1]["value_type"]="CATEGORICAL"
+        task["interaction_discovery"]["maximum_interaction_columns"]=1
+        task_path,cohort_dir=self._build_custom_cohort(task,"limited_encoding")
+        report=discover_interactions_files(cohort_dir,task_path,self.root/"limited_encoding_out",folds=4)["report"]
+        self.assertEqual(report["support_eligible_pair_count"],1)
+        self.assertEqual(report["eligible_pair_count"],0)
+        self.assertEqual(report["excluded_pair_count"],1)
+        self.assertEqual(report["exclusions"][0]["reason"],"PAIR_INTERACTION_ENCODING_EXCEEDS_LIMIT")
+        self.assertEqual(report["exclusions"][0]["folds"],[1,2,3,4])
+        self.assertEqual(report["interaction_catalogue"],[])
+
     def test_inputs_remain_unchanged(self):
         paths=[self.task_path,self.cohort_dir/"modeling_cohort.csv",
                self.cohort_dir/"cohort_report.json",self.cohort_dir/"split_manifest.json",
