@@ -851,6 +851,43 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertTrue(latest["rationale"].strip())
         self.assertEqual(latest["final_decision"], "NOT_ASSESSED")
 
+    def test_unreferenced_revision_snapshot_is_rejected(self):
+        extra = self.ledger_path.with_name(self.ledger_path.name + ".revisions") / "unreferenced.json"
+        extra.write_text("{}", encoding="utf-8")
+        report = validate_acceptance_ledger(self.record_path, self.ledger_path)
+        self.assertFalse(report["valid"])
+        self.assertIn("ACCEPTANCE_LEDGER_INVALID", {item["code"] for item in report["issues"]})
+        self.assertIn("unreferenced", report["issues"][0]["message"])
+
+    def test_final_decision_cannot_smuggle_unreviewed_root_fields(self):
+        self.record["unreviewed_metadata"] = {"note": "must not enter event history"}
+        self.record["final_assessment"].update({
+            "decision": "FAIL", "assessed_by": "synthetic-reviewer",
+            "assessed_at": "2026-11-08T03:00:00Z",
+            "rationale": "Synthetic final review.",
+        })
+        self.record_path.write_text(json.dumps(self.record, indent=2), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "outside the permitted review state"):
+            record_acceptance_revision(
+                self.record_path, self.ledger_path, "synthetic-reviewer",
+                "Attempted to combine a decision with an unrelated root edit.",
+            )
+
+    def test_stage_revision_cannot_smuggle_unreviewed_root_fields(self):
+        stage = self.record["stages"][0]
+        stage.update({
+            "status": "BLOCKED", "blocker_reason": "Synthetic blocker.",
+            "reviewed_by": "synthetic-reviewer", "reviewed_at": "2026-11-08T03:10:00Z",
+            "review_rationale": "Synthetic blocker review.",
+        })
+        self.record["unreviewed_metadata"] = "not an acceptance review field"
+        self.record_path.write_text(json.dumps(self.record, indent=2), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "outside the permitted review state"):
+            record_acceptance_revision(
+                self.record_path, self.ledger_path, "synthetic-reviewer",
+                "Attempted to combine a stage review with an unrelated root edit.",
+            )
+
     def test_acceptance_ledger_event_tampering_is_detected(self):
         lines = self.ledger_path.read_text(encoding="utf-8").splitlines()
         event = json.loads(lines[0])

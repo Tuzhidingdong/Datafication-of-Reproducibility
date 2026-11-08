@@ -187,6 +187,10 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                 current_assessment = snapshot.get("final_assessment")
                 assessment_changed = previous_assessment != current_assessment
                 if raw_changed:
+                    _ensure_only_fields_changed(
+                        previous_record, snapshot, {"stages", "final_assessment"},
+                        f"Acceptance revision {line_number}",
+                    )
                     if event.get("event_type") != "STAGE_REVIEW_RECORDED":
                         raise ValueError(f"Stage changes must be recorded as STAGE_REVIEW_RECORDED at line {line_number}.")
                     revised_stage_ids = [raw_changed[0]]
@@ -201,6 +205,10 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                     if current_assessment != _invalidated_assessment(line_number, raw_changed[0]):
                         raise ValueError(f"Final assessment was not invalidated after stage revision at line {line_number}.")
                 else:
+                    _ensure_only_fields_changed(
+                        previous_record, snapshot, {"final_assessment"},
+                        f"Acceptance revision {line_number}",
+                    )
                     if not assessment_changed or event.get("event_type") != "FINAL_DECISION_RECORDED":
                         raise ValueError(f"Acceptance revision {line_number} contains no valid stage or final-decision change.")
                     if event.get("changed_stage_ids") != [] or event.get("invalidated_stage_ids") != []:
@@ -218,7 +226,31 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
 
     if not events:
         raise ValueError("Acceptance ledger is empty.")
+    expected_snapshot_names = {f"revision-{index:06d}.json" for index in range(1, len(events) + 1)}
+    actual_snapshot_names = {item.name for item in snapshots_dir.iterdir()}
+    if actual_snapshot_names != expected_snapshot_names:
+        unexpected = sorted(actual_snapshot_names - expected_snapshot_names)
+        missing = sorted(expected_snapshot_names - actual_snapshot_names)
+        raise ValueError(
+            f"Acceptance revision directory does not exactly match ledger references "
+            f"(unreferenced={unexpected}, missing={missing})."
+        )
     return events, snapshots
+
+
+
+def _ensure_only_fields_changed(previous: Mapping[str, Any], current: Mapping[str, Any],
+                                allowed: set[str], label: str) -> None:
+    keys = set(previous) | set(current)
+    changed = {
+        key for key in keys
+        if previous.get(key) != current.get(key) or (key in previous) != (key in current)
+    }
+    unexpected = sorted(changed - allowed)
+    if unexpected:
+        raise ValueError(
+            f"{label} changed fields outside the permitted review state: {', '.join(unexpected)}."
+        )
 
 
 def _changed_stage_ids(previous: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
@@ -424,6 +456,10 @@ def record_acceptance_revision(record_path: Path, ledger_path: Path,
         old_assessment = previous_record.get("final_assessment")
         new_assessment = record.get("final_assessment")
         if changed:
+            _ensure_only_fields_changed(
+                previous_record, record, {"stages", "final_assessment"},
+                "Acceptance revision",
+            )
             revised_stage_ids = [changed[0]]
             _validate_changed_stage_reviews(previous_record, record, revised_stage_ids)
             earliest = STAGE_ORDER.index(changed[0])
@@ -434,6 +470,10 @@ def record_acceptance_revision(record_path: Path, ledger_path: Path,
             changed = revised_stage_ids
             event_type = "STAGE_REVIEW_RECORDED"
         elif old_assessment != new_assessment:
+            _ensure_only_fields_changed(
+                previous_record, record, {"final_assessment"},
+                "Acceptance revision",
+            )
             _validate_final_decision_review(new_assessment)
             old_meta = tuple(old_assessment.get(key) for key in ("assessed_by", "assessed_at", "rationale")) if isinstance(old_assessment, dict) else ()
             new_meta = tuple(new_assessment.get(key) for key in ("assessed_by", "assessed_at", "rationale")) if isinstance(new_assessment, dict) else ()
