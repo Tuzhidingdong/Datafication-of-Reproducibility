@@ -8,7 +8,7 @@ from pathlib import Path
 from dor.cohort import build_modeling_cohort_files
 from dor.interactions import discover_interactions_files
 from dor.robustness import assess_interaction_robustness_files
-from dor.response_surface import generate_interaction_surface_files
+from dor.response_surface import _convex_hull, _inside_convex_hull, generate_interaction_surface_files
 from test_interactions import interaction_bundle, interaction_task
 
 
@@ -31,6 +31,11 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_convex_hull_masks_unobserved_pair_combinations(self):
+        hull = _convex_hull([(0.0, 0.0), (0.0, 1.0), (1.0, 0.0)])
+        self.assertTrue(_inside_convex_hull((0.2, 0.2), hull))
+        self.assertFalse(_inside_convex_hull((0.8, 0.8), hull))
 
     def test_generates_surface_support_and_marginal_effects(self):
         output = self.root / "surface"
