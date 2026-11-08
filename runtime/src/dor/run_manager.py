@@ -350,8 +350,9 @@ def _load_events(event_path: Path, run_id: str) -> list[dict[str, Any]]:
             payload = {key: value for key, value in event.items() if key != "event_hash"}
             if supplied != _hash_payload(payload):
                 raise ValueError(f"Run event hash mismatch at line {line_number}.")
-            if event.get("sequence") != line_number or event.get("previous_event_hash") != previous:
-                raise ValueError(f"Run event sequence/hash-chain mismatch at line {line_number}.")
+            sequence = event.get("sequence")
+            if type(sequence) is not int or sequence != line_number or event.get("previous_event_hash") != previous:
+                raise ValueError(f"Run event sequence/hash-chain mismatch at line {line_number}; sequence must be an exact integer.")
             if event.get("run_id") != run_id:
                 raise ValueError(f"Run event at line {line_number} belongs to another run.")
             event_type = event.get("event_type")
@@ -364,6 +365,9 @@ def _load_events(event_path: Path, run_id: str) -> list[dict[str, Any]]:
                 stage_id = event.get("stage_id")
                 if not isinstance(stage_id, str) or not _STAGE_ID.fullmatch(stage_id):
                     raise ValueError(f"Invalid run event stage_id at line {line_number}.")
+                attempt = event.get("attempt")
+                if type(attempt) is not int or attempt < 1:
+                    raise ValueError(f"Run event attempt at line {line_number} must be an exact positive integer.")
             if event_type == "STAGE_STATUS" and event.get("status") not in _STAGE_STATUSES:
                 raise ValueError(f"Invalid stage status at line {line_number}.")
             if line_number == 1 and event_type != "RUN_INITIALIZED":

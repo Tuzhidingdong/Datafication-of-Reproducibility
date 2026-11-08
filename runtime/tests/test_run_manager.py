@@ -382,6 +382,33 @@ class RunManagerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "hash mismatch"):
             verify_run(self.manifest_path)
 
+    def test_event_sequence_rejects_boolean_even_when_hash_is_recomputed(self):
+        from dor.run_manager import _hash_payload
+        ledger = self.run_root / "run_events.jsonl"
+        events = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+        events[0]["sequence"] = True
+        payload = {key: value for key, value in events[0].items() if key != "event_hash"}
+        events[0]["event_hash"] = _hash_payload(payload)
+        ledger.write_text("\n".join(
+            json.dumps(event, sort_keys=True, separators=(",", ":")) for event in events
+        ) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "sequence must be an exact integer"):
+            verify_run(self.manifest_path)
+
+    def test_stage_attempt_rejects_boolean_even_when_hash_is_recomputed(self):
+        from dor.run_manager import _hash_payload
+        record_stage_status(self.manifest_path, "audit", "RUNNING", "local")
+        ledger = self.run_root / "run_events.jsonl"
+        events = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+        events[-1]["attempt"] = True
+        payload = {key: value for key, value in events[-1].items() if key != "event_hash"}
+        events[-1]["event_hash"] = _hash_payload(payload)
+        ledger.write_text("\n".join(
+            json.dumps(event, sort_keys=True, separators=(",", ":")) for event in events
+        ) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "attempt .* exact positive integer"):
+            verify_run(self.manifest_path)
+
     def test_run_manifest_snapshot_is_bound_to_initialization_event(self):
         manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
         manifest["source_artifacts"][0]["sha256"] = "f" * 64
