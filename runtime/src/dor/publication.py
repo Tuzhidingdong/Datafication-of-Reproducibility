@@ -52,6 +52,19 @@ def _validate_plan(plan: Any) -> list[dict[str, Any]]:
     for key in ("project_id", "run_id", "package_version"):
         if not isinstance(plan.get(key), str) or not plan[key].strip():
             raise ValueError(key + " must be a non-empty string.")
+    profile = plan.get("domain_profile")
+    if profile is not None:
+        _relative_path(profile, "domain_profile")
+    source_hashes = plan.get("source_hashes", {})
+    if not isinstance(source_hashes, dict):
+        raise ValueError("source_hashes must be an object keyed by source IDs or relative labels.")
+    for source_key, digest in source_hashes.items():
+        if (not isinstance(source_key, str) or not source_key.strip()
+                or Path(source_key).is_absolute() or re.match(r"^[A-Za-z]:", source_key)
+                or "\\" in source_key or ".." in Path(source_key).parts):
+            raise ValueError("source_hashes keys must not contain absolute local paths or traversal.")
+        if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
+            raise ValueError("source_hashes values must be 64-character SHA-256 digests.")
     artifacts = plan.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
         raise ValueError("Publication package plan must contain at least one artifact entry.")
@@ -273,6 +286,8 @@ def audit_publication_package_file(package_dir: Path, report_path: Path | None =
     report = audit_publication_package_files(package_dir)
     if report_path is not None:
         report_path = report_path.expanduser().resolve()
+        if report_path.is_relative_to(package_dir):
+            raise ValueError("Package integrity report must be written outside the package directory.")
         report_path.parent.mkdir(parents=True, exist_ok=True)
         _write_json(report_path, report)
         report["report_path"] = str(report_path)
