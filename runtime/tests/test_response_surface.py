@@ -98,8 +98,24 @@ class InteractionResponseSurfaceTests(unittest.TestCase):
         task["interaction_surface"] = {"grid_size": 61, "background_max_observations": 5000}
         task_path = self.root / "large_task.json"
         task_path.write_text(json.dumps(task), encoding="utf-8")
+        large_bundle = interaction_bundle()
+        base_experiments = list(large_bundle["experiments"])
+        base_observations = list(large_bundle["observations"])
+        observations_by_experiment = {row["experiment_id"]: row for row in base_observations}
+        for repeat in range(25):
+            for experiment in base_experiments:
+                new_experiment = dict(experiment)
+                new_experiment_id = "IXR_" + str(repeat) + "_" + experiment["experiment_id"]
+                new_experiment["experiment_id"] = new_experiment_id
+                large_bundle["experiments"].append(new_experiment)
+                new_observation = dict(observations_by_experiment[experiment["experiment_id"]])
+                new_observation["observation_id"] = "IOR_" + str(repeat) + "_" + new_observation["observation_id"]
+                new_observation["experiment_id"] = new_experiment_id
+                large_bundle["observations"].append(new_observation)
+        large_bundle_path = self.root / "large_bundle.json"
+        large_bundle_path.write_text(json.dumps(large_bundle), encoding="utf-8")
         cohort_dir = self.root / "large_cohort"
-        built = build_modeling_cohort_files(self.bundle_path, task_path, cohort_dir)
+        built = build_modeling_cohort_files(large_bundle_path, task_path, cohort_dir)
         self.assertTrue(built["valid"], built)
         interaction_dir = self.root / "large_interactions"
         discovered = discover_interactions_files(cohort_dir, task_path, interaction_dir, folds=4)
