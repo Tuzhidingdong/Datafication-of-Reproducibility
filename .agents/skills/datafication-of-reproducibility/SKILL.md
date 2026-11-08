@@ -78,7 +78,11 @@ After G2 approval:
 - Build the endpoint-specific cohort with `dor build-cohort --bundle canonical_bundle.json --task modeling_task.json --out-dir 04_modeling/cohort`.
 - Inspect `cohort_report.json`, `modeling_cohort.csv`, `split_manifest.json`, and `modeling_cohort_manifest.json`. Confirm exclusion reasons, feature coverage, group assignments, and zero study overlap before fitting any model.
 - A cohort is not a model result. Do not infer performance, causal effects, or scientific validity from cohort construction.
-- Use deterministic Python execution for preprocessing, fitting, hyperparameter search, validation, and metrics.
+- Run `dor fit-baselines --cohort-dir 04_modeling/cohort --task modeling_task.json --out-dir 04_modeling/baseline_run` only after reviewing the cohort report and split manifest.
+- The baseline engine selects candidates on validation only, refits the selected model on train plus validation, and uses test only for final evaluation. Never select or retune a model based on test metrics.
+- Inspect `model_report.json`, `model_artifact.json`, `validation_model_comparison.csv`, `test_predictions.csv`, and `modeling_run_manifest.json`. Confirm that input/output hashes and Study/Observation IDs are consistent.
+- Supported transparent baselines: mean versus Ridge for numeric outcomes; majority class versus mixed Naive Bayes for categorical outcomes. These are reference models, not a universal model-family recommendation or evidence of causal mechanism.
+- Use deterministic Python execution for further preprocessing, fitting, hyperparameter search, validation, and metrics.
 - Select models based on sample size, target type, feature types, study heterogeneity, and extrapolation requirements.
 - Compare against meaningful baselines.
 - Keep study-level groups intact across train/validation/test splits.
