@@ -9,6 +9,7 @@ from dor.canonical import validate_canonical_bundle
 from dor.diagnostics import diagnose_canonical_bundle
 from dor.mapping import validate_mapping_files
 from dor.modeling import run_baseline_models_files
+from dor.reproducibility import evaluate_reproducibility_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 
 def _write_json(path: Path | None, report: dict) -> str:
@@ -57,6 +58,12 @@ def build_parser() -> argparse.ArgumentParser:
     models.add_argument("--cohort-dir", type=Path, required=True, help="Cohort output directory from dor build-cohort")
     models.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON used to build the cohort")
     models.add_argument("--out-dir", type=Path, required=True, help="New or empty derived model output directory")
+    evaluate = subparsers.add_parser("evaluate-reproducibility", help="Run nested study-group cross-validation and applicability-domain diagnostics")
+    evaluate.add_argument("--cohort-dir", type=Path, required=True, help="Completed hash-verified modelling cohort directory")
+    evaluate.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON used to build the cohort")
+    evaluate.add_argument("--out-dir", type=Path, required=True, help="New or empty derived reproducibility evaluation directory")
+    evaluate.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
+    evaluate.add_argument("--seed", type=int, default=42, help="Deterministic grouped-fold seed")
     return parser
 
 def main() -> int:
@@ -89,6 +96,15 @@ def main() -> int:
             report=validate_mapping_files(args.plan,args.inventory)
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
+        if args.command == "evaluate-reproducibility":
+            result=evaluate_reproducibility_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "study_count":report["study_count"],"observation_count":report["observation_count"],
+                "fold_count":report["fold_count"],"pooled_out_of_fold_metrics":report["pooled_out_of_fold_metrics"],
+                "applicability_domain_counts":report["applicability_domain"]["counts"],
+                "uncertainty_status":report["uncertainty"]["status"]},ensure_ascii=False,indent=2))
+            return 0
         if args.command == "fit-baselines":
             result=run_baseline_models_files(args.cohort_dir,args.task,args.out_dir)
             report=result["report"]
