@@ -259,6 +259,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
         }
         self._write_json(paths["split_manifest"], split_manifest)
 
+        training_study_ids = sorted(study_id for study_id, partition in groups.items() if partition != "test")
+        test_study_ids = sorted(study_id for study_id, partition in groups.items() if partition == "test")
         model_report = {
             "schema_version": "1.0", "task_id": "TASK_1", "target_id": "CAPACITY",
             "endpoint_definition": "specific discharge capacity", "outcome_type": "NUMERIC",
@@ -270,8 +272,6 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "test_observation_count": 1,
         }
         model_report_hash = self._write_json(paths["model_report"], model_report)
-        training_study_ids = sorted(study_id for study_id, partition in groups.items() if partition != "test")
-        test_study_ids = sorted(study_id for study_id, partition in groups.items() if partition == "test")
         model_artifact = {
             "schema_version": "1.0", "engine_version": "synthetic", "task_id": "TASK_1",
             "model_type": "ridge_regression", "target_id": "CAPACITY",
