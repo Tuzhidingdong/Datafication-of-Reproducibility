@@ -310,7 +310,7 @@ def build_mechanism_evidence_bridge_files(
         if any(output_dir.iterdir()):
             raise FileExistsError("Refusing to overwrite a non-empty mechanism bridge output directory: " + str(output_dir))
 
-    rows_raw, task, split_manifest, cohort_manifest = _load_cohort(cohort_dir, task_path)
+    _rows_raw, task, _split_manifest, cohort_manifest = _load_cohort(cohort_dir, task_path)
     if task.get("outcome_type") != "NUMERIC":
         raise ValueError("The initial mechanism bridge requires a numeric-endpoint interaction catalogue.")
     bundle_hash = sha256_file(bundle_path)
@@ -330,7 +330,6 @@ def build_mechanism_evidence_bridge_files(
     }, "Interaction discovery")
     if interaction_report.get("target_id") != task.get("target_id") or interaction_report.get("endpoint_definition") != task.get("endpoint_definition") or interaction_report.get("task_id") != task.get("task_id"):
         raise ValueError("Interaction discovery report target/endpoint/task differs from current task.")
-    interaction_id = _required_text(interaction_report.get("interaction_catalogue", [{}])[0].get("interaction_id") if False else None, "interaction_id") if False else None
     plan = _read_object(mechanism_plan_path, "mechanism plan")
     interaction_id = _required_text(plan.get("interaction_id"), "mechanism_plan.interaction_id")
     selected = [item for item in interaction_report.get("interaction_catalogue", [])
@@ -393,7 +392,6 @@ def build_mechanism_evidence_bridge_files(
     findings_out = []
     ledger_rows = []
     review_rows = []
-    review_errors: list[dict[str, Any]] = []
     for hypothesis in hypotheses:
         enriched = []
         for assessment in hypothesis.get("evidence_assessments", []):
@@ -402,7 +400,6 @@ def build_mechanism_evidence_bridge_files(
             item["hypothesis_id"] = hypothesis["hypothesis_id"]
             enriched.append(item)
             for issue in issues:
-                review_errors.append({"hypothesis_id": hypothesis["hypothesis_id"], **issue})
                 review_rows.append({
                     "hypothesis_id": hypothesis["hypothesis_id"], "issue_code": issue["code"],
                     "evidence_id": issue["evidence_id"], "review_action": "VERIFY_INDEPENDENCE_OR_RECLASSIFY",
