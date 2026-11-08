@@ -139,3 +139,20 @@ Prepare a query from ../templates/virtual_reproduction_query.example.json and us
 The query must match the model artifact's task/target/endpoint, feature IDs, and exact expected units. Numeric values must be finite JSON numbers. No implicit unit conversion, feature omission, or retraining is performed.
 
 New model artifacts record feature ranges/category sets from train plus validation only; the held-out test set is excluded. Values outside numeric ranges and unknown categories are flagged, but the model may still return a mathematical estimate. Every report marks uncertainty NOT_CALIBRATED, checks only marginal feature domains, and explicitly states that a virtual prediction is not a physical experiment or atomistic simulation. Keep all warnings when transferring the report to the publication package.
+
+
+## V0.6 end-to-end synthetic acceptance
+
+The development test suite contains a complete temporary-project workflow that executes the dor CLI commands from CSV/JSON audit through explicit mapping, canonical construction, reconciliation, Study-level cohort/model evaluation, interaction discovery, robustness, response surface, mechanism evidence, virtual prediction, and publication-package integrity audit.
+
+The fixture uses eight synthetic discovery Studies and one separate probe Study. Its CSV and JSON sources, mapping plan, build specification, task, mechanism plan, and query are generated under a temporary directory. It checks exact cross-file keys, canonical reference integrity, Study leakage boundaries, Evidence links, provenance hash rejection, source-file immutability, package tamper detection, and CLI command registration.
+
+Run only as a development/CI acceptance test:
+
+    python -m unittest discover -s runtime/tests -p 'test_end_to_end_synthetic_project.py' -v
+
+Run the complete runtime suite:
+
+    python -m unittest discover -s runtime/tests -v
+
+The fixture is artificial and is not a substitute for scientific review or V1.0 acceptance on the real literature corpus. It does not test Antigravity GUI interaction or Worker orchestration.
