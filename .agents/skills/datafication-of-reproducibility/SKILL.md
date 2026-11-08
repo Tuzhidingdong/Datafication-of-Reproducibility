@@ -81,6 +81,9 @@ After G2 approval:
 - Run `dor fit-baselines --cohort-dir 04_modeling/cohort --task modeling_task.json --out-dir 04_modeling/baseline_run` only after reviewing the cohort report and split manifest.
 - The baseline engine selects candidates on validation only, refits the selected model on train plus validation, and uses test only for final evaluation. Never select or retune a model based on test metrics.
 - Inspect `model_report.json`, `model_artifact.json`, `validation_model_comparison.csv`, `test_predictions.csv`, and `modeling_run_manifest.json`. Confirm that input/output hashes and Study/Observation IDs are consistent.
+- Run nested cross-study evaluation with `dor evaluate-reproducibility --cohort-dir 04_modeling/cohort --task modeling_task.json --out-dir 04_modeling/reproducibility_evaluation`. This uses an outer Study-grouped K-fold and an inner Study-level validation split for candidate selection; each Study is held out once.
+- Review pooled out-of-fold and per-Study metrics, fold-specific model selection, between-Study error/bias dispersion, and every applicability-domain warning. Do not summarize only a pooled metric when Study-level performance is heterogeneous.
+- Treat nearest-neighbour support flags as heuristic diagnostics, not physical boundaries or calibrated probabilities. Prediction uncertainty remains explicitly NOT_CALIBRATED in this increment; do not report descriptive error quantiles as prediction intervals.
 - Supported transparent baselines: mean versus Ridge for numeric outcomes; majority class versus mixed Naive Bayes for categorical outcomes. These are reference models, not a universal model-family recommendation or evidence of causal mechanism.
 - Use deterministic Python execution for further preprocessing, fitting, hyperparameter search, validation, and metrics.
 - Select models based on sample size, target type, feature types, study heterogeneity, and extrapolation requirements.
@@ -112,7 +115,7 @@ Read `../../../references/mechanism-evidence.md`.
 
 - Define the intended use and applicability domain.
 - Evaluate predictions with held-out studies or independent experimental data where available.
-- For a requested condition set, report predicted outcome, uncertainty, nearest supported data region, missing critical variables, and extrapolation warnings.
+- For a requested condition set, report predicted outcome, uncertainty status (including NOT_CALIBRATED where applicable), nearest supported data region, missing critical variables, and extrapolation warnings. Use the cross-study evaluation as a support diagnostic, not a guarantee of prospective performance.
 - State explicitly that a virtual prediction is not a completed physical experiment.
 
 ### Stage 7 — Publication package
