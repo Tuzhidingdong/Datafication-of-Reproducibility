@@ -495,6 +495,71 @@ class StageEvidenceContractTests(unittest.TestCase):
         self.assertIn("MODEL_TYPE_SELECTION_MISMATCH", codes)
         self.assertIn("MODEL_SELECTION_METRIC_MISMATCH", codes)
 
+    def test_source_inventory_rejects_ambiguous_same_name_same_hash_sources(self):
+        snapshot = [
+            {"source_id": "left", "role": "STRUCTURED_DATA", "path": "/left/data.csv", "sha256": "a" * 64},
+            {"source_id": "right", "role": "STRUCTURED_DATA", "path": "/right/data.csv", "sha256": "a" * 64},
+        ]
+        payload = {"schema_version": "1.0", "items": [{
+            "inventory_id": "INV_1", "source_file": "data.csv", "source_sha256": "a" * 64,
+            "source_format": "csv", "locator_type": "csv_column", "locator": "capacity",
+            "mapping_status": "UNRESOLVED",
+        }]}
+        codes = {item["code"] for item in validate_stage_payload(
+            "source_inventory", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=snapshot, selected_source_ids={"left", "right"},
+        )}
+        self.assertIn("SOURCE_INVENTORY_SOURCE_ID_AMBIGUOUS", codes)
+
+    def test_reconciliation_issue_count_rejects_boolean_integer_substitution(self):
+        payload = {"schema_version": "1.0", "bundle_sha256": "a" * 64,
+                   "valid_bundle": True, "issue_count": True,
+                   "issues": [{"issue_id": "ISSUE_1"}]}
+        codes = {item["code"] for item in validate_stage_payload(
+            "reconciliation_report", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, canonical_sha256="a" * 64,
+        )}
+        self.assertIn("RECONCILIATION_ISSUE_COUNT_MISMATCH", codes)
+
+    def test_reconciliation_report_rejects_duplicate_or_missing_issue_ids(self):
+        payload = {"schema_version": "1.0", "bundle_sha256": "a" * 64,
+                   "valid_bundle": True, "issue_count": 2,
+                   "issues": [{"issue_id": "ISSUE_1"}, {"issue_id": "ISSUE_1"}]}
+        codes = {item["code"] for item in validate_stage_payload(
+            "reconciliation_report", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, canonical_sha256="a" * 64,
+        )}
+        self.assertIn("RECONCILIATION_ISSUE_ID_DUPLICATE", codes)
+        payload["issues"][1] = {"issue_id": []}
+        codes = {item["code"] for item in validate_stage_payload(
+            "reconciliation_report", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, canonical_sha256="a" * 64,
+        )}
+        self.assertIn("RECONCILIATION_ISSUE_ID_INVALID", codes)
+
+    def test_malformed_reconciliation_issue_id_fails_closed_without_crashing(self):
+        bundle = {
+            "schema_version": "1.0", "project_id": "P1", "mapping_version": "M1",
+            "build_provenance": {"mapping_plan_sha256": "a" * 64, "source_inventory_sha256": "b" * 64},
+            "studies": [], "systems": [], "conditions": [], "experiments": [],
+            "observations": [], "comparisons": [], "evidence": [],
+        }
+        report = {"schema_version": "1.0", "bundle_sha256": "a" * 64,
+                  "valid_bundle": True, "issue_count": 1, "issues": [{"issue_id": []}]}
+        decisions = {"schema_version": "1.0", "reconciliation_report_sha256": "b" * 64, "decisions": []}
+        evidence = [
+            {"artifact_id": "bundle", "artifact_type": "canonical_bundle", "payload": bundle, "sha256": "a" * 64},
+            {"artifact_id": "report", "artifact_type": "reconciliation_report", "payload": report, "sha256": "b" * 64},
+            {"artifact_id": "decisions", "artifact_type": "reconciliation_decisions", "payload": decisions, "sha256": "c" * 64},
+        ]
+        errors = validate_stage_evidence(
+            "canonical_reconciliation", evidence, run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=[],
+        )
+        codes = {item["code"] for item in errors}
+        self.assertIn("RECONCILIATION_ISSUE_ID_INVALID", codes)
+        self.assertIn("RECONCILIATION_DECISIONS_INPUT_INVALID", codes)
+
     def test_unknown_evidence_type_is_rejected(self):
         codes = {item["code"] for item in validate_stage_payload(
             "invented_type", {}, run_id="R1", project_id="P1", study_ids={"S1"}

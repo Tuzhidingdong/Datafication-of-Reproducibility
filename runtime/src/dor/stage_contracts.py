@@ -130,11 +130,27 @@ def _validate_source_inventory(payload: Any, source_snapshot: list[dict[str, Any
     errors: list[dict[str, str]] = []
     if not isinstance(payload, dict) or payload.get("schema_version") != "1.0" or not isinstance(payload.get("items"), list) or not payload["items"]:
         return [_error("SOURCE_INVENTORY_SHAPE_INVALID", "source_inventory requires schema_version 1.0 and a non-empty items array.", "source_inventory")]
+    selected_snapshot = [
+        item for item in source_snapshot if isinstance(item, dict)
+        and (selected_source_ids is None or item.get("source_id") in selected_source_ids)
+    ]
     snapshot_by_name_hash = {
         (Path(str(item.get("path", ""))).name, item.get("sha256"))
-        for item in source_snapshot if isinstance(item, dict)
-        and (selected_source_ids is None or item.get("source_id") in selected_source_ids)
+        for item in selected_snapshot
     }
+    source_ids_by_name_hash: dict[tuple[str, Any], set[str]] = {}
+    for item in selected_snapshot:
+        source_id = item.get("source_id")
+        if _nonempty(source_id):
+            key = (Path(str(item.get("path", ""))).name, item.get("sha256"))
+            source_ids_by_name_hash.setdefault(key, set()).add(source_id)
+    for (source_name, source_hash), source_ids in source_ids_by_name_hash.items():
+        if len(source_ids) > 1:
+            errors.append(_error(
+                "SOURCE_INVENTORY_SOURCE_ID_AMBIGUOUS",
+                f"Selected sources {sorted(source_ids)} share the same filename and hash ({source_name}); inventory locators cannot distinguish their source identity.",
+                "source_inventory",
+            ))
     seen: set[str] = set()
     for index, item in enumerate(payload["items"]):
         if not isinstance(item, dict):
@@ -287,8 +303,21 @@ def _validate_reconciliation(payload: Any, canonical_sha256: str | None) -> list
         errors.append(_error("RECONCILIATION_BUNDLE_HASH_MISMATCH", "reconciliation_report.bundle_sha256 must equal the cited canonical_bundle SHA-256.", "reconciliation_report"))
     if payload.get("valid_bundle") is not True:
         errors.append(_error("RECONCILIATION_BUNDLE_NOT_VALID", "reconciliation_report does not report valid_bundle=true.", "reconciliation_report"))
-    if not isinstance(payload.get("issues"), list) or payload.get("issue_count") != len(payload.get("issues", [])):
-        errors.append(_error("RECONCILIATION_ISSUE_COUNT_MISMATCH", "reconciliation_report issue_count must equal issues length.", "reconciliation_report"))
+    issues = payload.get("issues")
+    issue_count = payload.get("issue_count")
+    if (not isinstance(issues, list) or not isinstance(issue_count, int)
+            or isinstance(issue_count, bool) or issue_count != len(issues)):
+        errors.append(_error("RECONCILIATION_ISSUE_COUNT_MISMATCH", "reconciliation_report issue_count must be an integer (not boolean) equal to issues length.", "reconciliation_report"))
+    if isinstance(issues, list):
+        seen_issue_ids: set[str] = set()
+        for index, issue in enumerate(issues):
+            issue_id = issue.get("issue_id") if isinstance(issue, dict) else None
+            if not _nonempty(issue_id):
+                errors.append(_error("RECONCILIATION_ISSUE_ID_INVALID", f"issues[{index}] requires a non-empty string issue_id.", "reconciliation_report"))
+            elif issue_id in seen_issue_ids:
+                errors.append(_error("RECONCILIATION_ISSUE_ID_DUPLICATE", f"Duplicate reconciliation issue_id: {issue_id}.", "reconciliation_report"))
+            else:
+                seen_issue_ids.add(issue_id)
     return errors
 
 
@@ -808,21 +837,28 @@ def validate_stage_evidence(stage_id: str, evidence: list[dict[str, Any]], *, ru
         bundle_item = by_type["canonical_bundle"]
         report_item = by_type["reconciliation_report"]
         decision_item = by_type["reconciliation_decisions"]
-        decision_report = validate_reconciliation_decisions(
-            decision_item["payload"], report_item["payload"], bundle_item["payload"],
-            report_item["sha256"], bundle_item["sha256"],
-        )
-        for error in decision_report.get("errors", []):
-            errors.append(_error("RECONCILIATION_DECISIONS_INVALID", error.get("message", error.get("code", "Invalid reconciliation decision.")), "reconciliation_decisions"))
+        try:
+            decision_report = validate_reconciliation_decisions(
+                decision_item["payload"], report_item["payload"], bundle_item["payload"],
+                report_item["sha256"], bundle_item["sha256"],
+            )
+            for error in decision_report.get("errors", []):
+                errors.append(_error("RECONCILIATION_DECISIONS_INVALID", error.get("message", error.get("code", "Invalid reconciliation decision.")), "reconciliation_decisions"))
+        except (TypeError, ValueError, AttributeError, KeyError) as exc:
+            errors.append(_error("RECONCILIATION_DECISIONS_INPUT_INVALID", f"Malformed reconciliation issue/decision structure was rejected without acceptance: {exc}", "reconciliation_decisions"))
         report_payload, decision_payload = report_item["payload"], decision_item["payload"]
-        issue_by_id = {
-            issue.get("issue_id"): issue for issue in report_payload.get("issues", [])
-            if isinstance(issue, dict)
-        } if isinstance(report_payload, dict) else {}
-        decision_by_id = {
-            decision.get("issue_id"): decision for decision in decision_payload.get("decisions", [])
-            if isinstance(decision, dict)
-        } if isinstance(decision_payload, dict) and isinstance(decision_payload.get("decisions"), list) else {}
+        issue_by_id = {}
+        if isinstance(report_payload, dict) and isinstance(report_payload.get("issues"), list):
+            for issue in report_payload["issues"]:
+                issue_id = issue.get("issue_id") if isinstance(issue, dict) else None
+                if _nonempty(issue_id):
+                    issue_by_id[issue_id] = issue
+        decision_by_id = {}
+        if isinstance(decision_payload, dict) and isinstance(decision_payload.get("decisions"), list):
+            for decision in decision_payload["decisions"]:
+                issue_id = decision.get("issue_id") if isinstance(decision, dict) else None
+                if _nonempty(issue_id):
+                    decision_by_id[issue_id] = decision
         for issue_id, issue in issue_by_id.items():
             if issue.get("severity") not in {"CRITICAL", "REVIEW_REQUIRED"}:
                 continue
