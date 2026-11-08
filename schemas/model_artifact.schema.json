@@ -19,7 +19,23 @@
     "training_observation_ids":{"type":"array","items":{"type":"string"},"uniqueItems":true},
     "training_study_ids":{"type":"array","items":{"type":"string"},"uniqueItems":true},
     "test_observation_ids":{"type":"array","items":{"type":"string"},"uniqueItems":true},
-    "model_parameters":{"type":"object"}
+    "model_parameters":{"type":"object"},
+    "training_feature_domain":{
+      "type":"object",
+      "additionalProperties":{
+        "type":"object",
+        "required":["value_type","expected_unit","n"],
+        "properties":{
+          "value_type":{"enum":["NUMERIC","CATEGORICAL"]},
+          "expected_unit":{"type":["string","null"]},
+          "n":{"type":"integer","minimum":1},
+          "minimum":{"type":"number"},
+          "maximum":{"type":"number"},
+          "categories":{"type":"array","items":{"type":"string"}}
+        },
+        "additionalProperties":false
+      }
+    }
   },
   "additionalProperties":false
 }
