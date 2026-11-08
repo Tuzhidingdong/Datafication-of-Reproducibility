@@ -3,7 +3,7 @@
   "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/interaction_discovery_manifest.schema.json",
   "title":"Pairwise interaction discovery run manifest",
   "type":"object",
-  "required":["schema_version","task_id","engine_version","input_hashes","output_hashes","fold_count","seed","candidate_pair_count","eligible_pair_count","method","claim_scope","source_policy"],
+  "required":["schema_version","task_id","engine_version","input_hashes","output_hashes","fold_count","seed","candidate_pair_count","support_eligible_pair_count","eligible_pair_count","method","claim_scope","source_policy"],
   "properties":{
     "schema_version":{"const":"1.0"},
     "task_id":{"type":"string"},
@@ -19,6 +19,7 @@
     "fold_count":{"type":"integer","minimum":4},
     "seed":{"type":"integer"},
     "candidate_pair_count":{"type":"integer","minimum":1},
+    "support_eligible_pair_count":{"type":"integer","minimum":0},
     "eligible_pair_count":{"type":"integer","minimum":0},
     "method":{"const":"NESTED_STUDY_GROUPED_PAIRWISE_BILINEAR_RIDGE_ABLATION"},
     "claim_scope":{"const":"PREDICTIVE_STATISTICAL_INTERACTION_CANDIDATE_NOT_CAUSAL_OR_MECHANISTIC_EVIDENCE"},
