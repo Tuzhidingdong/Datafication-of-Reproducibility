@@ -20,9 +20,12 @@ GATE_ORDER = ("G0", "G1", "G2", "G3", "G4")
 PREVIOUS_GATE = {GATE_ORDER[i]: GATE_ORDER[i - 1] for i in range(1, len(GATE_ORDER))}
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory"},
-    "G1": {"mapping_plan", "source_inventory", "build_spec"},
-    "G2": {"canonical_bundle", "reconciliation_report", "modeling_task"},
-    "G3": {"interaction_report", "interaction_selection"},
+    "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec"},
+    "G2": {"canonical_bundle", "canonical_validation_report", "reconciliation_report", "modeling_task"},
+    "G3": {
+        "interaction_report", "interaction_manifest",
+        "robustness_report", "robustness_manifest", "interaction_selection",
+    },
     "G4": {"publication_plan"},
 }
 G4_REVIEWABLE_ARTIFACTS = {
@@ -143,28 +146,170 @@ def _load_events(ledger_path: Path) -> list[dict[str, Any]]:
                 prior_event = latest_by_gate.get(prior_gate)
                 if prior_event is None or prior_event.get("decision") != "APPROVE":
                     raise ValueError(f"Gate {gate} was recorded without an approved {prior_gate} event.")
+            if event["decision"] == "APPROVE":
+                _validate_approval_artifacts(gate, artifacts, latest_by_gate)
             events.append(event)
             latest_by_gate[gate] = event
             previous_hash = supplied_hash
     return events
 
 
-def _validate_g3_selection(bindings: list[dict[str, str]]) -> None:
-    by_id = {item["artifact_id"]: item for item in bindings}
+def _read_json_binding(binding: Mapping[str, Any], label: str) -> dict[str, Any]:
+    path = Path(binding["path"])
+    try:
+        with path.open("r", encoding="utf-8-sig") as handle:
+            value = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"{label} must be readable JSON: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object.")
+    return value
+
+
+def _binding_map(bindings: list[dict[str, str]]) -> dict[str, dict[str, str]]:
+    return {item["artifact_id"]: item for item in bindings}
+
+
+def _validate_g1_artifacts(
+    bindings: list[dict[str, str]],
+    previous_gate_event: Mapping[str, Any],
+) -> None:
+    by_id = _binding_map(bindings)
+    mapping_binding = by_id["mapping_plan"]
+    validation_binding = by_id["mapping_validation"]
+    inventory_binding = by_id["source_inventory"]
+    spec_binding = by_id["build_spec"]
+    prior_inventory = _binding_map(previous_gate_event["artifacts"]).get("source_inventory")
+    if prior_inventory is None or (
+        prior_inventory["path"] != inventory_binding["path"]
+        or prior_inventory["sha256"] != inventory_binding["sha256"]
+    ):
+        raise ValueError("G1 source_inventory must be the exact source inventory approved at G0.")
+
+    inventory = _read_json_binding(inventory_binding, "G1 source_inventory")
+    mapping_plan = _read_json_binding(mapping_binding, "G1 mapping_plan")
+    build_spec = _read_json_binding(spec_binding, "G1 build_spec")
+    mapping_validation = _read_json_binding(validation_binding, "G1 mapping_validation")
+    inventory_hash = inventory_binding["sha256"]
+    mapping_hash = mapping_binding["sha256"]
+
+    if mapping_plan.get("source_inventory_sha256") != inventory_hash:
+        raise ValueError("G1 mapping_plan does not reference the exact approved source_inventory hash.")
+    if build_spec.get("source_inventory_sha256") != inventory_hash:
+        raise ValueError("G1 build_spec does not reference the exact approved source_inventory hash.")
+    if build_spec.get("mapping_plan_sha256") != mapping_hash:
+        raise ValueError("G1 build_spec does not reference the exact approved mapping_plan hash.")
+    if build_spec.get("mapping_version") != mapping_plan.get("mapping_version"):
+        raise ValueError("G1 build_spec mapping_version does not match the approved mapping_plan.")
+    if mapping_validation.get("valid") is not True:
+        raise ValueError("G1 mapping_validation must have valid=true.")
+    if mapping_validation.get("source_inventory_sha256") != inventory_hash:
+        raise ValueError("G1 mapping_validation does not reference the exact approved source_inventory hash.")
+    if mapping_validation.get("mapping_version") != mapping_plan.get("mapping_version"):
+        raise ValueError("G1 mapping_validation mapping_version does not match the approved mapping_plan.")
+
+    from dor.mapping import validate_mapping_plan
+    recomputed = validate_mapping_plan(mapping_plan, inventory, inventory_hash)
+    if recomputed != mapping_validation:
+        raise ValueError("G1 mapping_validation is not the deterministic validation result for the bound mapping_plan and source_inventory.")
+
+
+def _validate_g2_artifacts(
+    bindings: list[dict[str, str]],
+    previous_gate_event: Mapping[str, Any],
+) -> None:
+    by_id = _binding_map(bindings)
+    bundle_binding = by_id["canonical_bundle"]
+    validation_binding = by_id["canonical_validation_report"]
+    reconciliation_binding = by_id["reconciliation_report"]
+    task_binding = by_id["modeling_task"]
+    prior = _binding_map(previous_gate_event["artifacts"])
+    bundle = _read_json_binding(bundle_binding, "G2 canonical_bundle")
+    validation = _read_json_binding(validation_binding, "G2 canonical_validation_report")
+    reconciliation = _read_json_binding(reconciliation_binding, "G2 reconciliation_report")
+    task = _read_json_binding(task_binding, "G2 modeling_task")
+
+    if validation.get("valid") is not True:
+        raise ValueError("G2 canonical_validation_report must have valid=true.")
+    if reconciliation.get("bundle_sha256") != bundle_binding["sha256"]:
+        raise ValueError("G2 reconciliation_report does not reference the exact approved canonical_bundle hash.")
+    provenance = bundle.get("build_provenance")
+    if not isinstance(provenance, dict):
+        raise ValueError("G2 canonical_bundle has no build_provenance object.")
+    expected_links = (
+        ("mapping_plan_sha256", "mapping_plan"),
+        ("source_inventory_sha256", "source_inventory"),
+        ("build_spec_sha256", "build_spec"),
+    )
+    for provenance_key, prior_artifact_id in expected_links:
+        approved = prior.get(prior_artifact_id)
+        if approved is None or provenance.get(provenance_key) != approved["sha256"]:
+            raise ValueError(
+                f"G2 canonical_bundle build_provenance.{provenance_key} does not match the current G1-approved {prior_artifact_id}."
+            )
+    if not isinstance(task.get("task_id"), str) or not task["task_id"].strip():
+        raise ValueError("G2 modeling_task requires a non-empty task_id.")
+    if not isinstance(task.get("target_id"), str) or not task["target_id"].strip():
+        raise ValueError("G2 modeling_task requires a non-empty target_id.")
+    if not isinstance(task.get("endpoint_definition"), str) or not task["endpoint_definition"].strip():
+        raise ValueError("G2 modeling_task requires an exact non-empty endpoint_definition.")
+
+
+def _validate_g3_selection(
+    bindings: list[dict[str, str]],
+    previous_gate_event: Mapping[str, Any],
+) -> None:
+    by_id = _binding_map(bindings)
     report_binding = by_id["interaction_report"]
+    interaction_manifest_binding = by_id["interaction_manifest"]
+    robustness_binding = by_id["robustness_report"]
+    robustness_manifest_binding = by_id["robustness_manifest"]
     selection_binding = by_id["interaction_selection"]
-    with Path(report_binding["path"]).open("r", encoding="utf-8-sig") as handle:
-        report = json.load(handle)
-    with Path(selection_binding["path"]).open("r", encoding="utf-8-sig") as handle:
-        selection = json.load(handle)
-    if not isinstance(report, dict) or not isinstance(selection, dict):
-        raise ValueError("G3 interaction report and selection must be JSON objects.")
-    if selection.get("schema_version") != "1.0":
-        raise ValueError("G3 interaction selection schema_version must be 1.0.")
-    if selection.get("task_id") != report.get("task_id"):
-        raise ValueError("G3 selection task_id does not match the interaction report.")
+    report = _read_json_binding(report_binding, "G3 interaction_report")
+    interaction_manifest = _read_json_binding(interaction_manifest_binding, "G3 interaction_manifest")
+    robustness_report = _read_json_binding(robustness_binding, "G3 robustness_report")
+    robustness_manifest = _read_json_binding(robustness_manifest_binding, "G3 robustness_manifest")
+    selection = _read_json_binding(selection_binding, "G3 interaction_selection")
+
+    if selection.get("schema_version") != "1.1":
+        raise ValueError("G3 interaction_selection schema_version must be 1.1.")
+    if selection.get("task_id") != report.get("task_id") or interaction_manifest.get("task_id") != report.get("task_id"):
+        raise ValueError("G3 selection, interaction report, and interaction manifest task IDs must match.")
     if selection.get("interaction_report_sha256") != report_binding["sha256"]:
         raise ValueError("G3 selection must bind the exact interaction report SHA-256.")
+    if selection.get("robustness_report_sha256") != robustness_binding["sha256"]:
+        raise ValueError("G3 selection must bind the exact robustness report SHA-256.")
+
+    approved_task = _binding_map(previous_gate_event["artifacts"]).get("modeling_task")
+    if approved_task is None:
+        raise ValueError("G3 requires the G2-approved modeling_task artifact.")
+    interaction_inputs = interaction_manifest.get("input_hashes")
+    robustness_inputs = robustness_manifest.get("input_hashes")
+    if not isinstance(interaction_inputs, dict) or not isinstance(robustness_inputs, dict):
+        raise ValueError("G3 interaction and robustness manifests require input_hashes objects.")
+    if interaction_inputs.get("task_sha256") != approved_task["sha256"]:
+        raise ValueError("G3 interaction manifest was not generated from the exact G2-approved modeling_task.")
+    if robustness_inputs.get("task_sha256") != approved_task["sha256"]:
+        raise ValueError("G3 robustness manifest was not generated from the exact G2-approved modeling_task.")
+    interaction_outputs = interaction_manifest.get("output_hashes")
+    robustness_outputs = robustness_manifest.get("output_hashes")
+    if not isinstance(interaction_outputs, dict) or interaction_outputs.get("interaction_discovery_report.json") != report_binding["sha256"]:
+        raise ValueError("G3 interaction manifest does not bind the exact interaction_report.")
+    if not isinstance(robustness_outputs, dict) or robustness_outputs.get("interaction_robustness_report.json") != robustness_binding["sha256"]:
+        raise ValueError("G3 robustness manifest does not bind the exact robustness_report.")
+
+    shared_inputs = (
+        "cohort_sha256", "cohort_report_sha256",
+        "split_manifest_sha256", "cohort_manifest_sha256",
+    )
+    for input_name in shared_inputs:
+        interaction_value = interaction_inputs.get(input_name)
+        robustness_value = robustness_inputs.get(input_name)
+        if not isinstance(interaction_value, str) or not interaction_value:
+            raise ValueError(f"G3 interaction manifest is missing {input_name}.")
+        if interaction_value != robustness_value:
+            raise ValueError(f"G3 interaction and robustness runs do not share the same {input_name}.")
+
     for field in ("selected_interaction_ids", "not_selected_interaction_ids"):
         values = selection.get(field)
         if not isinstance(values, list) or any(not isinstance(v, str) or not v for v in values):
@@ -177,13 +322,23 @@ def _validate_g3_selection(bindings: list[dict[str, str]]) -> None:
         raise ValueError("G3 selected and not-selected interaction IDs overlap.")
     if len(selected) > 1:
         raise ValueError("One G3 decision packet may select at most one interaction for its single reviewed mechanism_plan.")
-    catalogue = report.get("interaction_catalogue")
-    if not isinstance(catalogue, list):
-        raise ValueError("Interaction report does not contain an interaction_catalogue array.")
-    reported_ids = {
-        item.get("interaction_id") for item in catalogue
-        if isinstance(item, dict) and isinstance(item.get("interaction_id"), str)
-    }
+
+    def catalogue_ids(source: Mapping[str, Any], label: str) -> set[str]:
+        catalogue = source.get("interaction_catalogue")
+        if not isinstance(catalogue, list):
+            raise ValueError(f"{label} does not contain an interaction_catalogue array.")
+        identifiers = {
+            item.get("interaction_id") for item in catalogue
+            if isinstance(item, dict) and isinstance(item.get("interaction_id"), str)
+        }
+        if len(identifiers) != len(catalogue):
+            raise ValueError(f"{label} contains missing or duplicate interaction IDs.")
+        return identifiers
+
+    reported_ids = catalogue_ids(report, "G3 interaction_report")
+    robust_ids = catalogue_ids(robustness_report, "G3 robustness_report")
+    if reported_ids != robust_ids:
+        raise ValueError("G3 interaction and robustness reports do not contain the same candidate ID set.")
     if selected.union(not_selected) != reported_ids:
         raise ValueError("G3 selection must classify every reported interaction ID exactly once.")
     if not all(isinstance(selection.get(key), str) and selection[key].strip()
@@ -193,18 +348,39 @@ def _validate_g3_selection(bindings: list[dict[str, str]]) -> None:
         datetime.fromisoformat(selection["reviewed_at"].replace("Z", "+00:00"))
     except ValueError as exc:
         raise ValueError("G3 selection reviewed_at must be an ISO-8601 timestamp.") from exc
+
     mechanism_binding = by_id.get("mechanism_plan")
     if selected and mechanism_binding is None:
         raise ValueError("A non-empty G3 selection requires a reviewed mechanism_plan artifact.")
     if mechanism_binding is not None:
-        with Path(mechanism_binding["path"]).open("r", encoding="utf-8-sig") as handle:
-            mechanism_plan = json.load(handle)
-        if not isinstance(mechanism_plan, dict):
-            raise ValueError("G3 mechanism_plan must be a JSON object.")
+        mechanism_plan = _read_json_binding(mechanism_binding, "G3 mechanism_plan")
         if mechanism_plan.get("task_id") != selection["task_id"]:
             raise ValueError("G3 mechanism_plan task_id does not match the selected interaction task.")
         if mechanism_plan.get("interaction_id") not in selected:
             raise ValueError("G3 mechanism_plan interaction_id is not in selected_interaction_ids.")
+
+
+def _validate_approval_artifacts(
+    gate_id: str,
+    bindings: list[dict[str, str]],
+    latest_by_gate: Mapping[str, Mapping[str, Any]],
+) -> None:
+    # If an earlier event's files have become stale, inspect_gate_ledger must still
+    # report STALE_ARTIFACT rather than failing to parse the historical ledger.
+    for binding in bindings:
+        path = Path(binding["path"])
+        try:
+            current_hash = sha256_file(path) if path.is_file() else None
+        except OSError:
+            current_hash = None
+        if current_hash != binding["sha256"]:
+            return
+    if gate_id == "G1":
+        _validate_g1_artifacts(bindings, latest_by_gate["G0"])
+    elif gate_id == "G2":
+        _validate_g2_artifacts(bindings, latest_by_gate["G1"])
+    elif gate_id == "G3":
+        _validate_g3_selection(bindings, latest_by_gate["G2"])
 
 
 def require_selected_interaction_id(ledger_path: Path, interaction_id: str) -> dict[str, Any]:
@@ -364,9 +540,6 @@ def record_gate_decision(
                 "G4 requires at least one reviewed result: model_report, reproducibility_report, "
                 "interaction_report, mechanism_findings, or virtual_prediction."
             )
-        if gate_id == "G3":
-            _validate_g3_selection(bindings)
-
     ledger_path = ledger_path.expanduser().resolve()
     lock_path = ledger_path.with_name(ledger_path.name + ".lock")
     with _exclusive_lock(lock_path):
@@ -381,6 +554,12 @@ def record_gate_decision(
                     f"Cannot record {gate_id}: {predecessor} must be currently approved; "
                     f"its status is {snapshot['gates'][predecessor]['status']}."
                 )
+        if decision == "APPROVE":
+            for binding in bindings:
+                path = Path(binding["path"])
+                if not path.is_file() or sha256_file(path) != binding["sha256"]:
+                    raise ValueError(f"Approval artifact changed while recording the decision: {path}")
+            _validate_approval_artifacts(gate_id, bindings, latest)
         payload = {
             "schema_version": "1.0",
             "sequence": len(events) + 1,

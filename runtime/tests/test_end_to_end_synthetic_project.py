@@ -4,6 +4,7 @@ import copy
 import csv
 import json
 import io
+import shutil
 import sys
 import tempfile
 import unittest
@@ -16,6 +17,7 @@ from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
 from dor.cohort import build_modeling_cohort_files
 from dor.cli import build_parser, main as cli_main
+from dor.gates import inspect_gate_ledger, record_gate_decision
 from dor.interactions import discover_interactions_files
 from dor.mapping import sha256_file, validate_mapping_files
 from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
@@ -65,6 +67,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls.package_plan_path = cls.root / "publication_package_plan.json"
         cls.package_dir = cls.root / "06_publication" / "package"
         cls.package_audit_path = cls.root / "06_publication" / "package_integrity_report.json"
+        cls.gate_ledger = cls.root / "workflow_gate_ledger.jsonl"
+        cls.executed_cli_commands = []
 
         cls._create_sources()
         cls._audit_sources()
@@ -78,8 +82,10 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls.protected_source_paths = [
             cls.csv_path, cls.json_path,
             cls.audit_dir / "source_inventory.json",
+            cls.mapping_validation_path, cls.canonical_validation_path,
             cls.plan_path, cls.spec_path, cls.task_path,
-            cls.mechanism_plan_path, cls.query_path,
+            cls.mechanism_plan_path, cls.interaction_selection_path,
+            cls.query_path, cls.gate_ledger,
         ]
         cls.source_bytes_after_build = {
             item: item.read_bytes() for item in cls.protected_source_paths
@@ -94,16 +100,10 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
 
     @classmethod
     def _run_cli(cls, *arguments):
-        gated_commands = {
-            "build-canonical", "build-cohort", "fit-baselines",
-            "evaluate-reproducibility", "discover-interactions",
-            "assess-interaction-robustness", "generate-interaction-surface",
-            "build-mechanism-evidence-bridge", "predict-virtual-condition",
-            "build-publication-package",
-        }
         cli_arguments = ["dor", *arguments]
-        if arguments and arguments[0] in gated_commands:
-            cli_arguments.append("--allow-untracked-legacy")
+        cls.executed_cli_commands.append(tuple(arguments))
+        if "--allow-untracked-legacy" in arguments:
+            raise AssertionError("The approved end-to-end test must never use the legacy bypass.")
         stdout = io.StringIO()
         stderr = io.StringIO()
         with patch.object(sys, "argv", cli_arguments), redirect_stdout(stdout), redirect_stderr(stderr):
@@ -116,6 +116,22 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 "; stderr=" + stderr.getvalue()
             )
         return stdout.getvalue()
+
+    @classmethod
+    def _approve_gate(cls, gate_id, artifact_bindings, rationale):
+        arguments = [
+            "gate-record", "--workflow-ledger", str(cls.gate_ledger),
+            "--gate", gate_id, "--decision", "APPROVE",
+            "--reviewer", "synthetic-e2e-human-reviewer",
+            "--rationale", rationale,
+        ]
+        for artifact_id, path in artifact_bindings:
+            arguments.extend(["--artifact", artifact_id + "=" + str(path)])
+        cls._run_cli(*arguments)
+
+    @classmethod
+    def _ledger_argument(cls):
+        return ["--workflow-ledger", str(cls.gate_ledger)]
 
     @classmethod
     def _create_sources(cls):
@@ -235,6 +251,10 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         }
         if not cls.inventory_items:
             raise AssertionError("The structural audit produced an empty source inventory.")
+        cls._approve_gate("G0", [
+            ("dataset_manifest", cls.audit_dir / "dataset_manifest.json"),
+            ("source_inventory", cls.audit_dir / "source_inventory.json"),
+        ], "Synthetic user approval of scope and exact audited source inventory.")
 
     @classmethod
     def _source_id(cls, source_file: str, source_format: str, locator: str) -> str:
@@ -420,6 +440,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         })
 
         validation_path = cls.root / "mapping_validation.json"
+        cls.mapping_validation_path = validation_path
         cls._run_cli(
             "validate-mapping", "--plan", str(cls.plan_path),
             "--inventory", str(inventory_path), "--out", str(validation_path),
@@ -428,6 +449,12 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         if not mapping_validation["valid"]:
             raise AssertionError("Synthetic mapping plan failed validation: " + repr(mapping_validation["errors"]))
         cls.mapping_validation = mapping_validation
+        cls._approve_gate("G1", [
+            ("mapping_plan", cls.plan_path),
+            ("mapping_validation", cls.mapping_validation_path),
+            ("source_inventory", inventory_path),
+            ("build_spec", cls.spec_path),
+        ], "Synthetic user approval of explicit source mappings and entity grouping grain.")
 
     @classmethod
     def _build_canonical_bundle(cls):
@@ -435,13 +462,14 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "build-canonical", "--plan", str(cls.plan_path),
             "--inventory", str(cls.audit_dir / "source_inventory.json"),
             "--spec", str(cls.spec_path), "--source-root", str(cls.source_root),
-            "--out-dir", str(cls.canonical_dir),
+            "--out-dir", str(cls.canonical_dir), *cls._ledger_argument(),
         )
         cls.bundle = json.loads(cls.bundle_path.read_text(encoding="utf-8"))
         cls.canonical_report = json.loads(
             (cls.canonical_dir / "build_report.json").read_text(encoding="utf-8")
         )
         validation_path = cls.root / "canonical_validation.json"
+        cls.canonical_validation_path = validation_path
         cls._run_cli("validate-bundle", "--input", str(cls.bundle_path), "--out", str(validation_path))
         integrity = json.loads(validation_path.read_text(encoding="utf-8"))
         if not integrity["valid"]:
@@ -499,9 +527,15 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         }
         write_json(cls.task_path, task)
         cls.task = task
+        cls._approve_gate("G2", [
+            ("canonical_bundle", cls.bundle_path),
+            ("canonical_validation_report", cls.canonical_validation_path),
+            ("reconciliation_report", cls.reconciliation_dir / "reconciliation_report.json"),
+            ("modeling_task", cls.task_path),
+        ], "Synthetic user approval of exact canonical data, reconciliation state, endpoint, feature bindings, and Study split.")
         cls._run_cli(
             "build-cohort", "--bundle", str(cls.bundle_path), "--task", str(cls.task_path),
-            "--out-dir", str(cls.cohort_dir),
+            "--out-dir", str(cls.cohort_dir), *cls._ledger_argument(),
         )
         cohort_report = json.loads((cls.cohort_dir / "cohort_report.json").read_text(encoding="utf-8"))
         cohort_manifest = json.loads((cls.cohort_dir / "modeling_cohort_manifest.json").read_text(encoding="utf-8"))
@@ -509,6 +543,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls._run_cli(
             "fit-baselines", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--out-dir", str(cls.model_dir),
+            *cls._ledger_argument(),
         )
         cls.model_result = {
             "report": json.loads((cls.model_dir / "model_report.json").read_text(encoding="utf-8")),
@@ -517,7 +552,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls._run_cli(
             "evaluate-reproducibility", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--out-dir", str(cls.evaluation_dir),
-            "--folds", "4", "--seed", "31",
+            "--folds", "4", "--seed", "31", *cls._ledger_argument(),
         )
         cls.evaluation_result = {
             "report": json.loads(
@@ -530,7 +565,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls._run_cli(
             "discover-interactions", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--out-dir", str(cls.interaction_dir),
-            "--folds", "4", "--seed", "19",
+            "--folds", "4", "--seed", "19", *cls._ledger_argument(),
         )
         cls.interaction_result = {
             "report": json.loads(
@@ -549,25 +584,13 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "assess-interaction-robustness", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--out-dir", str(cls.robustness_dir),
             "--seeds", "11,19,23", "--folds", "4",
-            "--minimum-candidate-run-fraction", "0.6",
+            "--minimum-candidate-run-fraction", "0.6", *cls._ledger_argument(),
         )
         cls.robustness_result = {
             "report": json.loads(
                 (cls.robustness_dir / "interaction_robustness_report.json").read_text(encoding="utf-8")
             )
         }
-        cls._run_cli(
-            "generate-interaction-surface", "--cohort-dir", str(cls.cohort_dir),
-            "--task", str(cls.task_path), "--interaction-dir", str(cls.interaction_dir),
-            "--interaction-id", cls.interaction_id, "--out-dir", str(cls.surface_dir),
-            "--robustness-dir", str(cls.robustness_dir),
-        )
-        cls.surface_result = {
-            "report": json.loads(
-                (cls.surface_dir / "interaction_response_surface_report.json").read_text(encoding="utf-8")
-            )
-        }
-
         evidence_by_key = {
             record["source_evidence_key"]: record
             for record in cls.bundle["evidence"]
@@ -635,13 +658,48 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             }],
         }
         write_json(cls.mechanism_plan_path, plan)
+        cls.interaction_selection_path = cls.root / "interaction_selection.json"
+        interaction_report_path = cls.interaction_dir / "interaction_discovery_report.json"
+        catalogue_ids = [item["interaction_id"] for item in report["interaction_catalogue"]]
+        write_json(cls.interaction_selection_path, {
+            "schema_version": "1.1",
+            "task_id": cls.task["task_id"],
+            "interaction_report_sha256": sha256_file(interaction_report_path),
+            "robustness_report_sha256": sha256_file(cls.robustness_dir / "interaction_robustness_report.json"),
+            "selected_interaction_ids": [cls.interaction_id],
+            "not_selected_interaction_ids": [
+                item for item in catalogue_ids if item != cls.interaction_id
+            ],
+            "reviewer": "synthetic-e2e-human-reviewer",
+            "reviewed_at": "2026-11-08T00:00:00Z",
+            "rationale": "Synthetic integration approval after reviewing the complete candidate catalogue and counterexamples.",
+        })
+        cls._approve_gate("G3", [
+            ("interaction_report", interaction_report_path),
+            ("interaction_manifest", cls.interaction_dir / "interaction_discovery_manifest.json"),
+            ("robustness_report", cls.robustness_dir / "interaction_robustness_report.json"),
+            ("robustness_manifest", cls.robustness_dir / "interaction_robustness_manifest.json"),
+            ("interaction_selection", cls.interaction_selection_path),
+            ("mechanism_plan", cls.mechanism_plan_path),
+        ], "Synthetic user selection of the exact interaction and corresponding mechanism plan.")
+        cls._run_cli(
+            "generate-interaction-surface", "--cohort-dir", str(cls.cohort_dir),
+            "--task", str(cls.task_path), "--interaction-dir", str(cls.interaction_dir),
+            "--interaction-id", cls.interaction_id, "--out-dir", str(cls.surface_dir),
+            "--robustness-dir", str(cls.robustness_dir), *cls._ledger_argument(),
+        )
+        cls.surface_result = {
+            "report": json.loads(
+                (cls.surface_dir / "interaction_response_surface_report.json").read_text(encoding="utf-8")
+            )
+        }
         cls._run_cli(
             "build-mechanism-evidence-bridge", "--bundle", str(cls.bundle_path),
             "--cohort-dir", str(cls.cohort_dir), "--task", str(cls.task_path),
             "--interaction-dir", str(cls.interaction_dir), "--plan", str(cls.mechanism_plan_path),
             "--out-dir", str(cls.mechanism_dir),
             "--robustness-dir", str(cls.robustness_dir),
-            "--response-surface-dir", str(cls.surface_dir),
+            "--response-surface-dir", str(cls.surface_dir), *cls._ledger_argument(),
         )
         cls.mechanism_result = {
             "report": json.loads(
@@ -667,6 +725,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls._run_cli(
             "predict-virtual-condition", "--model-run-dir", str(cls.model_dir),
             "--query", str(cls.query_path), "--out", str(cls.prediction_path),
+            *cls._ledger_argument(),
         )
         cls.prediction_result = {
             "report": json.loads(cls.prediction_path.read_text(encoding="utf-8"))
@@ -726,9 +785,14 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 "manuscript_sections": ["Results"],
             }],
         })
+        cls._approve_gate("G4", [
+            ("publication_plan", cls.package_plan_path),
+            ("model_report", cls.model_dir / "model_report.json"),
+        ], "Synthetic user approval of the final package plan and reviewed model result.")
         cls._run_cli(
             "build-publication-package", "--plan", str(cls.package_plan_path),
             "--workspace-root", str(cls.root), "--out-dir", str(cls.package_dir),
+            *cls._ledger_argument(),
         )
         cls.package_result = {
             "manifest": json.loads((cls.package_dir / "package_manifest.json").read_text(encoding="utf-8"))
@@ -738,6 +802,100 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "--out", str(cls.package_audit_path),
         )
         cls.package_audit = json.loads(cls.package_audit_path.read_text(encoding="utf-8"))
+
+    def test_v08_full_run_records_and_enforces_all_five_human_approval_gates(self):
+        state = inspect_gate_ledger(self.gate_ledger)
+        self.assertTrue(state["valid_ledger"])
+        self.assertEqual(state["event_count"], 5)
+        self.assertEqual(state["workflow_status"], "READY_FOR_FINALIZATION")
+        self.assertEqual(
+            [state["gates"][gate]["status"] for gate in ("G0", "G1", "G2", "G3", "G4")],
+            ["APPROVED"] * 5,
+        )
+        gate_commands = {
+            "build-canonical", "build-cohort", "fit-baselines",
+            "evaluate-reproducibility", "discover-interactions",
+            "assess-interaction-robustness", "generate-interaction-surface",
+            "build-mechanism-evidence-bridge", "predict-virtual-condition",
+            "build-publication-package",
+        }
+        executed_gated = [args for args in self.executed_cli_commands if args[0] in gate_commands]
+        self.assertGreaterEqual(len(executed_gated), 10)
+        for arguments in executed_gated:
+            with self.subTest(command=arguments[0]):
+                self.assertIn("--workflow-ledger", arguments)
+                self.assertNotIn("--allow-untracked-legacy", arguments)
+
+    def test_v08_changed_mapping_reapproval_invalidates_all_existing_downstream_gates(self):
+        with tempfile.TemporaryDirectory(prefix="dor-v08-reapproval-") as temp_name:
+            temp_root = Path(temp_name)
+            ledger_copy = temp_root / "workflow_gate_ledger.jsonl"
+            shutil.copy2(self.gate_ledger, ledger_copy)
+
+            changed_mapping = temp_root / "mapping_plan_revised.json"
+            shutil.copy2(self.plan_path, changed_mapping)
+            changed_mapping.write_text(
+                changed_mapping.read_text(encoding="utf-8") + " \n",
+                encoding="utf-8",
+            )
+            # The JSON content remains semantically parseable, but its exact artifact
+            # hash/path changes. Recording a new G1 must not silently retain G2-G4.
+            changed_build_spec = temp_root / "build_spec_revised.json"
+            revised_spec = json.loads(self.spec_path.read_text(encoding="utf-8"))
+            revised_spec["mapping_plan_sha256"] = sha256_file(changed_mapping)
+            write_json(changed_build_spec, revised_spec)
+            record_gate_decision(
+                ledger_copy, "G1", "APPROVE", "synthetic-e2e-human-reviewer",
+                "Synthetic approval of a revised but internally consistent mapping/build-spec pair.",
+                [
+                    ("mapping_plan", changed_mapping),
+                    ("mapping_validation", self.mapping_validation_path),
+                    ("source_inventory", self.audit_dir / "source_inventory.json"),
+                    ("build_spec", changed_build_spec),
+                ],
+            )
+            state = inspect_gate_ledger(ledger_copy)
+            self.assertEqual(state["gates"]["G1"]["status"], "APPROVED")
+            self.assertEqual(state["gates"]["G2"]["status"], "BLOCKED_UPSTREAM")
+            self.assertEqual(state["gates"]["G3"]["status"], "BLOCKED_UPSTREAM")
+            self.assertEqual(state["gates"]["G4"]["status"], "BLOCKED_UPSTREAM")
+
+            blocked_output = temp_root / "must_not_build_cohort"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            arguments = [
+                "dor", "build-cohort",
+                "--bundle", str(self.bundle_path),
+                "--task", str(self.task_path),
+                "--out-dir", str(blocked_output),
+                "--workflow-ledger", str(ledger_copy),
+            ]
+            with patch.object(sys, "argv", arguments), redirect_stdout(stdout), redirect_stderr(stderr):
+                exit_code = cli_main()
+            self.assertEqual(exit_code, 2)
+            self.assertIn("G2 is not currently approved", stderr.getvalue())
+            self.assertFalse(blocked_output.exists())
+
+    def test_v08_approved_path_rejects_substituted_canonical_bundle_at_cli_boundary(self):
+        substituted = copy.deepcopy(self.bundle)
+        substituted["studies"][0]["title"] = "Changed after G2 approval"
+        substituted_path = self.root / "alternate_canonical_bundle.json"
+        write_json(substituted_path, substituted)
+        blocked_output = self.root / "substituted_bundle_cohort"
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        arguments = [
+            "dor", "build-cohort",
+            "--bundle", str(substituted_path),
+            "--task", str(self.task_path),
+            "--out-dir", str(blocked_output),
+            "--workflow-ledger", str(self.gate_ledger),
+        ]
+        with patch.object(sys, "argv", arguments), redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = cli_main()
+        self.assertEqual(exit_code, 2)
+        self.assertIn("canonical_bundle path differs from the approved path", stderr.getvalue())
+        self.assertFalse(blocked_output.exists())
 
     def test_audit_inventory_and_cross_format_canonical_build_are_connected(self):
         self.assertEqual(self.assert_audit["audit_scope"], "READ_ONLY_STRUCTURAL_INSPECTION")

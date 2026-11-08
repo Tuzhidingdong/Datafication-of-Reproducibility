@@ -173,3 +173,10 @@ Gated CLI operations fail closed unless a current approval exists. A modified or
 `--allow-untracked-legacy` exists only for archived pre-V0.7 scripts and compatibility tests. Do not use it in a research run. The Antigravity Skill must obtain explicit user decisions before executing `gate-record`; an Agent, Worker, completed command, or silence cannot approve a gate.
 
 Cohort reports include non-destructive Observation/Condition grain diagnostics. Repeated records remain separate; explicit identifiers are reported but do not establish replication or independence.
+
+
+## V0.8 cross-artifact approval checks
+
+Approval events now verify the relationships between the bound files, not only their individual hashes. G1 re-runs mapping validation and verifies mapping-plan/inventory/build-spec hash links. G2 verifies that reconciliation refers to the exact canonical bundle and that canonical build provenance matches G1. G3 binds interaction and repeated-seed robustness reports plus manifests, then verifies both derive from the G2-approved task and the same cohort/split artifacts. The selection record uses schema version 1.1 and binds both report hashes.
+
+The full synthetic CLI acceptance path now records G0–G4 and invokes gated commands with the real ledger; it does not use \`--allow-untracked-legacy\`. See ../docs/V0.8_APPROVED_WORKFLOW_ACCEPTANCE.md.

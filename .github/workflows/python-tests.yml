@@ -17,7 +17,7 @@ jobs:
           python-version: "3.11"
       - name: Install runtime
         run: python -m pip install -e ./runtime
-      - name: Run end-to-end synthetic project acceptance
+      - name: Run V0.8 fully approved end-to-end synthetic workflow
         run: python -m unittest discover -s runtime/tests -p 'test_end_to_end_synthetic_project.py' -v
       - name: Run V0.7 approval gate tests
         run: python -m unittest discover -s runtime/tests -p 'test_gates.py' -v

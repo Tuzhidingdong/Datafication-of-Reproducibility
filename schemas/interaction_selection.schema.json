@@ -11,11 +11,12 @@
     "not_selected_interaction_ids",
     "reviewer",
     "reviewed_at",
-    "rationale"
+    "rationale",
+    "robustness_report_sha256"
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "1.1"
     },
     "task_id": {
       "type": "string",
@@ -53,6 +54,10 @@
     "rationale": {
       "type": "string",
       "minLength": 1
+    },
+    "robustness_report_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     }
   },
   "additionalProperties": false
