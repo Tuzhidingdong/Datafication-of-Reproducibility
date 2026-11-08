@@ -214,5 +214,31 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertIn("STUDY_ID_COUNT_MISMATCH", {item["code"] for item in self.validate()["issues"]})
 
 
+    def test_stage_cannot_pass_before_prior_stage_is_complete(self):
+        self.set_stage("source_integrity", "PASS")
+        self.assertIn("STAGE_SEQUENCE_GAP", {item["code"] for item in self.validate()["issues"]})
+
+    def test_stage_cannot_proceed_after_failed_stage(self):
+        self.set_stage("source_selection", "FAIL", evidence=False, blocker_reason="Selected source is unreadable.")
+        self.set_stage("source_integrity", "IN_PROGRESS", evidence=False)
+        self.assertIn("STAGE_AFTER_BLOCKER", {item["code"] for item in self.validate()["issues"]})
+
+    def test_single_study_cannot_mark_unrelated_stage_not_applicable(self):
+        self.set_stage("semantic_mapping", "NOT_APPLICABLE", evidence=False,
+            not_applicable_reason="Not applicable for this test.")
+        self.assertIn("SINGLE_STUDY_NA_NOT_ALLOWED", {item["code"] for item in self.validate()["issues"]})
+
+    def test_full_pass_cannot_retain_blocking_issue_ids(self):
+        self.record["scope"] = "MULTI_STUDY_PILOT"
+        self.record["source_snapshot"]["study_count"] = 3
+        self.record["source_snapshot"]["study_ids"] = ["STUDY_1", "STUDY_2", "STUDY_3"]
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.record["final_assessment"]["blocking_issue_ids"] = ["ISSUE_1"]
+        self.write_record()
+        self.assertIn("FULL_PASS_HAS_BLOCKERS", {item["code"] for item in self.validate()["issues"]})
+
+
 if __name__ == "__main__":
     unittest.main()

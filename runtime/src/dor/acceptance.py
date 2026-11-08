@@ -256,6 +256,20 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
     if decision not in FINAL_DECISIONS:
         issue("INVALID_FINAL_DECISION", "final_assessment.decision is invalid.")
     statuses = [stage_statuses.get(stage_id) for stage_id in STAGE_ORDER]
+    for index, status in enumerate(statuses):
+        if status in {"IN_PROGRESS", "PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"}:
+            previous = statuses[:index]
+            if any(value not in {"PASS", "NOT_APPLICABLE"} for value in previous):
+                issue("STAGE_SEQUENCE_GAP", f"Stage {STAGE_ORDER[index]} cannot start before every earlier stage is PASS or NOT_APPLICABLE.")
+            if any(value in {"FAIL", "BLOCKED"} for value in previous):
+                issue("STAGE_AFTER_BLOCKER", f"Stage {STAGE_ORDER[index]} cannot proceed after an earlier FAIL or BLOCKED stage.")
+    if scope == "CONTROLLED_SINGLE_STUDY":
+        allowed_na = {"cohort_feasibility", "modeling_validation"}
+        for stage_id, status in zip(STAGE_ORDER, statuses):
+            if status == "NOT_APPLICABLE" and stage_id not in allowed_na:
+                issue("SINGLE_STUDY_NA_NOT_ALLOWED", f"Single-study scope does not permit {stage_id} to be NOT_APPLICABLE.")
+    if decision == "PASS" and assessment.get("blocking_issue_ids"):
+        issue("FULL_PASS_HAS_BLOCKERS", "PASS cannot retain blocking_issue_ids.")
     if decision == "PASS" and statuses != ["PASS"] * len(STAGE_ORDER):
         issue("FULL_PASS_INCOMPLETE", "PASS requires every fixed acceptance stage to be PASS.")
     if decision == "CONDITIONAL_PASS":
