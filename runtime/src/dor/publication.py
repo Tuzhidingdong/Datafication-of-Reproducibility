@@ -28,8 +28,10 @@ def _relative_path(value: Any, label: str) -> Path:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(label + " must be a non-empty relative path.")
     candidate = Path(value)
-    if candidate.is_absolute() or any(part in {"", ".", ".."} for part in candidate.parts):
-        raise ValueError(label + " must be a normalized relative path without traversal.")
+    if (candidate.is_absolute() or re.match(r"^[A-Za-z]:", value)
+            or any(part in {"", ".", ".."} for part in candidate.parts)
+            or candidate.as_posix() != value):
+        raise ValueError(label + " must be a normalized relative path without traversal or drive prefix.")
     if "\\" in value:
         raise ValueError(label + " must use forward slashes.")
     return candidate
@@ -198,10 +200,16 @@ def audit_publication_package_files(package_dir: Path) -> dict[str, Any]:
         errors.append("writing_guide must be README_FOR_WRITING_SKILL.md.")
     guide_path = package_dir / "README_FOR_WRITING_SKILL.md"
     expected_guide_hash = manifest.get("writing_guide_sha256")
+    try:
+        guide_path = _within(package_dir, guide_path, "Writing Skill guide")
+    except ValueError as exc:
+        errors.append(str(exc))
     if not guide_path.is_file():
         errors.append("Writing Skill guide is missing.")
-    elif expected_guide_hash and sha256_file(guide_path) != expected_guide_hash:
-        errors.append("Writing Skill guide SHA-256 mismatch.")
+    elif (not isinstance(expected_guide_hash, str)
+          or not SHA256_RE.fullmatch(expected_guide_hash)
+          or sha256_file(guide_path) != expected_guide_hash):
+        errors.append("Writing Skill guide SHA-256 missing, invalid, or mismatched.")
 
     records = manifest.get("artifacts")
     if not isinstance(records, list):
@@ -238,6 +246,10 @@ def audit_publication_package_files(package_dir: Path) -> dict[str, Any]:
             errors.append("Required artifact is missing: " + rel_text)
         if status in {"not_generated", "not_applicable"} and exists:
             errors.append("Artifact marked " + str(status) + " unexpectedly exists: " + rel_text)
+        if status in {"not_generated", "not_applicable"} and expected:
+            errors.append("Artifact marked " + str(status) + " must not carry a file hash: " + rel_text)
+        if status == "requires_review" and not exists and expected:
+            errors.append("Missing requires_review artifact has a SHA-256: " + rel_text)
         if exists:
             indexed_files.add(rel_text)
             actual = sha256_file(target)
@@ -246,8 +258,6 @@ def audit_publication_package_files(package_dir: Path) -> dict[str, Any]:
                 errors.append("Artifact SHA-256 missing/invalid/mismatched: " + rel_text)
         else:
             ok = status in {"not_generated", "not_applicable"}
-            if status == "requires_review" and expected:
-                errors.append("Missing requires_review artifact has a SHA-256: " + rel_text)
         checks.append({"artifact_id": aid, "path": rel_text, "status": status,
                        "exists": exists, "hash_valid": ok if exists else None})
     actual_files = {path.relative_to(package_dir).as_posix() for path in package_dir.rglob("*") if path.is_file()}
