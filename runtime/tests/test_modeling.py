@@ -3,6 +3,7 @@ import copy, csv, json, tempfile, unittest
 from pathlib import Path
 from dor.cohort import build_modeling_cohort_files
 from dor.modeling import run_baseline_models_files
+from dor.mapping import sha256_file
 
 def make_bundle(categorical=False):
     data={"schema_version":"1.0","project_id":"P_MODEL","mapping_version":"map-1",
@@ -123,6 +124,24 @@ class BaselineModelEngineTests(unittest.TestCase):
         split["study_to_split"]["ST1"]="test"
         split_path.write_text(json.dumps(split),encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"hash is missing or stale"):
+            run_baseline_models_files(self.cohort_dir,self.task_path,self.root/"model")
+
+    def test_row_split_mismatch_is_rejected_even_when_artifact_hash_is_updated(self):
+        cohort_csv=self.cohort_dir/"modeling_cohort.csv"
+        with cohort_csv.open("r",encoding="utf-8",newline="") as handle:
+            reader=csv.DictReader(handle)
+            fieldnames=reader.fieldnames
+            rows=list(reader)
+        next(row for row in rows if row["observation_id"]=="OB1")["split"]="test"
+        with cohort_csv.open("w",encoding="utf-8",newline="") as handle:
+            writer=csv.DictWriter(handle,fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+        manifest_path=self.cohort_dir/"modeling_cohort_manifest.json"
+        manifest=json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["artifact_sha256"]["modeling_cohort.csv"]=sha256_file(cohort_csv)
+        manifest_path.write_text(json.dumps(manifest),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"Study split differs"):
             run_baseline_models_files(self.cohort_dir,self.task_path,self.root/"model")
 
     def test_input_files_are_not_modified(self):
