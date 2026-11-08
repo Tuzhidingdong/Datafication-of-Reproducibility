@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from dor.acceptance_ledger import validate_acceptance_ledger
 from dor.run_manager import _latest_stage_events, _manifest_context, verify_run
 from dor.stage_contracts import validate_stage_evidence
 
@@ -112,11 +113,19 @@ def _evaluate_assertion(operator: str, actual: Any, expected: Any = None) -> tup
     return False, f"Unsupported assertion operator: {operator}."
 
 
-def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> dict[str, Any]:
-    record_path = record_path.expanduser().resolve()
+def validate_acceptance_record(
+    record_path: Path, run_manifest_path: Path, ledger_path: Path | None = None,
+) -> dict[str, Any]:
+    record_path = record_path.expanduser()
+    if record_path.is_symlink():
+        raise ValueError("Acceptance record must not be a symlink.")
+    record_path = record_path.resolve()
     run_manifest_path = run_manifest_path.expanduser().resolve()
     record = _read_json(record_path, "Acceptance record")
     manifest = _read_json(run_manifest_path, "Run manifest")
+    if ledger_path is None:
+        ledger_path = record_path.with_name(record_path.stem + "_acceptance_events.jsonl")
+    ledger_report = validate_acceptance_ledger(record_path, ledger_path)
     issues: list[dict[str, str]] = []
     source_checks: list[dict[str, Any]] = []
     evidence_checks: list[dict[str, Any]] = []
@@ -124,6 +133,11 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
 
     def issue(code: str, message: str) -> None:
         issues.append({"code": code, "message": message})
+
+    if not ledger_report.get("valid"):
+        for ledger_issue in ledger_report.get("issues", []):
+            issue(ledger_issue.get("code", "ACCEPTANCE_LEDGER_INVALID"),
+                  ledger_issue.get("message", "Acceptance revision history is invalid."))
 
     run_root = run_manifest_path.parent
     run_plan: dict[str, Any] = {}
@@ -478,6 +492,7 @@ def validate_acceptance_record(record_path: Path, run_manifest_path: Path) -> di
         "run_id": record.get("run_id"),
         "scope": scope,
         "final_decision": decision,
+        "acceptance_ledger": ledger_report,
         "source_checks": source_checks,
         "evidence_checks": evidence_checks,
         "assertion_checks": assertion_checks,

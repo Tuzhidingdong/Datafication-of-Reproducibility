@@ -203,6 +203,18 @@
           "decision_note": {
             "type": "string"
           },
+          "reviewed_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "review_rationale": {
+            "type": "string",
+            "minLength": 1
+          },
           "checks": {
             "type": "array",
             "items": {
@@ -324,6 +336,54 @@
                 "blocker_reason"
               ]
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "PASS",
+                    "FAIL",
+                    "BLOCKED",
+                    "NOT_APPLICABLE"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "required": [
+                "reviewed_by",
+                "reviewed_at",
+                "review_rationale"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "PASS",
+                    "FAIL",
+                    "BLOCKED",
+                    "NOT_APPLICABLE"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "required": [
+                "reviewed_by",
+                "reviewed_at",
+                "review_rationale"
+              ]
+            }
           }
         ],
         "additionalProperties": false
@@ -443,6 +503,38 @@
                 "minimum": 2
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "final_assessment": {
+            "properties": {
+              "decision": {
+                "enum": [
+                  "PASS",
+                  "CONDITIONAL_PASS",
+                  "FAIL"
+                ]
+              }
+            },
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        "required": [
+          "final_assessment"
+        ]
+      },
+      "then": {
+        "properties": {
+          "final_assessment": {
+            "required": [
+              "assessed_at"
+            ]
           }
         }
       }

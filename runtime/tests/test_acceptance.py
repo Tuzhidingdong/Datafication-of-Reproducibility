@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from dor.acceptance import STAGE_ORDER, validate_acceptance_record
+from dor.acceptance_ledger import initialize_acceptance_ledger, record_acceptance_revision, validate_acceptance_ledger
 from dor.cli import build_parser, main
 from dor.run_manager import initialize_run, record_stage_status
 from dor.publication import audit_publication_package_files
@@ -496,6 +497,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             self.stage_evidence[stage_id] = items
 
         self.record_path = self.root / f"{self.run_id}_acceptance.json"
+        self.ledger_path = self.root / f"{self.run_id}_acceptance_events.jsonl"
         self.record = {
             "schema_version": "1.0", "acceptance_id": "ACC_1", "project_id": "PROJECT_1",
             "scope": "MULTI_STUDY_PILOT" if len(ids) > 1 else "CONTROLLED_SINGLE_STUDY",
@@ -516,12 +518,52 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.write_record()
 
     def write_record(self):
+        if self.ledger_path.exists():
+            events = [json.loads(line) for line in self.ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            next_revision = len(events) + 1
+            latest = events[-1]
+            snapshot_path = self.ledger_path.with_name(self.ledger_path.name + ".revisions") / latest["snapshot_file"]
+            previous = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            old_stages = {item["stage_id"]: item for item in previous.get("stages", [])}
+            for stage in self.record.get("stages", []):
+                if stage.get("stage_id") in old_stages and stage != old_stages[stage["stage_id"]] and stage.get("status") in {"PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"}:
+                    stage.update({
+                        "reviewed_by": "synthetic-reviewer",
+                        "reviewed_at": f"2026-11-08T00:00:{next_revision % 60:02d}Z",
+                        "review_rationale": f"Synthetic fixture review revision {next_revision}.",
+                    })
+            if self.record["final_assessment"].get("decision") != previous.get("final_assessment", {}).get("decision") and self.record["final_assessment"].get("decision") != "NOT_ASSESSED":
+                self.record["final_assessment"]["assessed_by"] = "synthetic-reviewer"
+                self.record["final_assessment"]["assessed_at"] = f"2026-11-08T00:01:{next_revision % 60:02d}Z"
+                if not self.record["final_assessment"].get("rationale"):
+                    self.record["final_assessment"]["rationale"] = "Synthetic final-decision review."
         self.record_path.write_text(json.dumps(self.record, indent=2), encoding="utf-8")
+        try:
+            if self.ledger_path.exists():
+                record_acceptance_revision(
+                    self.record_path, self.ledger_path, "synthetic-reviewer",
+                    "Synthetic test fixture revision; no real scientific data.",
+                )
+            else:
+                initialize_acceptance_ledger(
+                    self.record_path, self.ledger_path, "synthetic-reviewer",
+                    "Created a synthetic acceptance record fixture.",
+                )
+        except ValueError:
+            # Deliberately malformed/tampered test records remain unregistered;
+            # the validator must report the latest-snapshot mismatch as well.
+            pass
 
     def set_stage(self, stage_id, status, evidence=True, **extra):
         stage = next(item for item in self.record["stages"] if item["stage_id"] == stage_id)
         stage["status"] = status
         stage.update(extra)
+        if status in {"PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"}:
+            stage.update({
+                "reviewed_by": "synthetic-reviewer",
+                "reviewed_at": "2026-11-08T00:00:00Z",
+                "review_rationale": "Synthetic fixture stage review only.",
+            })
         if evidence:
             stage["evidence"] = [dict(item) for item in self.stage_evidence[stage_id]]
             first = stage["evidence"][0]
@@ -538,7 +580,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.write_record()
 
     def validate(self):
-        return validate_acceptance_record(self.record_path, self.manifest)
+        return validate_acceptance_record(self.record_path, self.manifest, self.ledger_path)
 
     def test_initial_record_is_valid_but_not_scientifically_accepted(self):
         report = self.validate()
@@ -625,7 +667,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         parser = build_parser()
         subparsers = next(action.choices for action in parser._actions if hasattr(action, "choices") and action.choices)
         self.assertIn("validate-acceptance", subparsers)
-        args = ["dor", "validate-acceptance", "--record", str(self.record_path), "--run-manifest", str(self.manifest)]
+        args = ["dor", "validate-acceptance", "--record", str(self.record_path), "--run-manifest", str(self.manifest), "--ledger", str(self.ledger_path)]
         stdout = io.StringIO()
         with patch.object(sys, "argv", args), contextlib.redirect_stdout(stdout):
             code = main()
@@ -724,6 +766,108 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.write_record()
         self.assertIn("STAGE_REQUIRED_EVIDENCE_TYPE_MISSING", {item["code"] for item in self.validate()["issues"]})
 
+
+
+    def test_stage_revision_invalidates_downstream_reviews_and_final_pass(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"].update({
+            "decision": "PASS", "assessed_by": "synthetic-reviewer",
+            "assessed_at": "2026-11-08T00:00:00Z",
+            "rationale": "All synthetic fixture stages were reviewed.",
+        })
+        self.write_record()
+        self.assertTrue(self.validate()["valid"], self.validate()["issues"])
+
+        self.record["stages"][0]["reviewed_at"] = "2026-11-08T01:00:00Z"
+        self.record["stages"][0]["review_rationale"] = "Re-reviewed the source inventory binding."
+        self.write_record()
+        revised = json.loads(self.record_path.read_text(encoding="utf-8"))
+        self.assertEqual(revised["stages"][0]["status"], "PASS")
+        self.assertTrue(all(item["status"] == "NOT_STARTED" for item in revised["stages"][1:]))
+        self.assertTrue(all(item["evidence"] == [] and item["checks"] == [] for item in revised["stages"][1:]))
+        self.assertEqual(revised["final_assessment"]["decision"], "NOT_ASSESSED")
+        history = validate_acceptance_ledger(self.record_path, self.ledger_path)
+        self.assertTrue(history["valid"], history["issues"])
+        self.assertEqual(history["latest_event_type"], "STAGE_REVIEW_RECORDED")
+        report = self.validate()
+        self.assertTrue(report["valid"], report["issues"])
+        self.assertEqual(report["final_decision"], "NOT_ASSESSED")
+
+    def test_unregistered_acceptance_edit_is_rejected_by_revision_ledger(self):
+        self.record["final_assessment"]["rationale"] = "Unregistered edit."
+        self.record_path.write_text(json.dumps(self.record, indent=2), encoding="utf-8")
+        report = self.validate()
+        self.assertFalse(report["valid"])
+        self.assertIn("ACCEPTANCE_LEDGER_INVALID", {item["code"] for item in report["issues"]})
+
+    def test_revision_cli_records_stage_change_and_invalidates_downstream(self):
+        self.record["stages"][0].update({
+            "status": "PASS",
+            "evidence": [dict(item) for item in self.stage_evidence["source_selection"]],
+            "checks": [{
+                "check_id": "source_selection_schema_version",
+                "artifact_id": "selection_manifest",
+                "json_pointer": "/schema_version",
+                "operator": "equals",
+                "expected": "1.0",
+            }],
+            "reviewed_by": "synthetic-reviewer",
+            "reviewed_at": "2026-11-08T02:00:00Z",
+            "review_rationale": "Reviewed source-selection manifest.",
+        })
+        self.record_path.write_text(json.dumps(self.record, indent=2), encoding="utf-8")
+        args = [
+            "dor", "record-acceptance-revision", "--record", str(self.record_path),
+            "--ledger", str(self.ledger_path), "--actor", "synthetic-reviewer",
+            "--rationale", "Recorded a source-selection review.",
+        ]
+        stdout = io.StringIO()
+        with patch.object(sys, "argv", args), contextlib.redirect_stdout(stdout):
+            code = main()
+        self.assertEqual(code, 0, stdout.getvalue())
+        revised = json.loads(self.record_path.read_text(encoding="utf-8"))
+        self.assertEqual(revised["stages"][0]["status"], "PASS")
+        self.assertTrue(all(item["status"] == "NOT_STARTED" for item in revised["stages"][1:]))
+        self.assertEqual(revised["final_assessment"]["decision"], "NOT_ASSESSED")
+
+    def test_acceptance_ledger_event_tampering_is_detected(self):
+        lines = self.ledger_path.read_text(encoding="utf-8").splitlines()
+        event = json.loads(lines[0])
+        event["rationale"] = "Tampered history."
+        lines[0] = json.dumps(event)
+        self.ledger_path.write_text("\\n".join(lines) + "\\n", encoding="utf-8")
+        report = validate_acceptance_ledger(self.record_path, self.ledger_path)
+        self.assertFalse(report["valid"])
+        self.assertIn("ACCEPTANCE_LEDGER_INVALID", {item["code"] for item in report["issues"]})
+
+    def test_init_acceptance_ledger_cli(self):
+        copied_record = self.root / "copy_acceptance.json"
+        copied_record.write_text(self.record_path.read_text(encoding="utf-8"), encoding="utf-8")
+        copied_ledger = self.root / "copy_acceptance_events.jsonl"
+        args = [
+            "dor", "init-acceptance-ledger", "--record", str(copied_record),
+            "--ledger", str(copied_ledger), "--actor", "synthetic-reviewer",
+            "--rationale", "Initialize a copied synthetic acceptance record.",
+        ]
+        stdout = io.StringIO()
+        with patch.object(sys, "argv", args), contextlib.redirect_stdout(stdout):
+            code = main()
+        self.assertEqual(code, 0, stdout.getvalue())
+        self.assertTrue(validate_acceptance_ledger(copied_record, copied_ledger)["valid"])
+
+    def test_terminal_stage_review_requires_reviewer_metadata_in_schema(self):
+        stage_schema = __import__("json").loads(
+            (Path(__file__).parents[2] / "schemas" / "v1_acceptance_record.schema.json").read_text(encoding="utf-8")
+        )
+        item_schema = stage_schema["properties"]["stages"]["items"]
+        required = {
+            key for condition in item_schema["allOf"]
+            if condition.get("if", {}).get("properties", {}).get("status", {}).get("enum")
+            for key in condition.get("then", {}).get("required", [])
+        }
+        self.assertTrue({"reviewed_by", "reviewed_at", "review_rationale"}.issubset(required))
 
 if __name__ == "__main__":
     unittest.main()
