@@ -1234,6 +1234,46 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertTrue({"reviewed_by", "reviewed_at", "review_rationale"}.issubset(required))
 
 
+
+    def test_checkpoint_round_trip_with_gate_and_run_ledger_bindings(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        self.write_record()
+
+        gate_events = [
+            {
+                "gate_id": gate,
+                "event_hash": self.gate_event_hashes[gate],
+                "artifacts": self.gate_report["events"][gate]["artifacts"],
+            }
+            for gate in ("G0", "G1", "G2", "G3", "G4")
+        ]
+        checkpoint = self.root / "independent-review" / "full-binding.checkpoint.json"
+        with patch("dor.acceptance_ledger._load_events", return_value=gate_events):
+            created = create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+            verified = verify_acceptance_checkpoint(
+                self.record_path, self.ledger_path, checkpoint, created["checkpoint_sha256"]
+            )
+
+        self.assertTrue(verified["valid"], verified["issues"])
+        self.assertEqual(verified["status"], "CURRENT_MATCH")
+        payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+        self.assertEqual(
+            set(payload["upstream_ledgers"]),
+            {"workflow_gate_ledger", "run_event_ledger"},
+        )
+        self.assertEqual(
+            payload["upstream_ledgers"]["workflow_gate_ledger"]["sha256"],
+            payload["upstream_ledgers"]["workflow_gate_ledger"]["binding"]["sha256"],
+        )
+        self.assertEqual(
+            payload["upstream_ledgers"]["run_event_ledger"]["sha256"],
+            payload["upstream_ledgers"]["run_event_ledger"]["binding"]["sha256"],
+        )
+
     def test_detached_acceptance_checkpoint_round_trip(self):
         checkpoint = self.root / "independent-review" / "acceptance.checkpoint.json"
         created = create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
