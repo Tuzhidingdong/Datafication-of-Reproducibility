@@ -945,6 +945,21 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertEqual(set(revision_dir.iterdir()), before)
         self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
 
+    def test_recovery_cleans_uncommitted_snapshot_and_truncated_jsonl_tail(self):
+        revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
+        events = self.ledger_path.read_text(encoding="utf-8").splitlines()
+        next_name = f"revision-{len(events) + 1:06d}.json"
+        (revision_dir / next_name).write_bytes(b'{"partial":')
+        (revision_dir / (next_name + ".tmp")).write_bytes(b'{"temporary":')
+        with self.ledger_path.open("ab") as handle:
+            handle.write(b'{"partial":')
+        result = recover_acceptance_record(self.record_path, self.ledger_path)
+        self.assertFalse(result["recovered"])
+        self.assertFalse((revision_dir / next_name).exists())
+        self.assertFalse((revision_dir / (next_name + ".tmp")).exists())
+        self.assertTrue(self.ledger_path.read_bytes().endswith(b"\n"))
+        self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+
     def test_acceptance_ledger_event_tampering_is_detected(self):
         lines = self.ledger_path.read_text(encoding="utf-8").splitlines()
         event = json.loads(lines[0])

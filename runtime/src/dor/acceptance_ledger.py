@@ -356,10 +356,7 @@ def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any]
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
     if snapshot_path.parent.is_symlink() or snapshot_path.exists():
         raise ValueError("Acceptance revision snapshot path already exists or is unsafe.")
-    with snapshot_path.open("xb") as handle:
-        handle.write(raw)
-        handle.flush()
-        os.fsync(handle.fileno())
+    _atomic_write(snapshot_path, raw)
     payload = {
         "schema_version": "1.0",
         "sequence": sequence,
@@ -534,7 +531,37 @@ def recover_acceptance_record(record_path: Path, ledger_path: Path) -> dict[str,
     ledger_path, snapshots_dir = _safe_paths(ledger_path)
     lock_path = ledger_path.with_name(ledger_path.name + ".lock")
     with _exclusive_lock(lock_path):
+        # A process may stop mid-append. A final unterminated JSONL line is
+        # uncommitted by definition; truncate it before examining snapshots.
+        if ledger_path.exists():
+            ledger_bytes = ledger_path.read_bytes()
+            if ledger_bytes and not ledger_bytes.endswith(b"\n"):
+                last_newline = ledger_bytes.rfind(b"\n")
+                if last_newline < 0:
+                    raise ValueError("Recovery refused: no complete ledger event remains; reinitialize only after manual review.")
+                with ledger_path.open("r+b") as handle:
+                    handle.truncate(last_newline + 1)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+        complete_lines = ledger_path.read_bytes().splitlines() if ledger_path.exists() else []
+        committed_names = {f"revision-{index:06d}.json" for index in range(1, len(complete_lines) + 1)}
+        allowed_orphans = {
+            f"revision-{len(complete_lines) + 1:06d}.json",
+            f"revision-{len(complete_lines) + 1:06d}.json.tmp",
+        }
+        present_names = {item.name for item in snapshots_dir.iterdir()}
+        orphans = present_names - committed_names
+        if orphans:
+            if not orphans.issubset(allowed_orphans):
+                raise ValueError("Recovery refused: unexpected or multiple unreferenced snapshot files exist.")
+            for name in orphans:
+                orphan = snapshots_dir / name
+                if orphan.is_symlink() or not orphan.is_file():
+                    raise ValueError("Recovery refused: unsafe unreferenced snapshot entry.")
+                orphan.unlink()
         events, _ = _load_history(ledger_path)
+        if not events:
+            raise ValueError("No committed acceptance event remains; reinitialize only after manual review.")
         current = _record_bytes(record_path)
         latest_event = events[-1]
         latest = (snapshots_dir / latest_event["snapshot_file"]).read_bytes()
