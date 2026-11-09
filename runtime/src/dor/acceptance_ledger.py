@@ -317,7 +317,9 @@ def _validate_run_event_ledger_binding(binding: Mapping[str, Any], record_parent
         previous_path = Path(previous.get("path", "")).expanduser()
         if not previous_path.is_absolute():
             previous_path = record_parent / previous_path
-        if previous_path.resolve(strict=False) != path:
+        if previous_path.is_symlink():
+            raise ValueError("Previously bound Run event ledger path must not be a symlink.")
+        if previous_path.resolve(strict=True) != path:
             raise ValueError("Run event ledger path cannot be replaced during an Acceptance revision.")
         if type(previous_count) is not int or previous_count < 0 or previous_count > len(events):
             raise ValueError("Run event ledger event count moved backwards or is malformed.")
@@ -1003,6 +1005,140 @@ def create_acceptance_checkpoint(record_path: Path, ledger_path: Path,
     }
 
 
+
+def _validate_acceptance_checkpoint_shape(checkpoint: Mapping[str, Any]) -> None:
+    """Validate the detached checkpoint envelope before comparing it with live files."""
+    def exact_object(value: Any, keys: set[str], label: str) -> dict[str, Any]:
+        if not isinstance(value, dict) or set(value) != keys:
+            raise ValueError(f"{label} must be an object with exactly these fields: {sorted(keys)}.")
+        return value
+
+    def non_empty_string(value: Any, label: str) -> None:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{label} must be a non-empty string.")
+
+    def digest(value: Any, label: str) -> None:
+        if (not isinstance(value, str) or len(value) != 64
+                or any(char not in "0123456789abcdef" for char in value)):
+            raise ValueError(f"{label} must be a lowercase SHA-256 digest.")
+
+    exact_object(checkpoint, {
+        "schema_version", "checkpoint_type", "acceptance", "record",
+        "revision_ledger", "revision_snapshots", "upstream_ledgers",
+    }, "Acceptance checkpoint")
+    if checkpoint.get("schema_version") != "1.0":
+        raise ValueError("Acceptance checkpoint schema_version must be 1.0.")
+    if checkpoint.get("checkpoint_type") != "DOR_ACCEPTANCE_LEDGER_CHECKPOINT":
+        raise ValueError("Acceptance checkpoint_type is invalid.")
+
+    identity = exact_object(checkpoint.get("acceptance"),
+                            {"acceptance_id", "project_id", "run_id"},
+                            "Checkpoint acceptance")
+    for key in ("acceptance_id", "project_id", "run_id"):
+        non_empty_string(identity.get(key), f"Checkpoint acceptance.{key}")
+
+    record = exact_object(checkpoint.get("record"), {"path", "sha256"}, "Checkpoint record")
+    non_empty_string(record.get("path"), "Checkpoint record.path")
+    if not Path(record["path"]).is_absolute():
+        raise ValueError("Checkpoint record.path must be absolute.")
+    digest(record.get("sha256"), "Checkpoint record.sha256")
+
+    ledger = exact_object(checkpoint.get("revision_ledger"), {
+        "path", "sha256", "event_count", "latest_event_hash", "latest_record_sha256",
+    }, "Checkpoint revision_ledger")
+    non_empty_string(ledger.get("path"), "Checkpoint revision_ledger.path")
+    if not Path(ledger["path"]).is_absolute():
+        raise ValueError("Checkpoint revision_ledger.path must be absolute.")
+    digest(ledger.get("sha256"), "Checkpoint revision_ledger.sha256")
+    if type(ledger.get("event_count")) is not int or ledger["event_count"] < 1:
+        raise ValueError("Checkpoint revision_ledger.event_count must be a positive integer.")
+    digest(ledger.get("latest_event_hash"), "Checkpoint revision_ledger.latest_event_hash")
+    digest(ledger.get("latest_record_sha256"), "Checkpoint revision_ledger.latest_record_sha256")
+    if ledger["latest_record_sha256"] != record["sha256"]:
+        raise ValueError("Checkpoint record SHA-256 differs from the anchored latest record SHA-256.")
+
+    snapshots = exact_object(checkpoint.get("revision_snapshots"), {"directory", "items"},
+                              "Checkpoint revision_snapshots")
+    non_empty_string(snapshots.get("directory"), "Checkpoint revision_snapshots.directory")
+    if not Path(snapshots["directory"]).is_absolute():
+        raise ValueError("Checkpoint revision_snapshots.directory must be absolute.")
+    items = snapshots.get("items")
+    if not isinstance(items, list) or len(items) != ledger["event_count"]:
+        raise ValueError("Checkpoint snapshot manifest length must equal revision_ledger.event_count.")
+    expected_snapshot_dir = Path(ledger["path"]).with_name(Path(ledger["path"]).name + ".revisions")
+    if Path(snapshots["directory"]) != expected_snapshot_dir:
+        raise ValueError("Checkpoint revision snapshot directory is not the ledger's canonical sibling directory.")
+    for index, item in enumerate(items, start=1):
+        entry = exact_object(item, {"name", "sha256"}, f"Checkpoint snapshot item {index}")
+        if entry.get("name") != f"revision-{index:06d}.json":
+            raise ValueError(f"Checkpoint snapshot item {index} has an invalid or reordered filename.")
+        digest(entry.get("sha256"), f"Checkpoint snapshot item {index}.sha256")
+    if items[-1]["sha256"] != record["sha256"]:
+        raise ValueError("Checkpoint latest snapshot SHA-256 differs from the current Acceptance Record.")
+
+    upstream = checkpoint.get("upstream_ledgers")
+    if not isinstance(upstream, dict) or set(upstream) - set(EXTERNAL_LEDGER_FIELDS):
+        raise ValueError("Checkpoint upstream_ledgers contains an unknown key or is not an object.")
+    for key, item_value in upstream.items():
+        item = exact_object(item_value, {"path", "sha256", "binding"},
+                            f"Checkpoint upstream_ledgers.{key}")
+        non_empty_string(item.get("path"), f"Checkpoint upstream_ledgers.{key}.path")
+        if not Path(item["path"]).is_absolute():
+            raise ValueError(f"Checkpoint upstream_ledgers.{key}.path must be absolute.")
+        digest(item.get("sha256"), f"Checkpoint upstream_ledgers.{key}.sha256")
+        binding = item.get("binding")
+        if not isinstance(binding, dict):
+            raise ValueError(f"Checkpoint upstream_ledgers.{key}.binding must be an object.")
+        binding_path = Path(str(binding.get("path", ""))).expanduser()
+        if not binding_path.is_absolute():
+            binding_path = Path(record["path"]).parent / binding_path
+        if binding_path.resolve(strict=False) != Path(item["path"]):
+            raise ValueError(f"Checkpoint upstream_ledgers.{key} path differs from its Acceptance binding.")
+        if binding.get("sha256") != item["sha256"]:
+            raise ValueError(f"Checkpoint upstream_ledgers.{key} SHA-256 differs from its Acceptance binding.")
+        if key == "workflow_gate_ledger":
+            binding = exact_object(binding, {
+                "path", "sha256", "gate_event_hashes", "gate_artifacts",
+            }, "Checkpoint workflow_gate_ledger binding")
+            hashes = exact_object(binding.get("gate_event_hashes"), set(GATE_ORDER),
+                                  "Checkpoint workflow_gate_ledger.gate_event_hashes")
+            for gate_id, event_hash in hashes.items():
+                if event_hash is not None:
+                    digest(event_hash, f"Checkpoint workflow_gate_ledger.gate_event_hashes.{gate_id}")
+            artifacts = exact_object(binding.get("gate_artifacts"), set(GATE_ORDER),
+                                      "Checkpoint workflow_gate_ledger.gate_artifacts")
+            for gate_id, references in artifacts.items():
+                if not isinstance(references, list):
+                    raise ValueError(f"Checkpoint Gate {gate_id} artifacts must be an array.")
+                seen_ids: set[str] = set()
+                for position, reference_value in enumerate(references, start=1):
+                    reference = exact_object(reference_value,
+                                             {"artifact_id", "path", "sha256"},
+                                             f"Checkpoint Gate {gate_id} artifact {position}")
+                    artifact_id = reference.get("artifact_id")
+                    non_empty_string(artifact_id, f"Checkpoint Gate {gate_id} artifact_id")
+                    if artifact_id in seen_ids:
+                        raise ValueError(f"Checkpoint Gate {gate_id} contains duplicate artifact IDs.")
+                    seen_ids.add(artifact_id)
+                    non_empty_string(reference.get("path"), f"Checkpoint Gate {gate_id} artifact path")
+                    digest(reference.get("sha256"), f"Checkpoint Gate {gate_id} artifact sha256")
+            non_empty_string(binding.get("path"), "Checkpoint workflow_gate_ledger binding.path")
+            digest(binding.get("sha256"), "Checkpoint workflow_gate_ledger binding.sha256")
+        else:
+            binding = exact_object(binding, {"path", "sha256", "event_count", "last_event_hash"},
+                                   "Checkpoint run_event_ledger binding")
+            non_empty_string(binding.get("path"), "Checkpoint run_event_ledger binding.path")
+            digest(binding.get("sha256"), "Checkpoint run_event_ledger binding.sha256")
+            count = binding.get("event_count")
+            if type(count) is not int or count < 0:
+                raise ValueError("Checkpoint run_event_ledger event_count must be a non-negative integer.")
+            tip = binding.get("last_event_hash")
+            if count == 0 and tip is not None:
+                raise ValueError("An empty Run Event Ledger must have a null last_event_hash.")
+            if count > 0:
+                digest(tip, "Checkpoint run_event_ledger last_event_hash")
+
+
 def verify_acceptance_checkpoint(record_path: Path, ledger_path: Path,
                                   checkpoint_path: Path,
                                   expected_sha256: str) -> dict[str, Any]:
@@ -1031,6 +1167,7 @@ def verify_acceptance_checkpoint(record_path: Path, ledger_path: Path,
             raise ValueError(f"Acceptance checkpoint must be readable JSON: {exc}") from exc
         if not isinstance(checkpoint, dict):
             raise ValueError("Acceptance checkpoint must be a JSON object.")
+        _validate_acceptance_checkpoint_shape(checkpoint)
         live = _build_acceptance_checkpoint_payload(record_path, ledger_path)
         if not isinstance(checkpoint.get("revision_ledger"), dict):
             raise ValueError("Checkpoint revision_ledger section is missing or malformed.")

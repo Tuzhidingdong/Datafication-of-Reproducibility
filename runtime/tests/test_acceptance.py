@@ -1243,7 +1243,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
             self.record_path, self.ledger_path, checkpoint, created["checkpoint_sha256"]
         )
         self.assertTrue(verified["valid"], verified["issues"])
-        self.assertEqual(verified["revision_count"], 1)
+        self.assertEqual(verified["status"], "CURRENT_MATCH")
+        self.assertTrue(verified["current_state_is_checkpointed"])
+        self.assertEqual(verified["checkpoint_revision_count"], 1)
+        self.assertEqual(verified["current_revision_count"], 1)
 
     def test_external_checkpoint_detects_self_consistent_rewrite_of_all_local_history(self):
         from dor import acceptance_ledger
@@ -1293,6 +1296,50 @@ class AcceptanceValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "inside the revision snapshot directory"):
             create_acceptance_checkpoint(self.record_path, self.ledger_path, target)
 
+
+
+    def test_checkpoint_rejects_malformed_envelope_even_with_matching_external_digest(self):
+        checkpoint = self.root / "external" / "malformed.checkpoint.json"
+        created = create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+        payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+        payload["revision_ledger"]["event_count"] = True
+        raw = (json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+        checkpoint.write_bytes(raw)
+        verified = verify_acceptance_checkpoint(
+            self.record_path, self.ledger_path, checkpoint, hashlib.sha256(raw).hexdigest()
+        )
+        self.assertFalse(verified["valid"])
+        self.assertIn("ACCEPTANCE_CHECKPOINT_INVALID",
+                      {item["code"] for item in verified["issues"]})
+
+    def test_checkpoint_rejects_unrecognized_fields(self):
+        checkpoint = self.root / "external" / "unexpected-field.checkpoint.json"
+        create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+        payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+        payload["unreviewed_extension"] = {"decision": "PASS"}
+        raw = (json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+        checkpoint.write_bytes(raw)
+        verified = verify_acceptance_checkpoint(
+            self.record_path, self.ledger_path, checkpoint, hashlib.sha256(raw).hexdigest()
+        )
+        self.assertFalse(verified["valid"])
+        self.assertIn("ACCEPTANCE_CHECKPOINT_INVALID",
+                      {item["code"] for item in verified["issues"]})
+
+
+    def test_checkpoint_rejects_internally_inconsistent_snapshot_manifest(self):
+        checkpoint = self.root / "external" / "inconsistent-snapshot.checkpoint.json"
+        create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+        payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+        payload["revision_snapshots"]["items"][-1]["sha256"] = "f" * 64
+        raw = (json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\\n").encode("utf-8")
+        checkpoint.write_bytes(raw)
+        verified = verify_acceptance_checkpoint(
+            self.record_path, self.ledger_path, checkpoint, hashlib.sha256(raw).hexdigest()
+        )
+        self.assertFalse(verified["valid"])
+        self.assertIn("ACCEPTANCE_CHECKPOINT_INVALID",
+                      {item["code"] for item in verified["issues"]})
 
     def test_checkpoint_verifies_append_only_acceptance_extension(self):
         checkpoint = self.root / "external" / "initial.checkpoint.json"
