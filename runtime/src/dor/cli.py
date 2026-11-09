@@ -183,6 +183,10 @@ def build_parser() -> argparse.ArgumentParser:
     acceptance_revision.add_argument("--actor", required=True)
     acceptance_revision.add_argument("--rationale", required=True)
 
+    acceptance_recover = subparsers.add_parser("recover-acceptance-record", help="Restore the latest committed snapshot after an interrupted ledger update")
+    acceptance_recover.add_argument("--record", type=Path, required=True)
+    acceptance_recover.add_argument("--ledger", type=Path, required=True)
+
     acceptance_history = subparsers.add_parser("acceptance-history", help="List verified acceptance revisions, reviewers, stage changes, and invalidations")
     acceptance_history.add_argument("--ledger", type=Path, required=True)
     acceptance_history.add_argument("--out", type=Path, help="Optional path for the history report JSON")
@@ -250,6 +254,10 @@ def main() -> int:
             return 0
         if args.command == "record-acceptance-revision":
             result = record_acceptance_revision(args.record, args.ledger, args.actor, args.rationale)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "recover-acceptance-record":
+            result = recover_acceptance_record(args.record, args.ledger)
             print(_write_json(None, result), end="")
             return 0
         if args.command == "acceptance-history":

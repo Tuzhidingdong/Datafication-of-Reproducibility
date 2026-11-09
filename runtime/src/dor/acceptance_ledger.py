@@ -141,12 +141,16 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                 raise ValueError(f"Acceptance record revision chain mismatch at line {line_number}.")
             if not all(isinstance(event.get(key), str) and event[key].strip()
                        for key in ("acceptance_id", "project_id", "run_id", "actor",
-                                   "rationale", "recorded_at", "record_sha256")):
+                                   "rationale", "recorded_at", "record_sha256",
+                                   "precommit_record_sha256")):
                 raise ValueError(f"Acceptance event at line {line_number} lacks required metadata.")
             _parse_timestamp(event["recorded_at"], f"event {line_number} recorded_at")
             digest = event["record_sha256"]
             if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
                 raise ValueError(f"Invalid record SHA-256 at line {line_number}.")
+            precommit_digest = event["precommit_record_sha256"]
+            if len(precommit_digest) != 64 or any(char not in "0123456789abcdef" for char in precommit_digest):
+                raise ValueError(f"Invalid precommit record SHA-256 at line {line_number}.")
             snapshot_path = snapshots_dir / event["snapshot_file"]
             if snapshot_path.is_symlink() or not snapshot_path.is_file():
                 raise ValueError(f"Acceptance revision snapshot is missing or unsafe at line {line_number}.")
@@ -348,7 +352,7 @@ def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any]
                   raw: bytes, actor: str, rationale: str, event_type: str,
                   changed_stage_ids: list[str], invalidated_stage_ids: list[str],
                   previous_event_hash: str, previous_record_sha256: str | None,
-                  sequence: int) -> dict[str, Any]:
+                  sequence: int, precommit_record_sha256: str) -> dict[str, Any]:
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
     if snapshot_path.parent.is_symlink() or snapshot_path.exists():
         raise ValueError("Acceptance revision snapshot path already exists or is unsafe.")
@@ -367,6 +371,7 @@ def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any]
         "rationale": rationale.strip(),
         "recorded_at": _now(),
         "record_sha256": _hash_bytes(raw),
+        "precommit_record_sha256": precommit_record_sha256,
         "snapshot_file": snapshot_path.name,
         "previous_record_sha256": previous_record_sha256,
         "changed_stage_ids": changed_stage_ids,
@@ -379,11 +384,24 @@ def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any]
         "previous_event_hash": previous_event_hash,
     }
     event = {**payload, "event_hash": _event_hash(payload)}
+    prior_size = ledger_path.stat().st_size if ledger_path.exists() else 0
     mode = "x" if sequence == 1 else "a"
-    with ledger_path.open(mode, encoding="utf-8", newline="\n") as handle:
-        handle.write(_canonical_json(event) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
+    try:
+        with ledger_path.open(mode, encoding="utf-8", newline="\n") as handle:
+            handle.write(_canonical_json(event) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        if ledger_path.exists():
+            if sequence == 1:
+                ledger_path.unlink()
+            else:
+                with ledger_path.open("r+b") as handle:
+                    handle.truncate(prior_size)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+        snapshot_path.unlink(missing_ok=True)
+        raise
     return event
 
 
@@ -404,6 +422,7 @@ def initialize_acceptance_ledger(record_path: Path, ledger_path: Path,
         event = _append_event(
             ledger_path, snapshots_dir / "revision-000001.json", record, raw,
             actor, rationale, "RECORD_CREATED", [], [], GENESIS_HASH, None, 1,
+            _hash_bytes(raw),
         )
     return {
         "valid": True, "acceptance_id": record.get("acceptance_id"),
@@ -484,14 +503,14 @@ def record_acceptance_revision(record_path: Path, ledger_path: Path,
             raise ValueError("Acceptance record changed outside the stage/final-assessment review fields.")
 
         normalized = (json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
-        _atomic_write(record_path, normalized)
         sequence = len(events) + 1
         snapshot_path = snapshots_dir / f"revision-{sequence:06d}.json"
         event = _append_event(
             ledger_path, snapshot_path, record, normalized, actor, rationale,
             event_type, changed, invalidated, previous_event["event_hash"],
-            previous_event["record_sha256"], sequence,
+            previous_event["record_sha256"], sequence, _hash_bytes(raw),
         )
+        _atomic_write(record_path, normalized)
     return {
         "valid": True,
         "acceptance_id": record.get("acceptance_id"),
@@ -504,6 +523,31 @@ def record_acceptance_revision(record_path: Path, ledger_path: Path,
         "ledger_path": str(ledger_path),
         "snapshot_path": str(snapshot_path),
     }
+
+
+def recover_acceptance_record(record_path: Path, ledger_path: Path) -> dict[str, Any]:
+    """Recover only a committed update whose current file is still the precommit draft."""
+    record_path = record_path.expanduser()
+    if record_path.is_symlink():
+        raise ValueError("Acceptance record must not be a symlink.")
+    record_path = record_path.resolve(strict=False)
+    ledger_path, snapshots_dir = _safe_paths(ledger_path)
+    lock_path = ledger_path.with_name(ledger_path.name + ".lock")
+    with _exclusive_lock(lock_path):
+        events, _ = _load_history(ledger_path)
+        current = _record_bytes(record_path)
+        latest_event = events[-1]
+        latest = (snapshots_dir / latest_event["snapshot_file"]).read_bytes()
+        if _hash_bytes(current) == latest_event["record_sha256"]:
+            return {"valid": True, "recovered": False, "revision": len(events),
+                    "record_sha256": latest_event["record_sha256"]}
+        allowed = {latest_event.get("precommit_record_sha256"),
+                   latest_event.get("previous_record_sha256")}
+        if _hash_bytes(current) not in allowed:
+            raise ValueError("Recovery refused: current record is not the exact precommit state; preserve it for manual review.")
+        _atomic_write(record_path, latest)
+        return {"valid": True, "recovered": True, "revision": len(events),
+                "record_sha256": latest_event["record_sha256"]}
 
 
 def validate_acceptance_ledger(record_path: Path, ledger_path: Path) -> dict[str, Any]:

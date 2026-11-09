@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
@@ -887,6 +888,59 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 self.record_path, self.ledger_path, "synthetic-reviewer",
                 "Attempted to combine a stage review with an unrelated root edit.",
             )
+
+    def test_interrupted_record_replacement_recovers_latest_committed_snapshot(self):
+        draft = json.loads(self.record_path.read_text(encoding="utf-8"))
+        draft["stages"][0]["status"] = "IN_PROGRESS"
+        self.record_path.write_text(json.dumps(draft, indent=2) + "\\n", encoding="utf-8")
+        from dor import acceptance_ledger
+        with patch.object(acceptance_ledger, "_atomic_write", side_effect=OSError("simulated crash")):
+            with self.assertRaises(OSError):
+                record_acceptance_revision(
+                    self.record_path, self.ledger_path, "synthetic-reviewer",
+                    "Synthetic interruption after event commit.",
+                )
+        self.assertFalse(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+        result = recover_acceptance_record(self.record_path, self.ledger_path)
+        self.assertTrue(result["recovered"])
+        self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+
+    def test_concurrent_acceptance_revisions_serialize_without_lost_updates(self):
+        draft = json.loads(self.record_path.read_text(encoding="utf-8"))
+        draft["stages"][0]["status"] = "IN_PROGRESS"
+        self.record_path.write_text(json.dumps(draft, indent=2) + "\\n", encoding="utf-8")
+        def revise():
+            try:
+                return record_acceptance_revision(
+                    self.record_path, self.ledger_path, "synthetic-reviewer",
+                    "Concurrent synthetic revision attempt.",
+                )
+            except ValueError as exc:
+                return str(exc)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(lambda _: revise(), range(2)))
+        self.assertEqual(sum(isinstance(item, dict) for item in outcomes), 1)
+        self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+
+    def test_failed_event_append_rolls_back_uncommitted_snapshot(self):
+        from dor import acceptance_ledger
+        revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
+        before = set(revision_dir.iterdir())
+        original = acceptance_ledger._canonical_json
+        calls = {"count": 0}
+        def fail_during_ledger_write(payload):
+            calls["count"] += 1
+            if calls["count"] == 2:
+                raise OSError("simulated append failure")
+            return original(payload)
+        with patch.object(acceptance_ledger, "_canonical_json", side_effect=fail_during_ledger_write):
+            with self.assertRaises(OSError):
+                record_acceptance_revision(
+                    self.record_path, self.ledger_path, "synthetic-reviewer",
+                    "Synthetic failed append.",
+                )
+        self.assertEqual(set(revision_dir.iterdir()), before)
+        self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
 
     def test_acceptance_ledger_event_tampering_is_detected(self):
         lines = self.ledger_path.read_text(encoding="utf-8").splitlines()

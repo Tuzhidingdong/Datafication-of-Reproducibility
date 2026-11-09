@@ -21,7 +21,8 @@
     "stage_statuses",
     "final_decision",
     "previous_event_hash",
-    "event_hash"
+    "event_hash",
+    "precommit_record_sha256"
   ],
   "properties": {
     "schema_version": {
@@ -153,6 +154,10 @@
     "event_hash": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "precommit_record_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     }
   },
   "additionalProperties": false
