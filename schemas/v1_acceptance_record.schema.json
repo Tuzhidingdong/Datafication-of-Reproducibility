@@ -14,6 +14,21 @@
     "stages",
     "final_assessment"
   ],
+  "$defs": {
+    "gateArtifactReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["artifact_id", "path", "sha256"],
+        "properties": {
+          "artifact_id": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
   "properties": {
     "schema_version": {
       "const": "1.0"
@@ -433,7 +448,8 @@
       "required": [
         "path",
         "sha256",
-        "gate_event_hashes"
+        "gate_event_hashes",
+        "gate_artifacts"
       ],
       "properties": {
         "path": {
@@ -443,6 +459,19 @@
         "sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        },
+        "gate_artifacts": {
+          "type": "object",
+          "description": "Exact artifact references contained in each latest G0-G4 approval event.",
+          "required": ["G0", "G1", "G2", "G3", "G4"],
+          "properties": {
+            "G0": {"$ref": "#/$defs/gateArtifactReferences"},
+            "G1": {"$ref": "#/$defs/gateArtifactReferences"},
+            "G2": {"$ref": "#/$defs/gateArtifactReferences"},
+            "G3": {"$ref": "#/$defs/gateArtifactReferences"},
+            "G4": {"$ref": "#/$defs/gateArtifactReferences"}
+          },
+          "additionalProperties": false
         },
         "gate_event_hashes": {
           "type": "object",

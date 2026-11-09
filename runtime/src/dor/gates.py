@@ -447,11 +447,13 @@ def inspect_gate_ledger(ledger_path: Path) -> dict[str, Any]:
     events = _load_events(ledger_path)
     latest = {event["gate_id"]: event for event in events}
     statuses: dict[str, dict[str, Any]] = {}
+    latest_events: dict[str, dict[str, Any]] = {}
     for gate in GATE_ORDER:
         event = latest.get(gate)
         if event is None:
             statuses[gate] = {"status": "NOT_RECORDED", "decision": None, "event_hash": None}
             continue
+        latest_events[gate] = event
         artifact_status, stale = _artifact_state(event)
         if artifact_status == "STALE_ARTIFACT":
             status = artifact_status
@@ -483,6 +485,7 @@ def inspect_gate_ledger(ledger_path: Path) -> dict[str, Any]:
         "event_count": len(events),
         "last_event_hash": events[-1]["event_hash"] if events else GENESIS_HASH,
         "gates": statuses,
+        "events": latest_events,
         "workflow_status": (
             "READY_FOR_FINALIZATION" if statuses["G4"]["status"] == "APPROVED"
             else "IN_PROGRESS"

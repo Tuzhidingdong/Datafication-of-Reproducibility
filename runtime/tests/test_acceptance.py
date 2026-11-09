@@ -591,14 +591,38 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.gate_ledger_path.write_text("synthetic gate ledger snapshot\\n", encoding="utf-8")
         self.gate_event_hashes = {gate: hashlib.sha256(gate.encode()).hexdigest()
                                   for gate in ("G0", "G1", "G2", "G3", "G4")}
+        evidence_by_id = {
+            artifact["artifact_id"]: {
+                "artifact_id": artifact["artifact_id"],
+                "path": str((self.root / artifact["path"]).resolve(strict=False)),
+                "sha256": artifact["sha256"],
+            }
+            for stage in self.record["stages"] if stage["status"] == "PASS"
+            for artifact in stage["evidence"]
+        }
+        gate_artifact_ids = {
+            "G0": ["source_inventory"],
+            "G1": ["mapping_plan", "source_inventory"],
+            "G2": ["canonical_bundle", "reconciliation_report", "modeling_task"],
+            "G3": ["cohort_report", "split_manifest", "modeling_cohort_manifest"],
+            "G4": ["model_report"],
+        }
+        events = {}
+        gate_artifacts = {}
+        for gate, artifact_ids in gate_artifact_ids.items():
+            artifacts = [evidence_by_id[artifact_id] for artifact_id in artifact_ids]
+            gate_artifacts[gate] = artifacts
+            events[gate] = {"artifacts": artifacts}
         self.record["workflow_gate_ledger"] = {
             "path": str(self.gate_ledger_path),
             "sha256": self.sha(self.gate_ledger_path),
             "gate_event_hashes": dict(self.gate_event_hashes),
+            "gate_artifacts": gate_artifacts,
         }
         self.gate_report = {
             "gates": {gate: {"status": "APPROVED", "event_hash": digest}
-                      for gate, digest in self.gate_event_hashes.items()}
+                      for gate, digest in self.gate_event_hashes.items()},
+            "events": events,
         }
 
 
@@ -626,6 +650,31 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.write_record()
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("WORKFLOW_GATE_BINDING_REQUIRED", codes)
+
+    def test_gate_artifact_path_hash_must_match_accepted_evidence(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        event_artifact = self.gate_report["events"]["G2"]["artifacts"][0]
+        event_artifact["sha256"] = "f" * 64
+        self.record["workflow_gate_ledger"]["gate_artifacts"]["G2"][0]["sha256"] = "f" * 64
+        self.write_record()
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertIn("WORKFLOW_GATE_EVIDENCE_IDENTITY_MISMATCH", codes)
+
+    def test_each_gate_requires_an_accepted_evidence_overlap(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        self.gate_report["events"]["G3"]["artifacts"] = []
+        self.record["workflow_gate_ledger"]["gate_artifacts"]["G3"] = []
+        self.write_record()
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertIn("WORKFLOW_GATE_HAS_NO_ACCEPTED_EVIDENCE", codes)
 
     def test_gate_ledger_append_invalidates_previous_acceptance_pass(self):
         self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])

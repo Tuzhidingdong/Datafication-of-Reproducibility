@@ -287,6 +287,7 @@ def validate_acceptance_record(
 
     stage_statuses: dict[str, str] = {}
     accepted_stage_payloads: dict[str, dict[str, Any]] = {}
+    accepted_gate_evidence: dict[str, dict[str, str]] = {}
     for item in stages:
         if not isinstance(item, dict):
             issue("INVALID_STAGE", "Every stage must be an object.")
@@ -380,6 +381,17 @@ def validate_acceptance_record(
                 issue(contract_issue["code"], contract_issue["message"])
             for typed_item in typed_evidence:
                 accepted_stage_payloads[typed_item["artifact_type"]] = typed_item
+                identity = {
+                    "artifact_id": typed_item["artifact_id"],
+                    "path": str(Path(typed_item["path"]).resolve(strict=False)),
+                    "sha256": typed_item["sha256"],
+                }
+                prior_identity = accepted_gate_evidence.get(identity["artifact_id"])
+                if prior_identity is not None and prior_identity != identity:
+                    issue("ACCEPTANCE_EVIDENCE_IDENTITY_CONFLICT",
+                          f"Accepted evidence artifact_id {identity['artifact_id']} has conflicting path/hash identities across stages.")
+                else:
+                    accepted_gate_evidence[identity["artifact_id"]] = identity
 
         checks = item.get("checks", [])
         if not isinstance(checks, list):
@@ -467,6 +479,7 @@ def validate_acceptance_record(
             gate_path_value = gate_binding.get("path")
             gate_digest = gate_binding.get("sha256")
             recorded_gate_hashes = gate_binding.get("gate_event_hashes")
+            recorded_gate_artifacts = gate_binding.get("gate_artifacts")
             if not isinstance(gate_path_value, str) or not gate_path_value.strip():
                 issue("WORKFLOW_GATE_PATH_MISSING", "workflow_gate_ledger.path must be a non-empty path.")
             if not isinstance(gate_digest, str) or len(gate_digest) != 64:
@@ -500,6 +513,53 @@ def validate_acceptance_record(
                 if recorded_gate_hashes != actual_gate_hashes:
                     issue("WORKFLOW_GATE_EVENTS_CHANGED",
                           "G0-G4 event hashes differ from the Acceptance Record binding; reassessment is required.")
+                if not isinstance(recorded_gate_artifacts, dict) or set(recorded_gate_artifacts) != set(GATE_ORDER):
+                    issue("WORKFLOW_GATE_ARTIFACTS_INVALID",
+                          "workflow_gate_ledger.gate_artifacts must map exactly G0-G4 to artifact reference arrays.")
+                else:
+                    for gate_id in GATE_ORDER:
+                        event = gate_report.get("events", {}).get(gate_id)
+                        event_artifacts = event.get("artifacts") if isinstance(event, dict) else None
+                        if not isinstance(event_artifacts, list):
+                            issue("WORKFLOW_GATE_EVENT_ARTIFACTS_MISSING",
+                                  f"Gate {gate_id} has no inspectable event artifact list.")
+                            event_artifacts = []
+                        normalized = []
+                        seen_ids: set[str] = set()
+                        for gate_artifact in event_artifacts:
+                            if not isinstance(gate_artifact, dict):
+                                issue("WORKFLOW_GATE_EVENT_ARTIFACT_INVALID", f"Gate {gate_id} has a malformed artifact reference.")
+                                continue
+                            artifact_id = gate_artifact.get("artifact_id")
+                            artifact_path = gate_artifact.get("path")
+                            artifact_sha = gate_artifact.get("sha256")
+                            if (not isinstance(artifact_id, str) or not artifact_id.strip()
+                                    or artifact_id in seen_ids or not isinstance(artifact_path, str)
+                                    or not artifact_path.strip() or Path(artifact_path).is_symlink()
+                                    or not isinstance(artifact_sha, str) or len(artifact_sha) != 64
+                                    or any(char not in "0123456789abcdef" for char in artifact_sha)):
+                                issue("WORKFLOW_GATE_EVENT_ARTIFACT_INVALID", f"Gate {gate_id} has an incomplete or duplicate artifact identity.")
+                                continue
+                            seen_ids.add(artifact_id)
+                            normalized.append({"artifact_id": artifact_id,
+                                               "path": str(Path(artifact_path).resolve(strict=False)),
+                                               "sha256": artifact_sha})
+                        if recorded_gate_artifacts.get(gate_id) != normalized:
+                            issue("WORKFLOW_GATE_ARTIFACTS_CHANGED",
+                                  f"Gate {gate_id} artifact references differ from the Acceptance Record binding.")
+                        matched = 0
+                        for reference in normalized:
+                            accepted = accepted_gate_evidence.get(reference["artifact_id"])
+                            if accepted is None:
+                                continue
+                            if accepted != reference:
+                                issue("WORKFLOW_GATE_EVIDENCE_IDENTITY_MISMATCH",
+                                      f"Gate {gate_id} artifact {reference['artifact_id']} differs from accepted Run Evidence path/hash.")
+                            else:
+                                matched += 1
+                        if matched == 0:
+                            issue("WORKFLOW_GATE_HAS_NO_ACCEPTED_EVIDENCE",
+                                  f"Gate {gate_id} has no artifact also accepted as current V1.0 Run Evidence.")
                 if decision == "PASS":
                     not_approved = [gate_id for gate_id in GATE_ORDER
                                     if gate_report["gates"][gate_id]["status"] != "APPROVED"]

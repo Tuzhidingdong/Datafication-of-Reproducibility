@@ -681,7 +681,10 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             ("robustness_manifest", cls.robustness_dir / "interaction_robustness_manifest.json"),
             ("interaction_selection", cls.interaction_selection_path),
             ("mechanism_plan", cls.mechanism_plan_path),
-        ], "Synthetic user selection of the exact interaction and corresponding mechanism plan.")
+            ("cohort_report", cls.cohort_dir / "cohort_report.json"),
+            ("split_manifest", cls.cohort_dir / "split_manifest.json"),
+            ("modeling_cohort_manifest", cls.cohort_dir / "modeling_cohort_manifest.json"),
+        ], "Synthetic user selection of the exact interaction and corresponding mechanism plan after reviewing its accepted cohort inputs.")
         cls._run_cli(
             "generate-interaction-surface", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--interaction-dir", str(cls.interaction_dir),
