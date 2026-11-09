@@ -456,6 +456,49 @@ def validate_acceptance_record(
         assessment = {}
         issue("INVALID_FINAL_ASSESSMENT", "final_assessment must be an object.")
     decision = assessment.get("decision")
+    gate_binding = record.get("workflow_gate_ledger")
+    if decision == "PASS" and not isinstance(gate_binding, dict):
+        issue("WORKFLOW_GATE_BINDING_REQUIRED",
+              "A full PASS requires a hash-bound G0-G4 workflow gate ledger.")
+    if gate_binding is not None:
+        if not isinstance(gate_binding, dict):
+            issue("WORKFLOW_GATE_BINDING_INVALID", "workflow_gate_ledger must be an object.")
+        else:
+            gate_path_value = gate_binding.get("path")
+            gate_digest = gate_binding.get("sha256")
+            recorded_gate_hashes = gate_binding.get("gate_event_hashes")
+            if not isinstance(gate_path_value, str) or not gate_path_value.strip():
+                issue("WORKFLOW_GATE_PATH_MISSING", "workflow_gate_ledger.path must be a non-empty path.")
+            if not isinstance(gate_digest, str) or len(gate_digest) != 64:
+                issue("WORKFLOW_GATE_HASH_INVALID", "workflow_gate_ledger.sha256 must be a SHA-256 digest.")
+            if not isinstance(recorded_gate_hashes, dict):
+                issue("WORKFLOW_GATE_EVENT_HASHES_INVALID", "workflow_gate_ledger.gate_event_hashes must map G0-G4 to event hashes.")
+            try:
+                from dor.gates import GATE_ORDER, inspect_gate_ledger
+                gate_path = _resolve_file(gate_path_value, record_path.parent) if isinstance(gate_path_value, str) else None
+                if gate_path is None or not gate_path.is_file():
+                    raise ValueError("Workflow gate ledger does not resolve to a regular file.")
+                actual_gate_digest = _sha256(gate_path)
+                if gate_digest != actual_gate_digest:
+                    issue("WORKFLOW_GATE_LEDGER_CHANGED",
+                          "Workflow gate ledger SHA-256 differs from the Acceptance Record binding; reassessment is required.")
+                gate_report = inspect_gate_ledger(gate_path)
+                actual_gate_hashes = {
+                    gate_id: gate_report["gates"][gate_id].get("event_hash")
+                    for gate_id in GATE_ORDER
+                }
+                if recorded_gate_hashes != actual_gate_hashes:
+                    issue("WORKFLOW_GATE_EVENTS_CHANGED",
+                          "G0-G4 event hashes differ from the Acceptance Record binding; reassessment is required.")
+                if decision == "PASS":
+                    not_approved = [gate_id for gate_id in GATE_ORDER
+                                    if gate_report["gates"][gate_id]["status"] != "APPROVED"]
+                    if not_approved:
+                        issue("WORKFLOW_GATES_NOT_APPROVED",
+                              "Full PASS requires every workflow gate currently APPROVED; blocked: "
+                              + ", ".join(not_approved) + ".")
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                issue("WORKFLOW_GATE_LEDGER_INVALID", f"Workflow gate ledger could not be verified: {exc}")
     if decision not in FINAL_DECISIONS:
         issue("INVALID_FINAL_DECISION", "final_assessment.decision is invalid.")
     statuses = [stage_statuses.get(stage_id) for stage_id in STAGE_ORDER]

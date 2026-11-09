@@ -581,7 +581,26 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.write_record()
 
     def validate(self):
+        if hasattr(self, "gate_ledger_path"):
+            with patch("dor.gates.inspect_gate_ledger", return_value=self.gate_report):
+                return validate_acceptance_record(self.record_path, self.manifest, self.ledger_path)
         return validate_acceptance_record(self.record_path, self.manifest, self.ledger_path)
+
+    def bind_synthetic_gate_ledger(self):
+        self.gate_ledger_path = self.root / "workflow_gates.jsonl"
+        self.gate_ledger_path.write_text("synthetic gate ledger snapshot\\n", encoding="utf-8")
+        self.gate_event_hashes = {gate: hashlib.sha256(gate.encode()).hexdigest()
+                                  for gate in ("G0", "G1", "G2", "G3", "G4")}
+        self.record["workflow_gate_ledger"] = {
+            "path": str(self.gate_ledger_path),
+            "sha256": self.sha(self.gate_ledger_path),
+            "gate_event_hashes": dict(self.gate_event_hashes),
+        }
+        self.gate_report = {
+            "gates": {gate: {"status": "APPROVED", "event_hash": digest}
+                      for gate, digest in self.gate_event_hashes.items()}
+        }
+
 
     def test_initial_record_is_valid_but_not_scientifically_accepted(self):
         report = self.validate()
@@ -594,9 +613,43 @@ class AcceptanceValidatorTests(unittest.TestCase):
         for stage in STAGE_ORDER:
             self.set_stage(stage, "PASS")
         self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
         self.write_record()
         report = self.validate()
         self.assertTrue(report["valid"], report["issues"])
+
+    def test_full_pass_requires_current_g0_g4_gate_binding(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.write_record()
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertIn("WORKFLOW_GATE_BINDING_REQUIRED", codes)
+
+    def test_gate_ledger_append_invalidates_previous_acceptance_pass(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        self.write_record()
+        self.assertTrue(self.validate()["valid"], self.validate()["issues"])
+        with self.gate_ledger_path.open("a", encoding="utf-8") as handle:
+            handle.write("synthetic later G3 review\\n")
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertIn("WORKFLOW_GATE_LEDGER_CHANGED", codes)
+
+    def test_revoked_gate_blocks_full_acceptance_pass(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        self.write_record()
+        self.gate_report["gates"]["G3"]["status"] = "REVISE"
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertIn("WORKFLOW_GATES_NOT_APPROVED", codes)
 
     def test_multi_study_scope_requires_multiple_studies(self):
         self.record["scope"] = "MULTI_STUDY_PILOT"

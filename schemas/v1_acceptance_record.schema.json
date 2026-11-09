@@ -426,6 +426,74 @@
         }
       },
       "additionalProperties": false
+    },
+    "workflow_gate_ledger": {
+      "type": "object",
+      "description": "Exact approval-ledger snapshot required for final PASS; any later gate event invalidates this binding.",
+      "required": [
+        "path",
+        "sha256",
+        "gate_event_hashes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "gate_event_hashes": {
+          "type": "object",
+          "required": [
+            "G0",
+            "G1",
+            "G2",
+            "G3",
+            "G4"
+          ],
+          "properties": {
+            "G0": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "G1": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "G2": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "G3": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "G4": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "allOf": [
