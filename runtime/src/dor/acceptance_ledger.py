@@ -836,3 +836,230 @@ def inspect_acceptance_history(ledger_path: Path) -> dict[str, Any]:
             "run_id": None, "event_count": None, "latest_event_hash": None,
             "events": [], "issues": [{"code": "ACCEPTANCE_LEDGER_INVALID", "message": str(exc)}],
         }
+
+
+def _checkpoint_binding_path(binding: Mapping[str, Any], record_parent: Path,
+                             label: str) -> Path:
+    value = binding.get("path")
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} checkpoint binding requires a non-empty path.")
+    supplied = Path(value).expanduser()
+    if not supplied.is_absolute():
+        supplied = record_parent / supplied
+    if supplied.is_symlink():
+        raise ValueError(f"{label} checkpoint path must not be a symlink.")
+    resolved = supplied.resolve(strict=True)
+    if not resolved.is_file():
+        raise ValueError(f"{label} checkpoint path must resolve to a regular file.")
+    return resolved
+
+
+def _build_acceptance_checkpoint_payload(record_path: Path,
+                                         ledger_path: Path) -> dict[str, Any]:
+    record_path = record_path.expanduser()
+    if record_path.is_symlink():
+        raise ValueError("Acceptance record must not be a symlink.")
+    record_path = record_path.resolve(strict=True)
+    if not record_path.is_file():
+        raise ValueError("Acceptance record must be a regular file.")
+    ledger_path, snapshots_dir = _safe_paths(ledger_path)
+    events, snapshots = _load_history(ledger_path)
+    record_raw = _record_bytes(record_path)
+    record_sha = _hash_bytes(record_raw)
+    if record_sha != events[-1]["record_sha256"]:
+        raise ValueError("Current Acceptance Record does not match the latest committed revision.")
+    record = _record_object(record_raw)
+    if record != snapshots[-1]:
+        raise ValueError("Current Acceptance Record content differs from the latest committed snapshot.")
+
+    upstream_ledgers: dict[str, Any] = {}
+    for key in EXTERNAL_LEDGER_FIELDS:
+        binding = record.get(key)
+        if binding is None:
+            continue
+        if not isinstance(binding, dict):
+            raise ValueError(f"{key} must be an object before creating an external checkpoint.")
+        if key == "workflow_gate_ledger":
+            _validate_gate_ledger_extension(binding, binding, record_path.parent)
+            path = _checkpoint_binding_path(binding, record_path.parent, "Workflow Gate Ledger")
+            gate_events = _load_events(path)
+            latest: dict[str, dict[str, Any]] = {}
+            for event in gate_events:
+                latest[event["gate_id"]] = event
+            actual_hashes = {
+                gate_id: latest.get(gate_id, {}).get("event_hash")
+                for gate_id in GATE_ORDER
+            }
+            actual_artifacts: dict[str, list[dict[str, Any]]] = {}
+            for gate_id in GATE_ORDER:
+                gate_event = latest.get(gate_id)
+                event_artifacts = gate_event.get("artifacts") if isinstance(gate_event, dict) else []
+                if not isinstance(event_artifacts, list):
+                    raise ValueError(f"Workflow Gate {gate_id} artifact references are malformed.")
+                normalized: list[dict[str, Any]] = []
+                seen_ids: set[str] = set()
+                for item in event_artifacts:
+                    if not isinstance(item, dict):
+                        raise ValueError(f"Workflow Gate {gate_id} contains a malformed artifact reference.")
+                    artifact_id, artifact_path, artifact_sha = (
+                        item.get("artifact_id"), item.get("path"), item.get("sha256")
+                    )
+                    if (not isinstance(artifact_id, str) or not artifact_id.strip()
+                            or artifact_id in seen_ids or not isinstance(artifact_path, str)
+                            or not artifact_path.strip() or Path(artifact_path).is_symlink()
+                            or not isinstance(artifact_sha, str) or len(artifact_sha) != 64
+                            or any(char not in "0123456789abcdef" for char in artifact_sha)):
+                        raise ValueError(f"Workflow Gate {gate_id} contains an invalid artifact identity.")
+                    seen_ids.add(artifact_id)
+                    normalized.append({
+                        "artifact_id": artifact_id,
+                        "path": str(Path(artifact_path).resolve(strict=False)),
+                        "sha256": artifact_sha,
+                    })
+                actual_artifacts[gate_id] = normalized
+            if binding.get("gate_event_hashes") != actual_hashes:
+                raise ValueError("Workflow Gate Ledger event hashes differ from the current Acceptance binding.")
+            if binding.get("gate_artifacts") != actual_artifacts:
+                raise ValueError("Workflow Gate Ledger artifact references differ from the current Acceptance binding.")
+        else:
+            _validate_run_event_ledger_binding(binding, record_path.parent, str(record.get("run_id", "")))
+            path = _checkpoint_binding_path(binding, record_path.parent, "Run Event Ledger")
+        upstream_ledgers[key] = {
+            "path": str(path),
+            "sha256": _hash_file(path),
+            "binding": binding,
+        }
+
+    snapshot_manifest = []
+    for event in events:
+        snapshot_path = snapshots_dir / event["snapshot_file"]
+        if snapshot_path.is_symlink() or not snapshot_path.is_file():
+            raise ValueError(f"Unsafe or missing Acceptance snapshot: {event['snapshot_file']}.")
+        snapshot_manifest.append({
+            "name": event["snapshot_file"],
+            "sha256": _hash_file(snapshot_path),
+        })
+
+    return {
+        "schema_version": "1.0",
+        "checkpoint_type": "DOR_ACCEPTANCE_LEDGER_CHECKPOINT",
+        "acceptance": {
+            "acceptance_id": record.get("acceptance_id"),
+            "project_id": record.get("project_id"),
+            "run_id": record.get("run_id"),
+        },
+        "record": {
+            "path": str(record_path),
+            "sha256": record_sha,
+        },
+        "revision_ledger": {
+            "path": str(ledger_path),
+            "sha256": _hash_file(ledger_path),
+            "event_count": len(events),
+            "latest_event_hash": events[-1]["event_hash"],
+            "latest_record_sha256": events[-1]["record_sha256"],
+        },
+        "revision_snapshots": {
+            "directory": str(snapshots_dir),
+            "items": snapshot_manifest,
+        },
+        "upstream_ledgers": upstream_ledgers,
+    }
+
+
+def create_acceptance_checkpoint(record_path: Path, ledger_path: Path,
+                                  checkpoint_path: Path) -> dict[str, Any]:
+    """Create a detached state checkpoint; its digest must be retained out of band."""
+    payload = _build_acceptance_checkpoint_payload(record_path, ledger_path)
+    target = checkpoint_path.expanduser()
+    if target.is_symlink() or target.exists():
+        raise ValueError("Acceptance checkpoint output already exists or is a symlink; refusing to overwrite.")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target = target.parent.resolve(strict=True) / target.name
+    protected = {
+        Path(payload["record"]["path"]),
+        Path(payload["revision_ledger"]["path"]),
+        *(Path(item["path"]) for item in payload["upstream_ledgers"].values()),
+    }
+    if target in protected:
+        raise ValueError("Acceptance checkpoint output cannot overwrite a bound source or ledger.")
+    snapshots_dir = Path(payload["revision_snapshots"]["directory"])
+    try:
+        target.relative_to(snapshots_dir)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("Acceptance checkpoint must not be stored inside the revision snapshot directory.")
+    raw = (json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n").encode("utf-8")
+    _atomic_write(target, raw)
+    return {
+        "valid": True,
+        "checkpoint_path": str(target),
+        "checkpoint_sha256": _hash_bytes(raw),
+        "acceptance_id": payload["acceptance"]["acceptance_id"],
+        "revision_count": payload["revision_ledger"]["event_count"],
+        "external_anchor_required": True,
+        "instruction": "Store this checkpoint file and its SHA-256 outside the writable project/ledger trust boundary.",
+    }
+
+
+def verify_acceptance_checkpoint(record_path: Path, ledger_path: Path,
+                                  checkpoint_path: Path,
+                                  expected_sha256: str) -> dict[str, Any]:
+    """Compare live acceptance state with a checkpoint whose digest is independently trusted."""
+    try:
+        if (not isinstance(expected_sha256, str) or len(expected_sha256) != 64
+                or any(char not in "0123456789abcdef" for char in expected_sha256)):
+            raise ValueError("--expected-sha256 must be a lowercase SHA-256 digest.")
+        supplied = checkpoint_path.expanduser()
+        if supplied.is_symlink() or not supplied.is_file():
+            raise ValueError("Acceptance checkpoint must be a regular, non-symlink file.")
+        raw = supplied.read_bytes()
+        actual_checkpoint_sha = _hash_bytes(raw)
+        if actual_checkpoint_sha != expected_sha256:
+            return {
+                "valid": False,
+                "checkpoint_sha256": actual_checkpoint_sha,
+                "issues": [{
+                    "code": "ACCEPTANCE_CHECKPOINT_ANCHOR_MISMATCH",
+                    "message": "Checkpoint file SHA-256 differs from the independently retained expected digest.",
+                }],
+            }
+        try:
+            checkpoint = json.loads(raw.decode("utf-8-sig"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Acceptance checkpoint must be readable JSON: {exc}") from exc
+        if not isinstance(checkpoint, dict):
+            raise ValueError("Acceptance checkpoint must be a JSON object.")
+        live = _build_acceptance_checkpoint_payload(record_path, ledger_path)
+        if checkpoint != live:
+            changed = sorted(
+                key for key in set(checkpoint) | set(live)
+                if checkpoint.get(key) != live.get(key)
+            )
+            return {
+                "valid": False,
+                "checkpoint_sha256": actual_checkpoint_sha,
+                "changed_sections": changed,
+                "issues": [{
+                    "code": "ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
+                    "message": "Live acceptance state differs from the independently anchored checkpoint.",
+                }],
+            }
+        return {
+            "valid": True,
+            "checkpoint_sha256": actual_checkpoint_sha,
+            "acceptance_id": live["acceptance"]["acceptance_id"],
+            "revision_count": live["revision_ledger"]["event_count"],
+            "latest_event_hash": live["revision_ledger"]["latest_event_hash"],
+            "issues": [],
+        }
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, json.JSONDecodeError) as exc:
+        return {
+            "valid": False,
+            "checkpoint_sha256": None,
+            "issues": [{
+                "code": "ACCEPTANCE_CHECKPOINT_INVALID",
+                "message": str(exc),
+            }],
+        }

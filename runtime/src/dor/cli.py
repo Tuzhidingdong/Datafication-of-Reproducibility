@@ -19,7 +19,9 @@ from dor.publication import build_publication_package_files, audit_publication_p
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
 from dor.acceptance import validate_acceptance_record
-from dor.acceptance_ledger import initialize_acceptance_ledger, record_acceptance_revision, inspect_acceptance_history
+from dor.acceptance_ledger import (initialize_acceptance_ledger, record_acceptance_revision,
+    recover_acceptance_record, inspect_acceptance_history, create_acceptance_checkpoint,
+    verify_acceptance_checkpoint)
 from dor.run_manager import (
     authorize_worker, build_artifact_manifest, build_resume_plan, initialize_run, record_stage_status, verify_run,
 )
@@ -191,6 +193,17 @@ def build_parser() -> argparse.ArgumentParser:
     acceptance_history.add_argument("--ledger", type=Path, required=True)
     acceptance_history.add_argument("--out", type=Path, help="Optional path for the history report JSON")
 
+    acceptance_checkpoint = subparsers.add_parser("checkpoint-acceptance", help="Create a detached checkpoint for independent anchoring of the complete acceptance history")
+    acceptance_checkpoint.add_argument("--record", type=Path, required=True)
+    acceptance_checkpoint.add_argument("--ledger", type=Path, required=True)
+    acceptance_checkpoint.add_argument("--out", type=Path, required=True, help="New checkpoint JSON; store it outside the project trust boundary")
+
+    acceptance_checkpoint_verify = subparsers.add_parser("verify-acceptance-checkpoint", help="Verify live acceptance state against a detached checkpoint and its independently retained SHA-256")
+    acceptance_checkpoint_verify.add_argument("--record", type=Path, required=True)
+    acceptance_checkpoint_verify.add_argument("--ledger", type=Path, required=True)
+    acceptance_checkpoint_verify.add_argument("--checkpoint", type=Path, required=True)
+    acceptance_checkpoint_verify.add_argument("--expected-sha256", required=True, help="Trusted checkpoint digest obtained from an independent channel")
+
     run_init = subparsers.add_parser("run-init", help="Create a new isolated run workspace from an explicit stage/artifact plan")
     run_init.add_argument("--plan", type=Path, required=True)
     run_init.add_argument("--run-root", type=Path, required=True)
@@ -263,6 +276,14 @@ def main() -> int:
         if args.command == "acceptance-history":
             result = inspect_acceptance_history(args.ledger)
             print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
+        if args.command == "checkpoint-acceptance":
+            result = create_acceptance_checkpoint(args.record, args.ledger, args.out)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "verify-acceptance-checkpoint":
+            result = verify_acceptance_checkpoint(args.record, args.ledger, args.checkpoint, args.expected_sha256)
+            print(_write_json(None, result), end="")
             return 0 if result["valid"] else 2
         if args.command == "validate-acceptance":
             result = validate_acceptance_record(args.record, args.run_manifest, args.ledger)

@@ -11,7 +11,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from dor.acceptance import STAGE_ORDER, validate_acceptance_record
-from dor.acceptance_ledger import initialize_acceptance_ledger, record_acceptance_revision, validate_acceptance_ledger, inspect_acceptance_history
+from dor.acceptance_ledger import (initialize_acceptance_ledger, record_acceptance_revision,
+    recover_acceptance_record, validate_acceptance_ledger, inspect_acceptance_history, create_acceptance_checkpoint,
+    verify_acceptance_checkpoint)
 from dor.cli import build_parser, main
 from dor.run_manager import initialize_run, record_stage_status
 from dor.publication import audit_publication_package_files
@@ -1230,6 +1232,79 @@ class AcceptanceValidatorTests(unittest.TestCase):
             for key in condition.get("then", {}).get("required", [])
         }
         self.assertTrue({"reviewed_by", "reviewed_at", "review_rationale"}.issubset(required))
+
+
+    def test_detached_acceptance_checkpoint_round_trip(self):
+        checkpoint = self.root / "independent-review" / "acceptance.checkpoint.json"
+        created = create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+        self.assertTrue(created["valid"])
+        self.assertTrue(created["external_anchor_required"])
+        verified = verify_acceptance_checkpoint(
+            self.record_path, self.ledger_path, checkpoint, created["checkpoint_sha256"]
+        )
+        self.assertTrue(verified["valid"], verified["issues"])
+        self.assertEqual(verified["revision_count"], 1)
+
+    def test_external_checkpoint_detects_self_consistent_rewrite_of_all_local_history(self):
+        from dor import acceptance_ledger
+        checkpoint = self.root / "external" / "acceptance.checkpoint.json"
+        created = create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+
+        # Simulate rewriting the current record, its only snapshot, and the
+        # event hash consistently. The local hash chain remains internally valid.
+        changed = json.loads(self.record_path.read_text(encoding="utf-8"))
+        changed["final_assessment"]["rationale"] = "Consistently rewritten synthetic history."
+        rewritten = (json.dumps(changed, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+        snapshot = self.ledger_path.with_name(self.ledger_path.name + ".revisions") / "revision-000001.json"
+        snapshot.write_bytes(rewritten)
+        event = json.loads(self.ledger_path.read_text(encoding="utf-8").splitlines()[0])
+        digest = hashlib.sha256(rewritten).hexdigest()
+        event["record_sha256"] = digest
+        event["precommit_record_sha256"] = digest
+        event["event_hash"] = acceptance_ledger._event_hash({
+            key: value for key, value in event.items() if key != "event_hash"
+        })
+        self.record_path.write_bytes(rewritten)
+        self.ledger_path.write_text(acceptance_ledger._canonical_json(event) + "\n", encoding="utf-8")
+
+        # Local validation alone cannot distinguish this rewritten genesis history.
+        self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+        verified = verify_acceptance_checkpoint(
+            self.record_path, self.ledger_path, checkpoint, created["checkpoint_sha256"]
+        )
+        self.assertFalse(verified["valid"])
+        self.assertIn("ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
+                      {item["code"] for item in verified["issues"]})
+
+    def test_checkpoint_rejects_changed_checkpoint_file_or_untrusted_digest(self):
+        checkpoint = self.root / "acceptance.checkpoint.json"
+        created = create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+        checkpoint.write_text("{}\n", encoding="utf-8")
+        verified = verify_acceptance_checkpoint(
+            self.record_path, self.ledger_path, checkpoint, created["checkpoint_sha256"]
+        )
+        self.assertFalse(verified["valid"])
+        self.assertIn("ACCEPTANCE_CHECKPOINT_ANCHOR_MISMATCH",
+                      {item["code"] for item in verified["issues"]})
+
+    def test_checkpoint_cannot_be_written_inside_revision_snapshots(self):
+        revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
+        target = revision_dir / "checkpoint.json"
+        with self.assertRaisesRegex(ValueError, "inside the revision snapshot directory"):
+            create_acceptance_checkpoint(self.record_path, self.ledger_path, target)
+
+    def test_checkpoint_cli_commands_are_registered(self):
+        checkpoint_args = build_parser().parse_args([
+            "checkpoint-acceptance", "--record", str(self.record_path),
+            "--ledger", str(self.ledger_path), "--out", str(self.root / "checkpoint.json"),
+        ])
+        self.assertEqual(checkpoint_args.command, "checkpoint-acceptance")
+        verify_args = build_parser().parse_args([
+            "verify-acceptance-checkpoint", "--record", str(self.record_path),
+            "--ledger", str(self.ledger_path), "--checkpoint", str(self.root / "checkpoint.json"),
+            "--expected-sha256", "a" * 64,
+        ])
+        self.assertEqual(verify_args.command, "verify-acceptance-checkpoint")
 
 if __name__ == "__main__":
     unittest.main()
