@@ -293,8 +293,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "validation_scope": "DETERMINISTIC_GROUPED_STUDY_SPLIT_NOT_SCIENTIFIC_VALIDATION",
         }
         split_hash = self._write_json(paths["split_manifest"], split_manifest)
-        csv_text = "study_id,observation_id,split\\n" + "".join(
-            f"{sid},OBS_{sid.replace('-', '_')},{groups[sid]}\\n" for sid in sorted(ids)
+        csv_text = "study_id,observation_id,split\n" + "".join(
+            f"{sid},OBS_{sid.replace('-', '_')},{groups[sid]}\n" for sid in sorted(ids)
         )
         paths["modeling_cohort_csv"].parent.mkdir(parents=True, exist_ok=True)
         paths["modeling_cohort_csv"].write_text(csv_text, encoding="utf-8")
@@ -422,10 +422,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
         package_dir = paths["publication_manifest"].parent
         package_dir.mkdir(parents=True, exist_ok=True)
         guide_path = package_dir / "README_FOR_WRITING_SKILL.md"
-        guide_path.write_text("# Synthetic writing guide\\n", encoding="utf-8")
+        guide_path.write_text("# Synthetic writing guide\n", encoding="utf-8")
         package_result = package_dir / "results" / "result.json"
         package_result.parent.mkdir(parents=True, exist_ok=True)
-        package_result.write_text('{"fixture":"synthetic"}\\n', encoding="utf-8")
+        package_result.write_text('{"fixture":"synthetic"}\n', encoding="utf-8")
         publication_manifest = {
             "schema_version": "1.0", "project_id": "PROJECT_1", "run_id": self.run_id,
             "package_version": "1.0", "source_hashes": source_hashes,
@@ -892,7 +892,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
     def test_interrupted_record_replacement_recovers_latest_committed_snapshot(self):
         draft = json.loads(self.record_path.read_text(encoding="utf-8"))
         draft["stages"][0]["status"] = "IN_PROGRESS"
-        self.record_path.write_text(json.dumps(draft, indent=2) + "\\n", encoding="utf-8")
+        self.record_path.write_text(json.dumps(draft, indent=2) + "\n", encoding="utf-8")
         from dor import acceptance_ledger
         with patch.object(acceptance_ledger, "_atomic_write", side_effect=OSError("simulated crash")):
             with self.assertRaises(OSError):
@@ -908,7 +908,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
     def test_concurrent_acceptance_revisions_serialize_without_lost_updates(self):
         draft = json.loads(self.record_path.read_text(encoding="utf-8"))
         draft["stages"][0]["status"] = "IN_PROGRESS"
-        self.record_path.write_text(json.dumps(draft, indent=2) + "\\n", encoding="utf-8")
+        self.record_path.write_text(json.dumps(draft, indent=2) + "\n", encoding="utf-8")
         def revise():
             try:
                 return record_acceptance_revision(
@@ -923,6 +923,9 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
 
     def test_failed_event_append_rolls_back_uncommitted_snapshot(self):
+        draft = json.loads(self.record_path.read_text(encoding="utf-8"))
+        draft["stages"][0]["status"] = "IN_PROGRESS"
+        self.record_path.write_text(json.dumps(draft, indent=2) + "\n", encoding="utf-8")
         from dor import acceptance_ledger
         revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
         before = set(revision_dir.iterdir())
@@ -947,7 +950,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         event = json.loads(lines[0])
         event["rationale"] = "Tampered history."
         lines[0] = json.dumps(event)
-        self.ledger_path.write_text("\\n".join(lines) + "\\n", encoding="utf-8")
+        self.ledger_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         report = validate_acceptance_ledger(self.record_path, self.ledger_path)
         self.assertFalse(report["valid"])
         self.assertIn("ACCEPTANCE_LEDGER_INVALID", {item["code"] for item in report["issues"]})
