@@ -1293,6 +1293,41 @@ class AcceptanceValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "inside the revision snapshot directory"):
             create_acceptance_checkpoint(self.record_path, self.ledger_path, target)
 
+
+    def test_checkpoint_verifies_append_only_acceptance_extension(self):
+        checkpoint = self.root / "external" / "initial.checkpoint.json"
+        created = create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+        self.record["stages"][0]["status"] = "IN_PROGRESS"
+        self.write_record()
+        verified = verify_acceptance_checkpoint(
+            self.record_path, self.ledger_path, checkpoint, created["checkpoint_sha256"]
+        )
+        self.assertTrue(verified["valid"], verified["issues"])
+        self.assertEqual(verified["status"], "APPEND_ONLY_EXTENDED")
+        self.assertFalse(verified["current_state_is_checkpointed"])
+        self.assertEqual(verified["checkpoint_revision_count"], 1)
+        self.assertEqual(verified["current_revision_count"], 2)
+
+    def test_checkpoint_detects_rollback_below_anchored_revision(self):
+        self.record["stages"][0]["status"] = "IN_PROGRESS"
+        self.write_record()
+        checkpoint = self.root / "external" / "revision-two.checkpoint.json"
+        created = create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
+        revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
+        first_snapshot = (revision_dir / "revision-000001.json").read_bytes()
+        first_event = self.ledger_path.read_text(encoding="utf-8").splitlines()[0]
+        self.record_path.write_bytes(first_snapshot)
+        self.ledger_path.write_text(first_event + "\n", encoding="utf-8")
+        (revision_dir / "revision-000002.json").unlink()
+        # The rolled-back local history is internally consistent, but shorter than its anchor.
+        self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+        verified = verify_acceptance_checkpoint(
+            self.record_path, self.ledger_path, checkpoint, created["checkpoint_sha256"]
+        )
+        self.assertFalse(verified["valid"])
+        self.assertIn("ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
+                      {item["code"] for item in verified["issues"]})
+
     def test_checkpoint_cli_commands_are_registered(self):
         checkpoint_args = build_parser().parse_args([
             "checkpoint-acceptance", "--record", str(self.record_path),

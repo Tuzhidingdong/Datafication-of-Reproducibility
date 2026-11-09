@@ -1032,25 +1032,119 @@ def verify_acceptance_checkpoint(record_path: Path, ledger_path: Path,
         if not isinstance(checkpoint, dict):
             raise ValueError("Acceptance checkpoint must be a JSON object.")
         live = _build_acceptance_checkpoint_payload(record_path, ledger_path)
-        if checkpoint != live:
-            changed = sorted(
-                key for key in set(checkpoint) | set(live)
-                if checkpoint.get(key) != live.get(key)
-            )
+        if not isinstance(checkpoint.get("revision_ledger"), dict):
+            raise ValueError("Checkpoint revision_ledger section is missing or malformed.")
+        anchor_ledger = checkpoint["revision_ledger"]
+        anchor_count = anchor_ledger.get("event_count")
+        if type(anchor_count) is not int or anchor_count < 1:
+            raise ValueError("Checkpoint event_count must be a positive integer.")
+        current_events, _ = _load_history(Path(live["revision_ledger"]["path"]))
+        if anchor_count > len(current_events):
             return {
                 "valid": False,
                 "checkpoint_sha256": actual_checkpoint_sha,
-                "changed_sections": changed,
                 "issues": [{
                     "code": "ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
-                    "message": "Live acceptance state differs from the independently anchored checkpoint.",
+                    "message": "Current Acceptance history is shorter than the independently anchored revision; rollback detected.",
                 }],
             }
+        anchor_items = checkpoint.get("revision_snapshots", {}).get("items")
+        live_items = live["revision_snapshots"]["items"]
+        if (checkpoint.get("acceptance") != live["acceptance"]
+                or checkpoint.get("record", {}).get("path") != live["record"]["path"]
+                or anchor_ledger.get("path") != live["revision_ledger"]["path"]
+                or checkpoint.get("revision_snapshots", {}).get("directory") != live["revision_snapshots"]["directory"]
+                or not isinstance(anchor_items, list) or len(anchor_items) != anchor_count
+                or live_items[:anchor_count] != anchor_items):
+            return {
+                "valid": False,
+                "checkpoint_sha256": actual_checkpoint_sha,
+                "issues": [{
+                    "code": "ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
+                    "message": "Anchored Acceptance identity, paths, or revision snapshots were changed.",
+                }],
+            }
+        anchor_event = current_events[anchor_count - 1]
+        if (anchor_event.get("event_hash") != anchor_ledger.get("latest_event_hash")
+                or anchor_event.get("record_sha256") != anchor_ledger.get("latest_record_sha256")
+                or checkpoint.get("record", {}).get("sha256") != anchor_event.get("record_sha256")):
+            return {
+                "valid": False,
+                "checkpoint_sha256": actual_checkpoint_sha,
+                "issues": [{
+                    "code": "ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
+                    "message": "The anchored event tip or record snapshot is no longer present at its original revision.",
+                }],
+            }
+
+        # Upstream ledgers that existed at the checkpoint must remain at the same
+        # path and preserve their old event history. New bindings must be captured
+        # by a later, valid Acceptance event.
+        anchor_upstream = checkpoint.get("upstream_ledgers", {})
+        live_upstream = live.get("upstream_ledgers", {})
+        if not isinstance(anchor_upstream, dict) or not isinstance(live_upstream, dict):
+            raise ValueError("Checkpoint upstream_ledgers section must be an object.")
+        record_parent = Path(live["record"]["path"]).parent
+        run_id = str(live["acceptance"]["run_id"])
+        for key in EXTERNAL_LEDGER_FIELDS:
+            old_item = anchor_upstream.get(key)
+            new_item = live_upstream.get(key)
+            if old_item is not None:
+                if not isinstance(old_item, dict) or not isinstance(new_item, dict):
+                    return {
+                        "valid": False,
+                        "checkpoint_sha256": actual_checkpoint_sha,
+                        "issues": [{
+                            "code": "ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
+                            "message": f"Previously bound upstream ledger {key} was removed or malformed.",
+                        }],
+                    }
+                old_binding, new_binding = old_item.get("binding"), new_item.get("binding")
+                if key == "workflow_gate_ledger":
+                    _validate_gate_ledger_extension(old_binding, new_binding, record_parent)
+                else:
+                    _validate_run_event_ledger_binding(new_binding, record_parent, run_id, old_binding)
+            elif new_item is not None:
+                was_recorded = any(
+                    key in event.get("changed_ledger_ids", [])
+                    for event in current_events[anchor_count:]
+                )
+                if not was_recorded:
+                    return {
+                        "valid": False,
+                        "checkpoint_sha256": actual_checkpoint_sha,
+                        "issues": [{
+                            "code": "ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
+                            "message": f"New upstream ledger {key} has no post-checkpoint Acceptance binding event.",
+                        }],
+                    }
+
+        if anchor_count == len(current_events):
+            if checkpoint != live:
+                changed = sorted(
+                    key for key in set(checkpoint) | set(live)
+                    if checkpoint.get(key) != live.get(key)
+                )
+                return {
+                    "valid": False,
+                    "checkpoint_sha256": actual_checkpoint_sha,
+                    "changed_sections": changed,
+                    "issues": [{
+                        "code": "ACCEPTANCE_CHECKPOINT_STATE_CHANGED",
+                        "message": "Live Acceptance state differs from the checkpoint at the same revision tip.",
+                    }],
+                }
+            status = "CURRENT_MATCH"
+        else:
+            status = "APPEND_ONLY_EXTENDED"
         return {
             "valid": True,
+            "status": status,
+            "current_state_is_checkpointed": status == "CURRENT_MATCH",
             "checkpoint_sha256": actual_checkpoint_sha,
             "acceptance_id": live["acceptance"]["acceptance_id"],
-            "revision_count": live["revision_ledger"]["event_count"],
+            "checkpoint_revision_count": anchor_count,
+            "current_revision_count": len(current_events),
             "latest_event_hash": live["revision_ledger"]["latest_event_hash"],
             "issues": [],
         }
