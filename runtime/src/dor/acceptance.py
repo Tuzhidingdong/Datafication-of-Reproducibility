@@ -468,6 +468,41 @@ def validate_acceptance_record(
         assessment = {}
         issue("INVALID_FINAL_ASSESSMENT", "final_assessment must be an object.")
     decision = assessment.get("decision")
+    run_event_binding = record.get("run_event_ledger")
+    if decision == "PASS" and not isinstance(run_event_binding, dict):
+        issue("RUN_EVENT_LEDGER_BINDING_REQUIRED",
+              "A full PASS requires a hash-bound Run Event Ledger tip.")
+    if run_event_binding is not None:
+        if not isinstance(run_event_binding, dict):
+            issue("RUN_EVENT_LEDGER_BINDING_INVALID", "run_event_ledger must be an object.")
+        else:
+            try:
+                event_path_value = run_event_binding.get("path")
+                expected_event_path = (run_root / manifest["event_ledger_path"]).resolve(strict=False)
+                if not isinstance(event_path_value, str) or not event_path_value.strip():
+                    raise ValueError("run_event_ledger.path must be a non-empty path.")
+                supplied_event_path = Path(event_path_value).expanduser()
+                if not supplied_event_path.is_absolute():
+                    supplied_event_path = record_path.parent / supplied_event_path
+                if supplied_event_path.is_symlink():
+                    raise ValueError("Run Event Ledger must not be a symlink.")
+                event_path = supplied_event_path.resolve(strict=True)
+                if event_path != expected_event_path:
+                    raise ValueError("Run Event Ledger path differs from the Run Manifest declaration.")
+                if not event_path.is_file():
+                    raise ValueError("Run Event Ledger is not a regular file.")
+                actual_event_sha = _sha256(event_path)
+                actual_event_count = len(run_events)
+                actual_event_tip = run_events[-1]["event_hash"] if run_events else None
+                if run_event_binding.get("sha256") != actual_event_sha:
+                    issue("RUN_EVENT_LEDGER_CHANGED", "Run Event Ledger SHA-256 differs from the Acceptance binding.")
+                if (type(run_event_binding.get("event_count")) is not int
+                        or run_event_binding["event_count"] != actual_event_count
+                        or run_event_binding.get("last_event_hash") != actual_event_tip):
+                    issue("RUN_EVENT_LEDGER_TIP_CHANGED", "Run Event Ledger event count/tip differs from the Acceptance binding.")
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                issue("RUN_EVENT_LEDGER_INVALID", str(exc))
+
     gate_binding = record.get("workflow_gate_ledger")
     if decision == "PASS" and not isinstance(gate_binding, dict):
         issue("WORKFLOW_GATE_BINDING_REQUIRED",

@@ -19,6 +19,7 @@
     "changed_stage_ids",
     "invalidated_stage_ids",
     "changed_gate_ids",
+    "changed_ledger_ids",
     "stage_statuses",
     "final_decision",
     "previous_event_hash",
@@ -38,7 +39,7 @@
         "RECORD_CREATED",
         "STAGE_REVIEW_RECORDED",
         "FINAL_DECISION_RECORDED",
-        "GATE_BINDING_RECORDED"
+        "UPSTREAM_LEDGER_RECORDED"
       ]
     },
     "acceptance_id": {
@@ -120,6 +121,11 @@
       "type": "array",
       "uniqueItems": true,
       "items": {"enum": ["G0", "G1", "G2", "G3", "G4"]}
+    },
+    "changed_ledger_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["workflow_gate_ledger", "run_event_ledger"]}
     },
     "stage_statuses": {
       "type": "object",

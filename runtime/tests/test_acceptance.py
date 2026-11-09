@@ -613,6 +613,14 @@ class AcceptanceValidatorTests(unittest.TestCase):
             artifacts = [evidence_by_id[artifact_id] for artifact_id in artifact_ids]
             gate_artifacts[gate] = artifacts
             events[gate] = {"artifacts": artifacts}
+        run_event_path = self.manifest.parent / "run_events.jsonl"
+        run_events = [json.loads(line) for line in run_event_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.record["run_event_ledger"] = {
+            "path": str(run_event_path.resolve()),
+            "sha256": self.sha(run_event_path),
+            "event_count": len(run_events),
+            "last_event_hash": run_events[-1]["event_hash"] if run_events else None,
+        }
         self.record["workflow_gate_ledger"] = {
             "path": str(self.gate_ledger_path),
             "sha256": self.sha(self.gate_ledger_path),
@@ -709,7 +717,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertEqual(current["final_assessment"]["decision"], "NOT_ASSESSED")
         history = validate_acceptance_ledger(self.record_path, self.ledger_path)
         self.assertTrue(history["valid"], history["issues"])
-        self.assertEqual(history["latest_event_type"], "GATE_BINDING_RECORDED")
+        self.assertEqual(history["latest_event_type"], "UPSTREAM_LEDGER_RECORDED")
         self.assertEqual(history["changed_gate_ids"], ["G2"])
 
         current["workflow_gate_ledger"] = previous_binding
@@ -721,6 +729,68 @@ class AcceptanceValidatorTests(unittest.TestCase):
                     self.record_path, self.ledger_path, "synthetic-reviewer",
                     "Attempt to restore a previous Gate ledger binding.",
                 )
+
+    def test_run_event_ledger_rebinding_invalidates_stages_and_rejects_rollback(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        self.write_record()
+        old_binding = json.loads(json.dumps(self.record["run_event_ledger"]))
+        run_event_path = self.manifest.parent / "run_events.jsonl"
+        previous_events = [json.loads(line) for line in run_event_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        new_event = {"event_hash": hashlib.sha256(b"synthetic run event extension").hexdigest()}
+        run_event_path.write_text(run_event_path.read_text(encoding="utf-8") + "synthetic appended event\\n", encoding="utf-8")
+        self.record["run_event_ledger"] = {
+            "path": old_binding["path"],
+            "sha256": self.sha(run_event_path),
+            "event_count": len(previous_events) + 1,
+            "last_event_hash": new_event["event_hash"],
+        }
+        with patch("dor.run_manager._load_events", return_value=previous_events + [new_event]):
+            self.write_record()
+        current = json.loads(self.record_path.read_text(encoding="utf-8"))
+        self.assertTrue(all(stage["status"] == "NOT_STARTED" for stage in current["stages"]))
+        history = validate_acceptance_ledger(self.record_path, self.ledger_path)
+        self.assertTrue(history["valid"], history["issues"])
+        self.assertEqual(history["latest_event_type"], "UPSTREAM_LEDGER_RECORDED")
+        self.assertEqual(history["changed_ledger_ids"], ["run_event_ledger"])
+
+        current["run_event_ledger"]["event_count"] = old_binding["event_count"]
+        current["run_event_ledger"]["last_event_hash"] = old_binding["last_event_hash"]
+        self.record_path.write_text(json.dumps(current, indent=2), encoding="utf-8")
+        with patch("dor.run_manager._load_events", return_value=previous_events + [new_event]):
+            with self.assertRaisesRegex(ValueError, "does not match its current append-only tip"):
+                record_acceptance_revision(
+                    self.record_path, self.ledger_path, "synthetic-reviewer",
+                    "Attempt to restore an earlier Run Event Ledger tip.",
+                )
+
+    def test_run_event_ledger_append_invalidates_previous_acceptance_pass(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        self.write_record()
+        self.assertTrue(self.validate()["valid"], self.validate()["issues"])
+        run_event_path = self.manifest.parent / "run_events.jsonl"
+        with run_event_path.open("a", encoding="utf-8") as handle:
+            handle.write("synthetic later event\\n")
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertIn("RUN_EVENT_LEDGER_CHANGED", codes)
+
+    def test_full_pass_requires_run_event_ledger_binding(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        self.record.pop("run_event_ledger")
+        self.write_record()
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertIn("RUN_EVENT_LEDGER_BINDING_REQUIRED", codes)
 
     def test_gate_ledger_append_invalidates_previous_acceptance_pass(self):
         self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])

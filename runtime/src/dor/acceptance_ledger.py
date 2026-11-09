@@ -24,6 +24,7 @@ STAGE_ORDER = (
 )
 TERMINAL_STAGE_STATUSES = {"PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"}
 GATE_ORDER = ("G0", "G1", "G2", "G3", "G4")
+EXTERNAL_LEDGER_FIELDS = ("workflow_gate_ledger", "run_event_ledger")
 REVIEW_FIELDS = ("reviewed_by", "reviewed_at", "review_rationale")
 IMMUTABLE_RECORD_FIELDS = (
     "schema_version", "acceptance_id", "project_id", "scope", "run_id",
@@ -126,7 +127,7 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                 raise ValueError(f"Acceptance event at line {line_number} must be a JSON object.")
             if event.get("schema_version") != "1.0":
                 raise ValueError(f"Unsupported acceptance event schema at line {line_number}.")
-            if event.get("event_type") not in {"RECORD_CREATED", "STAGE_REVIEW_RECORDED", "FINAL_DECISION_RECORDED", "GATE_BINDING_RECORDED"}:
+            if event.get("event_type") not in {"RECORD_CREATED", "STAGE_REVIEW_RECORDED", "FINAL_DECISION_RECORDED", "UPSTREAM_LEDGER_RECORDED"}:
                 raise ValueError(f"Unknown acceptance event type at line {line_number}.")
             supplied_hash = event.get("event_hash")
             payload = {key: value for key, value in event.items() if key != "event_hash"}
@@ -147,6 +148,11 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                 raise ValueError(f"Acceptance event at line {line_number} lacks required metadata.")
             if not isinstance(event.get("changed_gate_ids"), list):
                 raise ValueError(f"Acceptance event changed_gate_ids must be an array at line {line_number}.")
+            if (not isinstance(event.get("changed_ledger_ids"), list)
+                    or any(key not in EXTERNAL_LEDGER_FIELDS for key in event["changed_ledger_ids"])
+                    or len(set(event["changed_ledger_ids"])) != len(event["changed_ledger_ids"])):
+                raise ValueError(f"Acceptance event changed_ledger_ids is invalid at line {line_number}.")
+
             if any(gate not in GATE_ORDER for gate in event["changed_gate_ids"]) or len(set(event["changed_gate_ids"])) != len(event["changed_gate_ids"]):
                 raise ValueError(f"Acceptance event changed_gate_ids contains an unknown or duplicate gate at line {line_number}.")
             _parse_timestamp(event["recorded_at"], f"event {line_number} recorded_at")
@@ -182,7 +188,7 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                 if event.get("event_type") != "RECORD_CREATED":
                     raise ValueError("First acceptance event must be RECORD_CREATED.")
                 if (event.get("changed_stage_ids") != [] or event.get("invalidated_stage_ids") != []
-                        or event.get("changed_gate_ids") != []):
+                        or event.get("changed_gate_ids") != [] or event.get("changed_ledger_ids") != []):
                     raise ValueError("Initial acceptance event cannot claim revised stages or gates.")
                 if previous_record is not None:
                     raise ValueError("Invalid initial acceptance history.")
@@ -193,28 +199,31 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                     if snapshot.get(field) != previous_record.get(field):
                         raise ValueError(f"Acceptance identity/source field {field} changed; create a new Acceptance Record.")
                 raw_changed = _changed_stage_ids(previous_record, snapshot)
-                gate_binding_changed = previous_record.get("workflow_gate_ledger") != snapshot.get("workflow_gate_ledger")
+                changed_ledger_ids = _changed_external_ledger_ids(previous_record, snapshot)
                 previous_gate_binding = previous_record.get("workflow_gate_ledger")
                 current_gate_binding = snapshot.get("workflow_gate_ledger")
                 expected_changed_gates = _changed_gate_ids(previous_gate_binding, current_gate_binding)
                 previous_assessment = previous_record.get("final_assessment")
                 current_assessment = snapshot.get("final_assessment")
                 assessment_changed = previous_assessment != current_assessment
-                if gate_binding_changed and previous_gate_binding is not None:
+                if changed_ledger_ids and any(previous_record.get(key) is not None for key in EXTERNAL_LEDGER_FIELDS):
                     _ensure_only_fields_changed(
-                        previous_record, snapshot, {"workflow_gate_ledger", "stages", "final_assessment"},
+                        previous_record, snapshot, {*EXTERNAL_LEDGER_FIELDS, "stages", "final_assessment"},
                         f"Acceptance gate-binding revision {line_number}",
                     )
-                    if event.get("event_type") != "GATE_BINDING_RECORDED":
-                        raise ValueError(f"Gate binding changes must be GATE_BINDING_RECORDED at line {line_number}.")
-                    if event.get("changed_gate_ids") != expected_changed_gates or not expected_changed_gates:
+                    if event.get("event_type") != "UPSTREAM_LEDGER_RECORDED":
+                        raise ValueError(f"Upstream ledger changes must be UPSTREAM_LEDGER_RECORDED at line {line_number}.")
+                    if event.get("changed_ledger_ids") != changed_ledger_ids:
+                        raise ValueError(f"Acceptance changed_ledger_ids mismatch at line {line_number}.")
+                    if event.get("changed_gate_ids") != expected_changed_gates:
                         raise ValueError(f"Acceptance changed_gate_ids mismatch at line {line_number}.")
                     if event.get("changed_stage_ids") != [] or event.get("invalidated_stage_ids") != list(STAGE_ORDER):
                         raise ValueError(f"Gate binding revision must invalidate every Acceptance stage at line {line_number}.")
-                    if not isinstance(current_gate_binding, dict):
-                        raise ValueError(f"Gate binding revision removed workflow_gate_ledger at line {line_number}.")
+                    for binding_key in EXTERNAL_LEDGER_FIELDS:
+                        if previous_record.get(binding_key) is not None and not isinstance(snapshot.get(binding_key), dict):
+                            raise ValueError(f"Upstream ledger revision removed {binding_key} at line {line_number}.")
                     _validate_downstream_reset(snapshot, list(STAGE_ORDER))
-                    if current_assessment != _invalidated_assessment(line_number, "workflow gate ledger"):
+                    if current_assessment != _invalidated_assessment(line_number, "upstream ledger"):
                         raise ValueError(f"Final assessment was not invalidated after gate binding revision at line {line_number}.")
                 elif raw_changed:
                     _ensure_only_fields_changed(
@@ -223,8 +232,8 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                     )
                     if event.get("event_type") != "STAGE_REVIEW_RECORDED":
                         raise ValueError(f"Stage changes must be recorded as STAGE_REVIEW_RECORDED at line {line_number}.")
-                    if event.get("changed_gate_ids") != []:
-                        raise ValueError(f"Stage review must not change Gate bindings at line {line_number}.")
+                    if event.get("changed_gate_ids") != [] or event.get("changed_ledger_ids") != []:
+                        raise ValueError(f"Stage review must not change upstream ledgers at line {line_number}.")
                     revised_stage_ids = [raw_changed[0]]
                     if event.get("changed_stage_ids") != revised_stage_ids:
                         raise ValueError(f"Acceptance changed_stage_ids mismatch at line {line_number}.")
@@ -239,15 +248,20 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
                 else:
                     _ensure_only_fields_changed(
                         previous_record, snapshot,
-                        {"final_assessment", "workflow_gate_ledger"} if gate_binding_changed else {"final_assessment"},
+                        {"final_assessment", *EXTERNAL_LEDGER_FIELDS} if changed_ledger_ids else {"final_assessment"},
                         f"Acceptance revision {line_number}",
                     )
                     if not assessment_changed or event.get("event_type") != "FINAL_DECISION_RECORDED":
                         raise ValueError(f"Acceptance revision {line_number} contains no valid stage or final-decision change.")
                     if event.get("changed_stage_ids") != [] or event.get("invalidated_stage_ids") != []:
                         raise ValueError(f"Final-decision event must not list revised stages at line {line_number}.")
-                    if event.get("changed_gate_ids") != []:
-                        raise ValueError(f"Final-decision event must not claim changed gates at line {line_number}.")
+                    expected_initial_bindings = (
+                        changed_ledger_ids if changed_ledger_ids
+                        and all(previous_record.get(key) is None for key in EXTERNAL_LEDGER_FIELDS)
+                        else []
+                    )
+                    if event.get("changed_gate_ids") != [] or event.get("changed_ledger_ids") != expected_initial_bindings:
+                        raise ValueError(f"Final-decision event has an invalid initial upstream-ledger capture at line {line_number}.")
                     _validate_final_decision_review(current_assessment)
                     previous_meta = tuple(previous_assessment.get(key) for key in ("assessed_by", "assessed_at", "rationale")) if isinstance(previous_assessment, dict) else ()
                     current_meta = tuple(current_assessment.get(key) for key in ("assessed_by", "assessed_at", "rationale")) if isinstance(current_assessment, dict) else ()
@@ -273,6 +287,43 @@ def _load_history(ledger_path: Path) -> tuple[list[dict[str, Any]], list[dict[st
     return events, snapshots
 
 
+
+def _changed_external_ledger_ids(previous: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
+    return [key for key in EXTERNAL_LEDGER_FIELDS if previous.get(key) != current.get(key)]
+
+
+def _validate_run_event_ledger_binding(binding: Mapping[str, Any], record_parent: Path,
+                                       run_id: str, previous: Mapping[str, Any] | None = None) -> None:
+    from dor.run_manager import _load_events as _load_run_events
+    path_value = binding.get("path")
+    if not isinstance(path_value, str) or not path_value.strip():
+        raise ValueError("Run event ledger path is missing from its Acceptance binding.")
+    path = Path(path_value).expanduser()
+    if not path.is_absolute():
+        path = record_parent / path
+    if path.is_symlink():
+        raise ValueError("Run event ledger path must not be a symlink.")
+    path = path.resolve(strict=True)
+    if not path.is_file() or sha256_file(path) != binding.get("sha256"):
+        raise ValueError("Run event ledger file does not match its Acceptance SHA-256 binding.")
+    events = _load_run_events(path, run_id)
+    actual_tip = events[-1]["event_hash"] if events else None
+    if (type(binding.get("event_count")) is not int or binding["event_count"] != len(events)
+            or binding.get("last_event_hash") != actual_tip):
+        raise ValueError("Run event ledger binding does not match its current append-only tip.")
+    if previous is not None:
+        previous_tip = previous.get("last_event_hash")
+        previous_count = previous.get("event_count")
+        previous_path = Path(previous.get("path", "")).expanduser()
+        if not previous_path.is_absolute():
+            previous_path = record_parent / previous_path
+        if previous_path.resolve(strict=False) != path:
+            raise ValueError("Run event ledger path cannot be replaced during an Acceptance revision.")
+        if type(previous_count) is not int or previous_count < 0 or previous_count > len(events):
+            raise ValueError("Run event ledger event count moved backwards or is malformed.")
+        expected_prior_tip = events[previous_count - 1]["event_hash"] if previous_count else None
+        if previous_tip != expected_prior_tip:
+            raise ValueError("Run event ledger history rolled back or replaced the prior event tip.")
 
 def _changed_gate_ids(previous: Any, current: Any) -> list[str]:
     if previous is None and current is None:
@@ -439,7 +490,7 @@ def _validate_downstream_reset(record: Mapping[str, Any], stage_ids: list[str]) 
 def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any],
                   raw: bytes, actor: str, rationale: str, event_type: str,
                   changed_stage_ids: list[str], invalidated_stage_ids: list[str],
-                  changed_gate_ids: list[str],
+                  changed_gate_ids: list[str], changed_ledger_ids: list[str],
                   previous_event_hash: str, previous_record_sha256: str | None,
                   sequence: int, precommit_record_sha256: str) -> dict[str, Any]:
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -463,6 +514,7 @@ def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any]
         "changed_stage_ids": changed_stage_ids,
         "invalidated_stage_ids": invalidated_stage_ids,
         "changed_gate_ids": changed_gate_ids,
+        "changed_ledger_ids": changed_ledger_ids,
         "stage_statuses": {
             item.get("stage_id"): item.get("status")
             for item in record.get("stages", []) if isinstance(item, dict)
@@ -508,7 +560,7 @@ def initialize_acceptance_ledger(record_path: Path, ledger_path: Path,
         snapshots_dir.mkdir(parents=True, exist_ok=False)
         event = _append_event(
             ledger_path, snapshots_dir / "revision-000001.json", record, raw,
-            actor, rationale, "RECORD_CREATED", [], [], [], GENESIS_HASH, None, 1,
+            actor, rationale, "RECORD_CREATED", [], [], [], [], GENESIS_HASH, None, 1,
             _hash_bytes(raw),
         )
     return {
@@ -562,29 +614,32 @@ def record_acceptance_revision(record_path: Path, ledger_path: Path,
         changed_gates: list[str] = []
         old_assessment = previous_record.get("final_assessment")
         new_assessment = record.get("final_assessment")
-        gate_binding_changed = previous_record.get("workflow_gate_ledger") != record.get("workflow_gate_ledger")
+        changed_ledger_ids = _changed_external_ledger_ids(previous_record, record)
         previous_gate_binding = previous_record.get("workflow_gate_ledger")
         current_gate_binding = record.get("workflow_gate_ledger")
-        if gate_binding_changed and previous_gate_binding is not None:
-            _ensure_only_fields_changed(
-                previous_record, record, {"workflow_gate_ledger"},
-                "Acceptance Gate binding revision",
-            )
-            if not isinstance(current_gate_binding, dict):
-                raise ValueError("A Gate binding revision cannot remove workflow_gate_ledger.")
-            _validate_gate_ledger_extension(previous_gate_binding, current_gate_binding, record_path.parent)
+        previous_run_binding = previous_record.get("run_event_ledger")
+        current_run_binding = record.get("run_event_ledger")
+        if changed_ledger_ids and any(previous_record.get(key) is not None for key in EXTERNAL_LEDGER_FIELDS):
+            _ensure_only_fields_changed(previous_record, record, {*EXTERNAL_LEDGER_FIELDS}, "Acceptance upstream-ledger revision")
+            if "workflow_gate_ledger" in changed_ledger_ids:
+                if not isinstance(current_gate_binding, dict):
+                    raise ValueError("An upstream ledger revision cannot remove workflow_gate_ledger.")
+                if previous_gate_binding is not None:
+                    _validate_gate_ledger_extension(previous_gate_binding, current_gate_binding, record_path.parent)
+            if "run_event_ledger" in changed_ledger_ids:
+                if not isinstance(current_run_binding, dict):
+                    raise ValueError("An upstream ledger revision cannot remove run_event_ledger.")
+                _validate_run_event_ledger_binding(current_run_binding, record_path.parent, record.get("run_id"), previous_run_binding)
             changed_gates = _changed_gate_ids(previous_gate_binding, current_gate_binding)
-            if not changed_gates:
-                raise ValueError("Gate binding revision contains no changed Gate event or ledger identity.")
             invalidated = list(STAGE_ORDER)
             _invalidate_downstream(record, invalidated)
             next_revision = len(events) + 1
-            record["final_assessment"] = _invalidated_assessment(next_revision, "workflow gate ledger")
+            record["final_assessment"] = _invalidated_assessment(next_revision, "upstream ledger")
             changed = []
-            event_type = "GATE_BINDING_RECORDED"
+            event_type = "UPSTREAM_LEDGER_RECORDED"
         elif changed:
-            if gate_binding_changed:
-                raise ValueError("A first Gate binding must be captured with an explicit final-decision review, not a stage revision.")
+            if changed_ledger_ids:
+                raise ValueError("Initial upstream ledger bindings must be captured with an explicit final-decision review, not a stage revision.")
             _ensure_only_fields_changed(
                 previous_record, record, {"stages", "final_assessment"},
                 "Acceptance revision",
@@ -599,15 +654,19 @@ def record_acceptance_revision(record_path: Path, ledger_path: Path,
             changed = revised_stage_ids
             event_type = "STAGE_REVIEW_RECORDED"
         elif old_assessment != new_assessment:
-            allowed = {"final_assessment", "workflow_gate_ledger"} if gate_binding_changed else {"final_assessment"}
+            allowed = {"final_assessment", *EXTERNAL_LEDGER_FIELDS} if changed_ledger_ids else {"final_assessment"}
             _ensure_only_fields_changed(
                 previous_record, record, allowed,
                 "Acceptance revision",
             )
-            if gate_binding_changed and previous_gate_binding is not None:
-                raise ValueError("Existing Gate binding changes require a full Gate-binding revision.")
-            if gate_binding_changed and not isinstance(current_gate_binding, dict):
+            if changed_ledger_ids and any(previous_record.get(key) is not None for key in EXTERNAL_LEDGER_FIELDS):
+                raise ValueError("Existing upstream ledger changes require a full upstream-ledger revision.")
+            if "workflow_gate_ledger" in changed_ledger_ids and not isinstance(current_gate_binding, dict):
                 raise ValueError("Initial Gate binding must be a complete object.")
+            if "run_event_ledger" in changed_ledger_ids:
+                if not isinstance(current_run_binding, dict):
+                    raise ValueError("Initial Run Event Ledger binding must be a complete object.")
+                _validate_run_event_ledger_binding(current_run_binding, record_path.parent, record.get("run_id"))
             _validate_final_decision_review(new_assessment)
             old_meta = tuple(old_assessment.get(key) for key in ("assessed_by", "assessed_at", "rationale")) if isinstance(old_assessment, dict) else ()
             new_meta = tuple(new_assessment.get(key) for key in ("assessed_by", "assessed_at", "rationale")) if isinstance(new_assessment, dict) else ()
@@ -622,7 +681,7 @@ def record_acceptance_revision(record_path: Path, ledger_path: Path,
         snapshot_path = snapshots_dir / f"revision-{sequence:06d}.json"
         event = _append_event(
             ledger_path, snapshot_path, record, normalized, actor, rationale,
-            event_type, changed, invalidated, changed_gates, previous_event["event_hash"],
+            event_type, changed, invalidated, changed_gates, changed_ledger_ids, previous_event["event_hash"],
             previous_event["record_sha256"], sequence, _hash_bytes(raw),
         )
         _atomic_write(record_path, normalized)
@@ -634,6 +693,7 @@ def record_acceptance_revision(record_path: Path, ledger_path: Path,
         "changed_stage_ids": changed,
         "invalidated_stage_ids": invalidated,
         "changed_gate_ids": changed_gates,
+        "changed_ledger_ids": changed_ledger_ids,
         "final_decision": record.get("final_assessment", {}).get("decision"),
         "event_hash": event["event_hash"],
         "ledger_path": str(ledger_path),
@@ -723,6 +783,7 @@ def validate_acceptance_ledger(record_path: Path, ledger_path: Path) -> dict[str
             "latest_record_sha256": latest_hash,
             "latest_event_type": events[-1]["event_type"],
             "changed_gate_ids": events[-1]["changed_gate_ids"],
+            "changed_ledger_ids": events[-1]["changed_ledger_ids"],
             "ledger_path": str(ledger_path),
             "snapshot_directory": str(snapshots_dir),
             "issues": [],
@@ -751,6 +812,7 @@ def inspect_acceptance_history(ledger_path: Path) -> dict[str, Any]:
                 "changed_stage_ids": event["changed_stage_ids"],
                 "invalidated_stage_ids": event["invalidated_stage_ids"],
                 "changed_gate_ids": event["changed_gate_ids"],
+                "changed_ledger_ids": event["changed_ledger_ids"],
                 "stage_statuses": event["stage_statuses"],
                 "final_decision": event["final_decision"],
                 "record_sha256": event["record_sha256"],
