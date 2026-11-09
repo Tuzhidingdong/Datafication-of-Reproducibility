@@ -475,7 +475,17 @@ def validate_acceptance_record(
                 issue("WORKFLOW_GATE_EVENT_HASHES_INVALID", "workflow_gate_ledger.gate_event_hashes must map G0-G4 to event hashes.")
             try:
                 from dor.gates import GATE_ORDER, inspect_gate_ledger
-                gate_path = _resolve_file(gate_path_value, record_path.parent) if isinstance(gate_path_value, str) else None
+                if isinstance(gate_path_value, str):
+                    supplied_gate_path = Path(gate_path_value).expanduser()
+                    unresolved_gate_path = (
+                        supplied_gate_path if supplied_gate_path.is_absolute()
+                        else record_path.parent / supplied_gate_path
+                    )
+                    if unresolved_gate_path.is_symlink():
+                        raise ValueError("Workflow gate ledger must not be a symlink.")
+                    gate_path = _resolve_file(gate_path_value, record_path.parent)
+                else:
+                    gate_path = None
                 if gate_path is None or not gate_path.is_file():
                     raise ValueError("Workflow gate ledger does not resolve to a regular file.")
                 actual_gate_digest = _sha256(gate_path)

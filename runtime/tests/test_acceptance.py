@@ -640,6 +640,22 @@ class AcceptanceValidatorTests(unittest.TestCase):
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("WORKFLOW_GATE_LEDGER_CHANGED", codes)
 
+    def test_workflow_gate_ledger_symlink_is_rejected(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "PASS"
+        self.bind_synthetic_gate_ledger()
+        link = self.root / "workflow_gates_link.jsonl"
+        try:
+            link.symlink_to(self.gate_ledger_path)
+        except (OSError, NotImplementedError):
+            self.skipTest("Symlink creation is unavailable in this environment.")
+        self.record["workflow_gate_ledger"]["path"] = str(link)
+        self.write_record()
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertIn("WORKFLOW_GATE_LEDGER_INVALID", codes)
+
     def test_revoked_gate_blocks_full_acceptance_pass(self):
         self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
         for stage in STAGE_ORDER:
