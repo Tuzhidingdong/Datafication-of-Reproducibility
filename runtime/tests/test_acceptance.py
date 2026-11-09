@@ -676,6 +676,52 @@ class AcceptanceValidatorTests(unittest.TestCase):
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("WORKFLOW_GATE_HAS_NO_ACCEPTED_EVIDENCE", codes)
 
+    def test_gate_binding_revision_invalidates_all_stages_and_rejects_ledger_rollback(self):
+        self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
+        for stage in STAGE_ORDER:
+            self.set_stage(stage, "PASS")
+        self.record["final_assessment"].update({
+            "decision": "PASS", "assessed_by": "synthetic-reviewer",
+            "assessed_at": "2026-11-08T00:00:00Z",
+            "rationale": "Synthetic approval before a later Gate revision.",
+        })
+        self.bind_synthetic_gate_ledger()
+        self.write_record()
+        self.assertTrue(self.validate()["valid"], self.validate()["issues"])
+        previous_binding = json.loads(json.dumps(self.record["workflow_gate_ledger"]))
+        self.gate_ledger_path.write_text(
+            self.gate_ledger_path.read_text(encoding="utf-8") + "synthetic appended event\\n",
+            encoding="utf-8",
+        )
+        revised_hashes = dict(previous_binding["gate_event_hashes"])
+        revised_hashes["G2"] = hashlib.sha256(b"G2 revised approval").hexdigest()
+        self.record["workflow_gate_ledger"]["sha256"] = self.sha(self.gate_ledger_path)
+        self.record["workflow_gate_ledger"]["gate_event_hashes"] = revised_hashes
+        event_history = []
+        for gate, old_hash in previous_binding["gate_event_hashes"].items():
+            event_history.append({"gate_id": gate, "event_hash": old_hash})
+            if gate == "G2":
+                event_history.append({"gate_id": gate, "event_hash": revised_hashes[gate]})
+        with patch("dor.acceptance_ledger._load_events", return_value=event_history):
+            self.write_record()
+        current = json.loads(self.record_path.read_text(encoding="utf-8"))
+        self.assertTrue(all(stage["status"] == "NOT_STARTED" for stage in current["stages"]))
+        self.assertEqual(current["final_assessment"]["decision"], "NOT_ASSESSED")
+        history = validate_acceptance_ledger(self.record_path, self.ledger_path)
+        self.assertTrue(history["valid"], history["issues"])
+        self.assertEqual(history["latest_event_type"], "GATE_BINDING_RECORDED")
+        self.assertEqual(history["changed_gate_ids"], ["G2"])
+
+        current["workflow_gate_ledger"] = previous_binding
+        current["workflow_gate_ledger"]["sha256"] = self.sha(self.gate_ledger_path)
+        self.record_path.write_text(json.dumps(current, indent=2), encoding="utf-8")
+        with patch("dor.acceptance_ledger._load_events", return_value=event_history):
+            with self.assertRaisesRegex(ValueError, "do not match the append-only Gate ledger tip"):
+                record_acceptance_revision(
+                    self.record_path, self.ledger_path, "synthetic-reviewer",
+                    "Attempt to restore a previous Gate ledger binding.",
+                )
+
     def test_gate_ledger_append_invalidates_previous_acceptance_pass(self):
         self._create_run(["STUDY_1", "STUDY_2", "STUDY_3", "STUDY_4"])
         for stage in STAGE_ORDER:

@@ -486,6 +486,7 @@ def inspect_gate_ledger(ledger_path: Path) -> dict[str, Any]:
         "last_event_hash": events[-1]["event_hash"] if events else GENESIS_HASH,
         "gates": statuses,
         "events": latest_events,
+        "event_history": events,
         "workflow_status": (
             "READY_FOR_FINALIZATION" if statuses["G4"]["status"] == "APPROVED"
             else "IN_PROGRESS"

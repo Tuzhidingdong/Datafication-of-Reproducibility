@@ -18,6 +18,7 @@
     "previous_record_sha256",
     "changed_stage_ids",
     "invalidated_stage_ids",
+    "changed_gate_ids",
     "stage_statuses",
     "final_decision",
     "previous_event_hash",
@@ -36,7 +37,8 @@
       "enum": [
         "RECORD_CREATED",
         "STAGE_REVIEW_RECORDED",
-        "FINAL_DECISION_RECORDED"
+        "FINAL_DECISION_RECORDED",
+        "GATE_BINDING_RECORDED"
       ]
     },
     "acceptance_id": {
@@ -113,6 +115,11 @@
           "publication_handoff"
         ]
       }
+    },
+    "changed_gate_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["G0", "G1", "G2", "G3", "G4"]}
     },
     "stage_statuses": {
       "type": "object",
