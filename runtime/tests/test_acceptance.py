@@ -1332,7 +1332,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         create_acceptance_checkpoint(self.record_path, self.ledger_path, checkpoint)
         payload = json.loads(checkpoint.read_text(encoding="utf-8"))
         payload["revision_snapshots"]["items"][-1]["sha256"] = "f" * 64
-        raw = (json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\\n").encode("utf-8")
+        raw = (json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
         checkpoint.write_bytes(raw)
         verified = verify_acceptance_checkpoint(
             self.record_path, self.ledger_path, checkpoint, hashlib.sha256(raw).hexdigest()

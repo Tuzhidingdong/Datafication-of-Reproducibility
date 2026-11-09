@@ -112,7 +112,7 @@
             "properties": {
               "name": {
                 "type": "string",
-                "pattern": "^revision-[0-9]{6}\\\\.json$"
+                "pattern": "^revision-[0-9]{6}\\.json$"
               },
               "sha256": {
                 "$ref": "#/$defs/sha256"
