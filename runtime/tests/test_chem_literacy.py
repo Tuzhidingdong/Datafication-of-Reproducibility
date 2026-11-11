@@ -354,6 +354,12 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
             self.assertEqual(row["decision"],"REPORTED")
             self.assertEqual(row["value"],"1")
             self.assertEqual(row["observation_id"],"O1")
+            validation_json=(output/"condition_decisions_validation_report.json").read_text(encoding="utf-8")
+            accepted_json=(output/"condition_decisions_accepted.json").read_text(encoding="utf-8")
+            self.assertTrue(validation_json.endswith("\n"))
+            self.assertTrue(accepted_json.endswith("\n"))
+            self.assertTrue(json.loads(validation_json)["valid"])
+            self.assertEqual(json.loads(accepted_json)["conditions"][0]["decision"],"REPORTED")
 
     def test_not_reported_requires_human_review_of_main_text_and_all_task_sources(self):
         import hashlib
@@ -436,6 +442,63 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
             report=validate_condition_decisions_files(task_path,recovery_path,decisions_path,source_root,root/"accepted")
             self.assertFalse(report["valid"])
             self.assertTrue(any(item["code"]=="NOT_REPORTED_NO_SOURCE_FILES" for item in report["errors"]))
+
+
+
+    def test_reported_decision_rechecks_proposal_status_and_exact_quote(self):
+        import hashlib
+        from dor.chem_literacy import validate_condition_decisions_files
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); paper=root/"sources"/"p1"; paper.mkdir(parents=True)
+            source=paper/"main_analysis.md"
+            source.write_text("Current density was 1 mA cm-2.",encoding="utf-8")
+            digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            task={"schema_version":"1.0","task_id":"T_RECHECK","paper_id":"p1","observation_ids":["O1"],
+                "source_files":[{"path":str(source),"sha256":digest}],
+                "requested_conditions":[{"condition_type":"current_density","observation_ids":["O1"]}]}
+            task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
+            task_hash=hashlib.sha256(task_path.read_bytes()).hexdigest()
+            cases=[
+                ("NOT_FOUND_IN_SEARCH","Current density was 1 mA cm-2.","REPORTED_RECOVERY_PROPOSAL_NOT_FOUND"),
+                ("FOUND","A fabricated current density of 9 mA cm-2.","REPORTED_EVIDENCE_QUOTE_NOT_FOUND"),
+            ]
+            for index,(proposal_status,quote,expected_error) in enumerate(cases):
+                recovery={
+                    "schema_version":"1.0","valid":True,"task_id":"T_RECHECK","paper_id":"p1",
+                    "task_sha256":task_hash,"source_hashes_verified":True,
+                    "condition_status_proposals":[{
+                        "condition_type":"current_density","condition_instance_id":"CD1",
+                        "status":proposal_status,"linked_observation_ids":["O1"],"rationale":"Candidate review."
+                    }],
+                    "verified_found_proposals":[{
+                        "condition_type":"current_density","condition_instance_id":"CD1",
+                        "candidate_value":1,"candidate_unit":"mA cm-2","source_file":str(source),
+                        "page_or_locator":"Page 1","verbatim_quote":quote,"linked_observation_ids":["O1"]
+                    }],
+                    "promotion_status":"PENDING_HUMAN_REVIEW","not_reported_decisions_accepted":False,
+                    "errors":[],"warnings":[],
+                    "validation_scope":"TASK_BINDING_SOURCE_HASH_AND_QUOTE_CHECK_NOT_SCIENTIFIC_OR_HUMAN_ACCEPTANCE"
+                }
+                recovery_path=root/f"recovery_{index}.json"
+                recovery_path.write_text(json.dumps(recovery),encoding="utf-8")
+                decisions={
+                    "schema_version":"1.0","task_id":"T_RECHECK","task_sha256":task_hash,
+                    "recovery_validation_sha256":hashlib.sha256(recovery_path.read_bytes()).hexdigest(),
+                    "reviewed_by":"reviewer","reviewed_at":"2026-11-11T21:00:00+08:00",
+                    "main_text_reviewed":True,"si_review_status":"NOT_AVAILABLE_CONFIRMED",
+                    "reviewed_source_files":[{"path":str(source),"sha256":digest,"review_scope":"Relevant sections checked."}],
+                    "decisions":[{
+                        "condition_type":"current_density","condition_instance_id":"CD1","decision":"REPORTED",
+                        "linked_observation_ids":["O1"],"rationale":"Reviewed against the original source."
+                    }]
+                }
+                decision_path=root/f"decisions_{index}.json"
+                decision_path.write_text(json.dumps(decisions),encoding="utf-8")
+                report=validate_condition_decisions_files(
+                    task_path,recovery_path,decision_path,root/"sources",root/f"out_{index}"
+                )
+                self.assertFalse(report["valid"])
+                self.assertIn(expected_error,{item["code"] for item in report["errors"]})
 
 
 if __name__ == "__main__":
