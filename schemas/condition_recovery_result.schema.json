@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/condition_recovery_result.schema.json",
+  "title": "DOR condition recovery proposal from local paper/SI evidence",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "paper_id",
+    "source_hashes",
+    "field_reviews"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "paper_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_hashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-fA-F0-9]{64}$"
+      }
+    },
+    "field_reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "condition_type",
+          "status",
+          "rationale"
+        ],
+        "properties": {
+          "condition_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "FOUND",
+              "NOT_FOUND_IN_SEARCH",
+              "AMBIGUOUS",
+              "UNABLE_TO_VERIFY"
+            ]
+          },
+          "candidate_value": {
+            "type": [
+              "string",
+              "number",
+              "null"
+            ]
+          },
+          "candidate_unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page_or_locator": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verbatim_quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "linked_observation_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "main_text_reviewed": {
+      "type": "boolean"
+    },
+    "si_reviewed": {
+      "type": "boolean"
+    },
+    "coverage_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "proposed_by": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

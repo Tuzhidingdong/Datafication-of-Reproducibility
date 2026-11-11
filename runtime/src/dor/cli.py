@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
+from dor.chem_literacy import ingest_chem_literacy_files
 from dor.cohort import build_modeling_cohort_files
 from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
@@ -69,6 +70,14 @@ def _parse_artifact_bindings(values: list[str]) -> list[tuple[str, Path]]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dor", description="Datafication of Reproducibility runtime")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    chem_import = subparsers.add_parser("ingest-chem-literacy", help="Import Chem-Literacy observations/reconciliation and prepare condition-recovery tasks")
+    source_group = chem_import.add_mutually_exclusive_group(required=True)
+    source_group.add_argument("--database-json", type=Path, help="Aggregate JSON with metadata and papers[].observations[]")
+    source_group.add_argument("--database-csv", type=Path, help="Flattened Chem-Literacy observation/reconciliation CSV")
+    chem_import.add_argument("--reconciliation-csv", type=Path, help="Optional matching Reconciliation Ledger CSV; joined only by paper_id + reconciliation_id")
+    chem_import.add_argument("--source-root", type=Path, help="Read-only root containing exact per-paper source/evidence files")
+    chem_import.add_argument("--condition-profile", type=Path, help="Optional JSON condition-retrieval profile")
+    chem_import.add_argument("--out-dir", type=Path, required=True, help="New or empty derived import directory")
     audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
     audit.add_argument("--csv", type=Path, help="Path to a source CSV file")
     audit.add_argument("--json", type=Path, help="Path to a source JSON file")
@@ -356,6 +365,13 @@ def main() -> int:
         if args.command == "gate-status":
             report=inspect_gate_ledger(args.workflow_ledger)
             print(_write_json(None,report),end="")
+            return 0
+        if args.command == "ingest-chem-literacy":
+            result = ingest_chem_literacy_files(
+                args.database_json, args.database_csv, args.reconciliation_csv,
+                args.source_root, args.out_dir, args.condition_profile,
+            )
+            print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
         if args.command == "audit":
             result = run_audit(args.csv, args.json, args.out)

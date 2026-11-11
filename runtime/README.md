@@ -209,3 +209,22 @@ The resume planner reports `SOURCE_CHANGED_NEW_RUN_REQUIRED` when a declared sou
 
 
 The first run event is RUN_INITIALIZED. It hash-binds the Run Manifest's source snapshot, plan hash, workspace, workflow-ledger path, and stage order. Every Runtime operation compares the manifest against this event before trusting any stage status.
+
+
+## Chem-Literacy import and condition recovery
+
+Import the Chem-Literacy aggregate JSON and its optional flattened Reconciliation Ledger:
+
+~~~bash
+dor ingest-chem-literacy \
+  --database-json path/to/consolidated_zinc_battery_database.json \
+  --reconciliation-csv path/to/reconciliation_ledger.csv \
+  --source-root path/to/chem_literacy/preprocessed \
+  --out-dir path/to/new/derived/00_chem_literacy_import
+~~~
+
+Use --database-csv instead when the flattened observation CSV is the only primary source. The adapter preserves repeated records and Worker evidence, merges the optional ledger only by paper_id + reconciliation_id, reports disagreements, and never overwrites a conflicting JSON value.
+
+The import creates normalized observations, a reconciliation review queue, numeric agreed-label candidates, and feature-specific condition-recovery packets. These label candidates are not a ready-to-train matrix. Do not pivot repeated feature/system records unless an explicit experiment/condition identity makes matching unambiguous.
+
+For missing experimental conditions, DOR distinguishes information absent from the extraction from information absent from the paper. It searches bounded excerpts in the declared paper/SI files and prepares Worker task packets. A failed keyword search is NOT_ASSESSED, never NOT_REPORTED. Only explicit review after checking relevant main text and SI can establish NOT_REPORTED. See ../docs/CHEM_LITERACY_INTEGRATION.md.

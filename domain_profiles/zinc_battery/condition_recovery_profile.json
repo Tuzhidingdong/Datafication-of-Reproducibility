@@ -1,0 +1,368 @@
+{
+  "profile_version": "zn-battery-context-hints/1.0",
+  "description": "Retrieval hints for potentially important conditions. These are not universal mandatory fields and do not establish model eligibility.",
+  "features": {
+    "FEAT_CE": [
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "Zn||Cu",
+          "Zn-Cu",
+          "asymmetric cell",
+          "substrate"
+        ]
+      },
+      {
+        "condition_type": "current_density",
+        "search_terms": [
+          "current density",
+          "mA cm",
+          "A g",
+          "C rate"
+        ]
+      },
+      {
+        "condition_type": "areal_capacity",
+        "search_terms": [
+          "areal capacity",
+          "mAh cm",
+          "capacity per cycle"
+        ]
+      },
+      {
+        "condition_type": "cycle_range",
+        "search_terms": [
+          "cycle",
+          "cycles",
+          "average",
+          "coulombic efficiency"
+        ]
+      },
+      {
+        "condition_type": "test_protocol",
+        "search_terms": [
+          "cutoff",
+          "voltage limit",
+          "plating",
+          "stripping"
+        ]
+      }
+    ],
+    "FEAT_LIFE_SYM": [
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "Zn||Zn",
+          "symmetric cell"
+        ]
+      },
+      {
+        "condition_type": "current_density",
+        "search_terms": [
+          "current density",
+          "mA cm",
+          "A g",
+          "C rate"
+        ]
+      },
+      {
+        "condition_type": "areal_capacity",
+        "search_terms": [
+          "areal capacity",
+          "mAh cm",
+          "capacity per cycle"
+        ]
+      },
+      {
+        "condition_type": "failure_criterion",
+        "search_terms": [
+          "short circuit",
+          "voltage failure",
+          "failure",
+          "lifespan"
+        ]
+      },
+      {
+        "condition_type": "cycling_protocol",
+        "search_terms": [
+          "plating",
+          "stripping",
+          "cycling",
+          "cycle"
+        ]
+      }
+    ],
+    "FEAT_CAP_RET": [
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "full cell",
+          "cathode",
+          "anode",
+          "Zn||"
+        ]
+      },
+      {
+        "condition_type": "current_density",
+        "search_terms": [
+          "current density",
+          "C rate",
+          "mA g",
+          "A g"
+        ]
+      },
+      {
+        "condition_type": "cycle_number",
+        "search_terms": [
+          "cycles",
+          "cycle number",
+          "after"
+        ]
+      },
+      {
+        "condition_type": "capacity_basis",
+        "search_terms": [
+          "initial capacity",
+          "specific capacity",
+          "mAh g",
+          "mAh cm"
+        ]
+      },
+      {
+        "condition_type": "voltage_window",
+        "search_terms": [
+          "voltage window",
+          "cutoff voltage"
+        ]
+      }
+    ],
+    "FEAT_OVERPOT_PLAT": [
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "Zn||Zn",
+          "symmetric cell"
+        ]
+      },
+      {
+        "condition_type": "current_density",
+        "search_terms": [
+          "current density",
+          "mA cm",
+          "A g"
+        ]
+      },
+      {
+        "condition_type": "areal_capacity",
+        "search_terms": [
+          "areal capacity",
+          "mAh cm"
+        ]
+      },
+      {
+        "condition_type": "cycle_number",
+        "search_terms": [
+          "cycle",
+          "cycles",
+          "100th",
+          "200th"
+        ]
+      }
+    ],
+    "FEAT_OVERPOT_NUC": [
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "Zn||Cu",
+          "Zn||Ti",
+          "substrate"
+        ]
+      },
+      {
+        "condition_type": "current_density",
+        "search_terms": [
+          "current density",
+          "mA cm",
+          "A g"
+        ]
+      },
+      {
+        "condition_type": "areal_capacity",
+        "search_terms": [
+          "areal capacity",
+          "mAh cm"
+        ]
+      },
+      {
+        "condition_type": "measurement_protocol",
+        "search_terms": [
+          "nucleation",
+          "plating",
+          "voltage dip",
+          "galvanostatic"
+        ]
+      }
+    ],
+    "FEAT_IONIC_COND": [
+      {
+        "condition_type": "measurement_temperature",
+        "search_terms": [
+          "temperature",
+          "°C",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "EIS",
+          "impedance",
+          "conductivity cell"
+        ]
+      },
+      {
+        "condition_type": "sample_state",
+        "search_terms": [
+          "electrolyte",
+          "gel",
+          "hydrogel",
+          "separator"
+        ]
+      }
+    ],
+    "FEAT_ICORR": [
+      {
+        "condition_type": "electrolyte_composition",
+        "search_terms": [
+          "electrolyte",
+          "ZnSO4",
+          "mol L",
+          "M Zn"
+        ]
+      },
+      {
+        "condition_type": "measurement_temperature",
+        "search_terms": [
+          "temperature",
+          "°C",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "reference_electrode",
+        "search_terms": [
+          "reference electrode",
+          "Ag/AgCl",
+          "vs. Zn",
+          "SCE"
+        ]
+      },
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "Tafel",
+          "polarization",
+          "LSV"
+        ]
+      },
+      {
+        "condition_type": "area_basis",
+        "search_terms": [
+          "geometric area",
+          "ECSA",
+          "surface area"
+        ]
+      }
+    ],
+    "FEAT_ECORR": [
+      {
+        "condition_type": "reference_electrode",
+        "search_terms": [
+          "reference electrode",
+          "Ag/AgCl",
+          "vs. Zn",
+          "SCE"
+        ]
+      },
+      {
+        "condition_type": "measurement_temperature",
+        "search_terms": [
+          "temperature",
+          "°C",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "electrolyte_composition",
+        "search_terms": [
+          "electrolyte",
+          "ZnSO4",
+          "mol L"
+        ]
+      },
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "open circuit",
+          "Tafel",
+          "polarization"
+        ]
+      }
+    ],
+    "FEAT_E_ADS": [
+      {
+        "condition_type": "surface_facet",
+        "search_terms": [
+          "(002)",
+          "(100)",
+          "(101)",
+          "facet",
+          "surface"
+        ]
+      },
+      {
+        "condition_type": "calculation_method",
+        "search_terms": [
+          "DFT",
+          "functional",
+          "PBE",
+          "dispersion",
+          "basis set"
+        ]
+      },
+      {
+        "condition_type": "adsorbate_model",
+        "search_terms": [
+          "adsorbate",
+          "slab",
+          "adsorption configuration"
+        ]
+      }
+    ],
+    "FEAT_EA": [
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "Arrhenius",
+          "EIS",
+          "impedance"
+        ]
+      },
+      {
+        "condition_type": "temperature_range",
+        "search_terms": [
+          "temperature",
+          "°C",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "symmetric cell",
+          "Zn||Zn"
+        ]
+      }
+    ]
+  }
+}
