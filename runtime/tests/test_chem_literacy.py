@@ -282,5 +282,38 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
             self.assertEqual(row["missing_observation_ids"],current["observation_ids"][0])
 
 
+    def test_duplicate_source_records_receive_distinct_observation_ids_and_are_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); source=root/"obs.csv"
+            row={"paper_id":"p1","reconciliation_id":"R1","feature_id":"FEAT_CE",
+                 "status":"PASS_A_ONLY","worker_a_value":99.5}
+            self._csv(source,[row,row])
+            output=root/"out"; ingest_chem_literacy_files(None,source,None,None,output)
+            with (output/"observations_normalized.csv").open(encoding="utf-8",newline="") as handle:
+                observations=list(csv.DictReader(handle))
+            self.assertEqual(len(observations),2)
+            self.assertNotEqual(observations[0]["observation_id"],observations[1]["observation_id"])
+            report=json.loads((output/"data_quality_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["duplicate_source_record_keys"][0]["count"],2)
+
+    def test_unmatched_reconciliation_ledger_record_is_preserved_for_review(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); database=root/"db.json"
+            database.write_text(json.dumps({"papers":[{"paper_id":"p1","observations":[{
+                "reconciliation_id":"R1","feature_id":"FEAT_CE","status":"PASS_A_ONLY"}]}]}),encoding="utf-8")
+            ledger=root/"ledger.csv"
+            self._csv(ledger,[{"paper_id":"p1","reconciliation_id":"R2","feature_id":"FEAT_CE",
+                "status":"AGREED_MATCH","resolved_value":"99.5","resolved_unit":"%","requires_human_review":"False"}])
+            output=root/"out"; ingest_chem_literacy_files(database,None,ledger,None,output)
+            with (output/"observations_normalized.csv").open(encoding="utf-8",newline="") as handle:
+                rows=list(csv.DictReader(handle))
+            self.assertEqual(len(rows),2)
+            extra=next(row for row in rows if row["reconciliation_id"]=="R2")
+            self.assertEqual(extra["source_origin"],"RECONCILIATION_CSV_ONLY")
+            self.assertEqual(extra["requires_human_review"],"True")
+            with (output/"numeric_target_candidates.csv").open(encoding="utf-8",newline="") as handle:
+                self.assertEqual(list(csv.DictReader(handle)),[])
+
+
 if __name__ == "__main__":
     unittest.main()

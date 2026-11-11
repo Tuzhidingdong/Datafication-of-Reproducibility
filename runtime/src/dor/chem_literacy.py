@@ -202,9 +202,26 @@ def _normalize_observation(record: dict[str, Any], origin: str, ordinal: int) ->
     feature_id = _text(_first(record, "feature_id", "canonical_feature_id"))
     status = _text(record.get("status")).upper() or "UNKNOWN_STATUS"
     conditions = record.get("measurement_conditions")
+    if isinstance(conditions, str) and conditions.strip():
+        try:
+            parsed_conditions = json.loads(conditions)
+            conditions = parsed_conditions if isinstance(parsed_conditions, dict) else {}
+        except json.JSONDecodeError:
+            conditions = {}
     if not isinstance(conditions, dict):
         conditions = record.get("experimental_context")
+    experimental_context_raw = None
+    if isinstance(conditions, str):
+        experimental_context_raw = conditions
+        try:
+            parsed_context = json.loads(conditions)
+            conditions = parsed_context if isinstance(parsed_context, dict) else {}
+        except json.JSONDecodeError:
+            conditions = {}
     if not isinstance(conditions, dict):
+        context_value = record.get("experimental_context")
+        if context_value not in (None, "") and not isinstance(context_value, dict):
+            experimental_context_raw = str(context_value)
         conditions = {}
     return {
         "observation_id": _stable_id("DOROBS_", paper_id + "|" + rec_id + "|" + str(ordinal)),
@@ -233,6 +250,7 @@ def _normalize_observation(record: dict[str, Any], origin: str, ordinal: int) ->
         "worker_a_grounding_type": _text(_first(record, "worker_a_grounding_type", "grounding_type_a")) or None,
         "worker_b_grounding_type": _text(_first(record, "worker_b_grounding_type", "grounding_type_b")) or None,
         "measurement_conditions": conditions,
+        "experimental_context_raw": experimental_context_raw,
         "source_origin": origin,
         "source_row_ordinal": ordinal,
     }
@@ -527,7 +545,9 @@ def ingest_chem_literacy_files(
                     "Use AMBIGUOUS when multiple values or unclear sample-to-condition links exist.",
                     "Use NOT_FOUND_IN_SEARCH when no value was verified; this is not the same as NOT_REPORTED.",
                     "Never infer a missing value from common practice, another paper, or target_system text.",
-                    "Keep different current densities, cycle numbers, capacities, temperatures, and cell configurations as separate observations.",
+                    "A single condition_type may have multiple distinct values in the same paper/system. Return multiple field_reviews with unique condition_instance_id values; never collapse a series into one value.",
+                    "For each requested condition_type, cover every listed observation_id exactly once. Link each condition instance to the exact observation IDs it describes; use AMBIGUOUS or UNABLE_TO_VERIFY when the mapping is unclear.",
+                    "Keep different current densities, cycle numbers, capacities, temperatures, and cell configurations as separate observation-specific condition instances.",
                     "Do not edit original source files or normalized observations.",
                 ],
                 "result_contract": "schemas/condition_recovery_result.schema.json",
@@ -620,8 +640,11 @@ def ingest_chem_literacy_files(
         "source_merge_issue_count": len(merge_issues), "source_merge_issues": merge_issues,
         "duplicate_source_record_keys": duplicate_keys,
         "condition_profile_version": profile_version,
+        "features_without_condition_profile": sorted(set(by_feature) - set(profile)),
+        "condition_profile_coverage_count": len(set(by_feature).intersection(profile)),
         "condition_status_policy": {
             "PRESENT_IN_STRUCTURED_DATA": "Structured field exists; semantic correctness still needs review.",
+            "PARTIALLY_PRESENT_IN_STRUCTURED_DATA": "Some linked observations have the condition; targeted recovery is requested only for missing observation IDs.",
             "CANDIDATE_CONTEXT_FOUND_NOT_VERIFIED": "A local excerpt contains a search term; an Agent/human must verify value, unit, sample, and locator.",
             "NOT_FOUND_IN_INITIAL_SEARCH": "Bounded keyword search found no excerpt; this is not evidence that the paper omitted the condition.",
             "SOURCE_FILES_NOT_AVAILABLE": "No declared local source file was available for targeted recovery.",
@@ -636,7 +659,7 @@ def ingest_chem_literacy_files(
         "title","batch_id","reconciliation_id","feature_id","target_system","status","resolved_value","resolved_unit",
         "worker_a_value","worker_a_unit","worker_b_value","worker_b_unit","relative_difference",
         "requires_human_review","review_reason","worker_a_evidence","worker_b_evidence",
-        "worker_a_grounding_type","worker_b_grounding_type","measurement_conditions","source_origin","source_row_ordinal",
+        "worker_a_grounding_type","worker_b_grounding_type","measurement_conditions","experimental_context_raw","source_origin","source_row_ordinal",
     ]
     def write_observation_csv(path: Path, records: list[dict[str, Any]]) -> None:
         with path.open("w", encoding="utf-8", newline="") as handle:
@@ -687,7 +710,8 @@ def ingest_chem_literacy_files(
         f"- Features: {report['feature_count']}",
         f"- Reconciliation review queue: {len(review_queue)}",
         f"- Numeric agreed label candidates: {len(target_candidates)}",
-        f"- Condition-recovery tasks: {len(recovery_tasks)}", "",
+        f"- Condition-recovery tasks: {len(recovery_tasks)}",
+        f"- Features without condition-recovery profile: {', '.join(report['features_without_condition_profile']) or 'None'}", "",
         "## Interpretation boundary", "",
         "This is an import and structural quality audit, not scientific acceptance. AGREED_MATCH is a priority status, not proof of correctness. Single-worker and conflicting records are retained in the review queue. Numeric target candidates are labels only, not a ready-to-train feature matrix.", "",
         "A condition not found by the initial keyword search remains NOT_ASSESSED. DOR must not convert search failure into NOT_REPORTED. NOT_REPORTED requires explicit review of relevant main text and SI.", "",
@@ -815,7 +839,7 @@ def validate_condition_recovery_files(
             elif source_path.is_file():
                 if str(source_path) not in source_text_cache:
                     source_text_cache[str(source_path)] = source_path.read_text(encoding="utf-8-sig", errors="replace")
-                normalize = lambda value: re.sub(r"\\s+", " ", str(value)).strip()
+                normalize = lambda value: re.sub(r"\s+", " ", str(value)).strip()
                 if normalize(quote) not in normalize(source_text_cache[str(source_path)]):
                     errors.append({"code":"QUOTE_NOT_FOUND_IN_SOURCE","message":f"Quoted evidence for {condition_type}/{instance_id} was not found in the exact source file."})
                 else:

@@ -45,7 +45,7 @@ DOR distinguishes several scientifically different situations:
 4. NOT_REPORTED: reserved for an explicit human-reviewed decision after the relevant main text and SI have been checked.
 5. AMBIGUOUS: the source contains conflicting or unassignable condition statements.
 
-The feature-specific search profile supplies retrieval hints, not universal mandatory fields and not automatic model eligibility rules. The importance of current density, areal capacity, cycle number, temperature, reference electrode, cell configuration, and other fields depends on the exact endpoint and intended scientific question.
+The feature-specific search profile supplies retrieval hints, not universal mandatory fields and not automatic model eligibility rules. The current zinc profile covers the 23 defined features whose condition semantics are specified; FEAT_MAEID is intentionally left unmapped until its scientific definition is confirmed rather than guessed. The importance of current density, areal capacity, cycle number, temperature, reference electrode, cell configuration, and other fields depends on the exact endpoint and intended scientific question.
 
 ### Recovery sequence
 
