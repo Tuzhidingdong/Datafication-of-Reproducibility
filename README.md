@@ -57,3 +57,10 @@ The Runtime provides explicit project run workspaces, a hash-chained run event l
 ## V1.0 controlled acceptance
 
 The first real-data pilot is limited to one user-selected primary paper and its SI. The fixed eight-stage protocol, machine-readable record, and deterministic `dor validate-acceptance` integrity/decision validator are defined in `docs/V1.0_CONTROLLED_ACCEPTANCE.md`, `schemas/v1_acceptance_record.schema.json`, and `templates/v1_acceptance_record.example.json`. A one-Study pilot may validate ingestion, provenance, mapping, canonical construction, and reconciliation, but cannot validate cross-Study modelling. Do not process the full corpus until separately authorized.
+
+
+## Chem-Literacy integration
+
+The v0.1-foundation branch adds dor ingest-chem-literacy for the aggregate papers[].observations[] JSON and optional Reconciliation Ledger CSV. The adapter preserves repeated measurements, links the two exports only by paper_id + reconciliation_id, reports source disagreements, and writes evidence-aware condition-recovery packets. numeric_target_candidates.csv is a candidate-label inventory, not a ready-to-train feature matrix. See docs/CHEM_LITERACY_INTEGRATION.md.
+
+A condition missing from the extraction is not automatically considered absent from the paper. DOR searches the declared local main text/SI, prepares bounded Worker tasks, verifies proposed quotations against exact source files, and leaves every promotion pending human review.

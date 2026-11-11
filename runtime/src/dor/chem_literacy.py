@@ -385,13 +385,14 @@ def ingest_chem_literacy_files(
             condition_type = str(requirement.get("condition_type", "")).strip()
             if not condition_type:
                 continue
-            present_values = [
-                (record.get("measurement_conditions") or {}).get(condition_type)
-                for record in group_records
-                if (record.get("measurement_conditions") or {}).get(condition_type) not in (None, "")
+            all_observation_ids = [item["observation_id"] for item in group_records]
+            present_observation_ids = [
+                item["observation_id"] for item in group_records
+                if (item.get("measurement_conditions") or {}).get(condition_type) not in (None, "")
             ]
+            missing_observation_ids = sorted(set(all_observation_ids) - set(present_observation_ids))
             excerpts: list[dict[str, Any]] = []
-            if present_values:
+            if not missing_observation_ids:
                 retrieval_status = "PRESENT_IN_STRUCTURED_DATA"
             elif not loaded_files:
                 retrieval_status = "SOURCE_FILES_NOT_AVAILABLE"
@@ -400,22 +401,27 @@ def ingest_chem_literacy_files(
                 for path, content in loaded_files:
                     for window in _excerpt_windows(content, terms):
                         excerpts.append({"source_file": str(path), "source_sha256": source_hashes[str(path)], **window})
-                retrieval_status = "CANDIDATE_CONTEXT_FOUND_NOT_VERIFIED" if excerpts else "NOT_FOUND_IN_INITIAL_SEARCH"
+                retrieval_status = "PARTIALLY_PRESENT_IN_STRUCTURED_DATA" if present_observation_ids else (
+                    "CANDIDATE_CONTEXT_FOUND_NOT_VERIFIED" if excerpts else "NOT_FOUND_IN_INITIAL_SEARCH"
+                )
             condition_queue.append({
                 "task_id": task_id, "paper_id": paper_id, "feature_id": feature_id,
                 "target_system": target_system, "condition_type": condition_type,
                 "record_count": len(group_records),
-                "observation_ids": ";".join(item["observation_id"] for item in group_records),
+                "observation_ids": ";".join(all_observation_ids),
+                "missing_observation_ids": ";".join(missing_observation_ids),
                 "retrieval_status": retrieval_status, "condition_decision": "UNRESOLVED",
                 "candidate_excerpt_count": len(excerpts),
                 "important_boundary": "NOT_FOUND_IN_INITIAL_SEARCH_DOES_NOT_MEAN_NOT_REPORTED",
             })
-            requested_fields.append({
-                "condition_type": condition_type,
-                "search_terms": [str(value) for value in requirement.get("search_terms", [])],
-                "retrieval_status": retrieval_status,
-                "candidate_excerpts": excerpts,
-            })
+            if missing_observation_ids:
+                requested_fields.append({
+                    "condition_type": condition_type,
+                    "search_terms": [str(value) for value in requirement.get("search_terms", [])],
+                    "observation_ids": missing_observation_ids,
+                    "retrieval_status": retrieval_status,
+                    "candidate_excerpts": excerpts,
+                })
         if requested_fields:
             recovery_tasks.append({
                 "schema_version": "1.0", "task_id": task_id, "paper_id": paper_id,
@@ -615,16 +621,21 @@ def validate_condition_recovery_files(
             errors.append({"code":"SOURCE_PATH_UNAVAILABLE_OR_OUTSIDE_ROOT","message":"Declared source is missing or outside source_root: " + source})
         elif sha256_file(path) != expected:
             errors.append({"code":"SOURCE_CHANGED","message":"Source bytes changed since task creation: " + source})
-    requested = {
-        str(item.get("condition_type")) for item in task.get("requested_conditions", [])
+    requested_conditions = task.get("requested_conditions", [])
+    if not isinstance(requested_conditions, list):
+        requested_conditions = []
+    requested_by_type = {
+        str(item.get("condition_type")): set(item.get("observation_ids", task.get("observation_ids", [])))
+        for item in requested_conditions
         if isinstance(item, dict) and item.get("condition_type")
     }
+    task_observation_ids = set(task.get("observation_ids", []))
     reviews = result.get("field_reviews") if isinstance(result.get("field_reviews"), list) else []
-    reviewed_types: list[str] = []
+    reviewed_instances: set[str] = set()
+    covered_by_type: dict[str, set[str]] = {condition: set() for condition in requested_by_type}
     accepted_found: list[dict[str, Any]] = []
     proposals: list[dict[str, Any]] = []
     allowed_statuses = {"FOUND","NOT_FOUND_IN_SEARCH","AMBIGUOUS","UNABLE_TO_VERIFY"}
-    task_observation_ids = set(task.get("observation_ids", []))
     source_text_cache: dict[str, str] = {}
     for index, review in enumerate(reviews):
         if not isinstance(review, dict):
@@ -632,20 +643,36 @@ def validate_condition_recovery_files(
             continue
         condition_type = str(review.get("condition_type", "")).strip()
         status = review.get("status")
-        if condition_type not in requested:
+        instance_id = str(review.get("condition_instance_id", "")).strip()
+        if condition_type not in requested_by_type:
             errors.append({"code":"UNREQUESTED_CONDITION_TYPE","message":f"Worker returned unrequested condition type: {condition_type}"})
-        if condition_type in reviewed_types:
-            errors.append({"code":"DUPLICATE_CONDITION_REVIEW","message":f"Condition type was reviewed more than once: {condition_type}"})
-        reviewed_types.append(condition_type)
+            continue
+        if not instance_id:
+            errors.append({"code":"CONDITION_INSTANCE_ID_REQUIRED","message":f"{condition_type} review requires a condition_instance_id."})
+        elif instance_id in reviewed_instances:
+            errors.append({"code":"DUPLICATE_CONDITION_INSTANCE_ID","message":f"condition_instance_id is duplicated: {instance_id}"})
+        else:
+            reviewed_instances.add(instance_id)
         if status not in allowed_statuses:
             errors.append({"code":"INVALID_RECOVERY_STATUS","message":f"Unsupported status for {condition_type}: {status}"})
             continue
         linked = review.get("linked_observation_ids", [])
-        if not isinstance(linked, list) or not set(linked).issubset(task_observation_ids):
-            errors.append({"code":"UNKNOWN_OBSERVATION_LINK","message":f"{condition_type} references an observation not present in the task."})
+        if not isinstance(linked, list) or not linked:
+            errors.append({"code":"OBSERVATION_LINKS_REQUIRED","message":f"{condition_type} instance {instance_id} must link to one or more observation IDs."})
+            continue
+        if not set(linked).issubset(task_observation_ids):
+            errors.append({"code":"UNKNOWN_OBSERVATION_LINK","message":f"{condition_type} instance {instance_id} references an observation not present in the task."})
+            continue
+        if not set(linked).issubset(requested_by_type[condition_type]):
+            errors.append({"code":"OBSERVATION_NOT_REQUESTED_FOR_CONDITION","message":f"{condition_type} instance {instance_id} links observations outside that condition request."})
+            continue
+        overlap = covered_by_type[condition_type].intersection(linked)
+        if overlap:
+            errors.append({"code":"OVERLAPPING_CONDITION_ASSIGNMENT","message":f"{condition_type} assigns observations more than once: " + ", ".join(sorted(overlap))})
+        covered_by_type[condition_type].update(linked)
         rationale = str(review.get("rationale", "")).strip()
         if not rationale:
-            errors.append({"code":"MISSING_REVIEW_RATIONALE","message":f"{condition_type} requires a rationale."})
+            errors.append({"code":"MISSING_REVIEW_RATIONALE","message":f"{condition_type} instance {instance_id} requires a rationale."})
         if status == "FOUND":
             value = review.get("candidate_value")
             unit = review.get("candidate_unit")
@@ -653,35 +680,40 @@ def validate_condition_recovery_files(
             locator = review.get("page_or_locator")
             quote = review.get("verbatim_quote")
             if value is None or str(value).strip() == "":
-                errors.append({"code":"FOUND_VALUE_MISSING","message":f"FOUND result for {condition_type} has no candidate value."})
+                errors.append({"code":"FOUND_VALUE_MISSING","message":f"FOUND result for {condition_type}/{instance_id} has no candidate value."})
             if unit is None or not str(unit).strip():
-                errors.append({"code":"FOUND_UNIT_MISSING","message":f"FOUND result for {condition_type} has no explicit unit; use an explicit dimensionless unit where applicable."})
+                errors.append({"code":"FOUND_UNIT_MISSING","message":f"FOUND result for {condition_type}/{instance_id} has no explicit unit; use an explicit dimensionless unit where applicable."})
             if not source_name or not locator or not quote:
-                errors.append({"code":"FOUND_EVIDENCE_INCOMPLETE","message":f"FOUND result for {condition_type} needs source_file, page_or_locator, and verbatim_quote."})
+                errors.append({"code":"FOUND_EVIDENCE_INCOMPLETE","message":f"FOUND result for {condition_type}/{instance_id} needs source_file, page_or_locator, and verbatim_quote."})
             source_path = Path(str(source_name)).expanduser().resolve() if source_name else None
             if source_path is None or str(source_path) not in expected_sources:
-                errors.append({"code":"FOUND_SOURCE_NOT_DECLARED","message":f"FOUND result for {condition_type} cites a file not declared in the task."})
+                errors.append({"code":"FOUND_SOURCE_NOT_DECLARED","message":f"FOUND result for {condition_type}/{instance_id} cites a file not declared in the task."})
             elif source_path.is_file():
                 if str(source_path) not in source_text_cache:
                     source_text_cache[str(source_path)] = source_path.read_text(encoding="utf-8-sig", errors="replace")
-                normalize = lambda value: re.sub(r"\s+", " ", str(value)).strip()
+                normalize = lambda value: re.sub(r"\\s+", " ", str(value)).strip()
                 if normalize(quote) not in normalize(source_text_cache[str(source_path)]):
-                    errors.append({"code":"QUOTE_NOT_FOUND_IN_SOURCE","message":f"Quoted evidence for {condition_type} was not found in the exact source file."})
+                    errors.append({"code":"QUOTE_NOT_FOUND_IN_SOURCE","message":f"Quoted evidence for {condition_type}/{instance_id} was not found in the exact source file."})
                 else:
                     accepted_found.append({
-                        "condition_type": condition_type, "candidate_value": value,
-                        "candidate_unit": unit, "source_file": str(source_path),
-                        "page_or_locator": locator, "verbatim_quote": quote,
-                        "linked_observation_ids": linked,
+                        "condition_type": condition_type, "condition_instance_id": instance_id,
+                        "candidate_value": value, "candidate_unit": unit,
+                        "source_file": str(source_path), "page_or_locator": locator,
+                        "verbatim_quote": quote, "linked_observation_ids": linked,
                     })
         elif status == "NOT_FOUND_IN_SEARCH":
             if review.get("candidate_value") not in (None, "") or review.get("verbatim_quote") not in (None, ""):
-                errors.append({"code":"NOT_FOUND_HAS_CANDIDATE_VALUE","message":f"NOT_FOUND_IN_SEARCH for {condition_type} cannot carry a candidate value or quote."})
-            warnings.append({"code":"NOT_FOUND_IS_NOT_NOT_REPORTED","message":f"{condition_type}: a failed search does not prove the authors omitted the condition."})
-        proposals.append({"condition_type":condition_type,"status":status,"rationale":rationale})
-    missing = sorted(requested - set(reviewed_types))
-    if missing:
-        errors.append({"code":"MISSING_CONDITION_REVIEWS","message":"Worker result omitted requested condition types: " + ", ".join(missing)})
+                errors.append({"code":"NOT_FOUND_HAS_CANDIDATE_VALUE","message":f"NOT_FOUND_IN_SEARCH for {condition_type}/{instance_id} cannot carry a candidate value or quote."})
+            warnings.append({"code":"NOT_FOUND_IS_NOT_NOT_REPORTED","message":f"{condition_type}/{instance_id}: a failed search does not prove the authors omitted the condition."})
+        proposals.append({
+            "condition_type":condition_type, "condition_instance_id":instance_id,
+            "status":status, "linked_observation_ids":linked, "rationale":rationale,
+        })
+    for condition_type, expected_ids in requested_by_type.items():
+        missing_ids = expected_ids - covered_by_type[condition_type]
+        if missing_ids:
+            errors.append({"code":"CONDITION_OBSERVATION_COVERAGE_INCOMPLETE",
+                "message":f"{condition_type} lacks a decision for observations: " + ", ".join(sorted(missing_ids))})
     if result.get("main_text_reviewed") is True or result.get("si_reviewed") is True:
         warnings.append({"code":"WORKER_COVERAGE_CLAIM_NOT_HUMAN_VERIFIED","message":"Worker-declared document coverage is informational only and cannot establish NOT_REPORTED."})
     report = {
@@ -692,8 +724,10 @@ def validate_condition_recovery_files(
         "task_sha256":task_hash,
         "result_sha256":result_hash,
         "source_hashes_verified":not any(item["code"] in {"SOURCE_CHANGED","SOURCE_PATH_UNAVAILABLE_OR_OUTSIDE_ROOT","RESULT_SOURCE_HASH_BINDING"} for item in errors),
-        "requested_condition_count":len(requested),
-        "reviewed_condition_count":len(reviewed_types),
+        "requested_condition_type_count":len(requested_by_type),
+        "requested_condition_observation_pairs":sum(len(ids) for ids in requested_by_type.values()),
+        "reviewed_condition_instance_count":len(reviewed_instances),
+        "covered_condition_observation_pairs":sum(len(ids) for ids in covered_by_type.values()),
         "evidence_quotes_verified_count":len(accepted_found),
         "verified_found_proposals":accepted_found,
         "condition_status_proposals":proposals,

@@ -33,6 +33,8 @@ jobs:
         run: python -m unittest discover -s runtime/tests -p 'test_gates.py' -v
       - name: Run V0.7 scientific grain contract tests
         run: python -m unittest discover -s runtime/tests -p 'test_cohort.py' -v
+      - name: Run Chem-Literacy adapter and condition-recovery tests
+        run: python -m unittest discover -s runtime/tests -p 'test_chem_literacy.py' -v
       - name: Run unit tests
         run: python -m unittest discover -s runtime/tests -v
       - name: Check schema JSON syntax

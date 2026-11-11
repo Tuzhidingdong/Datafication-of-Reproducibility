@@ -142,11 +142,11 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
             task={"schema_version":"1.0","task_id":"T1","paper_id":"p1",
                 "observation_ids":["O1"],
                 "source_files":[{"path":str(source),"sha256":digest}],
-                "requested_conditions":[{"condition_type":"current_density","search_terms":["current density"]}]}
+                "requested_conditions":[{"condition_type":"current_density","observation_ids":["O1"],"search_terms":["current density"]}]}
             task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
             result={"schema_version":"1.0","task_id":"T1","paper_id":"p1",
                 "source_hashes":{str(source):digest},
-                "field_reviews":[{"condition_type":"current_density","status":"FOUND",
+                "field_reviews":[{"condition_type":"current_density","condition_instance_id":"current-density-1","status":"FOUND","linked_observation_ids":["O1"],
                     "candidate_value":1,"candidate_unit":"mA cm-2","source_file":str(source),
                     "page_or_locator":"Page 2","verbatim_quote":"1 mA cm-2 current density",
                     "linked_observation_ids":["O1"],"rationale":"Explicit value and unit in source."}]}
@@ -169,10 +169,10 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
             digest=hashlib.sha256(source.read_bytes()).hexdigest()
             task={"schema_version":"1.0","task_id":"T2","paper_id":"p1","observation_ids":["O1"],
                 "source_files":[{"path":str(source),"sha256":digest}],
-                "requested_conditions":[{"condition_type":"areal_capacity","search_terms":["areal capacity"]}]}
+                "requested_conditions":[{"condition_type":"areal_capacity","observation_ids":["O1"],"search_terms":["areal capacity"]}]}
             task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
             result={"schema_version":"1.0","task_id":"T2","paper_id":"p1","source_hashes":{str(source):digest},
-                "field_reviews":[{"condition_type":"areal_capacity","status":"NOT_FOUND_IN_SEARCH",
+                "field_reviews":[{"condition_type":"areal_capacity","condition_instance_id":"areal-capacity-1","status":"NOT_FOUND_IN_SEARCH","linked_observation_ids":["O1"],
                     "candidate_value":None,"candidate_unit":None,"source_file":None,"page_or_locator":None,
                     "verbatim_quote":None,"linked_observation_ids":["O1"],"rationale":"No matching statement in the targeted excerpts."}],
                 "main_text_reviewed":True,"si_reviewed":True}
@@ -186,6 +186,46 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
         args=build_parser().parse_args(["validate-condition-recovery","--task","task.json",
             "--result","result.json","--source-root","sources","--out","validation.json"])
         self.assertEqual(args.command,"validate-condition-recovery")
+
+
+    def test_multiple_condition_instances_map_distinct_measurements_without_collapsing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); paper=root/"sources"/"p1"; paper.mkdir(parents=True)
+            source=paper/"main_analysis.md"
+            source.write_text(
+                "At 0.1 mA cm-2 the overpotential was 32.81 mV. "
+                "At 0.2 mA cm-2 it was 36.00 mV. "
+                "At 0.5 mA cm-2 it was 46.33 mV. "
+                "At 1.0 mA cm-2 it was 55.94 mV.",encoding="utf-8")
+            import hashlib
+            digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            ids=["O1","O2","O3","O4"]
+            task={"schema_version":"1.0","task_id":"T_MULTI","paper_id":"p1",
+                "observation_ids":ids,"source_files":[{"path":str(source),"sha256":digest}],
+                "requested_conditions":[{"condition_type":"current_density","observation_ids":ids}]}
+            task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
+            values=[("O1",0.1),("O2",0.2),("O3",0.5),("O4",1.0)]
+            reviews=[]
+            for index,(obs,value) in enumerate(values,1):
+                reviews.append({"condition_type":"current_density","condition_instance_id":f"CD_{index}",
+                    "status":"FOUND","candidate_value":value,"candidate_unit":"mA cm-2",
+                    "source_file":str(source),"page_or_locator":"Page 7",
+                    "verbatim_quote":f"At {value} mA cm-2","linked_observation_ids":[obs],
+                    "rationale":"The quoted sentence reports this value for this measurement."})
+            result={"schema_version":"1.0","task_id":"T_MULTI","paper_id":"p1",
+                "source_hashes":{str(source):digest},"field_reviews":reviews}
+            result_path=root/"result.json"; result_path.write_text(json.dumps(result),encoding="utf-8")
+            report=validate_condition_recovery_files(task_path,result_path,root/"sources",root/"validation.json")
+            self.assertTrue(report["valid"],report["errors"])
+            self.assertEqual(report["requested_condition_observation_pairs"],4)
+            self.assertEqual(report["covered_condition_observation_pairs"],4)
+            self.assertEqual(len(report["verified_found_proposals"]),4)
+            result["field_reviews"][1]["linked_observation_ids"]=["O1"]
+            result_path.write_text(json.dumps(result),encoding="utf-8")
+            report=validate_condition_recovery_files(task_path,result_path,root/"sources",root/"validation2.json")
+            self.assertFalse(report["valid"])
+            self.assertTrue(any(item["code"]=="OVERLAPPING_CONDITION_ASSIGNMENT" for item in report["errors"]))
+            self.assertTrue(any(item["code"]=="CONDITION_OBSERVATION_COVERAGE_INCOMPLETE" for item in report["errors"]))
 
 
 if __name__ == "__main__":

@@ -42,6 +42,14 @@ You are operating a guided scientific research workflow. The purpose is not mere
 - Confirm that output paths do not overwrite or reside inside protected source files.
 - Create a new run directory; never overwrite an earlier run by default.
 
+### Chem-Literacy input adapter
+
+When a project source is the Chem-Literacy zinc-battery corpus, declare the import as an explicit local stage in the Run Plan and run dor ingest-chem-literacy before semantic mapping. Supply the aggregate JSON as the primary input and the matching Reconciliation Ledger CSV as an optional secondary input; the adapter joins them only by paper_id + reconciliation_id. Keep the JSON primary when populated fields disagree, and retain those disagreements in the import report. Never deduplicate repeated feature/system observations merely because their target_system text is identical.
+
+The adapter creates normalized observations, a reconciliation review queue, agreed numeric label candidates, and condition-recovery task packets. The numeric label candidate file is not a feature matrix and is not sufficient for model fitting. Do not treat AGREED_MATCH as proof of scientific correctness; it is only a higher-priority candidate for review.
+
+For condition recovery, use the declared local paper/SI source root. Python first searches bounded, feature-specific context windows. A missed initial search remains unresolved; it is not NOT_REPORTED. A Worker can be used only after showing role/provider/model/active project root/input hashes/staging outputs and obtaining explicit authorization. Worker results must pass dor validate-condition-recovery against the exact task, source hashes, and verbatim source quotation. Multiple values of the same condition_type must be returned as separate condition_instance_id entries linked to exact observation IDs. A valid result remains PENDING_HUMAN_REVIEW; only an explicit human decision may promote a condition to reported or mark it not reported.
+
 ### Stage 1 — Data audit
 
 Read `../../../references/data-model.md` and `../../../references/guided-workflow.md`.

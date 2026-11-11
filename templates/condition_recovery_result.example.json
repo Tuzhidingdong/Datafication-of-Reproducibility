@@ -15,7 +15,8 @@
       "linked_observation_ids": [
         "DOROBS_EXAMPLE"
       ],
-      "rationale": "The sentence reports a numeric value and unit; confirm applicability to the linked sample and measurement."
+      "rationale": "The sentence reports a numeric value and unit; confirm applicability to the linked sample and measurement.",
+      "condition_instance_id": "current-density-obs-1"
     },
     {
       "condition_type": "areal_capacity",
@@ -28,7 +29,8 @@
       "linked_observation_ids": [
         "DOROBS_EXAMPLE"
       ],
-      "rationale": "No value was verified in the searched excerpts. This is not a claim that the paper/SI does not report it."
+      "rationale": "No value was verified in the searched excerpts. This is not a claim that the paper/SI does not report it.",
+      "condition_instance_id": "areal-capacity-obs-1"
     }
   ],
   "main_text_reviewed": false,
