@@ -73,7 +73,7 @@ DEFAULT_CONDITION_PROFILE: dict[str, list[dict[str, Any]]] = {
         {"condition_type":"measurement_method","search_terms":["Arrhenius","EIS","impedance"]},
         {"condition_type":"temperature_range","search_terms":["temperature","°C","K"]},
         {"condition_type":"cell_configuration","search_terms":["symmetric cell","Zn||Zn"]},
-    ],,
+    ],
     "FEAT_RCT": [
         {"condition_type":"cell_configuration","search_terms":["Zn||Zn","Zn||Cu","full cell"]},
         {"condition_type":"measurement_method","search_terms":["EIS","impedance","equivalent circuit"]},
@@ -963,7 +963,7 @@ def validate_condition_decisions_files(
         if not path.is_file() or not path.is_relative_to(source_root):
             errors.append({"code":"SOURCE_UNAVAILABLE_OR_OUTSIDE_ROOT","message":"Task source is unavailable or outside source_root: " + source})
         elif sha256_file(path) != digest:
-            errors.append({"code":"SOURCE_CHANGED","message":"Task source changed after condition recovery: " + source)
+            errors.append({"code":"SOURCE_CHANGED","message":"Task source changed after condition recovery: " + source})
 
     reviewed_sources = decisions.get("reviewed_source_files") if isinstance(decisions.get("reviewed_source_files"), list) else []
     reviewed_source_map = {
