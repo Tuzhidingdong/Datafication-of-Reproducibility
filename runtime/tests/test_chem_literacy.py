@@ -405,8 +405,7 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
         import hashlib
         from dor.chem_literacy import validate_condition_decisions_files
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp); source=root/"input.md"; source.write_text("Text",encoding="utf-8")
-            digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            root=Path(tmp); source_root=root/"sources"; source_root.mkdir()
             task={"schema_version":"1.0","task_id":"T_EMPTY_SOURCE","paper_id":"p1","observation_ids":["O1"],
                 "source_files":[],"requested_conditions":[{"condition_type":"current_density","observation_ids":["O1"]}]}
             task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
@@ -416,7 +415,7 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
                     "source_file":None,"page_or_locator":None,"verbatim_quote":None,"rationale":"No source was available."}]}
             result_path=root/"result.json"; result_path.write_text(json.dumps(result),encoding="utf-8")
             recovery_path=root/"recovery.json"
-            recovery=validate_condition_recovery_files(task_path,result_path,root,recovery_path)
+            recovery=validate_condition_recovery_files(task_path,result_path,source_root,recovery_path)
             self.assertFalse(recovery["valid"])
             # Even a syntactically bound human decision cannot convert absent source access into NOT_REPORTED.
             recovery_report={"valid":True,"task_id":"T_EMPTY_SOURCE",
@@ -434,7 +433,7 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
                 "decisions":[{"condition_type":"current_density","condition_instance_id":"CD1",
                     "decision":"NOT_REPORTED","linked_observation_ids":["O1"],"rationale":"No source could be checked."}]}
             decisions_path=root/"decisions.json"; decisions_path.write_text(json.dumps(decisions),encoding="utf-8")
-            report=validate_condition_decisions_files(task_path,recovery_path,decisions_path,root,root/"accepted")
+            report=validate_condition_decisions_files(task_path,recovery_path,decisions_path,source_root,root/"accepted")
             self.assertFalse(report["valid"])
             self.assertTrue(any(item["code"]=="NOT_REPORTED_NO_SOURCE_FILES" for item in report["errors"]))
 
