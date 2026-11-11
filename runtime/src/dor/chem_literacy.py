@@ -1024,6 +1024,9 @@ def validate_condition_decisions_files(
             "recovery_validation_sha256":validation_sha,
         }
         if status == "REPORTED":
+            if proposal.get("status") != "FOUND":
+                errors.append({"code":"REPORTED_RECOVERY_PROPOSAL_NOT_FOUND","message":f"REPORTED decision for {condition_type}/{instance_id} requires a recovery proposal with status FOUND."})
+                continue
             found = found_map.get(key)
             if found is None:
                 errors.append({"code":"REPORTED_WITHOUT_VERIFIED_FOUND","message":f"REPORTED decision for {condition_type}/{instance_id} has no source-verified FOUND proposal."})
@@ -1031,12 +1034,34 @@ def validate_condition_decisions_files(
             if set(found.get("linked_observation_ids", [])) != set(linked):
                 errors.append({"code":"REPORTED_LINK_MISMATCH","message":f"REPORTED decision for {condition_type}/{instance_id} does not match verified evidence links."})
                 continue
+            value = found.get("candidate_value")
+            unit = str(found.get("candidate_unit") or "").strip()
+            source_name = found.get("source_file")
+            locator = str(found.get("page_or_locator") or "").strip()
+            quote = str(found.get("verbatim_quote") or "")
+            if value is None or not str(value).strip() or not unit or not locator or not quote.strip():
+                errors.append({"code":"REPORTED_EVIDENCE_INCOMPLETE","message":f"REPORTED decision for {condition_type}/{instance_id} lacks a value, unit, locator, or exact quotation."})
+                continue
+            source_path = Path(str(source_name)).expanduser().resolve() if source_name else None
+            source_key = str(source_path) if source_path is not None else ""
+            expected_digest = expected_sources.get(source_key)
+            if source_path is None or expected_digest is None or not source_path.is_relative_to(source_root):
+                errors.append({"code":"REPORTED_EVIDENCE_SOURCE_NOT_DECLARED","message":f"REPORTED decision for {condition_type}/{instance_id} cites a source not declared in the exact task."})
+                continue
+            if not source_path.is_file() or sha256_file(source_path) != expected_digest:
+                errors.append({"code":"REPORTED_EVIDENCE_SOURCE_CHANGED","message":f"REPORTED decision for {condition_type}/{instance_id} cites a missing or changed source file."})
+                continue
+            source_text = source_path.read_text(encoding="utf-8-sig", errors="replace")
+            normalize = lambda text: re.sub(r"\s+", " ", str(text)).strip()
+            if normalize(quote) not in normalize(source_text):
+                errors.append({"code":"REPORTED_EVIDENCE_QUOTE_NOT_FOUND","message":f"REPORTED decision for {condition_type}/{instance_id} quotation is not present in the exact declared source."})
+                continue
             output_item.update({
-                "value":found.get("candidate_value"),
-                "unit":found.get("candidate_unit"),
-                "source_file":found.get("source_file"),
-                "page_or_locator":found.get("page_or_locator"),
-                "verbatim_quote":found.get("verbatim_quote"),
+                "value":value,
+                "unit":unit,
+                "source_file":str(source_path),
+                "page_or_locator":locator,
+                "verbatim_quote":quote,
                 "condition_provenance":"HUMAN_ACCEPTED_SOURCE_VERIFIED_RECOVERY",
             })
         elif status == "NOT_REPORTED":
@@ -1098,7 +1123,7 @@ def validate_condition_decisions_files(
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "condition_decisions_validation_report.json").write_text(
-        json.dumps(report, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+        json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     if not errors:
         accepted_payload = {
@@ -1113,7 +1138,7 @@ def validate_condition_decisions_files(
             "interpretation_boundary":"Only REPORTED entries carry values. NOT_REPORTED carries no numeric value and is an explicit human decision.",
         }
         (output_dir / "condition_decisions_accepted.json").write_text(
-            json.dumps(accepted_payload, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+            json.dumps(accepted_payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
         with (output_dir / "approved_conditions.csv").open("w", encoding="utf-8", newline="") as handle:
             columns = [
