@@ -401,5 +401,43 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
         self.assertEqual(args.command,"validate-condition-decisions")
 
 
+    def test_not_reported_blocked_when_task_has_no_sources(self):
+        import hashlib
+        from dor.chem_literacy import validate_condition_decisions_files
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); source=root/"input.md"; source.write_text("Text",encoding="utf-8")
+            digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            task={"schema_version":"1.0","task_id":"T_EMPTY_SOURCE","paper_id":"p1","observation_ids":["O1"],
+                "source_files":[],"requested_conditions":[{"condition_type":"current_density","observation_ids":["O1"]}]}
+            task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
+            result={"schema_version":"1.0","task_id":"T_EMPTY_SOURCE","paper_id":"p1","source_hashes":{},
+                "field_reviews":[{"condition_type":"current_density","condition_instance_id":"CD1","status":"NOT_FOUND_IN_SEARCH",
+                    "linked_observation_ids":["O1"],"candidate_value":None,"candidate_unit":None,
+                    "source_file":None,"page_or_locator":None,"verbatim_quote":None,"rationale":"No source was available."}]}
+            result_path=root/"result.json"; result_path.write_text(json.dumps(result),encoding="utf-8")
+            recovery_path=root/"recovery.json"
+            recovery=validate_condition_recovery_files(task_path,result_path,root,recovery_path)
+            self.assertFalse(recovery["valid"])
+            # Even a syntactically bound human decision cannot convert absent source access into NOT_REPORTED.
+            recovery_report={"valid":True,"task_id":"T_EMPTY_SOURCE",
+                "task_sha256":hashlib.sha256(task_path.read_bytes()).hexdigest(),
+                "condition_status_proposals":[{"condition_type":"current_density","condition_instance_id":"CD1",
+                    "status":"NOT_FOUND_IN_SEARCH","linked_observation_ids":["O1"]}],
+                "verified_found_proposals":[]}
+            recovery_path.write_text(json.dumps(recovery_report),encoding="utf-8")
+            decisions={"schema_version":"1.0","task_id":"T_EMPTY_SOURCE",
+                "task_sha256":hashlib.sha256(task_path.read_bytes()).hexdigest(),
+                "recovery_validation_sha256":hashlib.sha256(recovery_path.read_bytes()).hexdigest(),
+                "reviewed_by":"reviewer","reviewed_at":"2026-11-11T21:00:00+08:00",
+                "main_text_reviewed":True,"si_review_status":"NOT_AVAILABLE_CONFIRMED",
+                "reviewed_source_files":[],
+                "decisions":[{"condition_type":"current_density","condition_instance_id":"CD1",
+                    "decision":"NOT_REPORTED","linked_observation_ids":["O1"],"rationale":"No source could be checked."}]}
+            decisions_path=root/"decisions.json"; decisions_path.write_text(json.dumps(decisions),encoding="utf-8")
+            report=validate_condition_decisions_files(task_path,recovery_path,decisions_path,root,root/"accepted")
+            self.assertFalse(report["valid"])
+            self.assertTrue(any(item["code"]=="NOT_REPORTED_NO_SOURCE_FILES" for item in report["errors"]))
+
+
 if __name__ == "__main__":
     unittest.main()

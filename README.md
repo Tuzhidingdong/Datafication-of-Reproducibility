@@ -64,3 +64,6 @@ The first real-data pilot is limited to one user-selected primary paper and its 
 The v0.1-foundation branch adds dor ingest-chem-literacy for the aggregate papers[].observations[] JSON and optional Reconciliation Ledger CSV. The adapter preserves repeated measurements, links the two exports only by paper_id + reconciliation_id, reports source disagreements, and writes evidence-aware condition-recovery packets. numeric_target_candidates.csv is a candidate-label inventory, not a ready-to-train feature matrix. See docs/CHEM_LITERACY_INTEGRATION.md.
 
 A condition missing from the extraction is not automatically considered absent from the paper. DOR searches the declared local main text/SI, prepares bounded Worker tasks, verifies proposed quotations against exact source files, and leaves every promotion pending human review.
+
+
+The Chem-Literacy integration also defines a human decision step for recovered experimental conditions. A Worker proposal can be marked REPORTED only after its exact quotation passes source verification and a reviewer accepts it. NOT_REPORTED requires a human-reviewed main text and all available SI with exact source hashes; it cannot be inferred from a missing extraction or failed search. See docs/CHEM_LITERACY_INTEGRATION.md.

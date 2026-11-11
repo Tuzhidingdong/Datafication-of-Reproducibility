@@ -1040,12 +1040,20 @@ def validate_condition_decisions_files(
                 "condition_provenance":"HUMAN_ACCEPTED_SOURCE_VERIFIED_RECOVERY",
             })
         elif status == "NOT_REPORTED":
+            if not expected_sources:
+                errors.append({"code":"NOT_REPORTED_NO_SOURCE_FILES","message":"NOT_REPORTED is not allowed when no paper/SI source files were available to review."})
             if decisions.get("main_text_reviewed") is not True:
                 errors.append({"code":"NOT_REPORTED_MAIN_TEXT_REVIEW_REQUIRED","message":"NOT_REPORTED requires an explicit human confirmation that the complete relevant main text was reviewed."})
+            has_main_source = any("main" in Path(source).name.casefold() for source in expected_sources)
+            has_si_source = any("si" in Path(source).name.casefold() for source in expected_sources)
+            if not has_main_source:
+                errors.append({"code":"NOT_REPORTED_MAIN_SOURCE_MISSING","message":"The recovery task does not contain a declared main-text source file."})
             si_status = decisions.get("si_review_status")
-            if si_status not in {"REVIEWED", "NOT_AVAILABLE_CONFIRMED"}:
-                errors.append({"code":"NOT_REPORTED_SI_REVIEW_REQUIRED","message":"NOT_REPORTED requires SI_REVIEWED or NOT_AVAILABLE_CONFIRMED."})
-            if si_status == "REVIEWED" and not any("si" in Path(source).name.casefold() for source in expected_sources):
+            if has_si_source and si_status != "REVIEWED":
+                errors.append({"code":"NOT_REPORTED_SI_NOT_REVIEWED","message":"A task-declared SI source exists; NOT_REPORTED requires si_review_status=REVIEWED."})
+            if not has_si_source and si_status not in {"NOT_AVAILABLE_CONFIRMED", "REVIEWED"}:
+                errors.append({"code":"NOT_REPORTED_SI_REVIEW_REQUIRED","message":"NOT_REPORTED requires REVIEWED or explicit NOT_AVAILABLE_CONFIRMED for SI."})
+            if si_status == "REVIEWED" and not has_si_source:
                 warnings.append({"code":"SI_REVIEW_SOURCE_NOT_IN_TASK","message":"Reviewer states SI was reviewed, but no SI source file was included in the recovery task source list."})
             missing_reviews = [
                 source for source, digest in expected_sources.items()
