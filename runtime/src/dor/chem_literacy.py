@@ -72,7 +72,81 @@ DEFAULT_CONDITION_PROFILE: dict[str, list[dict[str, Any]]] = {
         {"condition_type":"measurement_method","search_terms":["Arrhenius","EIS","impedance"]},
         {"condition_type":"temperature_range","search_terms":["temperature","°C","K"]},
         {"condition_type":"cell_configuration","search_terms":["symmetric cell","Zn||Zn"]},
+    ],,
+    "FEAT_RCT": [
+        {"condition_type":"cell_configuration","search_terms":["Zn||Zn","Zn||Cu","full cell"]},
+        {"condition_type":"measurement_method","search_terms":["EIS","impedance","equivalent circuit"]},
+        {"condition_type":"measurement_temperature","search_terms":["temperature","°C","K"]},
+        {"condition_type":"electrolyte_composition","search_terms":["electrolyte","ZnSO4","Zn(OTf)2"]}
     ],
+    "FEAT_CONTACT_ANGLE": [
+        {"condition_type":"substrate_surface","search_terms":["zinc foil","substrate","surface treatment"]},
+        {"condition_type":"droplet_liquid","search_terms":["water contact angle","electrolyte droplet","droplet volume"]},
+        {"condition_type":"measurement_method","search_terms":["contact angle","goniometer"]},
+        {"condition_type":"measurement_temperature","search_terms":["temperature","°C"]}
+    ],
+    "FEAT_T_ZN": [
+        {"condition_type":"measurement_method","search_terms":["Bruce-Vincent","transference number","polarization"]},
+        {"condition_type":"measurement_temperature","search_terms":["temperature","°C","K"]},
+        {"condition_type":"cell_configuration","search_terms":["Zn||Zn","symmetric cell"]},
+        {"condition_type":"electrolyte_composition","search_terms":["electrolyte","ZnSO4","Zn(OTf)2"]}
+    ],
+    "FEAT_I_RATIO_XRD": [
+        {"condition_type":"xrd_reflection_definition","search_terms":["I(002)","I(100)","intensity ratio","XRD"]},
+        {"condition_type":"measurement_method","search_terms":["X-ray diffraction","Cu Kα","XRD"]},
+        {"condition_type":"sample_state","search_terms":["zinc foil","deposited zinc","electrode"]}
+    ],
+    "FEAT_ENG_DENS": [
+        {"condition_type":"cell_configuration","search_terms":["full cell","pouch cell","coin cell"]},
+        {"condition_type":"normalization_basis","search_terms":["gravimetric","volumetric","Wh kg","Wh L"]},
+        {"condition_type":"voltage_window","search_terms":["voltage window","cutoff voltage"]},
+        {"condition_type":"mass_or_volume_basis","search_terms":["total cell mass","active material mass","electrode mass"]}
+    ],
+    "FEAT_ROUGH_RA": [
+        {"condition_type":"measurement_method","search_terms":["AFM","atomic force microscopy","profilometer"]},
+        {"condition_type":"scan_area","search_terms":["scan size","scan area","μm ×","nm ×"]},
+        {"condition_type":"sample_state","search_terms":["zinc foil","deposited zinc","electrode surface"]}
+    ],
+    "FEAT_CDL": [
+        {"condition_type":"measurement_method","search_terms":["cyclic voltammetry","CV","scan rate"]},
+        {"condition_type":"potential_window","search_terms":["non-Faradaic","nonfaradaic","potential window"]},
+        {"condition_type":"electrode_area_basis","search_terms":["geometric area","ECSA","electrochemically active surface area"]},
+        {"condition_type":"electrolyte_composition","search_terms":["electrolyte","ZnSO4","Zn(OTf)2"]}
+    ],
+    "FEAT_IO": [
+        {"condition_type":"measurement_method","search_terms":["Tafel","Butler-Volmer","exchange current density"]},
+        {"condition_type":"measurement_temperature","search_terms":["temperature","°C","K"]},
+        {"condition_type":"cell_configuration","search_terms":["Zn||Zn","Zn||Cu","electrode"]},
+        {"condition_type":"electrolyte_composition","search_terms":["electrolyte","ZnSO4","Zn(OTf)2"]}
+    ],
+    "FEAT_LUMO": [
+        {"condition_type":"calculation_method","search_terms":["DFT","functional","basis set","ORCA","Gaussian"]},
+        {"condition_type":"molecular_species","search_terms":["molecule","additive","solvent","anion"]},
+        {"condition_type":"calculation_environment","search_terms":["solvation","implicit solvent","gas phase"]}
+    ],
+    "FEAT_E_MOD": [
+        {"condition_type":"measurement_method","search_terms":["Young's modulus","nanoindentation","tensile test","indentation"]},
+        {"condition_type":"sample_state","search_terms":["dry","hydrated","hydrogel","film"]},
+        {"condition_type":"loading_direction","search_terms":["in-plane","out-of-plane","compression","tension"]}
+    ],
+    "FEAT_MSD_D": [
+        {"condition_type":"simulation_temperature","search_terms":["AIMD","MD simulation","temperature","K"]},
+        {"condition_type":"simulation_duration","search_terms":["trajectory","simulation time","ps","ns"]},
+        {"condition_type":"diffusing_species","search_terms":["Zn2+","water molecule","anion","diffusion"]},
+        {"condition_type":"simulation_method","search_terms":["CP2K","DFT","force field","AIMD"]}
+    ],
+    "FEAT_GAS_EVOL": [
+        {"condition_type":"measurement_method","search_terms":["gas chromatography","pressure sensor","gas evolution","hydrogen"]},
+        {"condition_type":"cell_configuration","search_terms":["Zn||Zn","Zn||Cu","cell"]},
+        {"condition_type":"operating_condition","search_terms":["current density","temperature","cycling"]},
+        {"condition_type":"normalization_basis","search_terms":["per area","per gram","gas volume"]}
+    ],
+    "FEAT_CORR_RATE": [
+        {"condition_type":"calculation_method","search_terms":["Faraday","corrosion current","icorr","corrosion rate"]},
+        {"condition_type":"area_basis","search_terms":["geometric area","ECSA","surface area"]},
+        {"condition_type":"measurement_temperature","search_terms":["temperature","°C","K"]},
+        {"condition_type":"reference_electrode","search_terms":["Ag/AgCl","SCE","vs. Zn"]}
+    ]
 }
 
 
@@ -133,7 +207,7 @@ def _normalize_observation(record: dict[str, Any], origin: str, ordinal: int) ->
     if not isinstance(conditions, dict):
         conditions = {}
     return {
-        "observation_id": _stable_id("DOROBS_", paper_id + "|" + rec_id),
+        "observation_id": _stable_id("DOROBS_", paper_id + "|" + rec_id + "|" + str(ordinal)),
         "source_record_key": paper_id + "|" + rec_id,
         "paper_id": paper_id,
         "doi": _text(record.get("doi")) or None,
@@ -203,23 +277,36 @@ def _merge_ledger(primary: list[dict[str, Any]], ledger: list[dict[str, Any]]) -
     by_key: dict[str, list[int]] = defaultdict(list)
     for index, record in enumerate(primary):
         by_key[record["source_record_key"]].append(index)
+    ledger_key_counts = Counter(record["source_record_key"] for record in ledger)
     issues: list[dict[str, Any]] = []
     merged = [dict(record) for record in primary]
-    compare_fields = ("feature_id", "target_system", "status", "resolved_value", "resolved_unit",
-                      "worker_a_value", "worker_b_value", "worker_a_unit", "worker_b_unit")
+    compare_fields = (
+        "doi", "title", "batch_id", "feature_id", "target_system", "status",
+        "resolved_value", "resolved_unit", "worker_a_value", "worker_a_unit",
+        "worker_b_value", "worker_b_unit", "relative_difference",
+        "requires_human_review", "review_reason",
+        "worker_a_grounding_type", "worker_b_grounding_type",
+    )
     for ledger_record in ledger:
         key = ledger_record["source_record_key"]
         matches = by_key.get(key, [])
-        if len(matches) != 1:
+        ledger_count = ledger_key_counts[key]
+        if len(matches) != 1 or ledger_count != 1:
             issues.append({
                 "issue_code": "LEDGER_KEY_NOT_UNIQUE_OR_NOT_FOUND",
                 "source_record_key": key,
-                "match_count": len(matches),
-                "action": "PRESERVED_WITHOUT_OVERWRITE",
+                "primary_match_count": len(matches),
+                "ledger_match_count": ledger_count,
+                "action": "PRESERVED_AS_SEPARATE_REVIEW_RECORD",
             })
+            extra = dict(ledger_record)
+            extra["source_origin"] = "RECONCILIATION_CSV_AMBIGUOUS" if matches or ledger_count > 1 else "RECONCILIATION_CSV_ONLY"
+            extra["requires_human_review"] = True
+            suffix = "Reconciliation Ledger row could not be uniquely linked to one primary observation."
+            extra["review_reason"] = (str(extra.get("review_reason") or "").strip() + " | " + suffix).strip(" |")
+            merged.append(extra)
             continue
-        index = matches[0]
-        primary_record = merged[index]
+        primary_record = merged[matches[0]]
         for field in compare_fields:
             left, right = primary_record.get(field), ledger_record.get(field)
             if left not in (None, "") and right not in (None, "") and str(left) != str(right):
@@ -231,19 +318,18 @@ def _merge_ledger(primary: list[dict[str, Any]], ledger: list[dict[str, Any]]) -
                     "csv_value": right,
                     "action": "JSON_PRIMARY_RETAINED; REVIEW_REQUIRED",
                 })
+            elif left in (None, "") and right not in (None, ""):
+                primary_record[field] = right
+        if primary_record.get("doi"):
+            primary_record["study_group_id"] = primary_record["doi"]
+            primary_record["study_group_id_source"] = "DOI"
         for field in ("worker_a_evidence", "worker_b_evidence"):
             existing, incoming = primary_record.get(field) or {}, ledger_record.get(field) or {}
             primary_record[field] = {
-                name: existing.get(name) if existing.get(name) not in (None, "") else incoming.get(name)
-                for name in ("file", "location", "quote", "table_reference")
+                key_name: existing.get(key_name) if existing.get(key_name) not in (None, "") else incoming.get(key_name)
+                for key_name in ("file", "location", "quote", "table_reference")
             }
-    for ledger_record in ledger:
-        if ledger_record["source_record_key"] not in by_key:
-            extra = dict(ledger_record)
-            extra["source_origin"] = "RECONCILIATION_CSV_ONLY"
-            merged.append(extra)
     return merged, issues
-
 
 def _safe_number(value: Any) -> float | None:
     if isinstance(value, bool) or value is None:
@@ -476,9 +562,40 @@ def ingest_chem_literacy_files(
             "conflict_count": sum(1 for item in items if item["status"] == "VALUE_CONFLICT"),
             "human_review_count": sum(1 for item in items if item.get("requires_human_review")),
         }
+    metadata_mismatches: list[dict[str, Any]] = []
+    def _metadata_int(value: Any) -> int | None:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+    expected_total = _metadata_int(metadata.get("total_observations_count"))
+    if expected_total is not None and expected_total != len(observations):
+        metadata_mismatches.append({"field":"total_observations_count","expected":expected_total,"observed":len(observations)})
+    expected_papers = _metadata_int(metadata.get("unique_papers_count"))
+    observed_papers = len({item["paper_id"] for item in observations})
+    if expected_papers is not None and expected_papers != observed_papers:
+        metadata_mismatches.append({"field":"unique_papers_count","expected":expected_papers,"observed":observed_papers})
+    expected_features = metadata.get("features_summary")
+    if isinstance(expected_features, dict):
+        observed_features = {feature_id: len(items) for feature_id, items in by_feature.items()}
+        for feature_id in sorted(set(expected_features) | set(observed_features)):
+            expected = _metadata_int(expected_features.get(feature_id))
+            observed = observed_features.get(feature_id, 0)
+            if expected is not None and expected != observed:
+                metadata_mismatches.append({"field":"features_summary","feature_id":feature_id,"expected":expected,"observed":observed})
+    expected_statuses = metadata.get("status_summary")
+    if isinstance(expected_statuses, dict):
+        observed_statuses = dict(status_counts)
+        for status_name in sorted(set(expected_statuses) | set(observed_statuses)):
+            expected = _metadata_int(expected_statuses.get(status_name))
+            observed = observed_statuses.get(status_name, 0)
+            if expected is not None and expected != observed:
+                metadata_mismatches.append({"field":"status_summary","status":status_name,"expected":expected,"observed":observed})
     review_queue = [item for item in observations if item["status"] != "AGREED_MATCH"
                     or item.get("requires_human_review") or item.get("resolved_value") is None]
     target_candidates = [item for item in observations if item["status"] == "AGREED_MATCH"
+                         and not item.get("requires_human_review")
+                         and item.get("source_origin") not in {"RECONCILIATION_CSV_ONLY", "RECONCILIATION_CSV_AMBIGUOUS"}
                          and _safe_number(item.get("resolved_value")) is not None and bool(item.get("resolved_unit"))]
     report = {
         "schema_version": "1.0", "valid": True,
@@ -489,7 +606,14 @@ def ingest_chem_literacy_files(
         "unique_doi_count": len({item["doi"] for item in observations if item.get("doi")}),
         "paper_id_fallback_count": sum(1 for item in observations if not item.get("doi")),
         "feature_count": len(by_feature), "status_counts": dict(sorted(status_counts.items())),
-        "feature_summary": feature_summary, "review_queue_count": len(review_queue),
+        "feature_summary": feature_summary,
+        "metadata_consistency": {
+            "matches": not metadata_mismatches,
+            "mismatch_count": len(metadata_mismatches),
+            "mismatches": metadata_mismatches,
+            "scope_note": "A mismatch may indicate partial input, stale metadata, or a source export discrepancy; imported records are retained for review.",
+        },
+        "review_queue_count": len(review_queue),
         "numeric_target_candidate_count": len(target_candidates),
         "condition_recovery_task_count": len(recovery_tasks),
         "condition_recovery_queue_count": len(condition_queue),
@@ -536,7 +660,7 @@ def ingest_chem_literacy_files(
                 row[field] = json.dumps(row.get(field) or {}, ensure_ascii=False)
             writer.writerow(row)
     queue_columns = ["task_id","paper_id","feature_id","target_system","condition_type","record_count",
-                     "observation_ids","retrieval_status","condition_decision","candidate_excerpt_count","important_boundary"]
+                     "observation_ids","missing_observation_ids","retrieval_status","condition_decision","candidate_excerpt_count","important_boundary"]
     with (output_dir / "condition_recovery_queue.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=queue_columns)
         writer.writeheader()

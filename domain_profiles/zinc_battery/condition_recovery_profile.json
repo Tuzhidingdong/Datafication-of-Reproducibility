@@ -363,6 +363,427 @@
           "Zn||Zn"
         ]
       }
+    ],
+    "FEAT_RCT": [
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "Zn||Zn",
+          "Zn||Cu",
+          "full cell"
+        ]
+      },
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "EIS",
+          "impedance",
+          "equivalent circuit"
+        ]
+      },
+      {
+        "condition_type": "measurement_temperature",
+        "search_terms": [
+          "temperature",
+          "°C",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "electrolyte_composition",
+        "search_terms": [
+          "electrolyte",
+          "ZnSO4",
+          "Zn(OTf)2"
+        ]
+      }
+    ],
+    "FEAT_CONTACT_ANGLE": [
+      {
+        "condition_type": "substrate_surface",
+        "search_terms": [
+          "zinc foil",
+          "substrate",
+          "surface treatment"
+        ]
+      },
+      {
+        "condition_type": "droplet_liquid",
+        "search_terms": [
+          "water contact angle",
+          "electrolyte droplet",
+          "droplet volume"
+        ]
+      },
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "contact angle",
+          "goniometer"
+        ]
+      },
+      {
+        "condition_type": "measurement_temperature",
+        "search_terms": [
+          "temperature",
+          "°C"
+        ]
+      }
+    ],
+    "FEAT_T_ZN": [
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "Bruce-Vincent",
+          "transference number",
+          "polarization"
+        ]
+      },
+      {
+        "condition_type": "measurement_temperature",
+        "search_terms": [
+          "temperature",
+          "°C",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "Zn||Zn",
+          "symmetric cell"
+        ]
+      },
+      {
+        "condition_type": "electrolyte_composition",
+        "search_terms": [
+          "electrolyte",
+          "ZnSO4",
+          "Zn(OTf)2"
+        ]
+      }
+    ],
+    "FEAT_I_RATIO_XRD": [
+      {
+        "condition_type": "xrd_reflection_definition",
+        "search_terms": [
+          "I(002)",
+          "I(100)",
+          "intensity ratio",
+          "XRD"
+        ]
+      },
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "X-ray diffraction",
+          "Cu Kα",
+          "XRD"
+        ]
+      },
+      {
+        "condition_type": "sample_state",
+        "search_terms": [
+          "zinc foil",
+          "deposited zinc",
+          "electrode"
+        ]
+      }
+    ],
+    "FEAT_ENG_DENS": [
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "full cell",
+          "pouch cell",
+          "coin cell"
+        ]
+      },
+      {
+        "condition_type": "normalization_basis",
+        "search_terms": [
+          "gravimetric",
+          "volumetric",
+          "Wh kg",
+          "Wh L"
+        ]
+      },
+      {
+        "condition_type": "voltage_window",
+        "search_terms": [
+          "voltage window",
+          "cutoff voltage"
+        ]
+      },
+      {
+        "condition_type": "mass_or_volume_basis",
+        "search_terms": [
+          "total cell mass",
+          "active material mass",
+          "electrode mass"
+        ]
+      }
+    ],
+    "FEAT_ROUGH_RA": [
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "AFM",
+          "atomic force microscopy",
+          "profilometer"
+        ]
+      },
+      {
+        "condition_type": "scan_area",
+        "search_terms": [
+          "scan size",
+          "scan area",
+          "μm ×",
+          "nm ×"
+        ]
+      },
+      {
+        "condition_type": "sample_state",
+        "search_terms": [
+          "zinc foil",
+          "deposited zinc",
+          "electrode surface"
+        ]
+      }
+    ],
+    "FEAT_CDL": [
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "cyclic voltammetry",
+          "CV",
+          "scan rate"
+        ]
+      },
+      {
+        "condition_type": "potential_window",
+        "search_terms": [
+          "non-Faradaic",
+          "nonfaradaic",
+          "potential window"
+        ]
+      },
+      {
+        "condition_type": "electrode_area_basis",
+        "search_terms": [
+          "geometric area",
+          "ECSA",
+          "electrochemically active surface area"
+        ]
+      },
+      {
+        "condition_type": "electrolyte_composition",
+        "search_terms": [
+          "electrolyte",
+          "ZnSO4",
+          "Zn(OTf)2"
+        ]
+      }
+    ],
+    "FEAT_IO": [
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "Tafel",
+          "Butler-Volmer",
+          "exchange current density"
+        ]
+      },
+      {
+        "condition_type": "measurement_temperature",
+        "search_terms": [
+          "temperature",
+          "°C",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "Zn||Zn",
+          "Zn||Cu",
+          "electrode"
+        ]
+      },
+      {
+        "condition_type": "electrolyte_composition",
+        "search_terms": [
+          "electrolyte",
+          "ZnSO4",
+          "Zn(OTf)2"
+        ]
+      }
+    ],
+    "FEAT_LUMO": [
+      {
+        "condition_type": "calculation_method",
+        "search_terms": [
+          "DFT",
+          "functional",
+          "basis set",
+          "ORCA",
+          "Gaussian"
+        ]
+      },
+      {
+        "condition_type": "molecular_species",
+        "search_terms": [
+          "molecule",
+          "additive",
+          "solvent",
+          "anion"
+        ]
+      },
+      {
+        "condition_type": "calculation_environment",
+        "search_terms": [
+          "solvation",
+          "implicit solvent",
+          "gas phase"
+        ]
+      }
+    ],
+    "FEAT_E_MOD": [
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "Young's modulus",
+          "nanoindentation",
+          "tensile test",
+          "indentation"
+        ]
+      },
+      {
+        "condition_type": "sample_state",
+        "search_terms": [
+          "dry",
+          "hydrated",
+          "hydrogel",
+          "film"
+        ]
+      },
+      {
+        "condition_type": "loading_direction",
+        "search_terms": [
+          "in-plane",
+          "out-of-plane",
+          "compression",
+          "tension"
+        ]
+      }
+    ],
+    "FEAT_MSD_D": [
+      {
+        "condition_type": "simulation_temperature",
+        "search_terms": [
+          "AIMD",
+          "MD simulation",
+          "temperature",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "simulation_duration",
+        "search_terms": [
+          "trajectory",
+          "simulation time",
+          "ps",
+          "ns"
+        ]
+      },
+      {
+        "condition_type": "diffusing_species",
+        "search_terms": [
+          "Zn2+",
+          "water molecule",
+          "anion",
+          "diffusion"
+        ]
+      },
+      {
+        "condition_type": "simulation_method",
+        "search_terms": [
+          "CP2K",
+          "DFT",
+          "force field",
+          "AIMD"
+        ]
+      }
+    ],
+    "FEAT_GAS_EVOL": [
+      {
+        "condition_type": "measurement_method",
+        "search_terms": [
+          "gas chromatography",
+          "pressure sensor",
+          "gas evolution",
+          "hydrogen"
+        ]
+      },
+      {
+        "condition_type": "cell_configuration",
+        "search_terms": [
+          "Zn||Zn",
+          "Zn||Cu",
+          "cell"
+        ]
+      },
+      {
+        "condition_type": "operating_condition",
+        "search_terms": [
+          "current density",
+          "temperature",
+          "cycling"
+        ]
+      },
+      {
+        "condition_type": "normalization_basis",
+        "search_terms": [
+          "per area",
+          "per gram",
+          "gas volume"
+        ]
+      }
+    ],
+    "FEAT_CORR_RATE": [
+      {
+        "condition_type": "calculation_method",
+        "search_terms": [
+          "Faraday",
+          "corrosion current",
+          "icorr",
+          "corrosion rate"
+        ]
+      },
+      {
+        "condition_type": "area_basis",
+        "search_terms": [
+          "geometric area",
+          "ECSA",
+          "surface area"
+        ]
+      },
+      {
+        "condition_type": "measurement_temperature",
+        "search_terms": [
+          "temperature",
+          "°C",
+          "K"
+        ]
+      },
+      {
+        "condition_type": "reference_electrode",
+        "search_terms": [
+          "Ag/AgCl",
+          "SCE",
+          "vs. Zn"
+        ]
+      }
     ]
   }
 }

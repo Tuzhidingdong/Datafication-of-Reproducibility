@@ -228,5 +228,59 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
             self.assertTrue(any(item["code"]=="CONDITION_OBSERVATION_COVERAGE_INCOMPLETE" for item in report["errors"]))
 
 
+    def test_ledger_fills_missing_json_fields_and_preserves_conflicting_primary_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); database=root/"db.json"
+            database.write_text(json.dumps({"papers":[{"paper_id":"p1","observations":[{
+                "reconciliation_id":"R1","feature_id":"FEAT_CE","status":"PASS_A_ONLY",
+                "worker_a_value":99.5,"resolved_value":None,"resolved_unit":None,
+            }]}]}),encoding="utf-8")
+            ledger=root/"ledger.csv"
+            self._csv(ledger,[{"paper_id":"p1","reconciliation_id":"R1","feature_id":"FEAT_CE",
+                "status":"PASS_A_ONLY","worker_a_value":"99.5","resolved_value":"99.5",
+                "resolved_unit":"%","requires_human_review":"True",
+                "evidence_file_a":"main_analysis.md","verbatim_quote_a":"CE was 99.5%."}])
+            output=root/"out"; ingest_chem_literacy_files(database,None,ledger,None,output)
+            with (output/"observations_normalized.csv").open(encoding="utf-8",newline="") as handle:
+                row=next(csv.DictReader(handle))
+            self.assertEqual(row["resolved_value"],"99.5")
+            self.assertEqual(row["resolved_unit"],"%")
+            self.assertIn("CE was 99.5%",json.loads(row["worker_a_evidence"])["quote"])
+
+    def test_metadata_mismatch_is_reported_without_discarding_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); database=root/"db.json"
+            database.write_text(json.dumps({"metadata":{"unique_papers_count":3,"total_observations_count":100},
+                "papers":[{"paper_id":"p1","observations":[{"reconciliation_id":"R1",
+                "feature_id":"FEAT_CE","status":"PASS_A_ONLY","worker_a_value":99.5}]}]}),encoding="utf-8")
+            output=root/"out"; ingest_chem_literacy_files(database,None,None,None,output)
+            report=json.loads((output/"data_quality_report.json").read_text(encoding="utf-8"))
+            self.assertFalse(report["metadata_consistency"]["matches"])
+            self.assertEqual(report["observation_count"],1)
+            self.assertGreaterEqual(report["metadata_consistency"]["mismatch_count"],2)
+
+    def test_partial_structured_condition_only_requests_missing_observation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); database=root/"db.json"
+            database.write_text(json.dumps({"papers":[{"paper_id":"p1","doi":"10.1/p1","observations":[
+                {"reconciliation_id":"R1","feature_id":"FEAT_CE","target_system":"Zn||Cu","status":"AGREED_MATCH",
+                 "resolved_value":99.5,"resolved_unit":"%","measurement_conditions":{"current_density":{"value":1,"unit":"mA cm-2"}}},
+                {"reconciliation_id":"R2","feature_id":"FEAT_CE","target_system":"Zn||Cu","status":"AGREED_MATCH",
+                 "resolved_value":99.6,"resolved_unit":"%"},
+            ]}]}),encoding="utf-8")
+            paper=root/"sources"/"p1"; paper.mkdir(parents=True)
+            (paper/"main_analysis.md").write_text("Current density of 2 mA cm-2 was used for the second sample.",encoding="utf-8")
+            output=root/"out"; ingest_chem_literacy_files(database,None,None,root/"sources",output)
+            tasks=json.loads((output/"condition_recovery_tasks.json").read_text(encoding="utf-8"))["tasks"]
+            task=next(item for item in tasks if item["feature_id"]=="FEAT_CE")
+            current=next(item for item in task["requested_conditions"] if item["condition_type"]=="current_density")
+            self.assertEqual(len(current["observation_ids"]),1)
+            with (output/"condition_recovery_queue.csv").open(encoding="utf-8",newline="") as handle:
+                queue=list(csv.DictReader(handle))
+            row=next(item for item in queue if item["condition_type"]=="current_density")
+            self.assertEqual(row["retrieval_status"],"PARTIALLY_PRESENT_IN_STRUCTURED_DATA")
+            self.assertEqual(row["missing_observation_ids"],current["observation_ids"][0])
+
+
 if __name__ == "__main__":
     unittest.main()
