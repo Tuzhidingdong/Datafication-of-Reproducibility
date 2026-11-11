@@ -92,6 +92,19 @@ def _first(record: dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def _as_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    token = str(value).strip().casefold()
+    if token in {"true", "1", "yes", "y"}:
+        return True
+    if token in {"false", "0", "no", "n", ""}:
+        return False
+    return default
+
+
 def _evidence(record: dict[str, Any], side: str) -> dict[str, Any]:
     nested = record.get("worker_" + side.lower() + "_evidence")
     if isinstance(nested, dict):
@@ -139,7 +152,7 @@ def _normalize_observation(record: dict[str, Any], origin: str, ordinal: int) ->
         "worker_b_value": record.get("worker_b_value"),
         "worker_b_unit": _text(record.get("worker_b_unit")) or None,
         "relative_difference": record.get("relative_difference"),
-        "requires_human_review": bool(record.get("requires_human_review", status != "AGREED_MATCH")),
+        "requires_human_review": _as_bool(record.get("requires_human_review"), status != "AGREED_MATCH"),
         "review_reason": _text(record.get("review_reason")) or None,
         "worker_a_evidence": _evidence(record, "A"),
         "worker_b_evidence": _evidence(record, "B"),
@@ -246,14 +259,16 @@ def _resolve_paper_files(source_root: Path, paper_id: str, records: list[dict[st
     candidates: list[Path] = []
     paper_dir = source_root / paper_id
     for relative in ("main_analysis.md", "si_analysis.md"):
-        candidates.append(paper_dir / relative)
+        candidates.extend((paper_dir / relative, paper_dir / "01_preprocessing" / relative,
+                           paper_dir / "preprocessed" / relative))
     for record in records:
         for evidence_field in ("worker_a_evidence", "worker_b_evidence"):
             evidence_file = (record.get(evidence_field) or {}).get("file")
             if evidence_file:
                 relative = Path(str(evidence_file))
                 if not relative.is_absolute() and ".." not in relative.parts:
-                    candidates.extend((paper_dir / relative, source_root / relative))
+                    candidates.extend((paper_dir / relative, paper_dir / "01_preprocessing" / relative,
+                                       paper_dir / "preprocessed" / relative, source_root / relative))
     resolved: list[Path] = []
     seen: set[Path] = set()
     root = source_root.resolve()
@@ -407,6 +422,12 @@ def ingest_chem_literacy_files(
                 "feature_id": feature_id, "target_system": target_system,
                 "observation_ids": [item["observation_id"] for item in group_records],
                 "source_files": [{"path": str(path), "sha256": source_hashes[str(path)]} for path, _ in loaded_files],
+                "source_evidence_anchors": [
+                    {"observation_id": item["observation_id"],
+                     "worker_a_evidence": item.get("worker_a_evidence"),
+                     "worker_b_evidence": item.get("worker_b_evidence")}
+                    for item in group_records
+                ],
                 "requested_conditions": requested_fields,
                 "worker_instructions": [
                     "Search only the declared source paper and SI files for each requested condition.",
