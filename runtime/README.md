@@ -228,3 +228,19 @@ Use --database-csv instead when the flattened observation CSV is the only primar
 The import creates normalized observations, a reconciliation review queue, numeric agreed-label candidates, and feature-specific condition-recovery packets. These label candidates are not a ready-to-train matrix. Do not pivot repeated feature/system records unless an explicit experiment/condition identity makes matching unambiguous.
 
 For missing experimental conditions, DOR distinguishes information absent from the extraction from information absent from the paper. It searches bounded excerpts in the declared paper/SI files and prepares Worker task packets. A failed keyword search is NOT_ASSESSED, never NOT_REPORTED. Only explicit review after checking relevant main text and SI can establish NOT_REPORTED. See ../docs/CHEM_LITERACY_INTEGRATION.md.
+
+
+### Validate condition-recovery decisions
+
+After a Worker recovery proposal passes source hash and exact-quotation checks, prepare a human decision record using ../schemas/condition_decisions.schema.json and run:
+
+~~~bash
+dor validate-condition-decisions \
+  --task condition_recovery_task.json \
+  --recovery-validation condition_recovery_validation_report.json \
+  --decisions human_condition_decisions.json \
+  --source-root path/to/chem_literacy/preprocessed \
+  --out-dir path/to/new/derived/condition_decisions
+~~~
+
+The command writes condition_decisions_validation_report.json and, only when valid, condition_decisions_accepted.json plus approved_conditions.csv. It does not edit source data or the imported observations. REPORTED values must exactly match source-verified Worker proposals. NOT_REPORTED requires human confirmation that the full main text and all available SI were checked, plus exact source hashes and review scope. Other states remain explicit non-values.

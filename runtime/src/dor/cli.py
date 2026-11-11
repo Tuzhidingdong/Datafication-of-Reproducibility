@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
-from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files
+from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files, validate_condition_decisions_files
 from dor.cohort import build_modeling_cohort_files
 from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
@@ -83,6 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
     recover_validate.add_argument("--result", type=Path, required=True, help="Worker condition recovery proposal JSON")
     recover_validate.add_argument("--source-root", type=Path, required=True, help="Protected source root containing the task-declared paper/SI files")
     recover_validate.add_argument("--out", type=Path, required=True, help="Validation report path outside source_root")
+    condition_decisions = subparsers.add_parser("validate-condition-decisions", help="Validate explicit human decisions and export approved recovered conditions")
+    condition_decisions.add_argument("--task", type=Path, required=True, help="Exact condition recovery task packet")
+    condition_decisions.add_argument("--recovery-validation", type=Path, required=True, help="Source-hash and quotation validation report")
+    condition_decisions.add_argument("--decisions", type=Path, required=True, help="Human-reviewed condition decision record")
+    condition_decisions.add_argument("--source-root", type=Path, required=True, help="Protected source root containing task-declared paper/SI files")
+    condition_decisions.add_argument("--out-dir", type=Path, required=True, help="New or empty decision output directory")
     audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
     audit.add_argument("--csv", type=Path, help="Path to a source CSV file")
     audit.add_argument("--json", type=Path, help="Path to a source JSON file")
@@ -383,6 +389,15 @@ def main() -> int:
             print(json.dumps({"valid":report["valid"],"task_id":report["task_id"],
                 "verified_found_proposals":report["evidence_quotes_verified_count"],
                 "promotion_status":report["promotion_status"],"errors":report["errors"]},ensure_ascii=False,indent=2))
+            return 0 if report["valid"] else 2
+        if args.command == "validate-condition-decisions":
+            report = validate_condition_decisions_files(
+                args.task, args.recovery_validation, args.decisions, args.source_root, args.out_dir
+            )
+            print(json.dumps({"valid":report["valid"],"task_id":report["task_id"],
+                "accepted_reported_count":report["accepted_reported_count"],
+                "accepted_not_reported_count":report["accepted_not_reported_count"],
+                "errors":report["errors"]},ensure_ascii=False,indent=2))
             return 0 if report["valid"] else 2
         if args.command == "audit":
             result = run_audit(args.csv, args.json, args.out)

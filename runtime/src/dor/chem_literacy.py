@@ -5,6 +5,7 @@ an unobserved condition is NOT_REPORTED, or silently promotes a candidate value.
 """
 from __future__ import annotations
 import csv, hashlib, json, math, re
+from datetime import datetime
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -445,8 +446,8 @@ def ingest_chem_literacy_files(
     for path in inputs:
         if not path.is_file():
             raise FileNotFoundError("Input file does not exist: " + str(path))
-        if output_dir == path:
-            raise ValueError("Output directory cannot replace an input file.")
+        if output_dir == path or path.is_relative_to(output_dir):
+            raise ValueError("Output directory cannot contain or replace an input file.")
     before_hashes = {str(path): sha256_file(path) for path in inputs}
     if database_json is not None:
         metadata, observations = _load_json_observations(database_json.expanduser().resolve())
@@ -742,6 +743,8 @@ def validate_condition_recovery_files(
         raise FileNotFoundError("Condition-recovery source root does not exist.")
     if output_path.is_relative_to(source_root):
         raise ValueError("Condition-recovery validation output must be outside the protected source root.")
+    if output_path in {task_path, result_path}:
+        raise ValueError("Condition-recovery validation output cannot replace its task or Worker result.")
     task_hash = sha256_file(task_path)
     result_hash = sha256_file(result_path)
     task = json.loads(task_path.read_text(encoding="utf-8-sig"))
@@ -887,4 +890,236 @@ def validate_condition_recovery_files(
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return report
+
+
+def validate_condition_decisions_files(
+    task_path: Path,
+    recovery_validation_path: Path,
+    decisions_path: Path,
+    source_root: Path,
+    output_dir: Path,
+) -> dict[str, Any]:
+    """Validate explicit human decisions and export a hash-bound condition table.
+
+    This operation never edits the original Chem-Literacy database or normalized observations.
+    Only REPORTED decisions with a source-verified FOUND proposal export a value. NOT_REPORTED
+    requires explicit human attestation that the main text and all available SI were checked.
+    """
+    task_path = task_path.expanduser().resolve()
+    recovery_validation_path = recovery_validation_path.expanduser().resolve()
+    decisions_path = decisions_path.expanduser().resolve()
+    source_root = source_root.expanduser().resolve()
+    output_dir = output_dir.expanduser().resolve()
+    protected_files = {task_path, recovery_validation_path, decisions_path}
+    if not all(path.is_file() for path in protected_files):
+        raise FileNotFoundError("Task, recovery validation report, and human decisions file must exist.")
+    if not source_root.is_dir():
+        raise FileNotFoundError("Condition-decision source root does not exist.")
+    if output_dir.is_relative_to(source_root) or any(path.is_relative_to(output_dir) for path in protected_files):
+        raise ValueError("Condition-decision output must be separate from protected sources and input files.")
+    if output_dir.exists() and (not output_dir.is_dir() or any(output_dir.iterdir())):
+        raise FileExistsError("Condition-decision output directory must be new or empty.")
+
+    task_sha = sha256_file(task_path)
+    validation_sha = sha256_file(recovery_validation_path)
+    decisions_sha = sha256_file(decisions_path)
+    task = json.loads(task_path.read_text(encoding="utf-8-sig"))
+    validation = json.loads(recovery_validation_path.read_text(encoding="utf-8-sig"))
+    decisions = json.loads(decisions_path.read_text(encoding="utf-8-sig"))
+    if not all(isinstance(item, dict) for item in (task, validation, decisions)):
+        raise ValueError("Task, recovery validation report, and human decision record must be JSON objects.")
+
+    errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+    if validation.get("valid") is not True:
+        errors.append({"code":"RECOVERY_VALIDATION_NOT_VALID","message":"The condition-recovery report is not valid; resolve its errors first."})
+    if validation.get("task_sha256") != task_sha or validation.get("task_id") != task.get("task_id"):
+        errors.append({"code":"RECOVERY_TASK_HASH_MISMATCH","message":"Recovery validation report is not bound to the exact task file."})
+    if decisions.get("schema_version") != "1.0":
+        errors.append({"code":"DECISION_SCHEMA_VERSION","message":"Expected schema_version 1.0."})
+    if decisions.get("task_id") != task.get("task_id") or decisions.get("task_sha256") != task_sha:
+        errors.append({"code":"DECISION_TASK_BINDING","message":"Human decision record does not bind to the exact task ID and SHA-256."})
+    if decisions.get("recovery_validation_sha256") != validation_sha:
+        errors.append({"code":"DECISION_VALIDATION_BINDING","message":"Human decision record does not bind to the exact recovery-validation report SHA-256."})
+    reviewer = str(decisions.get("reviewed_by", "")).strip()
+    reviewed_at = str(decisions.get("reviewed_at", "")).strip()
+    if not reviewer:
+        errors.append({"code":"REVIEWER_REQUIRED","message":"reviewed_by is required."})
+    try:
+        parsed_time = datetime.fromisoformat(reviewed_at.replace("Z", "+00:00"))
+        if parsed_time.tzinfo is None:
+            raise ValueError("timezone missing")
+    except ValueError:
+        errors.append({"code":"REVIEWED_AT_INVALID","message":"reviewed_at must be an ISO-8601 timestamp with an explicit timezone."})
+
+    task_sources = task.get("source_files") if isinstance(task.get("source_files"), list) else []
+    expected_sources = {
+        str(Path(item["path"]).resolve()): item.get("sha256")
+        for item in task_sources if isinstance(item, dict) and item.get("path")
+    }
+    for source, digest in expected_sources.items():
+        path = Path(source)
+        if not path.is_file() or not path.is_relative_to(source_root):
+            errors.append({"code":"SOURCE_UNAVAILABLE_OR_OUTSIDE_ROOT","message":"Task source is unavailable or outside source_root: " + source})
+        elif sha256_file(path) != digest:
+            errors.append({"code":"SOURCE_CHANGED","message":"Task source changed after condition recovery: " + source)
+
+    reviewed_sources = decisions.get("reviewed_source_files") if isinstance(decisions.get("reviewed_source_files"), list) else []
+    reviewed_source_map = {
+        str(Path(item.get("path", "")).resolve()): item
+        for item in reviewed_sources if isinstance(item, dict) and item.get("path")
+    }
+    proposals = validation.get("condition_status_proposals") if isinstance(validation.get("condition_status_proposals"), list) else []
+    proposal_map = {
+        (str(item.get("condition_type")), str(item.get("condition_instance_id"))): item
+        for item in proposals if isinstance(item, dict)
+    }
+    found_proposals = validation.get("verified_found_proposals") if isinstance(validation.get("verified_found_proposals"), list) else []
+    found_map = {
+        (str(item.get("condition_type")), str(item.get("condition_instance_id"))): item
+        for item in found_proposals if isinstance(item, dict)
+    }
+    decision_rows = decisions.get("decisions") if isinstance(decisions.get("decisions"), list) else []
+    seen: set[tuple[str, str]] = set()
+    accepted: list[dict[str, Any]] = []
+    allowed = {"REPORTED", "NOT_REPORTED", "AMBIGUOUS", "NOT_ASSESSED"}
+    for index, decision in enumerate(decision_rows):
+        if not isinstance(decision, dict):
+            errors.append({"code":"DECISION_NOT_OBJECT","message":f"decisions[{index}] must be an object."})
+            continue
+        condition_type = str(decision.get("condition_type", "")).strip()
+        instance_id = str(decision.get("condition_instance_id", "")).strip()
+        key = (condition_type, instance_id)
+        if key in seen:
+            errors.append({"code":"DUPLICATE_HUMAN_DECISION","message":f"Duplicate decision for {condition_type}/{instance_id}."})
+            continue
+        seen.add(key)
+        proposal = proposal_map.get(key)
+        if proposal is None:
+            errors.append({"code":"DECISION_NOT_IN_RECOVERY_PACKET","message":f"Decision {condition_type}/{instance_id} was not in the validated recovery packet."})
+            continue
+        linked = decision.get("linked_observation_ids")
+        expected_linked = proposal.get("linked_observation_ids", [])
+        if not isinstance(linked, list) or set(linked) != set(expected_linked):
+            errors.append({"code":"DECISION_OBSERVATION_LINK_MISMATCH","message":f"Decision {condition_type}/{instance_id} must preserve the exact observation links from the recovery proposal."})
+            continue
+        status = decision.get("decision")
+        rationale = str(decision.get("rationale", "")).strip()
+        if status not in allowed:
+            errors.append({"code":"DECISION_STATUS_INVALID","message":f"Unsupported decision for {condition_type}/{instance_id}: {status}"})
+            continue
+        if not rationale:
+            errors.append({"code":"DECISION_RATIONALE_REQUIRED","message":f"Decision {condition_type}/{instance_id} requires a rationale."})
+            continue
+        output_item: dict[str, Any] = {
+            "condition_type":condition_type,
+            "condition_instance_id":instance_id,
+            "decision":status,
+            "linked_observation_ids":linked,
+            "rationale":rationale,
+            "reviewed_by":reviewer,
+            "reviewed_at":reviewed_at,
+            "task_sha256":task_sha,
+            "recovery_validation_sha256":validation_sha,
+        }
+        if status == "REPORTED":
+            found = found_map.get(key)
+            if found is None:
+                errors.append({"code":"REPORTED_WITHOUT_VERIFIED_FOUND","message":f"REPORTED decision for {condition_type}/{instance_id} has no source-verified FOUND proposal."})
+                continue
+            if set(found.get("linked_observation_ids", [])) != set(linked):
+                errors.append({"code":"REPORTED_LINK_MISMATCH","message":f"REPORTED decision for {condition_type}/{instance_id} does not match verified evidence links."})
+                continue
+            output_item.update({
+                "value":found.get("candidate_value"),
+                "unit":found.get("candidate_unit"),
+                "source_file":found.get("source_file"),
+                "page_or_locator":found.get("page_or_locator"),
+                "verbatim_quote":found.get("verbatim_quote"),
+                "condition_provenance":"HUMAN_ACCEPTED_SOURCE_VERIFIED_RECOVERY",
+            })
+        elif status == "NOT_REPORTED":
+            if decisions.get("main_text_reviewed") is not True:
+                errors.append({"code":"NOT_REPORTED_MAIN_TEXT_REVIEW_REQUIRED","message":"NOT_REPORTED requires an explicit human confirmation that the complete relevant main text was reviewed."})
+            si_status = decisions.get("si_review_status")
+            if si_status not in {"REVIEWED", "NOT_AVAILABLE_CONFIRMED"}:
+                errors.append({"code":"NOT_REPORTED_SI_REVIEW_REQUIRED","message":"NOT_REPORTED requires SI_REVIEWED or NOT_AVAILABLE_CONFIRMED."})
+            if si_status == "REVIEWED" and not any("si" in Path(source).name.casefold() for source in expected_sources):
+                warnings.append({"code":"SI_REVIEW_SOURCE_NOT_IN_TASK","message":"Reviewer states SI was reviewed, but no SI source file was included in the recovery task source list."})
+            missing_reviews = [
+                source for source, digest in expected_sources.items()
+                if source not in reviewed_source_map
+                or reviewed_source_map[source].get("sha256") != digest
+                or not str(reviewed_source_map[source].get("review_scope", "")).strip()
+            ]
+            if missing_reviews:
+                errors.append({"code":"NOT_REPORTED_SOURCE_COVERAGE_INCOMPLETE","message":"NOT_REPORTED requires a reviewed_source_files entry with exact hash and review_scope for every task source: " + ", ".join(missing_reviews)})
+            output_item.update({
+                "value":None, "unit":None, "source_file":None, "page_or_locator":None,
+                "verbatim_quote":None, "condition_provenance":"HUMAN_REVIEWED_NOT_REPORTED",
+            })
+        else:
+            output_item.update({
+                "value":None, "unit":None, "source_file":None, "page_or_locator":None,
+                "verbatim_quote":None, "condition_provenance":"HUMAN_REVIEWED_" + status,
+            })
+        accepted.append(output_item)
+
+    missing_decisions = set(proposal_map) - seen
+    if missing_decisions:
+        errors.append({"code":"HUMAN_DECISION_COVERAGE_INCOMPLETE","message":"Missing decisions for recovery instances: " + ", ".join(f"{a}/{b}" for a,b in sorted(missing_decisions))})
+
+    report = {
+        "schema_version":"1.0",
+        "valid":not errors,
+        "task_id":task.get("task_id"),
+        "task_sha256":task_sha,
+        "recovery_validation_sha256":validation_sha,
+        "decisions_sha256":decisions_sha,
+        "reviewed_by":reviewer or None,
+        "reviewed_at":reviewed_at or None,
+        "decision_count":len(decision_rows),
+        "accepted_reported_count":sum(1 for item in accepted if item["decision"] == "REPORTED"),
+        "accepted_not_reported_count":sum(1 for item in accepted if item["decision"] == "NOT_REPORTED"),
+        "accepted_ambiguous_count":sum(1 for item in accepted if item["decision"] == "AMBIGUOUS"),
+        "accepted_not_assessed_count":sum(1 for item in accepted if item["decision"] == "NOT_ASSESSED"),
+        "errors":errors,
+        "warnings":warnings,
+        "identity_boundary":"Reviewer labels are self-declared metadata, not cryptographically authenticated identity.",
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "condition_decisions_validation_report.json").write_text(
+        json.dumps(report, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+    )
+    if not errors:
+        accepted_payload = {
+            "schema_version":"1.0",
+            "task_id":task.get("task_id"),
+            "task_sha256":task_sha,
+            "recovery_validation_sha256":validation_sha,
+            "decisions_sha256":decisions_sha,
+            "reviewed_by":reviewer,
+            "reviewed_at":reviewed_at,
+            "conditions":accepted,
+            "interpretation_boundary":"Only REPORTED entries carry values. NOT_REPORTED carries no numeric value and is an explicit human decision.",
+        }
+        (output_dir / "condition_decisions_accepted.json").write_text(
+            json.dumps(accepted_payload, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+        )
+        with (output_dir / "approved_conditions.csv").open("w", encoding="utf-8", newline="") as handle:
+            columns = [
+                "condition_type","condition_instance_id","decision","observation_id",
+                "value","unit","source_file","page_or_locator","verbatim_quote",
+                "reviewed_by","reviewed_at","rationale","condition_provenance",
+            ]
+            writer = csv.DictWriter(handle, fieldnames=columns)
+            writer.writeheader()
+            for item in accepted:
+                linked = item.get("linked_observation_ids", [])
+                for observation_id in linked:
+                    writer.writerow({
+                        **{key:item.get(key) for key in columns if key != "observation_id"},
+                        "observation_id":observation_id,
+                    })
     return report

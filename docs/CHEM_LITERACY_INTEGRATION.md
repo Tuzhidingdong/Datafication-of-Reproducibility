@@ -68,3 +68,21 @@ Only observations that can be matched to the same explicitly identified experime
 ## Integrity note
 
 DOR imports upstream Chem-Literacy status labels as provenance; it does not assume AGREED_MATCH proves semantic equivalence, compatible units, or correct Worker matching. The upstream data and reconciler should be independently tested for repeated measurements and unit compatibility before agreement statistics are interpreted scientifically.
+
+
+## Human decision and condition promotion
+
+A source-verified Worker proposal is not yet an accepted experimental condition. After reviewing the exact quoted source and observation linkage, prepare a human decision JSON from schemas/condition_decisions.schema.json. REPORTED must point to an exact verified FOUND condition instance. NOT_REPORTED is accepted only when the reviewer attests that the main text and all available SI were checked and supplies the exact hashes and review scope for every task source. AMBIGUOUS and NOT_ASSESSED remain explicit non-values.
+
+Validate the decision record:
+
+~~~bash
+dor validate-condition-decisions \
+  --task condition_recovery_task.json \
+  --recovery-validation condition_recovery_validation_report.json \
+  --decisions human_condition_decisions.json \
+  --source-root path/to/chem_literacy/preprocessed \
+  --out-dir path/to/new/derived/condition_decisions
+~~~
+
+A valid decision creates condition_decisions_accepted.json and approved_conditions.csv. The CSV has one row per linked Observation ID; only REPORTED rows carry a value/unit. NOT_REPORTED, AMBIGUOUS, and NOT_ASSESSED never receive synthetic numeric values. These are separate derived artifacts; the original Chem-Literacy files and normalized observations remain unchanged. Reviewer identity is self-declared provenance, not cryptographic authentication.

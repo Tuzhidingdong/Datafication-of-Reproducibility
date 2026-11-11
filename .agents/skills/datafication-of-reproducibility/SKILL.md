@@ -323,3 +323,6 @@ Reconciliation PASS is blocked until all CRITICAL and REVIEW_REQUIRED queue item
 
 
 For `publication_handoff`, the evidence descriptor for `publication_package_manifest` must point to the package-root `package_manifest.json`; the `publication_integrity_report` must be stored outside that package directory. The acceptance validator independently executes the existing package auditor on the exact package directory and compares the fresh result with the stored report: guide hash, every indexed artifact hash, missing/extra files, path containment, artifact status, and completeness. A report that merely says `valid=true` cannot pass if the package has changed. Manifest completeness and unresolved_items are also recomputed from artifact statuses.
+
+
+After a condition-recovery proposal passes source/hash/quote validation, do not use its values in analysis until explicit human decisions are prepared and pass dor validate-condition-decisions. The accepted approved_conditions.csv is a separate observation-linked artifact; raw Chem-Literacy data remain immutable. NOT_REPORTED is a human conclusion after reviewing the complete main text and all available SI, not an LLM search outcome.

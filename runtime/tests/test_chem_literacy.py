@@ -315,5 +315,91 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
                 self.assertEqual(list(csv.DictReader(handle)),[])
 
 
+    def test_condition_decision_accepts_only_verified_reported_values(self):
+        import hashlib
+        from dor.chem_literacy import validate_condition_decisions_files
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); paper=root/"sources"/"p1"; paper.mkdir(parents=True)
+            source=paper/"main_analysis.md"
+            source.write_text("Current density was 1 mA cm-2.",encoding="utf-8")
+            digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            task={"schema_version":"1.0","task_id":"T_ACCEPT","paper_id":"p1","observation_ids":["O1"],
+                "source_files":[{"path":str(source),"sha256":digest}],
+                "requested_conditions":[{"condition_type":"current_density","observation_ids":["O1"],"search_terms":["current density"]}]}
+            task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
+            result={"schema_version":"1.0","task_id":"T_ACCEPT","paper_id":"p1","source_hashes":{str(source):digest},
+                "field_reviews":[{"condition_type":"current_density","condition_instance_id":"CD1","status":"FOUND",
+                    "linked_observation_ids":["O1"],"candidate_value":1,"candidate_unit":"mA cm-2",
+                    "source_file":str(source),"page_or_locator":"Page 2","verbatim_quote":"Current density was 1 mA cm-2.",
+                    "rationale":"Explicit measurement condition."}]}
+            result_path=root/"result.json"; result_path.write_text(json.dumps(result),encoding="utf-8")
+            recovery_report_path=root/"recovery_validation.json"
+            recovery=validate_condition_recovery_files(task_path,result_path,root/"sources",recovery_report_path)
+            self.assertTrue(recovery["valid"],recovery["errors"])
+            decision={
+                "schema_version":"1.0","task_id":"T_ACCEPT","task_sha256":hashlib.sha256(task_path.read_bytes()).hexdigest(),
+                "recovery_validation_sha256":hashlib.sha256(recovery_report_path.read_bytes()).hexdigest(),
+                "reviewed_by":"reviewer","reviewed_at":"2026-11-11T21:00:00+08:00",
+                "main_text_reviewed":True,"si_review_status":"NOT_AVAILABLE_CONFIRMED",
+                "reviewed_source_files":[{"path":str(source),"sha256":digest,"review_scope":"Relevant methods and results sections checked."}],
+                "decisions":[{"condition_type":"current_density","condition_instance_id":"CD1","decision":"REPORTED",
+                    "linked_observation_ids":["O1"],"rationale":"Verified against exact source quotation."}]}
+            decision_path=root/"decisions.json"; decision_path.write_text(json.dumps(decision),encoding="utf-8")
+            output=root/"accepted"
+            report=validate_condition_decisions_files(task_path,recovery_report_path,decision_path,root/"sources",output)
+            self.assertTrue(report["valid"],report["errors"])
+            self.assertEqual(report["accepted_reported_count"],1)
+            with (output/"approved_conditions.csv").open(encoding="utf-8",newline="") as handle:
+                row=next(csv.DictReader(handle))
+            self.assertEqual(row["decision"],"REPORTED")
+            self.assertEqual(row["value"],"1")
+            self.assertEqual(row["observation_id"],"O1")
+
+    def test_not_reported_requires_human_review_of_main_text_and_all_task_sources(self):
+        import hashlib
+        from dor.chem_literacy import validate_condition_decisions_files
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); paper=root/"sources"/"p1"; paper.mkdir(parents=True)
+            main=paper/"main_analysis.md"; si=paper/"si_analysis.md"
+            main.write_text("Main paper methods and results.",encoding="utf-8")
+            si.write_text("Supplementary experimental details.",encoding="utf-8")
+            hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (main,si)}
+            task={"schema_version":"1.0","task_id":"T_NR","paper_id":"p1","observation_ids":["O1"],
+                "source_files":[{"path":p,"sha256":h} for p,h in hashes.items()],
+                "requested_conditions":[{"condition_type":"areal_capacity","observation_ids":["O1"],"search_terms":["areal capacity"]}]}
+            task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
+            result={"schema_version":"1.0","task_id":"T_NR","paper_id":"p1","source_hashes":hashes,
+                "field_reviews":[{"condition_type":"areal_capacity","condition_instance_id":"AC1","status":"NOT_FOUND_IN_SEARCH",
+                    "linked_observation_ids":["O1"],"candidate_value":None,"candidate_unit":None,
+                    "source_file":None,"page_or_locator":None,"verbatim_quote":None,"rationale":"No value found in initial search."}]}
+            result_path=root/"result.json"; result_path.write_text(json.dumps(result),encoding="utf-8")
+            recovery_path=root/"recovery.json"
+            rec=validate_condition_recovery_files(task_path,result_path,root/"sources",recovery_path)
+            self.assertTrue(rec["valid"],rec["errors"])
+            decision={
+                "schema_version":"1.0","task_id":"T_NR","task_sha256":hashlib.sha256(task_path.read_bytes()).hexdigest(),
+                "recovery_validation_sha256":hashlib.sha256(recovery_path.read_bytes()).hexdigest(),
+                "reviewed_by":"reviewer","reviewed_at":"2026-11-11T21:00:00+08:00",
+                "main_text_reviewed":True,"si_review_status":"REVIEWED",
+                "reviewed_source_files":[{"path":str(main),"sha256":hashes[str(main)],"review_scope":"Full document checked."}],
+                "decisions":[{"condition_type":"areal_capacity","condition_instance_id":"AC1","decision":"NOT_REPORTED",
+                    "linked_observation_ids":["O1"],"rationale":"Checked the full main text and SI; not reported."}]}
+            decision_path=root/"decisions.json"; decision_path.write_text(json.dumps(decision),encoding="utf-8")
+            report=validate_condition_decisions_files(task_path,recovery_path,decision_path,root/"sources",root/"out")
+            self.assertFalse(report["valid"])
+            self.assertTrue(any(item["code"]=="NOT_REPORTED_SOURCE_COVERAGE_INCOMPLETE" for item in report["errors"]))
+            decision["reviewed_source_files"].append({"path":str(si),"sha256":hashes[str(si)],"review_scope":"All supplementary pages checked."})
+            decision_path.write_text(json.dumps(decision),encoding="utf-8")
+            report=validate_condition_decisions_files(task_path,recovery_path,decision_path,root/"sources",root/"out2")
+            self.assertTrue(report["valid"],report["errors"])
+            self.assertEqual(report["accepted_not_reported_count"],1)
+
+    def test_condition_decisions_cli_is_registered(self):
+        args=build_parser().parse_args(["validate-condition-decisions","--task","task.json",
+            "--recovery-validation","validation.json","--decisions","decisions.json",
+            "--source-root","sources","--out-dir","accepted"])
+        self.assertEqual(args.command,"validate-condition-decisions")
+
+
 if __name__ == "__main__":
     unittest.main()

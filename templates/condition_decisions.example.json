@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "task_id": "DORCR_EXAMPLE",
+  "task_sha256": "<sha256-of-exact-task-json>",
+  "recovery_validation_sha256": "<sha256-of-exact-recovery-validation-report>",
+  "reviewed_by": "human-reviewer",
+  "reviewed_at": "2026-11-11T21:00:00+08:00",
+  "main_text_reviewed": true,
+  "si_review_status": "REVIEWED",
+  "reviewed_source_files": [
+    {
+      "path": "absolute/path/to/main_analysis.md",
+      "sha256": "<source-sha256>",
+      "review_scope": "Complete main text checked, including methods and relevant result sections."
+    },
+    {
+      "path": "absolute/path/to/si_analysis.md",
+      "sha256": "<source-sha256>",
+      "review_scope": "Complete SI checked, including tables and experimental details."
+    }
+  ],
+  "decisions": [
+    {
+      "condition_type": "current_density",
+      "condition_instance_id": "CD_1",
+      "decision": "REPORTED",
+      "linked_observation_ids": [
+        "DOROBS_1"
+      ],
+      "rationale": "The exact source quotation and its link to this observation were checked."
+    },
+    {
+      "condition_type": "areal_capacity",
+      "condition_instance_id": "AC_1",
+      "decision": "NOT_REPORTED",
+      "linked_observation_ids": [
+        "DOROBS_1"
+      ],
+      "rationale": "The relevant main text and all available SI were checked; this paper does not report this condition for this observation."
+    }
+  ]
+}
