@@ -1,7 +1,7 @@
 from __future__ import annotations
 import csv, json, tempfile, unittest
 from pathlib import Path
-from dor.chem_literacy import ingest_chem_literacy_files
+from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files
 from dor.cli import build_parser
 
 
@@ -130,6 +130,62 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
         args=build_parser().parse_args(["ingest-chem-literacy","--database-csv","obs.csv","--out-dir","out"])
         self.assertEqual(args.command,"ingest-chem-literacy")
         self.assertEqual(args.database_csv,Path("obs.csv"))
+
+
+    def test_worker_found_result_requires_exact_source_quote_and_stays_pending_human_review(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); paper=root/"sources"/"p1"; paper.mkdir(parents=True)
+            source=paper/"main_analysis.md"
+            source.write_text("The cell was tested at 1 mA cm-2 current density.",encoding="utf-8")
+            import hashlib
+            digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            task={"schema_version":"1.0","task_id":"T1","paper_id":"p1",
+                "observation_ids":["O1"],
+                "source_files":[{"path":str(source),"sha256":digest}],
+                "requested_conditions":[{"condition_type":"current_density","search_terms":["current density"]}]}
+            task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
+            result={"schema_version":"1.0","task_id":"T1","paper_id":"p1",
+                "source_hashes":{str(source):digest},
+                "field_reviews":[{"condition_type":"current_density","status":"FOUND",
+                    "candidate_value":1,"candidate_unit":"mA cm-2","source_file":str(source),
+                    "page_or_locator":"Page 2","verbatim_quote":"1 mA cm-2 current density",
+                    "linked_observation_ids":["O1"],"rationale":"Explicit value and unit in source."}]}
+            result_path=root/"result.json"; result_path.write_text(json.dumps(result),encoding="utf-8")
+            report=validate_condition_recovery_files(task_path,result_path,root/"sources",root/"validation.json")
+            self.assertTrue(report["valid"],report["errors"])
+            self.assertEqual(report["promotion_status"],"PENDING_HUMAN_REVIEW")
+            self.assertFalse(report["not_reported_decisions_accepted"])
+            result["field_reviews"][0]["verbatim_quote"]="a fabricated quote"
+            result_path.write_text(json.dumps(result),encoding="utf-8")
+            report=validate_condition_recovery_files(task_path,result_path,root/"sources",root/"validation2.json")
+            self.assertFalse(report["valid"])
+            self.assertTrue(any(item["code"]=="QUOTE_NOT_FOUND_IN_SOURCE" for item in report["errors"]))
+
+    def test_not_found_result_does_not_become_not_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); paper=root/"sources"/"p1"; paper.mkdir(parents=True)
+            source=paper/"main_analysis.md"; source.write_text("Experimental section.",encoding="utf-8")
+            import hashlib
+            digest=hashlib.sha256(source.read_bytes()).hexdigest()
+            task={"schema_version":"1.0","task_id":"T2","paper_id":"p1","observation_ids":["O1"],
+                "source_files":[{"path":str(source),"sha256":digest}],
+                "requested_conditions":[{"condition_type":"areal_capacity","search_terms":["areal capacity"]}]}
+            task_path=root/"task.json"; task_path.write_text(json.dumps(task),encoding="utf-8")
+            result={"schema_version":"1.0","task_id":"T2","paper_id":"p1","source_hashes":{str(source):digest},
+                "field_reviews":[{"condition_type":"areal_capacity","status":"NOT_FOUND_IN_SEARCH",
+                    "candidate_value":None,"candidate_unit":None,"source_file":None,"page_or_locator":None,
+                    "verbatim_quote":None,"linked_observation_ids":["O1"],"rationale":"No matching statement in the targeted excerpts."}],
+                "main_text_reviewed":True,"si_reviewed":True}
+            result_path=root/"result.json"; result_path.write_text(json.dumps(result),encoding="utf-8")
+            report=validate_condition_recovery_files(task_path,result_path,root/"sources",root/"validation.json")
+            self.assertTrue(report["valid"],report["errors"])
+            self.assertFalse(report["not_reported_decisions_accepted"])
+            self.assertTrue(any(item["code"]=="NOT_FOUND_IS_NOT_NOT_REPORTED" for item in report["warnings"]))
+
+    def test_recovery_validation_cli_is_registered(self):
+        args=build_parser().parse_args(["validate-condition-recovery","--task","task.json",
+            "--result","result.json","--source-root","sources","--out","validation.json"])
+        self.assertEqual(args.command,"validate-condition-recovery")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
-from dor.chem_literacy import ingest_chem_literacy_files
+from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files
 from dor.cohort import build_modeling_cohort_files
 from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
@@ -78,6 +78,11 @@ def build_parser() -> argparse.ArgumentParser:
     chem_import.add_argument("--source-root", type=Path, help="Read-only root containing exact per-paper source/evidence files")
     chem_import.add_argument("--condition-profile", type=Path, help="Optional JSON condition-retrieval profile")
     chem_import.add_argument("--out-dir", type=Path, required=True, help="New or empty derived import directory")
+    recover_validate = subparsers.add_parser("validate-condition-recovery", help="Validate Worker-recovered condition values against the exact task, source hashes, and source quotations")
+    recover_validate.add_argument("--task", type=Path, required=True, help="Exact condition_recovery_tasks.json task packet")
+    recover_validate.add_argument("--result", type=Path, required=True, help="Worker condition recovery proposal JSON")
+    recover_validate.add_argument("--source-root", type=Path, required=True, help="Protected source root containing the task-declared paper/SI files")
+    recover_validate.add_argument("--out", type=Path, required=True, help="Validation report path outside source_root")
     audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
     audit.add_argument("--csv", type=Path, help="Path to a source CSV file")
     audit.add_argument("--json", type=Path, help="Path to a source JSON file")
@@ -373,6 +378,12 @@ def main() -> int:
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
+        if args.command == "validate-condition-recovery":
+            report = validate_condition_recovery_files(args.task, args.result, args.source_root, args.out)
+            print(json.dumps({"valid":report["valid"],"task_id":report["task_id"],
+                "verified_found_proposals":report["evidence_quotes_verified_count"],
+                "promotion_status":report["promotion_status"],"errors":report["errors"]},ensure_ascii=False,indent=2))
+            return 0 if report["valid"] else 2
         if args.command == "audit":
             result = run_audit(args.csv, args.json, args.out)
             print(json.dumps({"status":"completed","audit_id":result["audit_id"],

@@ -4,7 +4,7 @@ This module is deterministic. It never calls an LLM, edits source files, decides
 an unobserved condition is NOT_REPORTED, or silently promotes a candidate value.
 """
 from __future__ import annotations
-import csv, hashlib, json, math
+import csv, hashlib, json, math, re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -568,3 +568,141 @@ def ingest_chem_literacy_files(
         "review_queue_count": len(review_queue), "numeric_target_candidate_count": len(target_candidates),
         "condition_recovery_task_count": len(recovery_tasks), "source_merge_issue_count": len(merge_issues),
     }
+
+
+def validate_condition_recovery_files(
+    task_path: Path, result_path: Path, source_root: Path, output_path: Path
+) -> dict[str, Any]:
+    """Verify a Worker condition-recovery proposal against the exact packet and local source bytes.
+
+    A valid result remains a proposal. This function never updates observations or decides
+    NOT_REPORTED; a human review/decision is still required.
+    """
+    task_path = task_path.expanduser().resolve()
+    result_path = result_path.expanduser().resolve()
+    source_root = source_root.expanduser().resolve()
+    output_path = output_path.expanduser().resolve()
+    if not task_path.is_file() or not result_path.is_file():
+        raise FileNotFoundError("Condition-recovery task and result files must both exist.")
+    if not source_root.is_dir():
+        raise FileNotFoundError("Condition-recovery source root does not exist.")
+    if output_path.is_relative_to(source_root):
+        raise ValueError("Condition-recovery validation output must be outside the protected source root.")
+    task_hash = sha256_file(task_path)
+    result_hash = sha256_file(result_path)
+    task = json.loads(task_path.read_text(encoding="utf-8-sig"))
+    result = json.loads(result_path.read_text(encoding="utf-8-sig"))
+    errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+    if not isinstance(task, dict) or not isinstance(result, dict):
+        raise ValueError("Condition-recovery task and result must be JSON objects.")
+    if result.get("schema_version") != "1.0":
+        errors.append({"code":"RESULT_SCHEMA_VERSION","message":"Expected result schema_version 1.0."})
+    if result.get("task_id") != task.get("task_id") or result.get("paper_id") != task.get("paper_id"):
+        errors.append({"code":"TASK_IDENTITY_MISMATCH","message":"Worker result task_id/paper_id does not match the exact task packet."})
+    task_files = task.get("source_files") if isinstance(task.get("source_files"), list) else []
+    expected_sources = {str(Path(item["path"]).resolve()): item.get("sha256")
+                        for item in task_files if isinstance(item, dict) and item.get("path")}
+    supplied_hashes = result.get("source_hashes") if isinstance(result.get("source_hashes"), dict) else {}
+    if not expected_sources:
+        errors.append({"code":"NO_DECLARED_SOURCE_FILES","message":"The task packet has no source files; condition recovery cannot be verified."})
+    for source, expected in expected_sources.items():
+        supplied = supplied_hashes.get(source)
+        if supplied != expected:
+            errors.append({"code":"RESULT_SOURCE_HASH_BINDING","message":"Result does not bind the exact source hash for " + source})
+        path = Path(source)
+        if not path.is_file() or not path.is_relative_to(source_root):
+            errors.append({"code":"SOURCE_PATH_UNAVAILABLE_OR_OUTSIDE_ROOT","message":"Declared source is missing or outside source_root: " + source})
+        elif sha256_file(path) != expected:
+            errors.append({"code":"SOURCE_CHANGED","message":"Source bytes changed since task creation: " + source})
+    requested = {
+        str(item.get("condition_type")) for item in task.get("requested_conditions", [])
+        if isinstance(item, dict) and item.get("condition_type")
+    }
+    reviews = result.get("field_reviews") if isinstance(result.get("field_reviews"), list) else []
+    reviewed_types: list[str] = []
+    accepted_found: list[dict[str, Any]] = []
+    proposals: list[dict[str, Any]] = []
+    allowed_statuses = {"FOUND","NOT_FOUND_IN_SEARCH","AMBIGUOUS","UNABLE_TO_VERIFY"}
+    task_observation_ids = set(task.get("observation_ids", []))
+    source_text_cache: dict[str, str] = {}
+    for index, review in enumerate(reviews):
+        if not isinstance(review, dict):
+            errors.append({"code":"FIELD_REVIEW_NOT_OBJECT","message":f"field_reviews[{index}] must be an object."})
+            continue
+        condition_type = str(review.get("condition_type", "")).strip()
+        status = review.get("status")
+        if condition_type not in requested:
+            errors.append({"code":"UNREQUESTED_CONDITION_TYPE","message":f"Worker returned unrequested condition type: {condition_type}"})
+        if condition_type in reviewed_types:
+            errors.append({"code":"DUPLICATE_CONDITION_REVIEW","message":f"Condition type was reviewed more than once: {condition_type}"})
+        reviewed_types.append(condition_type)
+        if status not in allowed_statuses:
+            errors.append({"code":"INVALID_RECOVERY_STATUS","message":f"Unsupported status for {condition_type}: {status}"})
+            continue
+        linked = review.get("linked_observation_ids", [])
+        if not isinstance(linked, list) or not set(linked).issubset(task_observation_ids):
+            errors.append({"code":"UNKNOWN_OBSERVATION_LINK","message":f"{condition_type} references an observation not present in the task."})
+        rationale = str(review.get("rationale", "")).strip()
+        if not rationale:
+            errors.append({"code":"MISSING_REVIEW_RATIONALE","message":f"{condition_type} requires a rationale."})
+        if status == "FOUND":
+            value = review.get("candidate_value")
+            unit = review.get("candidate_unit")
+            source_name = review.get("source_file")
+            locator = review.get("page_or_locator")
+            quote = review.get("verbatim_quote")
+            if value is None or str(value).strip() == "":
+                errors.append({"code":"FOUND_VALUE_MISSING","message":f"FOUND result for {condition_type} has no candidate value."})
+            if unit is None or not str(unit).strip():
+                errors.append({"code":"FOUND_UNIT_MISSING","message":f"FOUND result for {condition_type} has no explicit unit; use an explicit dimensionless unit where applicable."})
+            if not source_name or not locator or not quote:
+                errors.append({"code":"FOUND_EVIDENCE_INCOMPLETE","message":f"FOUND result for {condition_type} needs source_file, page_or_locator, and verbatim_quote."})
+            source_path = Path(str(source_name)).expanduser().resolve() if source_name else None
+            if source_path is None or str(source_path) not in expected_sources:
+                errors.append({"code":"FOUND_SOURCE_NOT_DECLARED","message":f"FOUND result for {condition_type} cites a file not declared in the task."})
+            elif source_path.is_file():
+                if str(source_path) not in source_text_cache:
+                    source_text_cache[str(source_path)] = source_path.read_text(encoding="utf-8-sig", errors="replace")
+                normalize = lambda value: re.sub(r"\s+", " ", str(value)).strip()
+                if normalize(quote) not in normalize(source_text_cache[str(source_path)]):
+                    errors.append({"code":"QUOTE_NOT_FOUND_IN_SOURCE","message":f"Quoted evidence for {condition_type} was not found in the exact source file."})
+                else:
+                    accepted_found.append({
+                        "condition_type": condition_type, "candidate_value": value,
+                        "candidate_unit": unit, "source_file": str(source_path),
+                        "page_or_locator": locator, "verbatim_quote": quote,
+                        "linked_observation_ids": linked,
+                    })
+        elif status == "NOT_FOUND_IN_SEARCH":
+            if review.get("candidate_value") not in (None, "") or review.get("verbatim_quote") not in (None, ""):
+                errors.append({"code":"NOT_FOUND_HAS_CANDIDATE_VALUE","message":f"NOT_FOUND_IN_SEARCH for {condition_type} cannot carry a candidate value or quote."})
+            warnings.append({"code":"NOT_FOUND_IS_NOT_NOT_REPORTED","message":f"{condition_type}: a failed search does not prove the authors omitted the condition."})
+        proposals.append({"condition_type":condition_type,"status":status,"rationale":rationale})
+    missing = sorted(requested - set(reviewed_types))
+    if missing:
+        errors.append({"code":"MISSING_CONDITION_REVIEWS","message":"Worker result omitted requested condition types: " + ", ".join(missing)})
+    if result.get("main_text_reviewed") is True or result.get("si_reviewed") is True:
+        warnings.append({"code":"WORKER_COVERAGE_CLAIM_NOT_HUMAN_VERIFIED","message":"Worker-declared document coverage is informational only and cannot establish NOT_REPORTED."})
+    report = {
+        "schema_version":"1.0",
+        "valid":not errors,
+        "task_id":task.get("task_id"),
+        "paper_id":task.get("paper_id"),
+        "task_sha256":task_hash,
+        "result_sha256":result_hash,
+        "source_hashes_verified":not any(item["code"] in {"SOURCE_CHANGED","SOURCE_PATH_UNAVAILABLE_OR_OUTSIDE_ROOT","RESULT_SOURCE_HASH_BINDING"} for item in errors),
+        "requested_condition_count":len(requested),
+        "reviewed_condition_count":len(reviewed_types),
+        "evidence_quotes_verified_count":len(accepted_found),
+        "verified_found_proposals":accepted_found,
+        "condition_status_proposals":proposals,
+        "promotion_status":"PENDING_HUMAN_REVIEW",
+        "not_reported_decisions_accepted":False,
+        "errors":errors,
+        "warnings":warnings,
+        "validation_scope":"TASK_BINDING_SOURCE_HASH_AND_QUOTE_CHECK_NOT_SCIENTIFIC_OR_HUMAN_ACCEPTANCE",
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return report
