@@ -1166,10 +1166,41 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertEqual(sum(isinstance(item, dict) for item in outcomes), 1)
         self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
 
+    def test_event_hash_failure_does_not_leave_uncommitted_snapshot(self):
+        draft = json.loads(self.record_path.read_text(encoding="utf-8"))
+        draft["stages"][0]["status"] = "IN_PROGRESS"
+        draft_bytes = (json.dumps(draft, indent=2) + "\n").encode("utf-8")
+        self.record_path.write_bytes(draft_bytes)
+        from dor import acceptance_ledger
+        revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
+        before = set(revision_dir.iterdir())
+        original = acceptance_ledger._canonical_json
+        calls = {"count": 0}
+
+        def fail_during_event_hash(payload):
+            calls["count"] += 1
+            if calls["count"] == 2:
+                raise OSError("simulated event hash preparation failure")
+            return original(payload)
+
+        with patch.object(acceptance_ledger, "_canonical_json", side_effect=fail_during_event_hash):
+            with self.assertRaises(OSError):
+                record_acceptance_revision(
+                    self.record_path, self.ledger_path, "synthetic-reviewer",
+                    "Synthetic event preparation failure.",
+                )
+        self.assertEqual(set(revision_dir.iterdir()), before)
+        self.assertEqual(self.record_path.read_bytes(), draft_bytes)
+        self.assertFalse(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+        with self.assertRaisesRegex(ValueError, "not the exact precommit state"):
+            recover_acceptance_record(self.record_path, self.ledger_path)
+        self.assertEqual(self.record_path.read_bytes(), draft_bytes)
+
     def test_failed_event_append_rolls_back_uncommitted_snapshot(self):
         draft = json.loads(self.record_path.read_text(encoding="utf-8"))
         draft["stages"][0]["status"] = "IN_PROGRESS"
-        self.record_path.write_text(json.dumps(draft, indent=2) + "\n", encoding="utf-8")
+        draft_bytes = (json.dumps(draft, indent=2) + "\n").encode("utf-8")
+        self.record_path.write_bytes(draft_bytes)
         from dor import acceptance_ledger
         revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
         before = set(revision_dir.iterdir())
@@ -1183,7 +1214,11 @@ class AcceptanceValidatorTests(unittest.TestCase):
                     "Synthetic failed append.",
                 )
         self.assertEqual(set(revision_dir.iterdir()), before)
-        self.assertTrue(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+        self.assertEqual(self.record_path.read_bytes(), draft_bytes)
+        self.assertFalse(validate_acceptance_ledger(self.record_path, self.ledger_path)["valid"])
+        with self.assertRaisesRegex(ValueError, "not the exact precommit state"):
+            recover_acceptance_record(self.record_path, self.ledger_path)
+        self.assertEqual(self.record_path.read_bytes(), draft_bytes)
 
     def test_recovery_cleans_uncommitted_snapshot_and_truncated_jsonl_tail(self):
         revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
