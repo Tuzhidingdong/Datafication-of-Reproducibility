@@ -1014,6 +1014,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "assessed_at": "2026-11-08T00:00:00Z",
             "rationale": "All synthetic fixture stages were reviewed.",
         })
+        self.bind_synthetic_gate_ledger()
         self.write_record()
         self.assertTrue(self.validate()["valid"], self.validate()["issues"])
 
@@ -1130,7 +1131,14 @@ class AcceptanceValidatorTests(unittest.TestCase):
         draft["stages"][0]["status"] = "IN_PROGRESS"
         self.record_path.write_text(json.dumps(draft, indent=2) + "\n", encoding="utf-8")
         from dor import acceptance_ledger
-        with patch.object(acceptance_ledger, "_atomic_write", side_effect=OSError("simulated crash")):
+        original_atomic_write = acceptance_ledger._atomic_write
+
+        def fail_record_replacement(path, raw):
+            if path == self.record_path:
+                raise OSError("simulated crash after event commit")
+            return original_atomic_write(path, raw)
+
+        with patch.object(acceptance_ledger, "_atomic_write", side_effect=fail_record_replacement):
             with self.assertRaises(OSError):
                 record_acceptance_revision(
                     self.record_path, self.ledger_path, "synthetic-reviewer",
@@ -1165,14 +1173,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
         from dor import acceptance_ledger
         revision_dir = self.ledger_path.with_name(self.ledger_path.name + ".revisions")
         before = set(revision_dir.iterdir())
-        original = acceptance_ledger._canonical_json
-        calls = {"count": 0}
-        def fail_during_ledger_write(payload):
-            calls["count"] += 1
-            if calls["count"] == 2:
-                raise OSError("simulated append failure")
-            return original(payload)
-        with patch.object(acceptance_ledger, "_canonical_json", side_effect=fail_during_ledger_write):
+        with patch.object(
+            acceptance_ledger, "_append_ledger_event",
+            side_effect=OSError("simulated append failure"),
+        ):
             with self.assertRaises(OSError):
                 record_acceptance_revision(
                     self.record_path, self.ledger_path, "synthetic-reviewer",
