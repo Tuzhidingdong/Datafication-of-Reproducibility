@@ -489,6 +489,27 @@ def _validate_downstream_reset(record: Mapping[str, Any], stage_ids: list[str]) 
             raise ValueError(f"Downstream stage {stage_id} retained stale review state after an upstream revision.")
 
 
+def _append_ledger_event(ledger_path: Path, serialized_event: str, sequence: int) -> None:
+    """Append one already-serialized event, rolling back a partial write on failure."""
+    prior_size = ledger_path.stat().st_size if ledger_path.exists() else 0
+    mode = "x" if sequence == 1 else "a"
+    try:
+        with ledger_path.open(mode, encoding="utf-8", newline="\n") as handle:
+            handle.write(serialized_event)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        if ledger_path.exists():
+            if sequence == 1:
+                ledger_path.unlink()
+            else:
+                with ledger_path.open("r+b") as handle:
+                    handle.truncate(prior_size)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+        raise
+
+
 def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any],
                   raw: bytes, actor: str, rationale: str, event_type: str,
                   changed_stage_ids: list[str], invalidated_stage_ids: list[str],
@@ -498,7 +519,9 @@ def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any]
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
     if snapshot_path.parent.is_symlink() or snapshot_path.exists():
         raise ValueError("Acceptance revision snapshot path already exists or is unsafe.")
-    _atomic_write(snapshot_path, raw)
+
+    # Prepare and serialize the complete event before persisting its snapshot.
+    # A serialization/hash failure must not leave an unreferenced revision file.
     payload = {
         "schema_version": "1.0",
         "sequence": sequence,
@@ -525,22 +548,12 @@ def _append_event(ledger_path: Path, snapshot_path: Path, record: dict[str, Any]
         "previous_event_hash": previous_event_hash,
     }
     event = {**payload, "event_hash": _event_hash(payload)}
-    prior_size = ledger_path.stat().st_size if ledger_path.exists() else 0
-    mode = "x" if sequence == 1 else "a"
+    serialized_event = _canonical_json(event) + "\n"
+
+    _atomic_write(snapshot_path, raw)
     try:
-        with ledger_path.open(mode, encoding="utf-8", newline="\n") as handle:
-            handle.write(_canonical_json(event) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
+        _append_ledger_event(ledger_path, serialized_event, sequence)
     except BaseException:
-        if ledger_path.exists():
-            if sequence == 1:
-                ledger_path.unlink()
-            else:
-                with ledger_path.open("r+b") as handle:
-                    handle.truncate(prior_size)
-                    handle.flush()
-                    os.fsync(handle.fileno())
         snapshot_path.unlink(missing_ok=True)
         raise
     return event
