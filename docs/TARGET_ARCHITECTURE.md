@@ -37,34 +37,34 @@ DOR must preserve uncertainty and missing information rather than create an appe
 
 ```mermaid
 flowchart TD
-  subgraph S["1. Source and evidence layer"]
+  subgraph SRC["1. Source and evidence layer"]
     A["Papers, SI, tables, figures"]
     B["Raw experimental and calculation files"]
     C["Existing structured data / Chem-Literacy"]
   end
-  subgraph I["2. Ingestion and evidence adapters"]
+  subgraph INGEST["2. Ingestion and evidence adapters"]
     D["Read-only inventory and hashing"]
     E["Text/table/image/raw-data adapters"]
     F["Evidence locators and extraction review"]
   end
-  subgraph C["3. Canonical scientific data"]
+  subgraph CANON["3. Canonical scientific data"]
     G["Study / System / Experiment"]
     H["Condition / Observation / Comparison"]
     J["Evidence and source provenance"]
   end
-  subgraph R["4. Review and scientific decisions"]
+  subgraph REVIEW["4. Review and scientific decisions"]
     K["Mapping and grouping review"]
     L["Condition recovery and verification"]
     M["Reconciliation and eligibility decisions"]
     N["G0-G4 approval decisions"]
   end
-  subgraph A["5. Reproducible scientific analysis"]
+  subgraph ANALYSIS["5. Reproducible scientific analysis"]
     O["Endpoint-specific task and cohort"]
     P["Baselines and Study-held-out validation"]
     Q["Interaction screening and robustness"]
     T["Mechanism evidence and independent validation"]
   end
-  subgraph O["6. Research outputs and exchange"]
+  subgraph OUTPUT["6. Research outputs and exchange"]
     U["Reports, tables, figures, findings"]
     V["Writing Skill package"]
     W["RO-Crate / PROV-O export"]
