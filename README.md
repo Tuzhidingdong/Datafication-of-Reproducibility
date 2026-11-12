@@ -67,3 +67,13 @@ A condition missing from the extraction is not automatically considered absent f
 
 
 The Chem-Literacy integration also defines a human decision step for recovered experimental conditions. A Worker proposal can be marked REPORTED only after its exact quotation passes source verification and a reviewer accepts it. NOT_REPORTED requires a human-reviewed main text and all available SI with exact source hashes; it cannot be inferred from a missing extraction or failed search. See docs/CHEM_LITERACY_INTEGRATION.md.
+
+## Architecture and standards review
+
+The current implementation inventory, real-data validation gaps, standards reuse decisions, and target module boundaries are documented in:
+
+- [Project Capability Audit](docs/PROJECT_CAPABILITY_AUDIT.md)
+- [Standards Alignment](docs/STANDARDS_ALIGNMENT.md)
+- [Target Architecture](docs/TARGET_ARCHITECTURE.md)
+
+These documents define an architecture-convergence phase before additional Runtime feature development. The next scientific acceptance target remains one user-selected real paper/SI pilot; synthetic engineering fixtures do not establish real-corpus validity.
