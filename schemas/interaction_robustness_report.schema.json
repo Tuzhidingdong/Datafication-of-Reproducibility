@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/interaction_robustness_report.schema.json",
+  "title": "Pairwise interaction seed-sensitivity report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "method",
+    "seed_count",
+    "seeds",
+    "fold_count",
+    "minimum_candidate_run_fraction",
+    "run_protocol",
+    "interaction_catalogue",
+    "interpretation_limits",
+    "validation_scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "method": {
+      "const": "REPEATED_NESTED_STUDY_GROUPED_CV_SEED_SENSITIVITY"
+    },
+    "seed_count": {
+      "type": "integer",
+      "minimum": 3
+    },
+    "seeds": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer"
+      }
+    },
+    "fold_count": {
+      "type": "integer",
+      "minimum": 4
+    },
+    "minimum_candidate_run_fraction": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1
+    },
+    "run_protocol": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "required": [
+          "seed",
+          "fold_count",
+          "study_count",
+          "observation_count",
+          "candidate_pair_count",
+          "eligible_pair_count",
+          "fold_protocol"
+        ],
+        "properties": {
+          "seed": {
+            "type": "integer"
+          },
+          "fold_count": {
+            "type": "integer"
+          },
+          "study_count": {
+            "type": "integer"
+          },
+          "observation_count": {
+            "type": "integer"
+          },
+          "candidate_pair_count": {
+            "type": "integer"
+          },
+          "eligible_pair_count": {
+            "type": "integer"
+          },
+          "fold_protocol": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "interaction_catalogue": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "interaction_id",
+          "feature_a",
+          "feature_b",
+          "run_count",
+          "candidate_run_count",
+          "candidate_run_fraction",
+          "robustness_status",
+          "seed_results",
+          "claim_scope"
+        ],
+        "properties": {
+          "interaction_id": {
+            "type": "string"
+          },
+          "feature_a": {
+            "type": "string"
+          },
+          "feature_b": {
+            "type": "string"
+          },
+          "run_count": {
+            "type": "integer"
+          },
+          "candidate_run_count": {
+            "type": "integer"
+          },
+          "candidate_run_fraction": {
+            "type": "number"
+          },
+          "median_mean_fold_rmse_improvement": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "minimum_mean_fold_rmse_improvement": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maximum_mean_fold_rmse_improvement": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "seed_results": {
+            "type": "array"
+          },
+          "robustness_status": {
+            "enum": [
+              "SEED_STABLE_PREDICTIVE_INTERACTION_CANDIDATE",
+              "SEED_SENSITIVE_PREDICTIVE_INTERACTION",
+              "NOT_REPRODUCED_ACROSS_SEEDS"
+            ]
+          },
+          "claim_scope": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "interpretation_limits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "validation_scope": {
+      "const": "REPEATED_NESTED_STUDY_HELD_OUT_SEED_SENSITIVITY_NOT_INDEPENDENT_VALIDATION"
+    }
+  },
+  "additionalProperties": true
+}

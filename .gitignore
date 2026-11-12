@@ -1,0 +1,34 @@
+# Local environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local project configuration and private paths
+config/local_paths.yaml
+config/project.local.yaml
+*.local.yaml
+.env
+.env.*
+
+# User data and generated research runs
+data/
+private_data/
+dor_workspace/
+runs/
+cache/
+outputs/
+artifacts/
+*.parquet
+*.joblib
+*.pkl
+*.model
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

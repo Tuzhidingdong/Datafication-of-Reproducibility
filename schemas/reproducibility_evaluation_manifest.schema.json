@@ -1,0 +1,29 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/reproducibility_evaluation_manifest.schema.json",
+  "title":"Reproducibility evaluation run manifest",
+  "type":"object",
+  "required":["schema_version","task_id","engine_version","input_hashes","output_hashes","fold_count","seed","study_ids","selection_protocol","test_protocol","applicability_domain_method","uncertainty_status","source_policy"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "task_id":{"type":"string"},
+    "engine_version":{"type":"string"},
+    "input_hashes":{"type":"object","required":["cohort_sha256","cohort_report_sha256","split_manifest_sha256","cohort_manifest_sha256","task_sha256"],"properties":{
+      "cohort_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},
+      "cohort_report_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},
+      "split_manifest_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},
+      "cohort_manifest_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"},
+      "task_sha256":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"}
+    },"additionalProperties":false},
+    "output_hashes":{"type":"object","additionalProperties":{"type":"string","pattern":"^[a-fA-F0-9]{64}$"}},
+    "fold_count":{"type":"integer","minimum":4},
+    "seed":{"type":"integer"},
+    "study_ids":{"type":"array","minItems":4,"uniqueItems":true,"items":{"type":"string"}},
+    "selection_protocol":{"const":"NESTED_INNER_STUDY_HOLDOUT"},
+    "test_protocol":{"const":"OUTER_GROUPED_K_FOLD_EACH_STUDY_HELD_OUT_ONCE"},
+    "applicability_domain_method":{"const":"MIXED_FEATURE_NEAREST_NEIGHBOUR_EMPIRICAL_REFERENCE_Q95"},
+    "uncertainty_status":{"const":"DESCRIPTIVE_CROSS_STUDY_ERROR_ONLY_NOT_CALIBRATED"},
+    "source_policy":{"type":"string"}
+  },
+  "additionalProperties":false
+}

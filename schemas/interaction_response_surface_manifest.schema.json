@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/interaction_response_surface_manifest.schema.json",
+  "title": "Interaction response surface manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "engine_version",
+    "task_id",
+    "interaction_id",
+    "input_hashes",
+    "output_hashes",
+    "grid_point_count",
+    "observation_count",
+    "study_count",
+    "method",
+    "prediction_mode",
+    "claim_scope",
+    "source_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "engine_version": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "interaction_id": {
+      "type": "string"
+    },
+    "input_hashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "output_hashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "grid_point_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "observation_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "study_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "method": {
+      "type": "string"
+    },
+    "prediction_mode": {
+      "type": "string"
+    },
+    "claim_scope": {
+      "type": "string"
+    },
+    "source_policy": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

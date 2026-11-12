@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "task_id": "DORCR_EXAMPLE",
+  "paper_id": "paper_example",
+  "source_hashes": {},
+  "field_reviews": [
+    {
+      "condition_type": "current_density",
+      "status": "FOUND",
+      "candidate_value": 1,
+      "candidate_unit": "mA cm-2",
+      "source_file": "main_analysis.md",
+      "page_or_locator": "Page 7, paragraph 2",
+      "verbatim_quote": "The cell was cycled at a current density of 1 mA cm-2.",
+      "linked_observation_ids": [
+        "DOROBS_EXAMPLE"
+      ],
+      "rationale": "The sentence reports a numeric value and unit; confirm applicability to the linked sample and measurement.",
+      "condition_instance_id": "current-density-obs-1"
+    },
+    {
+      "condition_type": "areal_capacity",
+      "status": "NOT_FOUND_IN_SEARCH",
+      "candidate_value": null,
+      "candidate_unit": null,
+      "source_file": null,
+      "page_or_locator": null,
+      "verbatim_quote": null,
+      "linked_observation_ids": [
+        "DOROBS_EXAMPLE"
+      ],
+      "rationale": "No value was verified in the searched excerpts. This is not a claim that the paper/SI does not report it.",
+      "condition_instance_id": "areal-capacity-obs-1"
+    }
+  ],
+  "main_text_reviewed": false,
+  "si_reviewed": false,
+  "coverage_notes": [
+    "Human review is required before any condition is promoted to REPORTED or NOT_REPORTED."
+  ],
+  "proposed_by": "worker-role-or-human-reviewer"
+}

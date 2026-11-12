@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/interaction_robustness_manifest.schema.json",
+  "title": "Interaction robustness run manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "engine_version",
+    "input_hashes",
+    "output_hashes",
+    "seeds",
+    "fold_count",
+    "minimum_candidate_run_fraction",
+    "method",
+    "claim_scope",
+    "source_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "engine_version": {
+      "type": "string"
+    },
+    "input_hashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "output_hashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "seeds": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer"
+      }
+    },
+    "fold_count": {
+      "type": "integer",
+      "minimum": 4
+    },
+    "minimum_candidate_run_fraction": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1
+    },
+    "method": {
+      "const": "REPEATED_NESTED_STUDY_GROUPED_CV_SEED_SENSITIVITY"
+    },
+    "claim_scope": {
+      "type": "string"
+    },
+    "source_policy": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

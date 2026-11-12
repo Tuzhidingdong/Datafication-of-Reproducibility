@@ -1,0 +1,504 @@
+{
+  "schema_version": "1.0",
+  "project_id": "PROJECT_REPLACE_ME",
+  "source_roots": [
+    "D:/Research/Project/raw_sources",
+    "D:/Research/Project/configuration"
+  ],
+  "workflow_ledger_path": "D:/Research/Project/run_control/workflow_gate_ledger.jsonl",
+  "source_artifacts": [
+    {
+      "artifact_id": "source_csv",
+      "path": "D:/Research/Project/raw_sources/source_records.csv"
+    },
+    {
+      "artifact_id": "literature_extractions",
+      "path": "D:/Research/Project/raw_sources/literature_extractions.json"
+    },
+    {
+      "artifact_id": "mapping_plan_input",
+      "path": "D:/Research/Project/configuration/mapping_plan.json"
+    },
+    {
+      "artifact_id": "build_spec_input",
+      "path": "D:/Research/Project/configuration/canonical_build_spec.json"
+    },
+    {
+      "artifact_id": "modeling_task_input",
+      "path": "D:/Research/Project/configuration/modeling_task.json"
+    },
+    {
+      "artifact_id": "virtual_query_input",
+      "path": "D:/Research/Project/configuration/virtual_reproduction_query.json"
+    },
+    {
+      "artifact_id": "publication_plan_input",
+      "path": "D:/Research/Project/configuration/publication_package_plan.json"
+    }
+  ],
+  "stages": [
+    {
+      "stage_id": "source_audit",
+      "executor": "local",
+      "depends_on": [],
+      "inputs": [
+        "source_csv",
+        "literature_extractions"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "dataset_manifest",
+          "path": "01_audit/dataset_manifest.json"
+        },
+        {
+          "artifact_id": "source_inventory",
+          "path": "01_audit/source_inventory.json"
+        },
+        {
+          "artifact_id": "data_audit_report",
+          "path": "01_audit/data_audit_report.md"
+        },
+        {
+          "artifact_id": "column_coverage",
+          "path": "01_audit/column_coverage.csv"
+        },
+        {
+          "artifact_id": "json_structure_paths",
+          "path": "01_audit/json_structure_paths.csv"
+        },
+        {
+          "artifact_id": "mapping_review_queue",
+          "path": "01_audit/mapping_review_queue.csv"
+        }
+      ]
+    },
+    {
+      "stage_id": "mapping_validation",
+      "executor": "local",
+      "depends_on": [
+        "source_audit"
+      ],
+      "required_gate": "G0",
+      "inputs": [
+        "source_inventory",
+        "mapping_plan_input",
+        "build_spec_input"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "mapping_validation",
+          "path": "02_mapping/mapping_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_build",
+      "executor": "local",
+      "depends_on": [
+        "source_audit",
+        "mapping_validation"
+      ],
+      "required_gate": "G1",
+      "inputs": [
+        "source_inventory",
+        "mapping_plan_input",
+        "build_spec_input",
+        "mapping_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "canonical_bundle",
+          "path": "03_canonical/canonical_bundle.json"
+        },
+        {
+          "artifact_id": "canonical_build_report",
+          "path": "03_canonical/build_report.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_bundle_validation",
+      "executor": "local",
+      "depends_on": [
+        "canonical_build"
+      ],
+      "inputs": [
+        "canonical_bundle"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "canonical_validation_report",
+          "path": "03_canonical/canonical_validation_report.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_reconciliation",
+      "executor": "local",
+      "depends_on": [
+        "canonical_build"
+      ],
+      "inputs": [
+        "canonical_bundle"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reconciliation_report",
+          "path": "04_reconciliation/reconciliation_report.json"
+        },
+        {
+          "artifact_id": "reconciliation_review_queue",
+          "path": "04_reconciliation/reconciliation_review_queue.csv"
+        }
+      ]
+    },
+    {
+      "stage_id": "g2_review_packet",
+      "executor": "manual",
+      "depends_on": [
+        "canonical_build",
+        "canonical_bundle_validation",
+        "canonical_reconciliation"
+      ],
+      "inputs": [
+        "canonical_bundle",
+        "canonical_validation_report",
+        "reconciliation_report",
+        "reconciliation_review_queue",
+        "modeling_task_input"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "g2_review_packet",
+          "path": "04_reconciliation/g2_review_packet.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "cohort_build",
+      "executor": "local",
+      "depends_on": [
+        "canonical_build",
+        "g2_review_packet"
+      ],
+      "required_gate": "G2",
+      "inputs": [
+        "canonical_bundle",
+        "modeling_task_input",
+        "g2_review_packet"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "modeling_cohort",
+          "path": "05_modeling/cohort/modeling_cohort.csv"
+        },
+        {
+          "artifact_id": "cohort_report",
+          "path": "05_modeling/cohort/cohort_report.json"
+        },
+        {
+          "artifact_id": "split_manifest",
+          "path": "05_modeling/cohort/split_manifest.json"
+        },
+        {
+          "artifact_id": "cohort_manifest",
+          "path": "05_modeling/cohort/modeling_cohort_manifest.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "baseline_model_fit",
+      "executor": "local",
+      "depends_on": [
+        "cohort_build"
+      ],
+      "required_gate": "G2",
+      "inputs": [
+        "modeling_cohort",
+        "cohort_report",
+        "split_manifest",
+        "cohort_manifest",
+        "modeling_task_input"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "model_report",
+          "path": "06_modeling/baseline/model_report.json"
+        },
+        {
+          "artifact_id": "model_artifact",
+          "path": "06_modeling/baseline/model_artifact.json"
+        },
+        {
+          "artifact_id": "baseline_run_manifest",
+          "path": "06_modeling/baseline/modeling_run_manifest.json"
+        },
+        {
+          "artifact_id": "test_predictions",
+          "path": "06_modeling/baseline/test_predictions.csv"
+        },
+        {
+          "artifact_id": "validation_model_comparison",
+          "path": "06_modeling/baseline/validation_model_comparison.csv"
+        }
+      ]
+    },
+    {
+      "stage_id": "nested_reproducibility_evaluation",
+      "executor": "local",
+      "depends_on": [
+        "cohort_build"
+      ],
+      "required_gate": "G2",
+      "inputs": [
+        "modeling_cohort",
+        "cohort_report",
+        "split_manifest",
+        "cohort_manifest",
+        "modeling_task_input"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reproducibility_evaluation",
+          "path": "06_modeling/reproducibility/reproducibility_evaluation.json"
+        },
+        {
+          "artifact_id": "cross_study_predictions",
+          "path": "06_modeling/reproducibility/cross_study_predictions.csv"
+        },
+        {
+          "artifact_id": "study_performance",
+          "path": "06_modeling/reproducibility/study_performance.csv"
+        },
+        {
+          "artifact_id": "applicability_domain",
+          "path": "06_modeling/reproducibility/applicability_domain.csv"
+        },
+        {
+          "artifact_id": "reproducibility_manifest",
+          "path": "06_modeling/reproducibility/reproducibility_evaluation_manifest.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "interaction_discovery",
+      "executor": "local",
+      "depends_on": [
+        "cohort_build"
+      ],
+      "required_gate": "G2",
+      "inputs": [
+        "modeling_cohort",
+        "cohort_report",
+        "split_manifest",
+        "cohort_manifest",
+        "modeling_task_input"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "interaction_report",
+          "path": "06_modeling/interactions/interaction_discovery_report.json"
+        },
+        {
+          "artifact_id": "interaction_catalogue",
+          "path": "06_modeling/interactions/interaction_catalogue.csv"
+        },
+        {
+          "artifact_id": "interaction_oof_predictions",
+          "path": "06_modeling/interactions/interaction_oof_predictions.csv"
+        },
+        {
+          "artifact_id": "interaction_manifest",
+          "path": "06_modeling/interactions/interaction_discovery_manifest.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "interaction_robustness",
+      "executor": "local",
+      "depends_on": [
+        "cohort_build"
+      ],
+      "required_gate": "G2",
+      "inputs": [
+        "modeling_cohort",
+        "cohort_report",
+        "split_manifest",
+        "cohort_manifest",
+        "modeling_task_input"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "robustness_report",
+          "path": "06_modeling/interaction_robustness/interaction_robustness_report.json"
+        },
+        {
+          "artifact_id": "robustness_catalogue",
+          "path": "06_modeling/interaction_robustness/interaction_robustness_catalogue.csv"
+        },
+        {
+          "artifact_id": "robustness_manifest",
+          "path": "06_modeling/interaction_robustness/interaction_robustness_manifest.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "g3_selection_packet",
+      "executor": "manual",
+      "depends_on": [
+        "interaction_discovery",
+        "interaction_robustness"
+      ],
+      "required_gate": "G2",
+      "inputs": [
+        "interaction_report",
+        "interaction_catalogue",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_catalogue",
+        "robustness_manifest"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "interaction_selection",
+          "path": "07_review/interaction_selection.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "virtual_condition_prediction",
+      "executor": "local",
+      "depends_on": [
+        "baseline_model_fit"
+      ],
+      "required_gate": "G2",
+      "inputs": [
+        "model_artifact",
+        "baseline_run_manifest",
+        "virtual_query_input"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "virtual_prediction",
+          "path": "08_virtual_reproduction/virtual_prediction.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "independent_result_review",
+      "executor": "worker",
+      "depends_on": [
+        "baseline_model_fit",
+        "nested_reproducibility_evaluation",
+        "interaction_discovery",
+        "interaction_robustness",
+        "g3_selection_packet",
+        "virtual_condition_prediction"
+      ],
+      "required_gate": "G3",
+      "inputs": [
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "robustness_report",
+        "interaction_selection",
+        "virtual_prediction"
+      ],
+      "worker_task": {
+        "objective": "Independently audit the declared model, reproducibility, interaction, robustness, selection, and virtual-prediction reports for leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks.",
+        "permitted_actions": [
+          "Read only the six declared compact JSON/report inputs",
+          "Write one structured review JSON to the exact permitted staging path",
+          "Cite exact artifact IDs and JSON paths for each finding"
+        ],
+        "forbidden_actions": [
+          "Modify source data or analysis artifacts",
+          "Rerun models or calculations",
+          "Change G3 interaction selection",
+          "Approve a G0-G4 workflow gate",
+          "Promote Worker output into approved scientific results"
+        ],
+        "max_context_tokens": 18000,
+        "max_output_tokens": 3500
+      },
+      "outputs": [
+        {
+          "artifact_id": "worker_review_output",
+          "path": "worker_staging/independent_result_review/review.json",
+          "kind": "worker_staging"
+        }
+      ]
+    },
+    {
+      "stage_id": "human_review_and_promotion",
+      "executor": "manual",
+      "depends_on": [
+        "independent_result_review",
+        "g3_selection_packet",
+        "baseline_model_fit"
+      ],
+      "inputs": [
+        "worker_review_output",
+        "interaction_selection",
+        "model_report"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reviewed_findings",
+          "path": "09_review/reviewed_findings.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "publication_package_assembly",
+      "executor": "local",
+      "depends_on": [
+        "baseline_model_fit",
+        "nested_reproducibility_evaluation",
+        "interaction_discovery",
+        "interaction_robustness",
+        "g3_selection_packet",
+        "virtual_condition_prediction",
+        "human_review_and_promotion"
+      ],
+      "required_gate": "G4",
+      "inputs": [
+        "publication_plan_input",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "robustness_report",
+        "interaction_selection",
+        "virtual_prediction",
+        "reviewed_findings"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "publication_package_manifest",
+          "path": "10_publication/package/package_manifest.json"
+        },
+        {
+          "artifact_id": "publication_writing_guide",
+          "path": "10_publication/package/README_FOR_WRITING_SKILL.md"
+        }
+      ]
+    },
+    {
+      "stage_id": "publication_package_audit",
+      "executor": "local",
+      "depends_on": [
+        "publication_package_assembly"
+      ],
+      "inputs": [
+        "publication_package_manifest",
+        "publication_writing_guide"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "publication_package_integrity_report",
+          "path": "10_publication/package_integrity_report.json"
+        }
+      ]
+    }
+  ]
+}

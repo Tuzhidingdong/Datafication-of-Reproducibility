@@ -1,0 +1,41 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/model_artifact.schema.json",
+  "title":"Serialized deterministic baseline model artifact",
+  "type":"object",
+  "required":["schema_version","engine_version","task_id","model_type","target_id","endpoint_definition","outcome_value_field","outcome_unit","feature_bindings","selected_candidate_id","selection_metric","training_observation_ids","training_study_ids","test_observation_ids","model_parameters"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "engine_version":{"type":"string"},
+    "task_id":{"type":"string","minLength":1},
+    "model_type":{"enum":["mean_baseline","ridge_regression","majority_class_baseline","mixed_naive_bayes"]},
+    "target_id":{"type":"string"},
+    "endpoint_definition":{"type":"string"},
+    "outcome_value_field":{"enum":["raw_value","normalized_value"]},
+    "outcome_unit":{"type":["string","null"]},
+    "feature_bindings":{"type":"array","items":{"type":"object"}},
+    "selected_candidate_id":{"type":"string"},
+    "selection_metric":{"type":"string"},
+    "training_observation_ids":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "training_study_ids":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "test_observation_ids":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "model_parameters":{"type":"object"},
+    "training_feature_domain":{
+      "type":"object",
+      "additionalProperties":{
+        "type":"object",
+        "required":["value_type","expected_unit","n"],
+        "properties":{
+          "value_type":{"enum":["NUMERIC","CATEGORICAL"]},
+          "expected_unit":{"type":["string","null"]},
+          "n":{"type":"integer","minimum":1},
+          "minimum":{"type":"number"},
+          "maximum":{"type":"number"},
+          "categories":{"type":"array","items":{"type":"string"}}
+        },
+        "additionalProperties":false
+      }
+    }
+  },
+  "additionalProperties":false
+}

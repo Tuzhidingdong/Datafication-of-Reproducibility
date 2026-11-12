@@ -1,0 +1,112 @@
+{
+  "contract_version": "1.0",
+  "stages": {
+    "source_selection": {
+      "required_artifact_types": [
+        "source_selection_manifest",
+        "source_inventory"
+      ],
+      "checks": [
+        "selected_excluded_partition_exact",
+        "selected_source_set_matches_run_snapshot",
+        "excluded_source_reasons_present",
+        "inventory_references_selected_sources_only"
+      ],
+      "scope": "Explicit inventory of selected source files and locators; filenames are labels, not semantics."
+    },
+    "source_integrity": {
+      "required_artifact_types": [
+        "run_manifest"
+      ],
+      "checks": [
+        "run_manifest_identity",
+        "source_snapshot_exact"
+      ],
+      "scope": "Run Manager source snapshot and hash-chain verification are authoritative."
+    },
+    "extraction_review": {
+      "required_artifact_types": [
+        "extraction_review_record"
+      ],
+      "checks": [
+        "review_record_shape",
+        "locators_grounded",
+        "human_review_decision"
+      ],
+      "scope": "Human spot-check record; no assumption about an upstream extractor's private schema."
+    },
+    "semantic_mapping": {
+      "required_artifact_types": [
+        "mapping_plan"
+      ],
+      "checks": [
+        "mapping_plan_shape",
+        "no_unreviewed_proposals",
+        "approved_rules_explicit"
+      ],
+      "scope": "Explicit source-item to canonical-field mapping, exact transformations, and review decisions."
+    },
+    "canonical_reconciliation": {
+      "required_artifact_types": [
+        "canonical_bundle",
+        "reconciliation_report",
+        "reconciliation_decisions"
+      ],
+      "checks": [
+        "canonical_entity_integrity",
+        "cross_entity_references",
+        "reconciliation_bundle_binding",
+        "human_reconciliation_decisions_bind_exact_report_and_bundle_hashes"
+      ],
+      "scope": "Study/System/Condition/Experiment/Observation/Comparison/Evidence graph integrity."
+    },
+    "cohort_feasibility": {
+      "required_artifact_types": [
+        "modeling_task",
+        "cohort_report",
+        "split_manifest",
+        "modeling_cohort_manifest",
+        "modeling_cohort_csv"
+      ],
+      "checks": [
+        "approved_task_identity_and_units",
+        "canonical_bundle_and_task_hash_binding",
+        "cohort_manifest_output_hashes",
+        "eligible_study_split_coverage"
+      ],
+      "scope": "Endpoint-specific cohort and explicit Study-level split feasibility."
+    },
+    "modeling_validation": {
+      "required_artifact_types": [
+        "model_report",
+        "model_artifact",
+        "modeling_run_manifest",
+        "reproducibility_evaluation",
+        "reproducibility_evaluation_manifest"
+      ],
+      "checks": [
+        "model_report_identity",
+        "serialized_model_hash",
+        "model_manifest_split_integrity",
+        "nested_evaluation_fold_coverage",
+        "study_leakage_absent"
+      ],
+      "scope": "Model outputs bound to cohort/task hashes and Study-grouped split; no performance threshold is invented."
+    },
+    "publication_handoff": {
+      "required_artifact_types": [
+        "publication_package_manifest",
+        "publication_integrity_report"
+      ],
+      "checks": [
+        "package_identity",
+        "package_manifest_path_exact",
+        "writing_guide_sha256_verified",
+        "artifact_index_and_hashes_valid",
+        "completeness_derived_from_artifact_statuses",
+        "independent_package_tree_audit"
+      ],
+      "scope": "Publication package, Writing Skill guide, hashes, and explicit completeness state."
+    }
+  }
+}

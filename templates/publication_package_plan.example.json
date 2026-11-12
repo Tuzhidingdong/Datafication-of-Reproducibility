@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "project_id": "PROJECT_001",
+  "run_id": "RUN_0001",
+  "package_version": "0.5.0",
+  "domain_profile": "domain_profiles/zinc_battery/domain_profile.yaml",
+  "writing_guide_source": null,
+  "source_hashes": {},
+  "artifacts": [
+    {
+      "artifact_id": "DATA_DICTIONARY_001",
+      "path": "data/data_dictionary.csv",
+      "source_path": "03_canonical/data_dictionary.csv",
+      "type": "data_dictionary",
+      "description": "Approved feature definitions, semantic mappings, units and missingness states.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": ["Methods", "Supporting Information"]
+    },
+    {
+      "artifact_id": "MODEL_ARTIFACT_001",
+      "path": "models/baseline/model_artifact.json",
+      "source_path": "04_modeling/baseline_run/model_artifact.json",
+      "type": "model_artifact",
+      "description": "Selected model and preprocessing parameters fitted on train plus validation; test observations excluded from fitting.",
+      "status": "complete",
+      "linked_record_ids": ["TASK_001"],
+      "manuscript_sections": ["Methods", "Results", "Supporting Information"]
+    },
+    {
+      "artifact_id": "MECHANISM_BRIDGE_001",
+      "path": "mechanisms/bridge/mechanism_evidence_bridge_report.json",
+      "source_path": "05_mechanisms/bridge/mechanism_evidence_bridge_report.json",
+      "type": "mechanism_evidence_bridge_report",
+      "description": "Evidence-linked mechanism hypotheses and contradictory evidence pending user review.",
+      "status": "requires_review",
+      "linked_record_ids": ["INT_SELECTED"],
+      "manuscript_sections": ["Results", "Discussion"]
+    },
+    {
+      "artifact_id": "FIGURE_001",
+      "path": "figures/figure_001/figure.svg",
+      "source_path": null,
+      "type": "figure",
+      "description": "Planned primary results figure; no rendered output exists yet.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": ["Results"]
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "plan_id": "MECHANISM_PLAN_EXAMPLE",
+  "task_id": "TASK_EXACT_ENDPOINT",
+  "target_id": "TARGET_EXACT_ENDPOINT",
+  "endpoint_definition": "exact endpoint_definition copied from the reviewed modeling task",
+  "interaction_id": "INT_EXACT_CATALOGUE_ID",
+  "prepared_by": "researcher or named Worker role",
+  "proposal_origin": "USER_DRAFT",
+  "notes": "Draft hypotheses for G3 review; no mechanism is considered established.",
+  "mechanism_hypotheses": [
+    {
+      "hypothesis_id": "HYPOTHESIS_001",
+      "title": "Coordination-mediated interfacial response",
+      "hypothesis_statement": "the first condition changes the local coordination environment and thereby modifies the response to the second condition",
+      "proposed_process_chain": [
+        "first condition changes local coordination",
+        "coordination alters interfacial hydration",
+        "the altered hydration changes the measured endpoint"
+      ],
+      "scope_statement": "Only within the exact material family, electrolyte, endpoint, and condition ranges represented by the linked evidence.",
+      "predicted_observations": [
+        "a measurable coordination change across the first condition",
+        "a corresponding change in interfacial hydration"
+      ],
+      "alternative_explanations": [
+        "study-level protocol differences",
+        "an unmeasured covariate correlated with both conditions"
+      ],
+      "unresolved_variables": [
+        "local pH",
+        "realized rather than nominal condition state"
+      ],
+      "evidence_assessments": [
+        {
+          "evidence_id": "EV_DIRECT",
+          "relationship": "SUPPORTS",
+          "evidence_class": "DIRECT_OBSERVATION",
+          "interpretation_summary": "A directly measured process observable changes with the condition pair.",
+          "observation_ids": [
+            "OBS_DIRECT"
+          ]
+        },
+        {
+          "evidence_id": "EV_THEORY",
+          "relationship": "SUPPORTS",
+          "evidence_class": "THEORETICAL_SUPPORT",
+          "interpretation_summary": "A calculation supports the proposed intermediate process."
+        },
+        {
+          "evidence_id": "EV_COUNTER",
+          "relationship": "CONTRADICTS",
+          "evidence_class": "DIRECT_OBSERVATION",
+          "interpretation_summary": "A measured result does not show the predicted process change.",
+          "observation_ids": [
+            "OBS_COUNTER"
+          ]
+        }
+      ]
+    }
+  ]
+}

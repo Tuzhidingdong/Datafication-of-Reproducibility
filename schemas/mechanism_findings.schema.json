@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/mechanism_findings.schema.json",
+  "title": "Research findings package generated from mechanism hypothesis bridge",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "interaction_id",
+    "finding_count",
+    "findings",
+    "claim_scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "interaction_id": {
+      "type": "string"
+    },
+    "finding_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/research_finding.schema.json"
+      }
+    },
+    "claim_scope": {
+      "const": "ALL_FINDINGS_REMAIN_MECHANISM_HYPOTHESES_PENDING_G3_USER_REVIEW"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/phase_state.schema.json",
+  "title": "Research Run Phase State",
+  "type": "object",
+  "required": ["schema_version", "project_id", "run_id", "current_phase", "phases", "approvals"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "project_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "current_phase": {"enum": ["G0", "G1", "G2", "G3", "G4", "completed", "blocked"]},
+    "phases": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {"enum": ["not_started", "in_progress", "awaiting_approval", "approved", "completed", "blocked", "skipped"]},
+          "input_hashes": {"type": "object"},
+          "output_artifacts": {"type": "array", "items": {"type": "string"}},
+          "started_at": {"type": "string"},
+          "completed_at": {"type": "string"},
+          "notes": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["gate", "decision", "timestamp"],
+        "properties": {
+          "gate": {"enum": ["G0", "G1", "G2", "G3", "G4"]},
+          "decision": {"enum": ["APPROVE", "REVISE", "STOP"]},
+          "timestamp": {"type": "string"},
+          "user_note": {"type": "string"},
+          "plan_version": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

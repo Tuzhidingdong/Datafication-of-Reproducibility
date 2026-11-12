@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/interaction_response_surface_report.schema.json",
+  "title": "Pairwise interaction response surface report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "target_id",
+    "endpoint_definition",
+    "interaction_id",
+    "feature_a",
+    "feature_b",
+    "feature_definitions",
+    "method",
+    "fit_population",
+    "prediction_mode",
+    "model",
+    "cohort",
+    "grid",
+    "study_pair_coverage",
+    "empirical_support",
+    "marginal_effects",
+    "interpretation_limits",
+    "validation_scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "target_id": {
+      "type": "string"
+    },
+    "endpoint_definition": {
+      "type": "string"
+    },
+    "interaction_id": {
+      "type": "string"
+    },
+    "feature_a": {
+      "type": "string"
+    },
+    "feature_b": {
+      "type": "string"
+    },
+    "outcome_unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_interaction_status": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "robustness_status": {
+      "type": "string"
+    },
+    "method": {
+      "const": "ALL_COHORT_DESCRIPTIVE_REFIT_FROM_MEDIAN_NESTED_ALPHA"
+    },
+    "prediction_mode": {
+      "const": "PARTIAL_DEPENDENCE_AVERAGED_OVER_EMPIRICAL_BACKGROUND"
+    },
+    "model": {
+      "type": "object",
+      "required": [
+        "type",
+        "alpha",
+        "alpha_values_from_nested_folds",
+        "converged",
+        "iterations"
+      ],
+      "properties": {
+        "type": {
+          "const": "PAIRWISE_BILINEAR_RIDGE"
+        },
+        "alpha": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "alpha_values_from_nested_folds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "converged": {
+          "type": "boolean"
+        },
+        "iterations": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cohort": {
+      "type": "object",
+      "required": [
+        "observation_count",
+        "study_count",
+        "background_observation_count",
+        "background_sampling",
+        "distinct_observed_feature_pairs",
+        "partial_dependence_prediction_evaluations"
+      ],
+      "properties": {
+        "observation_count": {
+          "type": "integer"
+        },
+        "study_count": {
+          "type": "integer"
+        },
+        "background_observation_count": {
+          "type": "integer"
+        },
+        "background_sampling": {
+          "type": "string"
+        },
+        "distinct_observed_feature_pairs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "partial_dependence_prediction_evaluations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500000
+        }
+      },
+      "additionalProperties": false
+    },
+    "grid": {
+      "type": "object",
+      "required": [
+        "grid_size_per_axis",
+        "grid_point_count",
+        "feature_a_range",
+        "feature_b_range",
+        "range_quantiles"
+      ],
+      "properties": {
+        "grid_size_per_axis": {
+          "type": "integer"
+        },
+        "grid_point_count": {
+          "type": "integer"
+        },
+        "feature_a_range": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "feature_b_range": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "range_quantiles": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "empirical_support": {
+      "type": "object",
+      "required": [
+        "method",
+        "distance_quantile",
+        "distance_threshold",
+        "feature_a_scale",
+        "feature_b_scale",
+        "convex_hull_vertices",
+        "grid_status_counts",
+        "supported_grid_fraction"
+      ],
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "distance_quantile": {
+          "type": "number"
+        },
+        "distance_threshold": {
+          "type": "number"
+        },
+        "feature_a_scale": {
+          "type": "number"
+        },
+        "feature_b_scale": {
+          "type": "number"
+        },
+        "convex_hull_vertices": {
+          "type": "array"
+        },
+        "grid_status_counts": {
+          "type": "object"
+        },
+        "supported_grid_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "marginal_effects": {
+      "type": "object",
+      "required": [
+        "definition",
+        "feature_a_unit",
+        "feature_b_unit",
+        "cross_partial_derivative",
+        "cross_partial_derivative_unit",
+        "marginal_effect_feature_a_unit",
+        "marginal_effect_feature_b_unit"
+      ],
+      "properties": {
+        "definition": {
+          "type": "string"
+        },
+        "feature_a_unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "feature_b_unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cross_partial_derivative": {
+          "type": "number"
+        },
+        "cross_partial_derivative_unit": {
+          "type": "string"
+        },
+        "marginal_effect_feature_a_unit": {
+          "type": "string"
+        },
+        "marginal_effect_feature_b_unit": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "interpretation_limits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "validation_scope": {
+      "const": "DESCRIPTIVE_RESPONSE_SURFACE_NOT_INDEPENDENT_VALIDATION_OR_CAUSAL_INFERENCE"
+    },
+    "feature_definitions": {
+      "type": "object",
+      "required": [
+        "feature_a",
+        "feature_b"
+      ],
+      "properties": {
+        "feature_a": {
+          "$ref": "#/$defs/featureDefinition"
+        },
+        "feature_b": {
+          "$ref": "#/$defs/featureDefinition"
+        }
+      },
+      "additionalProperties": false
+    },
+    "fit_population": {
+      "const": "ALL_ELIGIBLE_COHORT_OBSERVATIONS_ALL_SPLITS_INCLUDING_HELD_OUT_TEST"
+    },
+    "study_pair_coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "study_id",
+          "observation_count",
+          "distinct_observed_feature_pairs",
+          "feature_a_range",
+          "feature_b_range"
+        ],
+        "properties": {
+          "study_id": {
+            "type": "string"
+          },
+          "observation_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "distinct_observed_feature_pairs": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "feature_a_range": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          },
+          "feature_b_range": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "featureDefinition": {
+      "type": "object",
+      "required": [
+        "feature_id",
+        "condition_type",
+        "value_field",
+        "value_type",
+        "unit"
+      ],
+      "properties": {
+        "feature_id": {
+          "type": "string"
+        },
+        "condition_type": {
+          "type": "string"
+        },
+        "value_field": {
+          "enum": [
+            "raw_value",
+            "normalized_value"
+          ]
+        },
+        "value_type": {
+          "const": "NUMERIC"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

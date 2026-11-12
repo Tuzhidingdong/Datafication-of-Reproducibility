@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0",
+  "project_id": "PROJECT_001",
+  "run_id": "RUN_0001",
+  "package_version": "0.1.0",
+  "created_at": "REPLACE_WITH_ACTUAL_TIMESTAMP",
+  "domain_profile": "domain_profiles/example/domain_profile.yaml",
+  "source_hashes": {},
+  "writing_guide": "README_FOR_WRITING_SKILL.md",
+  "artifacts": [
+    {
+      "artifact_id": "DATA_DICTIONARY_001",
+      "path": "data/data_dictionary.csv",
+      "type": "data_dictionary",
+      "description": "Definitions, units, types, missingness and source mappings for included fields.",
+      "status": "requires_review",
+      "sha256": "",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MODEL_CARD_001",
+      "path": "models/MODEL_001/model_card.md",
+      "type": "model_card",
+      "description": "Executed model, parameters, cohort, validation and applicability domain.",
+      "status": "not_generated",
+      "sha256": "",
+      "linked_record_ids": [
+        "MODEL_001"
+      ],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "FIGURE_001",
+      "path": "figures/FIGURE_001/figure.svg",
+      "type": "figure",
+      "description": "Rendered figure with associated source data and plotting configuration.",
+      "status": "not_generated",
+      "sha256": "",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results"
+      ]
+    },
+    {
+      "artifact_id": "MECHANISM_BRIDGE_001",
+      "path": "mechanisms/bridge/mechanism_evidence_bridge_report.json",
+      "type": "mechanism_evidence_bridge_report",
+      "description": "Evidence-linked mechanism hypotheses, evidence status, independent prospective source checks, contradictions, and pending human review.",
+      "status": "requires_review",
+      "sha256": "",
+      "linked_record_ids": [
+        "INT_SELECTED",
+        "MEC_HYPOTHESIS_001"
+      ],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MECHANISM_EVIDENCE_LEDGER_001",
+      "path": "mechanisms/bridge/mechanism_evidence_ledger.csv",
+      "type": "mechanism_evidence_ledger",
+      "description": "Canonical evidence IDs, source locators, Study/DOI, extraction verification, Observation links, and evidence-role assessments.",
+      "status": "complete",
+      "sha256": "",
+      "linked_record_ids": [
+        "MEC_HYPOTHESIS_001",
+        "EV_SOURCE_001"
+      ],
+      "manuscript_sections": [
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MECHANISM_REVIEW_QUEUE_001",
+      "path": "mechanisms/bridge/mechanism_review_queue.csv",
+      "type": "mechanism_review_queue",
+      "description": "Unverified evidence, DOI/Study overlap, contradictory evidence, and unresolved hypothesis-support issues.",
+      "status": "complete",
+      "sha256": "",
+      "linked_record_ids": [
+        "MEC_HYPOTHESIS_001"
+      ],
+      "manuscript_sections": [
+        "Discussion",
+        "Limitations"
+      ]
+    },
+    {
+      "artifact_id": "MECHANISM_FINDINGS_001",
+      "path": "findings/mechanism_findings.json",
+      "type": "research_findings",
+      "description": "Structured Research Finding records that remain candidate mechanism hypotheses pending explicit human review.",
+      "status": "requires_review",
+      "sha256": "",
+      "linked_record_ids": [
+        "MEC_HYPOTHESIS_001"
+      ],
+      "manuscript_sections": [
+        "Results",
+        "Discussion"
+      ]
+    }
+  ],
+  "completeness": {
+    "status": "partial",
+    "unresolved_items": [
+      "Replace example records with artifacts from an executed run.",
+      "Verify all artifact paths and hashes."
+    ]
+  }
+}

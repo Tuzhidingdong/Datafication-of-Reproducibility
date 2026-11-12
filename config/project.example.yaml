@@ -1,0 +1,41 @@
+schema_version: "1.0"
+
+project:
+  project_id: "PROJECT_ZN_001"
+  name: "Aqueous zinc battery reproducibility study"
+  description: "Example only. Replace with the actual project scope."
+
+domain_profile: "domain_profiles/zinc_battery/domain_profile.yaml"
+
+source_data:
+  files:
+    - role: "wide_table"
+      path: "../private_data/consolidated_zinc_battery_database.csv"
+      format: "csv"
+      description: "Literature-derived wide table; row semantics require confirmation."
+      read_only: true
+    - role: "evidence_database"
+      path: "../private_data/consolidated_zinc_battery_database.json"
+      format: "json"
+      description: "Nested evidence and context database; schema requires inspection."
+      read_only: true
+
+workspace:
+  runs_dir: "../dor_workspace/runs"
+  cache_dir: "../dor_workspace/cache"
+  allow_source_copy: false
+
+workflow:
+  mode: "guided"
+  approval_gates: ["G0", "G1", "G2", "G3", "G4"]
+  source_policy: "preserve"
+  max_parallel_workers: 2
+  llm_budget:
+    policy: "minimize_context_and_reuse_artifacts"
+    workers_are_on_demand: true
+    require_user_approval_for_deep_investigation: true
+
+notes:
+  - "This is an example configuration, not a verified mapping of the current dataset."
+  - "Adjust local file paths without committing private paths or source data."
+  - "Review the actual CSV and JSON before completing the zinc-battery feature mapping."

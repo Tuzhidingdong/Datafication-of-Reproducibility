@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/mechanism_evidence_bridge_report.schema.json",
+  "title": "Evidence-linked mechanism hypothesis bridge report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "plan_id",
+    "prepared_by",
+    "proposal_origin",
+    "task_id",
+    "target_id",
+    "endpoint_definition",
+    "interaction_id",
+    "interaction",
+    "robustness_status",
+    "response_surface_scope",
+    "evidence_label_contract",
+    "mechanism_catalogue",
+    "review_queue",
+    "review_issue_count",
+    "claim_scope",
+    "review_state",
+    "interpretation_limits",
+    "validation_scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "plan_id": {
+      "type": "string"
+    },
+    "prepared_by": {
+      "type": "string"
+    },
+    "proposal_origin": {
+      "enum": [
+        "USER_DRAFT",
+        "AGENT_DRAFT",
+        "WORKER_DRAFT"
+      ]
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "target_id": {
+      "type": "string"
+    },
+    "endpoint_definition": {
+      "type": "string"
+    },
+    "interaction_id": {
+      "type": "string"
+    },
+    "interaction": {
+      "type": "object",
+      "required": [
+        "feature_a",
+        "feature_b",
+        "interpretation_status",
+        "discovery_study_ids",
+        "discovery_dois"
+      ],
+      "properties": {
+        "feature_a": {
+          "type": "string"
+        },
+        "feature_b": {
+          "type": "string"
+        },
+        "interpretation_status": {
+          "type": "string"
+        },
+        "mean_fold_rmse_improvement": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "positive_improvement_fold_fraction": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "discovery_study_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "discovery_dois": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "robustness_status": {
+      "type": "string"
+    },
+    "response_surface_scope": {
+      "type": "string"
+    },
+    "evidence_label_contract": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "mechanism_catalogue": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "mechanism_id",
+          "finding_id",
+          "hypothesis_id",
+          "title",
+          "hypothesis_statement",
+          "scope_statement",
+          "evidence_status",
+          "evidence_counts",
+          "evidence_assessments",
+          "review_state",
+          "manuscript_wording",
+          "limitations"
+        ],
+        "properties": {
+          "mechanism_id": {
+            "type": "string"
+          },
+          "finding_id": {
+            "type": "string"
+          },
+          "hypothesis_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "hypothesis_statement": {
+            "type": "string"
+          },
+          "proposed_process_chain": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scope_statement": {
+            "type": "string"
+          },
+          "predicted_observations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "alternative_explanations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unresolved_variables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence_status": {
+            "enum": [
+              "SUPPORT_AND_CONTRADICTION_RECORDED",
+              "CONTRADICTION_RECORDED",
+              "INDEPENDENT_PROSPECTIVE_SUPPORT_RECORDED",
+              "DIRECT_AND_THEORETICAL_SUPPORT_RECORDED",
+              "DIRECT_OBSERVATION_SUPPORT_RECORDED",
+              "THEORETICAL_SUPPORT_RECORDED",
+              "EVIDENCE_REVIEW_REQUIRED",
+              "NO_CLASSIFIED_MECHANISM_SUPPORT",
+              "HYPOTHESIS_ONLY"
+            ]
+          },
+          "evidence_counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "supporting_study_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contradicting_evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence_assessments": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "review_state": {
+            "const": "PENDING_USER_MECHANISM_REVIEW"
+          },
+          "manuscript_wording": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "review_queue": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "hypothesis_id",
+          "issue_code",
+          "evidence_id",
+          "review_action",
+          "detail"
+        ],
+        "properties": {
+          "hypothesis_id": {
+            "type": "string"
+          },
+          "issue_code": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string"
+          },
+          "review_action": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "review_issue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "claim_scope": {
+      "const": "EXPLICIT_EVIDENCE_LINKED_MECHANISM_HYPOTHESES_PENDING_G3_REVIEW_NOT_AUTOMATIC_MECHANISM_DISCOVERY"
+    },
+    "review_state": {
+      "const": "PENDING_USER_MECHANISM_REVIEW"
+    },
+    "interpretation_limits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "validation_scope": {
+      "const": "STRUCTURAL_EVIDENCE_LINK_VALIDATION_AND_HYPOTHESIS_PACKAGING_NOT_CAUSAL_OR_MECHANISM_VERIFICATION"
+    }
+  },
+  "additionalProperties": false
+}

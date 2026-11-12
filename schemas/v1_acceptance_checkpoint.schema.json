@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/blob/main/schemas/v1_acceptance_checkpoint.schema.json",
+  "title": "DOR V1.0 Detached Acceptance Ledger Checkpoint",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "checkpoint_type",
+    "acceptance",
+    "record",
+    "revision_ledger",
+    "revision_snapshots",
+    "upstream_ledgers"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "checkpoint_type": {
+      "const": "DOR_ACCEPTANCE_LEDGER_CHECKPOINT"
+    },
+    "acceptance": {
+      "type": "object",
+      "required": [
+        "acceptance_id",
+        "project_id",
+        "run_id"
+      ],
+      "properties": {
+        "acceptance_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "record": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "revision_ledger": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "event_count",
+        "latest_event_hash",
+        "latest_record_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "event_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "latest_event_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "latest_record_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "revision_snapshots": {
+      "type": "object",
+      "required": [
+        "directory",
+        "items"
+      ],
+      "properties": {
+        "directory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "sha256"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^revision-[0-9]{6}\\.json$"
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "upstream_ledgers": {
+      "type": "object",
+      "properties": {
+        "workflow_gate_ledger": {
+          "$ref": "#/$defs/gateLedgerSnapshot"
+        },
+        "run_event_ledger": {
+          "$ref": "#/$defs/runLedgerSnapshot"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifactReference": {
+      "type": "object",
+      "required": [
+        "artifact_id",
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gateLedgerBinding": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "gate_event_hashes",
+        "gate_artifacts"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "gate_event_hashes": {
+          "type": "object",
+          "required": [
+            "G0",
+            "G1",
+            "G2",
+            "G3",
+            "G4"
+          ],
+          "properties": {
+            "G0": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/sha256"
+                }
+              ]
+            },
+            "G1": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/sha256"
+                }
+              ]
+            },
+            "G2": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/sha256"
+                }
+              ]
+            },
+            "G3": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/sha256"
+                }
+              ]
+            },
+            "G4": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/sha256"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "gate_artifacts": {
+          "type": "object",
+          "required": [
+            "G0",
+            "G1",
+            "G2",
+            "G3",
+            "G4"
+          ],
+          "properties": {
+            "G0": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/artifactReference"
+              }
+            },
+            "G1": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/artifactReference"
+              }
+            },
+            "G2": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/artifactReference"
+              }
+            },
+            "G3": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/artifactReference"
+              }
+            },
+            "G4": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/artifactReference"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "gateLedgerSnapshot": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "binding"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "binding": {
+          "$ref": "#/$defs/gateLedgerBinding"
+        }
+      },
+      "additionalProperties": false
+    },
+    "runEventBinding": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "event_count",
+        "last_event_hash"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_event_hash": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "runLedgerSnapshot": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "binding"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "binding": {
+          "$ref": "#/$defs/runEventBinding"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

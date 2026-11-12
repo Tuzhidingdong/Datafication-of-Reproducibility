@@ -1,0 +1,560 @@
+"""Command-line interface for the DOR runtime."""
+from __future__ import annotations
+import argparse, json, sys
+from pathlib import Path
+from dor.audit import run_audit
+from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files, validate_condition_decisions_files
+from dor.cohort import build_modeling_cohort_files
+from dor.builder import build_canonical_files
+from dor.canonical import validate_canonical_bundle
+from dor.diagnostics import diagnose_canonical_bundle
+from dor.mapping import validate_mapping_files
+from dor.modeling import run_baseline_models_files
+from dor.reproducibility import evaluate_reproducibility_files
+from dor.interactions import discover_interactions_files
+from dor.robustness import assess_interaction_robustness_files
+from dor.response_surface import generate_interaction_surface_files
+from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
+from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
+from dor.publication import build_publication_package_files, audit_publication_package_files
+from dor.virtual_reproduction import predict_virtual_condition_files
+from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
+from dor.acceptance import validate_acceptance_record
+from dor.acceptance_ledger import (initialize_acceptance_ledger, record_acceptance_revision,
+    recover_acceptance_record, inspect_acceptance_history, create_acceptance_checkpoint,
+    verify_acceptance_checkpoint)
+from dor.run_manager import (
+    authorize_worker, build_artifact_manifest, build_resume_plan, initialize_run, record_stage_status, verify_run,
+)
+
+def _write_json(path: Path | None, report: dict) -> str:
+    rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
+    if path:
+        path.parent.mkdir(parents=True,exist_ok=True)
+        path.write_text(rendered,encoding="utf-8")
+    return rendered
+
+
+def _add_gate_args(command_parser: argparse.ArgumentParser) -> None:
+    command_parser.add_argument("--workflow-ledger", type=Path, default=None,
+        help="Hash-bound G0-G4 approval ledger; required for guided project execution.")
+    command_parser.add_argument("--allow-untracked-legacy", action="store_true",
+        help="Explicit legacy-only bypass for archived scripts; never use in a real project.")
+
+
+def _enforce_gate(args: argparse.Namespace, gate_id: str,
+                  expected_artifacts: dict[str, Path] | None = None) -> None:
+    if args.workflow_ledger is None:
+        if args.allow_untracked_legacy:
+            print(json.dumps({"warning":"UNTRACKED_LEGACY_WORKFLOW",
+                "required_gate":gate_id,
+                "message":"Workflow gate enforcement was explicitly bypassed for legacy compatibility."}),
+                file=sys.stderr)
+            return
+        raise ValueError("This command requires --workflow-ledger and a current APPROVE decision for " + gate_id +
+            ". The explicit --allow-untracked-legacy override is reserved for archived scripts.")
+    require_gate(args.workflow_ledger, gate_id, expected_artifacts)
+
+
+def _parse_artifact_bindings(values: list[str]) -> list[tuple[str, Path]]:
+    bindings = []
+    for value in values:
+        if "=" not in value:
+            raise ValueError("--artifact must use ARTIFACT_ID=FILE_PATH syntax.")
+        artifact_id, path = value.split("=", 1)
+        if not artifact_id.strip() or not path.strip():
+            raise ValueError("--artifact must contain a non-empty ID and file path.")
+        bindings.append((artifact_id.strip(), Path(path)))
+    return bindings
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="dor", description="Datafication of Reproducibility runtime")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    chem_import = subparsers.add_parser("ingest-chem-literacy", help="Import Chem-Literacy observations/reconciliation and prepare condition-recovery tasks")
+    source_group = chem_import.add_mutually_exclusive_group(required=True)
+    source_group.add_argument("--database-json", type=Path, help="Aggregate JSON with metadata and papers[].observations[]")
+    source_group.add_argument("--database-csv", type=Path, help="Flattened Chem-Literacy observation/reconciliation CSV")
+    chem_import.add_argument("--reconciliation-csv", type=Path, help="Optional matching Reconciliation Ledger CSV; joined only by paper_id + reconciliation_id")
+    chem_import.add_argument("--source-root", type=Path, help="Read-only root containing exact per-paper source/evidence files")
+    chem_import.add_argument("--condition-profile", type=Path, help="Optional JSON condition-retrieval profile")
+    chem_import.add_argument("--out-dir", type=Path, required=True, help="New or empty derived import directory")
+    recover_validate = subparsers.add_parser("validate-condition-recovery", help="Validate Worker-recovered condition values against the exact task, source hashes, and source quotations")
+    recover_validate.add_argument("--task", type=Path, required=True, help="Exact condition_recovery_tasks.json task packet")
+    recover_validate.add_argument("--result", type=Path, required=True, help="Worker condition recovery proposal JSON")
+    recover_validate.add_argument("--source-root", type=Path, required=True, help="Protected source root containing the task-declared paper/SI files")
+    recover_validate.add_argument("--out", type=Path, required=True, help="Validation report path outside source_root")
+    condition_decisions = subparsers.add_parser("validate-condition-decisions", help="Validate explicit human decisions and export approved recovered conditions")
+    condition_decisions.add_argument("--task", type=Path, required=True, help="Exact condition recovery task packet")
+    condition_decisions.add_argument("--recovery-validation", type=Path, required=True, help="Source-hash and quotation validation report")
+    condition_decisions.add_argument("--decisions", type=Path, required=True, help="Human-reviewed condition decision record")
+    condition_decisions.add_argument("--source-root", type=Path, required=True, help="Protected source root containing task-declared paper/SI files")
+    condition_decisions.add_argument("--out-dir", type=Path, required=True, help="New or empty decision output directory")
+    audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
+    audit.add_argument("--csv", type=Path, help="Path to a source CSV file")
+    audit.add_argument("--json", type=Path, help="Path to a source JSON file")
+    audit.add_argument("--out", type=Path, required=True, help="Separate output directory for derived audit artifacts")
+    validate = subparsers.add_parser("validate-bundle", help="Validate canonical bundle structure and references")
+    validate.add_argument("--input", type=Path, required=True, help="Canonical bundle JSON file")
+    validate.add_argument("--out", type=Path, help="Optional path for a validation report JSON")
+    diagnose = subparsers.add_parser("diagnose-bundle", help="Report potential duplicate and unreferenced canonical entities without changing records")
+    diagnose.add_argument("--input", type=Path, required=True, help="Canonical bundle JSON file")
+    diagnose.add_argument("--out", type=Path, help="Optional path for a diagnostics report JSON")
+    reconcile = subparsers.add_parser("reconcile-bundle", help="Create evidence-linked data quality and reconciliation review queue without changing canonical data")
+    reconcile.add_argument("--input", type=Path, required=True, help="Canonical bundle JSON file")
+    reconcile.add_argument("--out-dir", type=Path, required=True, help="New or empty derived output directory")
+    decisions = subparsers.add_parser("validate-reconciliation-decisions", help="Validate human review decisions against exact report and bundle hashes")
+    decisions.add_argument("--decisions", type=Path, required=True, help="Human reconciliation decisions JSON")
+    decisions.add_argument("--report", type=Path, required=True, help="Exact reconciliation_report.json")
+    decisions.add_argument("--bundle", type=Path, required=True, help="Exact canonical_bundle.json referenced by the report")
+    decisions.add_argument("--out", type=Path, help="Optional validation report JSON")
+    mapping = subparsers.add_parser("validate-mapping", help="Validate mapping references, provenance, and approval gates")
+    mapping.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
+    mapping.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
+    mapping.add_argument("--out", type=Path, help="Optional path for a validation report JSON")
+    build = subparsers.add_parser("build-canonical", help="Build canonical entities from approved mappings and explicit grouping/link rules")
+    build.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
+    build.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
+    build.add_argument("--spec", type=Path, required=True, help="Canonical build specification JSON")
+    build.add_argument("--source-root", type=Path, required=True, help="Directory containing source files named in the inventory")
+    build.add_argument("--out-dir", type=Path, required=True, help="New or empty derived output directory")
+    cohort = subparsers.add_parser("build-cohort", help="Build an endpoint-specific modelling cohort with study-level splits")
+    cohort.add_argument("--bundle", type=Path, required=True, help="Validated canonical_bundle.json")
+    cohort.add_argument("--task", type=Path, required=True, help="Explicit modeling_task.json")
+    cohort.add_argument("--out-dir", type=Path, required=True, help="New or empty derived cohort output directory")
+    models = subparsers.add_parser("fit-baselines", help="Fit deterministic baseline models and evaluate the selected model on held-out studies")
+    models.add_argument("--cohort-dir", type=Path, required=True, help="Cohort output directory from dor build-cohort")
+    models.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON used to build the cohort")
+    models.add_argument("--out-dir", type=Path, required=True, help="New or empty derived model output directory")
+    evaluate = subparsers.add_parser("evaluate-reproducibility", help="Run nested study-group cross-validation and applicability-domain diagnostics")
+    evaluate.add_argument("--cohort-dir", type=Path, required=True, help="Completed hash-verified modelling cohort directory")
+    evaluate.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON used to build the cohort")
+    evaluate.add_argument("--out-dir", type=Path, required=True, help="New or empty derived reproducibility evaluation directory")
+    evaluate.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
+    evaluate.add_argument("--seed", type=int, default=42, help="Deterministic grouped-fold seed")
+    interaction = subparsers.add_parser("discover-interactions", help="Screen pairwise predictive interactions with nested Study-grouped validation")
+    interaction.add_argument("--cohort-dir", type=Path, required=True, help="Completed hash-verified numeric modeling cohort directory")
+    interaction.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON with explicit interaction settings")
+    interaction.add_argument("--out-dir", type=Path, required=True, help="New or empty derived interaction output directory")
+    interaction.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
+    interaction.add_argument("--seed", type=int, default=42, help="Deterministic grouped-fold seed")
+    robustness = subparsers.add_parser("assess-interaction-robustness", help="Repeat nested pairwise interaction screening across Study-group split seeds")
+    robustness.add_argument("--cohort-dir", type=Path, required=True, help="Completed hash-verified numeric modeling cohort directory")
+    robustness.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON with explicit interaction settings")
+    robustness.add_argument("--out-dir", type=Path, required=True, help="New or empty derived robustness output directory")
+    robustness.add_argument("--folds", type=int, default=None, help="Outer grouped CV folds; default is min(5, eligible Study count)")
+    robustness.add_argument("--seeds", type=str, default="11,23,42", help="At least three unique comma-separated integer seeds")
+    robustness.add_argument("--minimum-candidate-run-fraction", type=float, default=0.8, help="Required fraction of runs labelled as candidates for seed-stable status")
+    surface = subparsers.add_parser("generate-interaction-surface", help="Generate a descriptive pairwise response surface and support mask")
+    surface.add_argument("--cohort-dir", type=Path, required=True, help="Completed hash-verified numeric modeling cohort directory")
+    surface.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON")
+    surface.add_argument("--interaction-dir", type=Path, required=True, help="Hash-verified output directory from dor discover-interactions")
+    surface.add_argument("--interaction-id", type=str, required=True, help="Exact interaction_id selected from interaction_catalogue.csv")
+    surface.add_argument("--out-dir", type=Path, required=True, help="New or empty derived response-surface directory")
+    surface.add_argument("--robustness-dir", type=Path, default=None, help="Optional hash-verified output directory from dor assess-interaction-robustness")
+    surface.add_argument("--grid-size", type=int, default=None, help="Override task grid size (5-61)")
+    surface.add_argument("--background-max", type=int, default=None, help="Override partial-dependence background cap (10-5000)")
+    mechanism = subparsers.add_parser("build-mechanism-evidence-bridge", help="Validate source evidence links for explicit mechanism hypotheses tied to a selected interaction")
+    mechanism.add_argument("--bundle", type=Path, required=True, help="Exact canonical_bundle.json used to build the modeling cohort")
+    mechanism.add_argument("--cohort-dir", type=Path, required=True, help="Hash-verified endpoint-specific modeling cohort")
+    mechanism.add_argument("--task", type=Path, required=True, help="Exact modeling_task.json used to build the cohort")
+    mechanism.add_argument("--interaction-dir", type=Path, required=True, help="Hash-verified interaction discovery output")
+    mechanism.add_argument("--plan", type=Path, required=True, help="Explicit mechanism_plan.json with evidence assessments")
+    mechanism.add_argument("--out-dir", type=Path, required=True, help="New or empty derived mechanism bridge output directory")
+    mechanism.add_argument("--robustness-dir", type=Path, default=None, help="Optional hash-verified repeated-seed robustness output")
+    mechanism.add_argument("--response-surface-dir", type=Path, default=None, help="Optional hash-verified descriptive response-surface output")
+    package = subparsers.add_parser("build-publication-package", help="Assemble an explicitly curated, hash-verified Writing Skill package")
+    package.add_argument("--plan", type=Path, required=True, help="Explicit publication_package_plan.json")
+    package.add_argument("--workspace-root", type=Path, required=True, help="Workspace root for declared relative source paths")
+    package.add_argument("--out-dir", type=Path, required=True, help="New or empty publication package directory")
+    package_audit = subparsers.add_parser("audit-publication-package", help="Verify publication package paths, completeness states, and SHA-256 hashes")
+    package_audit.add_argument("--package-dir", type=Path, required=True, help="Publication package directory")
+    package_audit.add_argument("--out", type=Path, help="Optional integrity report JSON outside the package")
+    virtual = subparsers.add_parser("predict-virtual-condition", help="Predict a requested condition set with a hash-verified selected baseline model")
+    virtual.add_argument("--model-run-dir", type=Path, required=True, help="Exact output directory from dor fit-baselines")
+    virtual.add_argument("--query", type=Path, required=True, help="Explicit virtual_reproduction_query.json")
+    virtual.add_argument("--out", type=Path, required=True, help="New JSON prediction report path")
+    for gated_parser in (build, cohort, models, evaluate, interaction, robustness,
+                         surface, mechanism, package, virtual):
+        _add_gate_args(gated_parser)
+    gate_record = subparsers.add_parser("gate-record", help="Append a hash-bound human decision to the G0-G4 workflow ledger")
+    gate_record.add_argument("--workflow-ledger", type=Path, required=True)
+    gate_record.add_argument("--gate", dest="gate_id", choices=["G0","G1","G2","G3","G4"], required=True)
+    gate_record.add_argument("--decision", choices=["APPROVE","REVISE","STOP"], required=True)
+    gate_record.add_argument("--reviewer", required=True, help="Human reviewer identifier; not independently authenticated")
+    gate_record.add_argument("--rationale", required=True, help="Why this exact gate scope is approved, revised, or stopped")
+    gate_record.add_argument("--artifact", dest="artifacts", action="append", default=[],
+        help="Hash-bind a reviewed file as ARTIFACT_ID=FILE_PATH; repeat for every required artifact")
+    gate_status = subparsers.add_parser("gate-status", help="Verify event history, artifact hashes, and current G0-G4 approval state")
+    gate_status.add_argument("--workflow-ledger", type=Path, required=True)
+
+    acceptance = subparsers.add_parser("validate-acceptance", help="Verify V1.0 acceptance semantics, Run binding, hashes, and deterministic JSON assertions")
+    acceptance.add_argument("--record", type=Path, required=True, help="V1.0 acceptance record JSON")
+    acceptance.add_argument("--run-manifest", type=Path, required=True, help="Exact run_manifest.json referenced by the record")
+    acceptance.add_argument("--ledger", type=Path, required=True, help="Append-only acceptance revision ledger JSONL")
+    acceptance.add_argument("--out", type=Path, help="Optional validation report JSON")
+
+    acceptance_init = subparsers.add_parser("init-acceptance-ledger", help="Create immutable revision history for a new acceptance record")
+    acceptance_init.add_argument("--record", type=Path, required=True)
+    acceptance_init.add_argument("--ledger", type=Path, required=True)
+    acceptance_init.add_argument("--actor", required=True)
+    acceptance_init.add_argument("--rationale", required=True)
+
+    acceptance_revision = subparsers.add_parser("record-acceptance-revision", help="Record a reviewed acceptance-record edit; invalidate all downstream stage reviews")
+    acceptance_revision.add_argument("--record", type=Path, required=True)
+    acceptance_revision.add_argument("--ledger", type=Path, required=True)
+    acceptance_revision.add_argument("--actor", required=True)
+    acceptance_revision.add_argument("--rationale", required=True)
+
+    acceptance_recover = subparsers.add_parser("recover-acceptance-record", help="Restore the latest committed snapshot after an interrupted ledger update")
+    acceptance_recover.add_argument("--record", type=Path, required=True)
+    acceptance_recover.add_argument("--ledger", type=Path, required=True)
+
+    acceptance_history = subparsers.add_parser("acceptance-history", help="List verified acceptance revisions, reviewers, stage changes, and invalidations")
+    acceptance_history.add_argument("--ledger", type=Path, required=True)
+    acceptance_history.add_argument("--out", type=Path, help="Optional path for the history report JSON")
+
+    acceptance_checkpoint = subparsers.add_parser("checkpoint-acceptance", help="Create a detached checkpoint for independent anchoring of the complete acceptance history")
+    acceptance_checkpoint.add_argument("--record", type=Path, required=True)
+    acceptance_checkpoint.add_argument("--ledger", type=Path, required=True)
+    acceptance_checkpoint.add_argument("--out", type=Path, required=True, help="New checkpoint JSON; store it outside the project trust boundary")
+
+    acceptance_checkpoint_verify = subparsers.add_parser("verify-acceptance-checkpoint", help="Verify live acceptance state against a detached checkpoint and its independently retained SHA-256")
+    acceptance_checkpoint_verify.add_argument("--record", type=Path, required=True)
+    acceptance_checkpoint_verify.add_argument("--ledger", type=Path, required=True)
+    acceptance_checkpoint_verify.add_argument("--checkpoint", type=Path, required=True)
+    acceptance_checkpoint_verify.add_argument("--expected-sha256", required=True, help="Trusted checkpoint digest obtained from an independent channel")
+
+    run_init = subparsers.add_parser("run-init", help="Create a new isolated run workspace from an explicit stage/artifact plan")
+    run_init.add_argument("--plan", type=Path, required=True)
+    run_init.add_argument("--run-root", type=Path, required=True)
+    run_init.add_argument("--run-id", type=str, default=None)
+
+    run_status = subparsers.add_parser("run-status", help="Show current project run and stage states")
+    run_status.add_argument("--manifest", type=Path, required=True)
+
+    run_verify = subparsers.add_parser("run-verify", help="Verify the run plan, source snapshots, and append-only run event chain")
+    run_verify.add_argument("--manifest", type=Path, required=True)
+
+    run_resume = subparsers.add_parser("run-resume-plan", help="Calculate safe artifact reuse and stage rebuild actions without executing them")
+    run_resume.add_argument("--manifest", type=Path, required=True)
+    run_resume.add_argument("--out", type=Path, default=None)
+
+    run_artifacts = subparsers.add_parser("run-artifacts", help="Generate a regenerable artifact manifest with exact source/output hashes and provenance")
+    run_artifacts.add_argument("--manifest", type=Path, required=True)
+    run_artifacts.add_argument("--out", type=Path, default=None)
+
+    worker_authorize = subparsers.add_parser("run-worker-authorize", help="Record an explicit pre-dispatch Worker authorization and emit its bounded task packet")
+    worker_authorize.add_argument("--manifest", type=Path, required=True)
+    worker_authorize.add_argument("--stage", dest="stage_id", required=True)
+    worker_authorize.add_argument("--role", required=True)
+    worker_authorize.add_argument("--provider", required=True)
+    worker_authorize.add_argument("--model", required=True)
+    worker_authorize.add_argument("--project-root", type=Path, required=True)
+    worker_authorize.add_argument("--authorized-by", required=True)
+    worker_authorize.add_argument("--rationale", required=True)
+    worker_authorize.add_argument("--confirm-abandoned", action="store_true",
+        help="Confirm that an earlier RUNNING Worker process has been inspected and is no longer active.")
+
+    stage_record = subparsers.add_parser("run-stage-record", help="Append RUNNING/SUCCEEDED/FAILED metadata for one explicitly declared stage")
+    stage_record.add_argument("--manifest", type=Path, required=True)
+    stage_record.add_argument("--stage", dest="stage_id", required=True)
+    stage_record.add_argument("--status", choices=["RUNNING", "SUCCEEDED", "FAILED"], required=True)
+    stage_record.add_argument("--producer-kind", choices=["local", "worker", "manual"], required=True)
+    stage_record.add_argument("--command", dest="producer_command", default=None)
+    stage_record.add_argument("--role", default=None)
+    stage_record.add_argument("--provider", default=None)
+    stage_record.add_argument("--model", default=None)
+    stage_record.add_argument("--project-root", default=None)
+    stage_record.add_argument("--job-id", default=None)
+    stage_record.add_argument("--session-id", default=None)
+    stage_record.add_argument("--task-id", default=None)
+    stage_record.add_argument("--input-tokens", type=int, default=None)
+    stage_record.add_argument("--output-tokens", type=int, default=None)
+    stage_record.add_argument("--reasoning-tokens", type=int, default=None)
+    stage_record.add_argument("--cache-read-tokens", type=int, default=None)
+    stage_record.add_argument("--cache-write-tokens", type=int, default=None)
+    stage_record.add_argument("--reason", default=None)
+    stage_record.add_argument("--confirm-abandoned", action="store_true",
+        help="Confirm that an earlier RUNNING process has been inspected and is no longer active.")
+    return parser
+
+def main() -> int:
+    args = build_parser().parse_args()
+    try:
+        if args.command == "init-acceptance-ledger":
+            result = initialize_acceptance_ledger(args.record, args.ledger, args.actor, args.rationale)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "record-acceptance-revision":
+            result = record_acceptance_revision(args.record, args.ledger, args.actor, args.rationale)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "recover-acceptance-record":
+            result = recover_acceptance_record(args.record, args.ledger)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "acceptance-history":
+            result = inspect_acceptance_history(args.ledger)
+            print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
+        if args.command == "checkpoint-acceptance":
+            result = create_acceptance_checkpoint(args.record, args.ledger, args.out)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "verify-acceptance-checkpoint":
+            result = verify_acceptance_checkpoint(args.record, args.ledger, args.checkpoint, args.expected_sha256)
+            print(_write_json(None, result), end="")
+            return 0 if result["valid"] else 2
+        if args.command == "validate-acceptance":
+            result = validate_acceptance_record(args.record, args.run_manifest, args.ledger)
+            print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
+        if args.command == "run-init":
+            result = initialize_run(args.plan, args.run_root, args.run_id)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "run-verify":
+            result = verify_run(args.manifest)
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "run-status":
+            result = verify_run(args.manifest)
+            print(_write_json(None, {
+                "run_id": result["run_id"], "project_id": result["project_id"],
+                "source_integrity": result["source_integrity"],
+                "event_count": result["event_count"],
+                "stages": result["resume_plan"]["stages"],
+            }), end="")
+            return 0
+        if args.command == "run-resume-plan":
+            result = build_resume_plan(args.manifest)
+            print(_write_json(args.out, result), end="")
+            return 0
+        if args.command == "run-artifacts":
+            result = build_artifact_manifest(args.manifest)
+            if args.out is not None:
+                output_path = args.out.expanduser().resolve(strict=False)
+                declared_paths = {Path(item["path"]).expanduser().resolve(strict=False)
+                                  for item in result["artifacts"]}
+                source_roots = [Path(item).expanduser().resolve(strict=False) for item in result["source_roots"]]
+                protected_control_files = {
+                    (Path(result["workspace_root"]) / name).resolve(strict=False)
+                    for name in ("run_manifest.json", "run_plan.json", "run_events.jsonl")
+                }
+                if any(output_path.is_relative_to(source_root) for source_root in source_roots):
+                    raise ValueError("Artifact manifest output must remain outside all protected source_roots.")
+                if output_path in declared_paths or output_path in protected_control_files:
+                    raise ValueError("Artifact manifest output cannot overwrite a declared artifact or Run Manager control file.")
+            print(_write_json(args.out, result), end="")
+            return 0
+        if args.command == "run-worker-authorize":
+            result = authorize_worker(
+                args.manifest, args.stage_id, args.role, args.provider, args.model,
+                args.project_root, args.authorized_by, args.rationale,
+                confirm_abandoned=args.confirm_abandoned,
+            )
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "run-stage-record":
+            result = record_stage_status(
+                args.manifest, args.stage_id, args.status, args.producer_kind,
+                command=args.producer_command,
+                role=args.role, provider=args.provider, model=args.model,
+                project_root=args.project_root, job_id=args.job_id, session_id=args.session_id,
+                task_id=args.task_id, input_tokens=args.input_tokens, output_tokens=args.output_tokens,
+                reasoning_tokens=args.reasoning_tokens, cache_read_tokens=args.cache_read_tokens,
+                cache_write_tokens=args.cache_write_tokens, reason=args.reason,
+                confirm_abandoned=args.confirm_abandoned,
+            )
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "gate-record":
+            result=record_gate_decision(args.workflow_ledger,args.gate_id,args.decision,
+                args.reviewer,args.rationale,_parse_artifact_bindings(args.artifacts or []))
+            print(_write_json(None,result),end="")
+            return 0
+        if args.command == "gate-status":
+            report=inspect_gate_ledger(args.workflow_ledger)
+            print(_write_json(None,report),end="")
+            return 0
+        if args.command == "ingest-chem-literacy":
+            result = ingest_chem_literacy_files(
+                args.database_json, args.database_csv, args.reconciliation_csv,
+                args.source_root, args.out_dir, args.condition_profile,
+            )
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "validate-condition-recovery":
+            report = validate_condition_recovery_files(args.task, args.result, args.source_root, args.out)
+            print(json.dumps({"valid":report["valid"],"task_id":report["task_id"],
+                "verified_found_proposals":report["evidence_quotes_verified_count"],
+                "promotion_status":report["promotion_status"],"errors":report["errors"]},ensure_ascii=False,indent=2))
+            return 0 if report["valid"] else 2
+        if args.command == "validate-condition-decisions":
+            report = validate_condition_decisions_files(
+                args.task, args.recovery_validation, args.decisions, args.source_root, args.out_dir
+            )
+            print(json.dumps({"valid":report["valid"],"task_id":report["task_id"],
+                "accepted_reported_count":report["accepted_reported_count"],
+                "accepted_not_reported_count":report["accepted_not_reported_count"],
+                "errors":report["errors"]},ensure_ascii=False,indent=2))
+            return 0 if report["valid"] else 2
+        if args.command == "audit":
+            result = run_audit(args.csv, args.json, args.out)
+            print(json.dumps({"status":"completed","audit_id":result["audit_id"],
+                "output_dir":str(args.out.resolve()),"sources":len(result["sources"])},ensure_ascii=False))
+            return 0
+        if args.command in {"validate-bundle","diagnose-bundle"}:
+            with args.input.open("r",encoding="utf-8-sig") as handle:
+                bundle=json.load(handle)
+            report=validate_canonical_bundle(bundle) if args.command=="validate-bundle" else diagnose_canonical_bundle(bundle)
+            print(_write_json(args.out,report),end="")
+            return 0 if report.get("valid",report.get("valid_input",False)) else 2
+        if args.command == "reconcile-bundle":
+            result=reconcile_bundle_file(args.input,args.out_dir)
+            report=result["report"]
+            print(json.dumps({"status":"completed" if report["valid_bundle"] else "completed_with_integrity_errors",
+                "report_path":result["report_path"],"queue_path":result["queue_path"],
+                "issue_count":report["issue_count"],"severity_counts":report["severity_counts"]},
+                ensure_ascii=False,indent=2))
+            return 0 if report["valid_bundle"] else 2
+        if args.command == "validate-reconciliation-decisions":
+            report=validate_reconciliation_decisions_files(args.decisions,args.report,args.bundle)
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
+        if args.command == "validate-mapping":
+            report=validate_mapping_files(args.plan,args.inventory)
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
+        if args.command == "discover-interactions":
+            _enforce_gate(args,"G2",{"modeling_task":args.task})
+            result=discover_interactions_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "candidate_pair_count":report["candidate_pair_count"],"eligible_pair_count":report["eligible_pair_count"],
+                "interaction_candidates":sum(1 for item in report["interaction_catalogue"] if item["interpretation_status"]=="CROSS_STUDY_PREDICTIVE_INTERACTION_CANDIDATE"),
+                "claim_scope":"PREDICTIVE_STATISTICAL_INTERACTION_CANDIDATE_NOT_CAUSAL_OR_MECHANISTIC_EVIDENCE"},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "assess-interaction-robustness":
+            _enforce_gate(args,"G2",{"modeling_task":args.task})
+            seeds=[int(value.strip()) for value in args.seeds.split(",") if value.strip()]
+            result=assess_interaction_robustness_files(args.cohort_dir,args.task,args.out_dir,seeds,
+                args.folds,args.minimum_candidate_run_fraction)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "seed_count":report["seed_count"],
+                "seed_stable_candidates":sum(1 for item in report["interaction_catalogue"] if item["robustness_status"]=="SEED_STABLE_PREDICTIVE_INTERACTION_CANDIDATE"),
+                "claim_scope":"SEED_SENSITIVITY_NOT_INFERENTIAL_SIGNIFICANCE_CAUSALITY_OR_MECHANISM"},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "generate-interaction-surface":
+            _enforce_gate(args,"G3",{"interaction_report":args.interaction_dir/"interaction_discovery_report.json"})
+            if args.workflow_ledger is not None:
+                require_selected_interaction_id(args.workflow_ledger,args.interaction_id)
+            result=generate_interaction_surface_files(args.cohort_dir,args.task,args.interaction_dir,
+                args.interaction_id,args.out_dir,args.robustness_dir,args.grid_size,args.background_max)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "interaction_id":report["interaction_id"],"grid_point_count":report["grid"]["grid_point_count"],
+                "supported_grid_fraction":report["empirical_support"]["supported_grid_fraction"],
+                "method":report["method"],"validation_scope":report["validation_scope"]},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "build-mechanism-evidence-bridge":
+            _enforce_gate(args,"G3",{
+                "interaction_report":args.interaction_dir/"interaction_discovery_report.json",
+                "mechanism_plan":args.plan})
+            if args.workflow_ledger is not None:
+                require_selected_interaction(args.workflow_ledger,args.plan)
+            result=build_mechanism_evidence_bridge_files(args.bundle,args.cohort_dir,args.task,
+                args.interaction_dir,args.plan,args.out_dir,args.robustness_dir,args.response_surface_dir)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "mechanism_hypothesis_count":len(report["mechanism_catalogue"]),
+                "evidence_review_issue_count":report["review_issue_count"],
+                "review_state":report["review_state"],
+                "claim_scope":report["claim_scope"]},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "build-publication-package":
+            _enforce_gate(args,"G4",{"publication_plan":args.plan})
+            result=build_publication_package_files(args.plan,args.workspace_root,args.out_dir)
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "artifact_count":result["artifact_count"],"copied_artifact_count":result["copied_artifact_count"],
+                "completeness":result["manifest"]["completeness"]},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "audit-publication-package":
+            report=audit_publication_package_files(args.package_dir)
+            if args.out is not None:
+                report_path=args.out.expanduser().resolve()
+                package_path=args.package_dir.expanduser().resolve()
+                if report_path.is_relative_to(package_path):
+                    raise ValueError("Package integrity report must be written outside the package directory.")
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
+        if args.command == "predict-virtual-condition":
+            _enforce_gate(args,"G2")
+            result=predict_virtual_condition_files(args.model_run_dir,args.query,args.out)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_path":result["output_path"],
+                "prediction":report["prediction"],"prediction_status":report["prediction_status"],
+                "uncertainty_status":report["uncertainty_status"],"warning_count":len(report["warnings"])},
+                ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "evaluate-reproducibility":
+            _enforce_gate(args,"G2",{"modeling_task":args.task})
+            result=evaluate_reproducibility_files(args.cohort_dir,args.task,args.out_dir,args.folds,args.seed)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "study_count":report["study_count"],"observation_count":report["observation_count"],
+                "fold_count":report["fold_count"],"pooled_out_of_fold_metrics":report["pooled_out_of_fold_metrics"],
+                "applicability_domain_counts":report["applicability_domain"]["counts"],
+                "uncertainty_status":report["uncertainty"]["status"]},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "fit-baselines":
+            _enforce_gate(args,"G2",{"modeling_task":args.task})
+            result=run_baseline_models_files(args.cohort_dir,args.task,args.out_dir)
+            report=result["report"]
+            print(json.dumps({"status":"completed","output_dir":result["output_dir"],
+                "selected_model":report["selected_model"],"selected_candidate_id":report["selected_candidate_id"],
+                "primary_selection_metric":report["primary_selection_metric"],
+                "test_evaluation":report["test_evaluation"]},ensure_ascii=False,indent=2))
+            return 0
+        if args.command == "build-cohort":
+            _enforce_gate(args,"G2",{
+                "canonical_bundle":args.bundle,
+                "modeling_task":args.task})
+            result=build_modeling_cohort_files(args.bundle,args.task,args.out_dir)
+            report=result["report"]
+            print(json.dumps({"status":"completed" if result["valid"] else "failed",
+                "output_dir":result["output_dir"],"eligible_observation_count":report.get("eligible_observation_count",0),
+                "eligible_study_count":report.get("eligible_study_count",0),
+                "split_counts":report.get("split_counts",{}),"errors":report.get("errors",[])},ensure_ascii=False,indent=2))
+            return 0 if result["valid"] else 2
+        if args.command == "build-canonical":
+            _enforce_gate(args,"G1",{
+                "mapping_plan":args.plan,
+                "source_inventory":args.inventory,
+                "build_spec":args.spec})
+            output_dir=args.out_dir.expanduser().resolve()
+            if output_dir.exists():
+                if not output_dir.is_dir():
+                    raise NotADirectoryError(f"Output path exists and is not a directory: {output_dir}")
+                if any(output_dir.iterdir()):
+                    raise FileExistsError(f"Refusing to overwrite a non-empty output directory: {output_dir}")
+            source_root=args.source_root.expanduser().resolve()
+            bundle, report=build_canonical_files(args.plan,args.inventory,args.spec,source_root)
+            output_dir.mkdir(parents=True,exist_ok=True)
+            (output_dir/"build_report.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+            if bundle is None:
+                print(json.dumps({"status":"failed","output_dir":str(output_dir),"report":report},ensure_ascii=False,indent=2))
+                return 2
+            (output_dir/"canonical_bundle.json").write_text(json.dumps(bundle,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+            print(json.dumps({"status":"completed","output_dir":str(output_dir),
+                "entity_counts":report["entity_counts"],
+                "duplicate_candidate_count":report["relationship_diagnostics"]["duplicate_candidate_count"]},ensure_ascii=False))
+            return 0
+    except Exception as exc:
+        print(json.dumps({"status":"failed","error_type":type(exc).__name__,"error":str(exc)}),file=sys.stderr)
+        return 2
+    return 1
+
+if __name__ == "__main__":
+    raise SystemExit(main())

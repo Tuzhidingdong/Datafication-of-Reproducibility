@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "selection_rationale": "REPLACE_WITH_USER_APPROVED_SELECTION_RATIONALE",
+  "scope_statement": "REPLACE_WITH_EXPLICIT_STUDY_AND_EXTRACTION_SCOPE",
+  "study_ids": [
+    "STUDY_001"
+  ],
+  "selected_sources": [
+    {
+      "source_id": "SOURCE_PAPER",
+      "role": "PRIMARY_PAPER",
+      "path": "REPLACE_WITH_EXACT_RUN_SNAPSHOT_PATH",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "excluded_sources": [
+    {
+      "source_id": "SOURCE_SUPPLEMENTARY",
+      "role": "SUPPLEMENTARY_INFORMATION",
+      "path": "REPLACE_WITH_EXACT_RUN_SNAPSHOT_PATH",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "reason": "REPLACE_WITH_EXPLICIT_REASON"
+    }
+  ]
+}

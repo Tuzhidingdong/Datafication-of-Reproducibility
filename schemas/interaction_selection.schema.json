@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/interaction_selection.schema.json",
+  "title": "Human-reviewed interaction candidate selection",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "interaction_report_sha256",
+    "selected_interaction_ids",
+    "not_selected_interaction_ids",
+    "reviewer",
+    "reviewed_at",
+    "rationale",
+    "robustness_report_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.1"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "interaction_report_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "selected_interaction_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "maxItems": 1
+    },
+    "not_selected_interaction_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "robustness_report_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

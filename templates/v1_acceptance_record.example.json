@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0",
+  "acceptance_id": "ACCEPTANCE_ID_TO_ASSIGN",
+  "project_id": "PROJECT_ID",
+  "scope": "CONTROLLED_SINGLE_STUDY",
+  "run_id": "RUN_ID_FROM_RUN_MANAGER",
+  "run_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "source_snapshot": {
+    "study_count": 1,
+    "study_ids": [
+      "STUDY_ID_FROM_CANONICAL_BUNDLE"
+    ],
+    "artifacts": [
+      {
+        "source_id": "primary_paper",
+        "role": "PRIMARY_PAPER",
+        "path": "REPLACE_WITH_EXACT_SOURCE_PATH",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "source_id": "supplementary_information",
+        "role": "SUPPLEMENTARY_INFORMATION",
+        "path": "REPLACE_WITH_EXACT_SOURCE_PATH",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ]
+  },
+  "stages": [
+    {
+      "stage_id": "source_selection",
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "limitations": [],
+      "checks": []
+    },
+    {
+      "stage_id": "source_integrity",
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "limitations": [],
+      "checks": []
+    },
+    {
+      "stage_id": "extraction_review",
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "limitations": [],
+      "checks": []
+    },
+    {
+      "stage_id": "semantic_mapping",
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "limitations": [],
+      "checks": []
+    },
+    {
+      "stage_id": "canonical_reconciliation",
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "limitations": [],
+      "checks": []
+    },
+    {
+      "stage_id": "cohort_feasibility",
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "limitations": [],
+      "checks": []
+    },
+    {
+      "stage_id": "modeling_validation",
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "limitations": [],
+      "checks": []
+    },
+    {
+      "stage_id": "publication_handoff",
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "limitations": [],
+      "checks": []
+    }
+  ],
+  "final_assessment": {
+    "decision": "NOT_ASSESSED",
+    "assessed_by": "NOT_YET_REVIEWED",
+    "rationale": "Acceptance has not been assessed. Replace all placeholders and attach exact evidence before use.",
+    "blocking_issue_ids": []
+  }
+}

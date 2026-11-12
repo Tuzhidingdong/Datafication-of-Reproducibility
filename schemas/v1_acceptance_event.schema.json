@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/blob/main/schemas/v1_acceptance_event.schema.json",
+  "title": "DOR V1.0 Acceptance Revision Event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "sequence",
+    "event_type",
+    "acceptance_id",
+    "project_id",
+    "run_id",
+    "actor",
+    "rationale",
+    "recorded_at",
+    "record_sha256",
+    "snapshot_file",
+    "previous_record_sha256",
+    "changed_stage_ids",
+    "invalidated_stage_ids",
+    "changed_gate_ids",
+    "changed_ledger_ids",
+    "stage_statuses",
+    "final_decision",
+    "previous_event_hash",
+    "event_hash",
+    "precommit_record_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event_type": {
+      "enum": [
+        "RECORD_CREATED",
+        "STAGE_REVIEW_RECORDED",
+        "FINAL_DECISION_RECORDED",
+        "UPSTREAM_LEDGER_RECORDED"
+      ]
+    },
+    "acceptance_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "record_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "snapshot_file": {
+      "type": "string",
+      "pattern": "^revision-[0-9]{6}\\.json$"
+    },
+    "previous_record_sha256": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      ]
+    },
+    "changed_stage_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "source_selection",
+          "source_integrity",
+          "extraction_review",
+          "semantic_mapping",
+          "canonical_reconciliation",
+          "cohort_feasibility",
+          "modeling_validation",
+          "publication_handoff"
+        ]
+      }
+    },
+    "invalidated_stage_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "source_selection",
+          "source_integrity",
+          "extraction_review",
+          "semantic_mapping",
+          "canonical_reconciliation",
+          "cohort_feasibility",
+          "modeling_validation",
+          "publication_handoff"
+        ]
+      }
+    },
+    "changed_gate_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["G0", "G1", "G2", "G3", "G4"]}
+    },
+    "changed_ledger_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["workflow_gate_ledger", "run_event_ledger"]}
+    },
+    "stage_statuses": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "source_selection",
+          "source_integrity",
+          "extraction_review",
+          "semantic_mapping",
+          "canonical_reconciliation",
+          "cohort_feasibility",
+          "modeling_validation",
+          "publication_handoff"
+        ]
+      },
+      "additionalProperties": {
+        "enum": [
+          "NOT_STARTED",
+          "IN_PROGRESS",
+          "PASS",
+          "FAIL",
+          "BLOCKED",
+          "NOT_APPLICABLE"
+        ]
+      }
+    },
+    "final_decision": {
+      "enum": [
+        "NOT_ASSESSED",
+        "PASS",
+        "CONDITIONAL_PASS",
+        "FAIL"
+      ]
+    },
+    "previous_event_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "event_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "precommit_record_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

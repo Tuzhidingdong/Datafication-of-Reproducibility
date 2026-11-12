@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/virtual_reproduction_report.schema.json",
+  "title": "Guarded model-based virtual condition prediction",
+  "type": "object",
+  "required": ["schema_version", "prediction_id", "task_id", "target_id", "endpoint_definition", "model_type", "prediction", "prediction_status", "uncertainty_status", "support_assessment", "warnings", "provenance", "interpretation_boundary"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "prediction_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "target_id": {"type": "string"},
+    "endpoint_definition": {"type": "string"},
+    "outcome_unit": {"type": ["string", "null"]},
+    "model_type": {"enum": ["mean_baseline", "ridge_regression", "majority_class_baseline", "mixed_naive_bayes"]},
+    "selected_candidate_id": {"type": "string"},
+    "prediction": {"type": ["number", "string"]},
+    "prediction_status": {"enum": ["EXTRAPOLATIVE_OR_UNKNOWN_CATEGORY_SCENARIO", "PREDICTION_SUPPORT_NOT_ASSESSABLE", "WITHIN_RECORDED_MARGINAL_TRAINING_DOMAIN"]},
+    "uncertainty_status": {"const": "NOT_CALIBRATED"},
+    "support_assessment": {"type": "object"},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "query_features": {"type": "object"},
+    "provenance": {"type": "object"},
+    "interpretation_boundary": {"type": "string"}
+  },
+  "additionalProperties": false
+}
