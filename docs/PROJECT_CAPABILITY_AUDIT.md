@@ -7,7 +7,7 @@
 
 ## 1. Executive assessment
 
-DOR is already a substantial research-methodology and deterministic-runtime prototype, not an empty framework. The repository contains 169 tracked files, including 28 Python runtime modules, 22 Python test modules, domain and workflow references, schema contracts, templates, and a provisional zinc-battery profile.
+DOR is already a substantial research-methodology and deterministic-runtime prototype, not an empty framework. At the audited baseline, the Git tree contains 169 entries (152 tracked files), including 28 Python runtime modules, 23 Python test modules, 44 JSON Schemas, domain and workflow references, templates, and a provisional zinc-battery profile.
 
 The strongest existing capabilities are:
 
