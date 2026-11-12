@@ -582,19 +582,20 @@ def validate_acceptance_record(
                         if recorded_gate_artifacts.get(gate_id) != normalized:
                             issue("WORKFLOW_GATE_ARTIFACTS_CHANGED",
                                   f"Gate {gate_id} artifact references differ from the Acceptance Record binding.")
-                        matched = 0
-                        for reference in normalized:
-                            accepted = accepted_gate_evidence.get(reference["artifact_id"])
-                            if accepted is None:
-                                continue
-                            if accepted != reference:
-                                issue("WORKFLOW_GATE_EVIDENCE_IDENTITY_MISMATCH",
-                                      f"Gate {gate_id} artifact {reference['artifact_id']} differs from accepted Run Evidence path/hash.")
-                            else:
-                                matched += 1
-                        if matched == 0:
-                            issue("WORKFLOW_GATE_HAS_NO_ACCEPTED_EVIDENCE",
-                                  f"Gate {gate_id} has no artifact also accepted as current V1.0 Run Evidence.")
+                        if decision == "PASS":
+                            matched = 0
+                            for reference in normalized:
+                                accepted = accepted_gate_evidence.get(reference["artifact_id"])
+                                if accepted is None:
+                                    continue
+                                if accepted != reference:
+                                    issue("WORKFLOW_GATE_EVIDENCE_IDENTITY_MISMATCH",
+                                          f"Gate {gate_id} artifact {reference['artifact_id']} differs from accepted Run Evidence path/hash.")
+                                else:
+                                    matched += 1
+                            if matched == 0:
+                                issue("WORKFLOW_GATE_HAS_NO_ACCEPTED_EVIDENCE",
+                                      f"Gate {gate_id} has no artifact also accepted as current V1.0 Run Evidence.")
                 if decision == "PASS":
                     not_approved = [gate_id for gate_id in GATE_ORDER
                                     if gate_report["gates"][gate_id]["status"] != "APPROVED"]
