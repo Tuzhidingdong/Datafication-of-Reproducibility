@@ -98,13 +98,25 @@ class ReconciliationTests(unittest.TestCase):
         }]
         decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,
           "decisions":[{"issue_id":"REC_0123456789ABCDEF0123","decision":"RESOLVED_WITH_EVIDENCE",
-            "reviewer":"reviewer","reviewed_at":"2026-11-08","rationale":"Checked against source table.",
+            "reviewer":"reviewer","reviewed_at":"2026-11-08T00:00:00Z","rationale":"Checked against source table.",
             "evidence_refs":["EV1"]}]}
         result=validate_reconciliation_decisions(decisions,report,data,"b"*64,"a"*64)
         self.assertTrue(result["valid"],result)
         stale=validate_reconciliation_decisions(decisions,report,data,"b"*64,"c"*64)
         self.assertFalse(stale["valid"])
         self.assertIn("STALE_CANONICAL_BUNDLE",[x["code"] for x in stale["errors"]])
+
+    def test_reconciliation_decision_timestamp_requires_explicit_timezone(self):
+        data=bundle()
+        report=reconcile_canonical_bundle(data,"a"*64)
+        report["issues"]=[{"issue_id":"REC_ISSUE_1","entity_refs":[],"evidence_refs":[]}]
+        decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,
+          "decisions":[{"issue_id":"REC_ISSUE_1","decision":"REMAINS_UNRESOLVED",
+            "reviewer":"reviewer","reviewed_at":"2026-11-08T00:00:00",
+            "rationale":"Reviewed; retain as unresolved.","evidence_refs":[]}]}
+        result=validate_reconciliation_decisions(decisions,report,data,"b"*64,"a"*64)
+        self.assertFalse(result["valid"])
+        self.assertIn("INVALID_DECISION_TIMESTAMP",[item["code"] for item in result["errors"]])
 
     def test_every_reported_issue_requires_an_explicit_human_decision(self):
         data=bundle()
@@ -136,7 +148,7 @@ class ReconciliationTests(unittest.TestCase):
         report["issues"]=[{"issue_id":"REC_0123456789ABCDEF0123","entity_refs":[],"evidence_refs":[]}]
         decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,
           "decisions":[{"issue_id":"REC_0123456789ABCDEF0123","decision":"RESOLVED_WITH_EVIDENCE",
-            "reviewer":"reviewer","reviewed_at":"2026-11-08","rationale":"Reviewed but no evidence linked.",
+            "reviewer":"reviewer","reviewed_at":"2026-11-08T00:00:00Z","rationale":"Reviewed but no evidence linked.",
             "evidence_refs":[]}]}
         result=validate_reconciliation_decisions(decisions,report,data,"b"*64,"a"*64)
         self.assertFalse(result["valid"])
