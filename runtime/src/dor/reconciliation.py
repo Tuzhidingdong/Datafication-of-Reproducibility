@@ -337,11 +337,53 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
     report_is_object = isinstance(report, dict)
     if not report_is_object or decisions.get("reconciliation_report_sha256") != report_sha256:
         errors.append({"code":"STALE_RECONCILIATION_REPORT","path":"reconciliation_report_sha256","message":"Decisions must bind to the exact reconciliation report file hash."})
+    if not report_is_object:
+        errors.append({
+            "code": "RECONCILIATION_REPORT_NOT_OBJECT",
+            "path": "$",
+            "message": "The reconciliation report must be a JSON object.",
+        })
+    else:
+        required_report_fields = {
+            "schema_version", "bundle_sha256", "valid_bundle", "issue_count",
+            "issues", "decision_policy", "validation_scope",
+        }
+        missing_report_fields = sorted(required_report_fields - set(report))
+        for field in missing_report_fields:
+            errors.append({
+                "code": "RECONCILIATION_REPORT_FIELD_MISSING",
+                "path": field,
+                "message": f"The reconciliation report is missing required field {field}.",
+            })
+        if report.get("schema_version") != "1.0":
+            errors.append({
+                "code": "UNSUPPORTED_RECONCILIATION_REPORT_SCHEMA",
+                "path": "schema_version",
+                "message": "The reconciliation report schema_version must be 1.0.",
+            })
+        if report.get("valid_bundle") is not True:
+            errors.append({
+                "code": "RECONCILIATION_BUNDLE_INVALID",
+                "path": "valid_bundle",
+                "message": "A reconciliation decision record can only be accepted for a valid Canonical Bundle.",
+            })
+        if report.get("decision_policy") != "HUMAN_REVIEW_ONLY_NO_CANONICAL_DATA_MUTATION":
+            errors.append({
+                "code": "UNSUPPORTED_RECONCILIATION_DECISION_POLICY",
+                "path": "decision_policy",
+                "message": "The reconciliation report must preserve the non-destructive human-review policy.",
+            })
+        if report.get("validation_scope") != "DETERMINISTIC_CANDIDATE_DETECTION_NOT_SCIENTIFIC_RECONCILIATION":
+            errors.append({
+                "code": "UNSUPPORTED_RECONCILIATION_VALIDATION_SCOPE",
+                "path": "validation_scope",
+                "message": "The reconciliation report must declare its deterministic candidate-detection scope.",
+            })
     if not isinstance(bundle, dict) or not report_is_object or report.get("bundle_sha256") is None:
         errors.append({"code":"MISSING_BUNDLE_PROVENANCE","path":"bundle_sha256","message":"The reconciliation report must reference a bundle hash."})
     elif bundle_sha256 is None or report.get("bundle_sha256") != bundle_sha256:
         errors.append({"code":"STALE_CANONICAL_BUNDLE","path":"bundle_sha256","message":"The canonical bundle must match the exact bundle hash used by the reconciliation report."})
-    issues = report.get("issues", []) if isinstance(report, dict) else []
+    issues = report.get("issues") if isinstance(report, dict) else None
     if not isinstance(issues, list):
         errors.append({
             "code": "REPORT_ISSUES_NOT_ARRAY",
@@ -349,6 +391,14 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
             "message": "The reconciliation report issues field must be an array.",
         })
         issues = []
+    issue_count = report.get("issue_count") if isinstance(report, dict) else None
+    if (not isinstance(issue_count, int) or isinstance(issue_count, bool)
+            or issue_count != len(issues)):
+        errors.append({
+            "code": "RECONCILIATION_ISSUE_COUNT_MISMATCH",
+            "path": "issue_count",
+            "message": "issue_count must equal the number of entries in the issues array.",
+        })
     issue_by_id: dict[str, dict[str, Any]] = {}
     for index, item in enumerate(issues):
         issue_id = item.get("issue_id") if isinstance(item, dict) else None
