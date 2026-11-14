@@ -19,6 +19,7 @@ from dor.robustness import assess_interaction_robustness_files
 from dor.response_surface import generate_interaction_surface_files
 from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
+from dor.research_scope import validate_research_scope_files
 from dor.publication import build_publication_package_files, audit_publication_package_files
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
@@ -138,6 +139,11 @@ def build_parser() -> argparse.ArgumentParser:
     decisions.add_argument("--report", type=Path, required=True, help="Exact reconciliation_report.json")
     decisions.add_argument("--bundle", type=Path, required=True, help="Exact canonical_bundle.json referenced by the report")
     decisions.add_argument("--out", type=Path, help="Optional validation report JSON")
+    scope_validation = subparsers.add_parser("validate-research-scope", help="Validate a human-selected scope against exact Discovery signal and task hashes")
+    scope_validation.add_argument("--scope", type=Path, required=True, help="Human research_scope_record.json")
+    scope_validation.add_argument("--discovery-report", type=Path, required=True, help="Exact Discovery report JSON")
+    scope_validation.add_argument("--task", type=Path, required=True, help="Exact modeling_task.json")
+    scope_validation.add_argument("--out", type=Path, help="Optional validation report JSON")
     mapping = subparsers.add_parser("validate-mapping", help="Validate mapping references, provenance, and approval gates")
     mapping.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
     mapping.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
@@ -469,6 +475,10 @@ def main() -> int:
             return 0 if report["valid_bundle"] else 2
         if args.command == "validate-reconciliation-decisions":
             report=validate_reconciliation_decisions_files(args.decisions,args.report,args.bundle)
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
+        if args.command == "validate-research-scope":
+            report=validate_research_scope_files(args.scope,args.discovery_report,args.task)
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
         if args.command == "validate-mapping":
