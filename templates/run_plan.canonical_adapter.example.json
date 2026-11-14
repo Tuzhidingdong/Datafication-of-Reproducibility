@@ -111,10 +111,9 @@
       "required_gate": "G0"
     },
     {
-      "stage_id": "g1_review_packet",
-      "executor": "manual",
+      "stage_id": "build_spec_validation",
+      "executor": "local",
       "depends_on": [
-        "adapter_artifact_materialization",
         "mapping_validation"
       ],
       "inputs": [
@@ -122,6 +121,29 @@
         "mapping_plan",
         "build_spec",
         "mapping_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "build_spec_validation",
+          "path": "02_mapping/build_spec_validation.json"
+        }
+      ],
+      "required_gate": "G0"
+    },
+    {
+      "stage_id": "g1_review_packet",
+      "executor": "manual",
+      "depends_on": [
+        "adapter_artifact_materialization",
+        "mapping_validation",
+        "build_spec_validation"
+      ],
+      "inputs": [
+        "source_inventory",
+        "mapping_plan",
+        "build_spec",
+        "mapping_validation",
+        "build_spec_validation"
       ],
       "outputs": [
         {
