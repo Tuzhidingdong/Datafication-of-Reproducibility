@@ -2,8 +2,9 @@
 from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
-from dor.audit import run_audit
+from dor.audit import run_audit, run_audit_from_adapter_handoff
 from dor.adapters import validate_adapter_package_files
+from dor.adapter_handoff import prepare_adapter_handoff_files, canonical_bundle_from_handoff
 from dor.canonical_discovery import run_canonical_discovery_scan
 from dor.cohort import build_modeling_cohort_files
 from dor.builder import build_canonical_files
@@ -81,9 +82,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Package root; defaults to the manifest directory")
     adapter_validation.add_argument("--out", type=Path, default=None,
         help="Optional validation report path outside the package root")
+    adapter_handoff = subparsers.add_parser(
+        "prepare-adapter-handoff",
+        help="Validate an external adapter package and determine its generic DoR entry route",
+    )
+    adapter_handoff.add_argument("--manifest", type=Path, required=True,
+        help="Adapter package manifest JSON")
+    adapter_handoff.add_argument("--package-root", type=Path, default=None,
+        help="Package root; defaults to the manifest directory")
+    adapter_handoff.add_argument("--out", type=Path, required=True,
+        help="New handoff JSON path outside the protected adapter package")
     discovery = subparsers.add_parser("discover-opportunities", help="Run a read-only exploratory scan over a canonical data bundle")
-    discovery.add_argument("--bundle", type=Path, required=True,
-        help="Canonical data bundle produced by the reviewed mapping workflow or an external adapter")
+    discovery_source = discovery.add_mutually_exclusive_group(required=True)
+    discovery_source.add_argument("--bundle", type=Path,
+        help="Canonical data bundle produced by the reviewed mapping workflow")
+    discovery_source.add_argument("--adapter-handoff", type=Path,
+        help="Validated adapter handoff that declares a canonical_bundle artifact")
     discovery.add_argument("--out-dir", type=Path, required=True, help="New or empty derived discovery output directory")
     discovery.add_argument("--minimum-studies", type=int, default=3, help="Minimum Study groups for cross-Study descriptive signals")
     discovery.add_argument("--maximum-pairs", type=int, default=250,
@@ -91,6 +105,8 @@ def build_parser() -> argparse.ArgumentParser:
     audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
     audit.add_argument("--csv", type=Path, help="Path to a source CSV file")
     audit.add_argument("--json", type=Path, help="Path to a source JSON file")
+    audit.add_argument("--adapter-handoff", type=Path, default=None,
+        help="Validated adapter handoff; audits every supported standardized_dataset artifact")
     audit.add_argument("--out", type=Path, required=True, help="Separate output directory for derived audit artifacts")
     validate = subparsers.add_parser("validate-bundle", help="Validate canonical bundle structure and references")
     validate.add_argument("--input", type=Path, required=True, help="Canonical bundle JSON file")
@@ -380,14 +396,25 @@ def main() -> int:
             report=inspect_gate_ledger(args.workflow_ledger)
             print(_write_json(None,report),end="")
             return 0
+        if args.command == "prepare-adapter-handoff":
+            result = prepare_adapter_handoff_files(args.manifest, args.package_root, args.out)
+            print(json.dumps({**result, "handoff_path": str(args.out.expanduser().resolve())},
+                ensure_ascii=False, indent=2))
+            return 0
         if args.command == "discover-opportunities":
+            bundle_path = args.bundle if args.bundle is not None else canonical_bundle_from_handoff(args.adapter_handoff)
             result = run_canonical_discovery_scan(
-                args.bundle, args.out_dir, args.minimum_studies, args.maximum_pairs,
+                bundle_path, args.out_dir, args.minimum_studies, args.maximum_pairs,
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
         if args.command == "audit":
-            result = run_audit(args.csv, args.json, args.out)
+            if args.adapter_handoff is not None:
+                if args.csv is not None or args.json is not None:
+                    raise ValueError("--adapter-handoff cannot be combined with --csv or --json.")
+                result = run_audit_from_adapter_handoff(args.adapter_handoff, args.out)
+            else:
+                result = run_audit(args.csv, args.json, args.out)
             print(json.dumps({"status":"completed","audit_id":result["audit_id"],
                 "output_dir":str(args.out.resolve()),"sources":len(result["sources"])},ensure_ascii=False))
             return 0
