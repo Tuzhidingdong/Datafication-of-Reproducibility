@@ -12,11 +12,11 @@ def make_bundle(categorical=False):
         sid="ST"+str(i+1); syid="SY"+str(i+1); tempid="CT"+str(i+1); catid="CC"+str(i+1); exid="EX"+str(i+1)
         data["studies"].append({"study_id":sid,"doi":"10.2000/"+str(i+1),"source_locators":[]})
         data["systems"].append({"system_id":syid,"study_ids":[sid],"system_type":"test_system"})
-        data["conditions"].append({"condition_id":tempid,"system_ids":[syid],"condition_type":"temperature",
-            "raw_value":float(20+i),"raw_unit":"degC","normalized_value":float(20+i),"normalized_unit":"degC","value_state":"REPORTED"})
+        data["conditions"].append({"condition_id":tempid,"system_ids":[syid],"condition_type":"numeric_condition",
+            "raw_value":float(20+i),"raw_unit":"unit-x","normalized_value":float(20+i),"normalized_unit":"unit-x","value_state":"REPORTED"})
         data["conditions"].append({"condition_id":catid,"system_ids":[syid],"condition_type":"condition_category",
-            "raw_value":"salt-A" if i%2==0 else "salt-B","raw_unit":None,
-            "normalized_value":"salt-A" if i%2==0 else "salt-B","normalized_unit":None,"value_state":"REPORTED"})
+            "raw_value":"category-A" if i%2==0 else "category-B","raw_unit":None,
+            "normalized_value":"category-A" if i%2==0 else "category-B","normalized_unit":None,"value_state":"REPORTED"})
         data["experiments"].append({"experiment_id":exid,"study_id":sid,"system_id":syid,"condition_ids":[tempid,catid]})
         y=("A" if i%2==0 else "B") if categorical else float(2*i+1)
         data["observations"].append({"observation_id":"OB"+str(i+1),"experiment_id":exid,"target_id":"TARGET_Y",
@@ -31,7 +31,7 @@ def make_task(categorical=False):
         "endpoint_definition":"exact endpoint A","outcome_type":"CATEGORICAL" if categorical else "NUMERIC",
         "outcome_value_field":"normalized_value","outcome_unit":"class" if categorical else "unit-y",
         "feature_bindings":[
-            {"feature_id":"temperature","condition_type":"temperature","value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"degC"},
+            {"feature_id":"temperature","condition_type":"numeric_condition","value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"unit-x"},
             {"feature_id":"FEATURE_CATEGORY","condition_type":"condition_category","value_field":"normalized_value","value_type":"CATEGORICAL","expected_unit":None}
         ],
         "split":{"strategy":"EXPLICIT_STUDIES","validation_study_ids":["ST5","ST6"],"test_study_ids":["ST7","ST8"]},
