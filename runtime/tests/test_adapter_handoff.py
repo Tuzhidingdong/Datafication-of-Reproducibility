@@ -8,6 +8,7 @@ from pathlib import Path
 
 from dor.adapter_handoff import (
     canonical_bundle_from_handoff,
+    materialize_adapter_artifacts_files,
     prepare_adapter_handoff_files,
 )
 from dor.audit import run_audit_from_adapter_handoff
@@ -151,12 +152,113 @@ class AdapterHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "at most one canonical_bundle"):
                 prepare_adapter_handoff_files(manifest, package, root / "handoff.json")
 
+    def test_materialize_selected_artifacts_preserves_hashes_and_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            package.mkdir()
+            artifacts = []
+            for artifact_id, role, payload in (
+                ("source_inventory", "source_inventory", {"schema_version": "1.0", "items": []}),
+                ("mapping_plan", "mapping_plan", {"schema_version": "1.0", "rules": []}),
+                ("build_spec", "build_spec", {"schema_version": "1.0"}),
+                ("canonical_bundle", "canonical_bundle", empty_canonical_bundle()),
+            ):
+                path = package / f"{artifact_id}.json"
+                write_json(path, payload)
+                artifacts.append({
+                    "artifact_id": artifact_id,
+                    "role": role,
+                    "path": path.name,
+                    "sha256": digest(path),
+                    "format": "json",
+                })
+            manifest = self._write_manifest(package, artifacts)
+            handoff_path = root / "adapter_handoff.json"
+            prepare_adapter_handoff_files(manifest, package, handoff_path)
+            source_hashes = {item["artifact_id"]: digest(package / f"{item['artifact_id']}.json") for item in artifacts}
+
+            output_dir = root / "run" / "00_adapter" / "materialized"
+            result = materialize_adapter_artifacts_files(
+                handoff_path,
+                ["source_inventory", "mapping_plan", "build_spec", "canonical_bundle"],
+                output_dir,
+            )
+            self.assertEqual(result["artifact_count"], 4)
+            self.assertFalse(result["source_files_modified"])
+            for artifact_id, expected_hash in source_hashes.items():
+                self.assertEqual(digest(output_dir / f"{artifact_id}.json"), expected_hash)
+                self.assertEqual(digest(package / f"{artifact_id}.json"), expected_hash)
+            materialization = json.loads(
+                Path(result["materialization_manifest"]).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                {item["artifact_id"] for item in materialization["artifacts"]},
+                set(source_hashes),
+            )
+
+    def test_dataset_snapshot_manifest_is_created_outside_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            package.mkdir()
+            bundle_path = package / "canonical_bundle.json"
+            write_json(bundle_path, empty_canonical_bundle())
+            manifest = self._write_manifest(package, [{
+                "artifact_id": "canonical-data",
+                "role": "canonical_bundle",
+                "path": "canonical_bundle.json",
+                "sha256": digest(bundle_path),
+                "format": "json",
+            }])
+            handoff_path = root / "run" / "adapter_handoff.json"
+            dataset_manifest_path = root / "run" / "dataset_manifest.json"
+            report = prepare_adapter_handoff_files(
+                manifest, package, handoff_path, dataset_manifest_path,
+            )
+            snapshot = json.loads(dataset_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["route"], "CANONICAL_BUNDLE")
+            self.assertEqual(snapshot["dataset_manifest_type"], "EXTERNAL_ADAPTER_PACKAGE_SNAPSHOT")
+            self.assertEqual(snapshot["adapter_manifest_sha256"], digest(manifest))
+            self.assertEqual(snapshot["artifact_count"], 1)
+            self.assertFalse(handoff_path.is_relative_to(package))
+            self.assertFalse(dataset_manifest_path.is_relative_to(package)
+
+    def test_materialization_rejects_missing_artifacts_and_protected_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            package.mkdir()
+            bundle_path = package / "canonical_bundle.json"
+            write_json(bundle_path, empty_canonical_bundle())
+            manifest = self._write_manifest(package, [{
+                "artifact_id": "canonical-data", "role": "canonical_bundle",
+                "path": "canonical_bundle.json", "sha256": digest(bundle_path), "format": "json",
+            }])
+            handoff = root / "handoff.json"
+            prepare_adapter_handoff_files(manifest, package, handoff)
+            with self.assertRaisesRegex(ValueError, "does not declare"):
+                materialize_adapter_artifacts_files(handoff, ["missing-artifact"], root / "out")
+            with self.assertRaisesRegex(ValueError, "outside the protected adapter package"):
+                materialize_adapter_artifacts_files(handoff, ["canonical-data"], package / "run-output")
+
     def test_cli_exposes_generic_handoff_and_discovery_routes(self):
         handoff_args = build_parser().parse_args([
             "prepare-adapter-handoff", "--manifest", "adapter_manifest.json",
             "--package-root", "package", "--out", "adapter_handoff.json",
         ])
         self.assertEqual(handoff_args.command, "prepare-adapter-handoff")
+        snapshot_args = build_parser().parse_args([
+            "prepare-adapter-handoff", "--manifest", "adapter_manifest.json",
+            "--out", "handoff.json", "--dataset-manifest-out", "dataset_manifest.json",
+        ])
+        self.assertEqual(snapshot_args.dataset_manifest_out, Path("dataset_manifest.json"))
+        materialize_args = build_parser().parse_args([
+            "materialize-adapter-artifacts", "--adapter-handoff", "handoff.json",
+            "--artifact-id", "source_inventory", "--artifact-id", "canonical_bundle",
+            "--out-dir", "materialized",
+        ])
+        self.assertEqual(materialize_args.artifact_id, ["source_inventory", "canonical_bundle"])
         discovery_args = build_parser().parse_args([
             "discover-opportunities", "--adapter-handoff", "adapter_handoff.json",
             "--out-dir", "discovery",
