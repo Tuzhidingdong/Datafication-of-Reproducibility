@@ -22,10 +22,10 @@ def interaction_bundle():
             t_id="IT_"+str(i+1)+"_"+str(j+1)
             p_id="IP_"+str(i+1)+"_"+str(j+1)
             conditions.extend([
-                {"condition_id":t_id,"system_ids":[system_id],"condition_type":"temperature",
-                 "raw_value":x,"raw_unit":"arb-x","normalized_value":x,"normalized_unit":"arb-x","value_state":"REPORTED"},
-                {"condition_id":p_id,"system_ids":[system_id],"condition_type":"pressure",
-                 "raw_value":z,"raw_unit":"arb-z","normalized_value":z,"normalized_unit":"arb-z","value_state":"REPORTED"}
+                {"condition_id":t_id,"system_ids":[system_id],"condition_type":"feature_01",
+                 "raw_value":x,"raw_unit":"unit_01","normalized_value":x,"normalized_unit":"unit_01","value_state":"REPORTED"},
+                {"condition_id":p_id,"system_ids":[system_id],"condition_type":"feature_02",
+                 "raw_value":z,"raw_unit":"unit_02","normalized_value":z,"normalized_unit":"unit_02","value_state":"REPORTED"}
             ])
             experiments.append({"experiment_id":exp_id,"study_id":sid,"system_id":system_id,
                                  "condition_ids":[t_id,p_id]})
@@ -33,7 +33,7 @@ def interaction_bundle():
             observations.append({"observation_id":"IO_"+str(i+1)+"_"+str(j+1),
                 "experiment_id":exp_id,"target_id":"TARGET_Y","raw_value":y,"raw_unit":"unit-y",
                 "normalized_value":y,"normalized_unit":"unit-y","value_state":"REPORTED",
-                "endpoint_definition":"exact endpoint A","evidence_ids":[]})
+                "endpoint_definition":"synthetic endpoint","evidence_ids":[]})
     data["conditions"]=conditions
     data["experiments"]=experiments
     data["observations"]=observations
@@ -43,10 +43,10 @@ def interaction_bundle():
 def interaction_task():
     task=make_task()
     task["feature_bindings"]=[
-        {"feature_id":"temperature","condition_type":"temperature","value_field":"normalized_value",
-         "value_type":"NUMERIC","expected_unit":"arb-x"},
-        {"feature_id":"pressure","condition_type":"pressure","value_field":"normalized_value",
-         "value_type":"NUMERIC","expected_unit":"arb-z"}
+        {"feature_id":"feature_01","condition_type":"feature_01","value_field":"normalized_value",
+         "value_type":"NUMERIC","expected_unit":"unit_01"},
+        {"feature_id":"feature_02","condition_type":"feature_02","value_field":"normalized_value",
+         "value_type":"NUMERIC","expected_unit":"unit_02"}
     ]
     task["interaction_discovery"]={
         "minimum_joint_observations":16,"minimum_joint_studies":8,
@@ -87,7 +87,7 @@ class InteractionDiscoveryTests(unittest.TestCase):
         self.assertEqual(report["method"],"NESTED_STUDY_GROUPED_PAIRWISE_BILINEAR_RIDGE_ABLATION")
         self.assertEqual(report["eligible_pair_count"],1)
         candidate=report["interaction_catalogue"][0]
-        self.assertEqual({candidate["feature_a"],candidate["feature_b"]},{"pressure","temperature"})
+        self.assertEqual({candidate["feature_a"],candidate["feature_b"]},{"feature_02","feature_01"})
         self.assertEqual(candidate["interpretation_status"],"CROSS_STUDY_PREDICTIVE_INTERACTION_CANDIDATE")
         self.assertGreater(candidate["mean_fold_rmse_improvement"],0.5)
         self.assertGreaterEqual(candidate["positive_improvement_fold_fraction"],0.6)
@@ -131,7 +131,7 @@ class InteractionDiscoveryTests(unittest.TestCase):
     def test_unknown_or_duplicate_pair_is_rejected(self):
         task=interaction_task()
         task["interaction_discovery"]["feature_pairs"]=[
-            {"feature_a":"temperature","feature_b":"missing"}]
+            {"feature_a":"feature_01","feature_b":"missing"}]
         task_path,cohort_dir=self._build_custom_cohort(task,"bad_pair")
         with self.assertRaisesRegex(ValueError,"feature_id values"):
             discover_interactions_files(cohort_dir,task_path,self.root/"bad_pair")
