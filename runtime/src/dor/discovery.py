@@ -253,7 +253,9 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
     brief = ["# DoR Scientific Discovery Brief", "",
         "> Aggregate-only Agent input. This is not an accepted scientific finding.", "",
         "## Dataset profile", "",
-        f"- Observations: {summary['profile']['observation_count']}",
+        f"- Eligible observations: {summary['profile']['observation_count']}",
+        f"- Input observations before explicit test-batch exclusion: {summary['profile']['input_observation_count']}",
+        f"- Excluded test observations: {summary['profile']['excluded_test_observation_count']}",
         f"- Papers: {summary['profile']['unique_paper_count']}",
         f"- DOI-verified Studies: {summary['profile']['verified_doi_study_count']}",
         f"- Unverified paper-ID fallbacks: {summary['profile']['paper_id_fallback_count']}",
@@ -265,6 +267,19 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "|---|---|---:|---:|---:|"]
     for row in summary["feature_rows"][:100]:
         brief.append(f"| {row['feature_id']} | {row['unit']} | {row['observation_count']} | {row['verified_doi_study_count']} | {row['agreed_numeric_candidate_count']} |")
+    brief.extend(["", "## Condition extraction overview", "",
+        f"- Deterministic condition candidates (eligible data): {condition_summary['condition_record_count_eligible']}",
+        f"- Eligible observations with reported target_system: {condition_summary['target_system_reported_observation_count']}",
+        f"- target_system observations parsed by current rules: {condition_summary['target_system_parsed_observation_count']}",
+        f"- Reported target_system values not matched by rules: {condition_summary['target_system_unparsed_reported_observation_count']}",
+        f"- Bounded review queue rows written: {condition_summary['review_queue_row_count_written']} / {condition_summary['review_queue_total_count']}",
+        "",
+        "| Condition type | Candidate records |",
+        "|---|---:|"])
+    for condition_type, count in sorted(condition_summary["condition_type_counts_eligible"].items()):
+        brief.append(f"| {condition_type} | {count} |")
+    brief.extend(["", "Use condition_coverage.csv and condition_records.csv for aggregate coverage and source-level provenance. "
+        "These are deterministic candidates, not human-accepted conditions.", ""])
     brief.extend(["", "## Candidate signals", "", "| Signal | Type | Feature(s) | DOI Studies | Status |",
         "|---|---|---|---:|---|"])
     for signal in summary["signals"][:100]:
