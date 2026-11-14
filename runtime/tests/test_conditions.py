@@ -184,6 +184,8 @@ class ConditionExtractionTests(unittest.TestCase):
             self.assertEqual(manifest["rule_version"], CONDITION_RULE_VERSION)
             self.assertEqual(manifest["llm_calls"], 0)
             self.assertFalse(manifest["source_files_modified"])
+            self.assertIn("condition_performance.py", manifest["code_files_sha256"])
+            self.assertIn("chem_literacy.py", manifest["code_files_sha256"])
             summary_json = json.loads((root / "condition_extraction_summary.json").read_text(encoding="utf-8"))
             self.assertEqual(summary_json["eligible_observation_count"], 1)
 
