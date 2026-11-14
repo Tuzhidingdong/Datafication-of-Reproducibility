@@ -12,27 +12,27 @@ def fixture_bundle():
         sid="ST"+str(i+1); syid="SY"+str(i+1); cid="CO"+str(i+1); exid="EX"+str(i+1)
         data["studies"].append({"study_id":sid,"doi":"10.1000/"+str(i+1),"source_locators":[]})
         data["systems"].append({"system_id":syid,"study_ids":[sid],"system_type":"test_system"})
-        data["conditions"].append({"condition_id":cid,"system_ids":[syid],"condition_type":"temperature",
-            "raw_value":20+i,"raw_unit":"degC","normalized_value":20+i,"normalized_unit":"degC","value_state":"REPORTED"})
+        data["conditions"].append({"condition_id":cid,"system_ids":[syid],"condition_type":"feature_01",
+            "raw_value":20+i,"raw_unit":"unit_01","normalized_value":20+i,"normalized_unit":"unit_01","value_state":"REPORTED"})
         data["experiments"].append({"experiment_id":exid,"study_id":sid,"system_id":syid,"condition_ids":[cid]})
-        data["observations"].append({"observation_id":"OB"+str(i+1),"experiment_id":exid,"target_id":"TARGET_R",
-            "raw_value":90+i,"raw_unit":"%","normalized_value":90+i,"normalized_unit":"%",
-            "value_state":"REPORTED","endpoint_definition":"cycling retention after 100 cycles","evidence_ids":[]})
-    data["observations"].append({"observation_id":"OB_STORAGE","experiment_id":"EX1","target_id":"TARGET_R",
-        "raw_value":95,"raw_unit":"%","normalized_value":95,"normalized_unit":"%",
-        "value_state":"REPORTED","endpoint_definition":"storage retention after 60 h","evidence_ids":[]})
-    data["observations"].append({"observation_id":"OB_MISSING","experiment_id":"EX1","target_id":"TARGET_R",
-        "raw_value":None,"raw_unit":"%","normalized_value":None,"normalized_unit":"%",
-        "value_state":"NOT_REPORTED","endpoint_definition":"cycling retention after 100 cycles","evidence_ids":[]})
+        data["observations"].append({"observation_id":"OB"+str(i+1),"experiment_id":exid,"target_id":"TARGET_01",
+            "raw_value":90+i,"raw_unit":"unit_02","normalized_value":90+i,"normalized_unit":"unit_02",
+            "value_state":"REPORTED","endpoint_definition":"synthetic outcome definition","evidence_ids":[]})
+    data["observations"].append({"observation_id":"OB_STORAGE","experiment_id":"EX1","target_id":"TARGET_01",
+        "raw_value":95,"raw_unit":"unit_02","normalized_value":95,"normalized_unit":"unit_02",
+        "value_state":"REPORTED","endpoint_definition":"alternate synthetic outcome definition","evidence_ids":[]})
+    data["observations"].append({"observation_id":"OB_MISSING","experiment_id":"EX1","target_id":"TARGET_01",
+        "raw_value":None,"raw_unit":"unit_02","normalized_value":None,"normalized_unit":"unit_02",
+        "value_state":"NOT_REPORTED","endpoint_definition":"synthetic outcome definition","evidence_ids":[]})
     return data
 
 def task():
     return {
-        "schema_version":"1.0","task_id":"TASK1","target_id":"TARGET_R",
-        "endpoint_definition":"cycling retention after 100 cycles","outcome_type":"NUMERIC",
-        "outcome_value_field":"normalized_value","outcome_unit":"%",
-        "feature_bindings":[{"feature_id":"temperature","condition_type":"temperature",
-            "value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"degC"}],
+        "schema_version":"1.0","task_id":"TASK1","target_id":"TARGET_01",
+        "endpoint_definition":"synthetic outcome definition","outcome_type":"NUMERIC",
+        "outcome_value_field":"normalized_value","outcome_unit":"unit_02",
+        "feature_bindings":[{"feature_id":"feature_01","condition_type":"feature_01",
+            "value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"unit_01"}],
         "split":{"strategy":"GROUPED_HOLDOUT","seed":42,"fractions":{"train":0.5,"validation":0.25,"test":0.25}}
     }
 
