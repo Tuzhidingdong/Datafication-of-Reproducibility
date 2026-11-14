@@ -4,20 +4,24 @@ import csv, hashlib, json
 from pathlib import Path
 from typing import Any
 
-def _stable_id(source_sha256: str, locator_type: str, locator: str) -> str:
+def _stable_id(source_sha256: str, locator_type: str, locator: str, source_file: str | None = None) -> str:
     raw = f"{source_sha256}|{locator_type}|{locator}".encode("utf-8")
-    return "SRC_" + hashlib.sha256(raw).hexdigest()[:16].upper()
+    identifier = "SRC_" + hashlib.sha256(raw).hexdigest()[:16].upper()
+    return identifier if source_file is None else identifier + "_" + hashlib.sha256(source_file.encode("utf-8")).hexdigest()[:8].upper()
 
 def build_source_inventory(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
     items = []
     for source in sources:
+        source_file = source.get("source_file", source["file_name"])
+        source_id = source.get("source_id")
+        artifact_id = source.get("artifact_id")
         if source["format"] == "csv":
             for column in source.get("columns", []):
                 locator_type, locator = "csv_column", column["column"]
                 items.append({
-                    "inventory_id": _stable_id(source["sha256"], locator_type, locator),
-                    "source_role": source["role"], "source_file": source["file_name"],
-                    "source_sha256": source["sha256"], "source_format": "csv",
+                    "inventory_id": _stable_id(source["sha256"], locator_type, locator, source_file if source_id or artifact_id else None),
+                    "source_role": source["role"], "source_file": source_file,
+                    "source_sha256": source["sha256"], "source_format": "csv",\n                    "source_id": source_id, "artifact_id": artifact_id,
                     "locator_type": locator_type, "locator": locator,
                     "observed_types": [column["sampled_type_hint"]],
                     "coverage": column["coverage"], "mapping_status": "UNRESOLVED",
@@ -28,7 +32,7 @@ def build_source_inventory(sources: list[dict[str, Any]]) -> list[dict[str, Any]
                 items.append({
                     "inventory_id": _stable_id(source["sha256"], locator_type, locator),
                     "source_role": source["role"], "source_file": source["file_name"],
-                    "source_sha256": source["sha256"], "source_format": "json",
+                    "source_sha256": source["sha256"], "source_format": "json",\n                    "source_id": source_id, "artifact_id": artifact_id,
                     "locator_type": locator_type, "locator": locator,
                     "observed_types": sorted(node["value_types"]),
                     "coverage": None, "mapping_status": "UNRESOLVED",
@@ -39,7 +43,7 @@ def write_source_inventory(items: list[dict[str, Any]], output_dir: Path) -> Non
     (output_dir / "source_inventory.json").write_text(
         json.dumps({"schema_version": "1.0", "items": items}, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8")
-    fields = ["inventory_id", "source_role", "source_file", "source_sha256",
+    fields = ["inventory_id", "source_id", "artifact_id", "source_role", "source_file", "source_sha256",
         "source_format", "locator_type", "locator", "observed_types", "coverage",
         "canonical_entity", "canonical_field_id", "normalized_unit",
         "mapping_status", "reviewer_decision"]
