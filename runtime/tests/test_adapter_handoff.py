@@ -200,6 +200,27 @@ class AdapterHandoffTests(unittest.TestCase):
                 set(source_hashes),
             )
 
+    def test_role_materialization_requires_json_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            package.mkdir()
+            bundle_path = package / "canonical_bundle.txt"
+            bundle_path.write_text("not json", encoding="utf-8")
+            manifest = self._write_manifest(package, [{
+                "artifact_id": "canonical-data",
+                "role": "canonical_bundle",
+                "path": "canonical_bundle.txt",
+                "sha256": digest(bundle_path),
+                "format": "text",
+            }])
+            handoff = root / "handoff.json"
+            prepare_adapter_handoff_files(manifest, package, handoff)
+            with self.assertRaisesRegex(ValueError, "must be delivered as JSON"):
+                materialize_adapter_artifacts_files(
+                    handoff, root / "materialized", roles=["canonical_bundle"],
+                )
+
     def test_dataset_snapshot_manifest_is_created_outside_package(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
