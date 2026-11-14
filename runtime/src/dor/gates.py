@@ -20,7 +20,7 @@ GATE_ORDER = ("G0", "G1", "G2", "G3", "G4")
 PREVIOUS_GATE = {GATE_ORDER[i]: GATE_ORDER[i - 1] for i in range(1, len(GATE_ORDER))}
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory"},
-    "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec"},
+    "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"},
     "G2": {"canonical_bundle", "canonical_validation_report", "reconciliation_report", "modeling_task"},
     "G3": {
         "interaction_report", "interaction_manifest",
@@ -179,6 +179,7 @@ def _validate_g1_artifacts(
     validation_binding = by_id["mapping_validation"]
     inventory_binding = by_id["source_inventory"]
     spec_binding = by_id["build_spec"]
+    build_spec_validation_binding = by_id["build_spec_validation"]
     prior_inventory = _binding_map(previous_gate_event["artifacts"]).get("source_inventory")
     if prior_inventory is None or (
         prior_inventory["path"] != inventory_binding["path"]
@@ -190,6 +191,7 @@ def _validate_g1_artifacts(
     mapping_plan = _read_json_binding(mapping_binding, "G1 mapping_plan")
     build_spec = _read_json_binding(spec_binding, "G1 build_spec")
     mapping_validation = _read_json_binding(validation_binding, "G1 mapping_validation")
+    build_spec_validation = _read_json_binding(build_spec_validation_binding, "G1 build_spec_validation")
     inventory_hash = inventory_binding["sha256"]
     mapping_hash = mapping_binding["sha256"]
 
@@ -212,6 +214,24 @@ def _validate_g1_artifacts(
     recomputed = validate_mapping_plan(mapping_plan, inventory, inventory_hash)
     if recomputed != mapping_validation:
         raise ValueError("G1 mapping_validation is not the deterministic validation result for the bound mapping_plan and source_inventory.")
+
+    if build_spec_validation.get("valid") is not True:
+        raise ValueError("G1 build_spec_validation must have valid=true.")
+    expected_build_hashes = {
+        "mapping_plan_sha256": mapping_hash,
+        "source_inventory_sha256": inventory_hash,
+        "build_spec_sha256": spec_binding["sha256"],
+    }
+    if any(build_spec_validation.get(key) != value for key, value in expected_build_hashes.items()):
+        raise ValueError("G1 build_spec_validation does not bind the exact mapping plan, source inventory, and build spec.")
+    from dor.builder import validate_build_spec_files
+    recomputed_build_spec = validate_build_spec_files(
+        Path(mapping_binding["path"]),
+        Path(inventory_binding["path"]),
+        Path(spec_binding["path"]),
+    )
+    if recomputed_build_spec != build_spec_validation:
+        raise ValueError("G1 build_spec_validation is not the deterministic validation result for the bound mapping plan, source inventory, and build spec.")
 
 
 def _validate_g2_artifacts(
