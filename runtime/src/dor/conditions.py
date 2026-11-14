@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from dor.mapping import sha256_file
+from dor.condition_performance import build_condition_performance_analysis
 
 CONDITION_RULE_VERSION = "zn-battery-condition-rules/0.1.0"
 EXCLUDED_TEST_BATCH_IDS = frozenset({
@@ -370,6 +371,7 @@ def write_condition_outputs(
     observations: list[dict[str, Any]],
     output_dir: Path,
     input_hashes: dict[str, str],
+    minimum_studies: int = 3,
 ) -> dict[str, Any]:
     """Write condition records, eligible coverage, bounded review queue, and manifest."""
     all_records: list[dict[str, Any]] = []
@@ -491,6 +493,10 @@ def write_condition_outputs(
     _write_csv(output_dir / "condition_records.csv", condition_fields, all_records)
     _write_csv(output_dir / "condition_coverage.csv", coverage_fields, coverage_rows)
     _write_csv(output_dir / "condition_review_queue.csv", review_fields, review_queue)
+    performance_summary = build_condition_performance_analysis(
+        observations, all_records, output_dir, minimum_studies=minimum_studies
+    )
+    summary["condition_performance_analysis"] = performance_summary
     summary_path = output_dir / "condition_extraction_summary.json"
     summary_path.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
