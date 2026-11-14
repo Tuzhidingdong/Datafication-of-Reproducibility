@@ -178,6 +178,6 @@ def validate_adapter_package_files(
         if output == manifest_path or output.is_relative_to(root):
             raise ValueError("Validation report must be outside the adapter package and must not overwrite its manifest.")
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         report["report_path"] = str(output)
+        output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return report
