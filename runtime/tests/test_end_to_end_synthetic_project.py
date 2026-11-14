@@ -149,7 +149,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             evidence_key = "EV_DIRECT_" + study_id
             for experiment_number, (x_value, z_value) in enumerate(coordinates, start=1):
                 experiments.append([
-                    doi, "Synthetic Study " + study_id, "CELL1", "zinc test cell",
+                    doi, "Synthetic Study " + study_id, "CELL1", "synthetic test system",
                     study_id + "_EX" + str(experiment_number),
                     "TARGET_INTERACTION", "synthetic endpoint x-by-z",
                     str(x_value * z_value), "a.u.", "REPORTED", evidence_key,
