@@ -76,6 +76,13 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             stages["mechanism_evidence_bridge"]["depends_on"],
         )
 
+    def test_core_skill_and_adapter_contract_preserve_cross_disciplinary_boundary(self):
+        skill = (ROOT / ".agents" / "skills" / "datafication-of-reproducibility" / "SKILL.md").read_text(encoding="utf-8")
+        adapter_contract = (ROOT / "docs" / "ADAPTER_CONTRACT.md").read_text(encoding="utf-8")
+        self.assertIn("Cross-disciplinary boundary (immutable)", skill)
+        self.assertIn("hard architectural boundary", adapter_contract)
+        self.assertIn("independently maintained external adapters", adapter_contract)
+
     def test_run_plan_schema_declares_activation_operators(self):
         schema = json.loads(
             (ROOT / "schemas" / "run_plan.schema.json").read_text(encoding="utf-8")
