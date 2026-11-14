@@ -130,6 +130,41 @@ class WorkflowGateTests(unittest.TestCase):
         })
         make_file("publication_plan", {"schema_version": "1.0", "artifacts": []})
         make_file("model_report", {"task_id": "TASK_GATE", "selected_model": "TEST_MODEL"})
+        make_file("worker_review_output", {
+            "schema_version": "1.0",
+            "task_id": "WORKER_TASK_GATE",
+            "status": "completed",
+            "summary": "Synthetic review fixture.",
+            "findings": [{"finding_id": "WF_001", "summary": "Synthetic finding."}],
+            "artifacts": [],
+            "warnings": [],
+            "unresolved_questions": [],
+        })
+        make_file("reviewed_findings", {
+            "schema_version": "1.0",
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "reviewer": "human-reviewer",
+            "reviewed_at": "2026-11-14T00:00:00Z",
+            "worker_output": {
+                "artifact_id": "worker_review_output",
+                "path": str(self.files["worker_review_output"]),
+                "sha256": sha256_file(self.files["worker_review_output"]),
+            },
+            "reviewed_artifacts": [{
+                "artifact_id": "model_report",
+                "path": str(self.files["model_report"]),
+                "sha256": sha256_file(self.files["model_report"]),
+            }],
+            "findings": [{
+                "worker_finding_id": "WF_001",
+                "disposition": "ACCEPT_AS_IS",
+                "reviewer_rationale": "The finding is supported by the exact reviewed result.",
+                "supporting_artifact_ids": ["model_report"],
+            }],
+            "promotion_decision": "PROMOTE_ACCEPTED_ONLY",
+            "overall_rationale": "Only the accepted finding is promoted.",
+        })
         make_file("mechanism_plan", {
             "schema_version": "1.0", "task_id": "TASK_GATE",
             "interaction_id": "INT_1",
@@ -302,7 +337,31 @@ class WorkflowGateTests(unittest.TestCase):
         self._complete_to_g2()
         self._record_g3()
         with self.assertRaisesRegex(ValueError, "G4 requires at least one reviewed result"):
-            self._record("G4", ["publication_plan"])
+            self._record("G4", ["publication_plan", "worker_review_output", "reviewed_findings"])
+
+    def test_g4_requires_every_worker_finding_to_have_one_human_disposition(self):
+        self._complete_to_g2()
+        self._record_g3()
+        reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
+        reviewed["findings"] = []
+        self._write("reviewed_findings", reviewed)
+        with self.assertRaisesRegex(ValueError, "cover every Worker finding exactly once"):
+            self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
+
+    def test_g4_rejects_promotion_decision_inconsistent_with_dispositions(self):
+        self._complete_to_g2()
+        self._record_g3()
+        reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
+        reviewed["promotion_decision"] = "DO_NOT_PROMOTE"
+        self._write("reviewed_findings", reviewed)
+        with self.assertRaisesRegex(ValueError, "inconsistent with the individual human finding dispositions"):
+            self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
+
+    def test_g4_requires_gate_bindings_for_every_human_reviewed_artifact(self):
+        self._complete_to_g2()
+        self._record_g3()
+        with self.assertRaisesRegex(ValueError, "Gate event must bind reviewed artifact"):
+            self._record("G4", ["publication_plan", "worker_review_output", "reviewed_findings"])
 
     def test_changed_artifact_invalidates_its_gate_and_all_downstream_gates(self):
         self._complete_to_g2()
