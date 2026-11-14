@@ -40,6 +40,18 @@ The handoff is read-only and does not parse unsupported source formats. An exter
 
 A passing handoff confirms delivery integrity and, for a Canonical Bundle, structural/reference validity only. It does not approve extraction quality, entity grain, scientific semantics, mappings, unit compatibility, or suitability for any analysis.
 
+For a formal Run using a prebuilt Canonical Bundle, create the package snapshot alongside the handoff:
+
+    dor prepare-adapter-handoff --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/run/00_adapter/adapter_handoff.json --dataset-manifest-out path/to/run/00_adapter/dataset_manifest.json
+
+Materialize the four generic provenance artifacts into the Run workspace:
+
+    dor materialize-adapter-artifacts --adapter-handoff path/to/run/00_adapter/adapter_handoff.json --role source_inventory --role mapping_plan --role build_spec --role canonical_bundle --out-dir path/to/run/00_adapter/materialized
+
+Role-based materialization requires exactly one artifact for each requested role. It preserves each external artifact ID in the materialization manifest, copies the file without transforming it, and verifies source and copied-file hashes. The resulting filenames are the generic role names with their original file extensions.
+
+Use `templates/run_plan.canonical_adapter.example.json` for this route. The package must provide exactly one artifact for each of `source_inventory`, `mapping_plan`, `build_spec`, and `canonical_bundle`. After G0 approval, DoR re-runs mapping validation on the supplied mapping plan and inventory. G1 approval binds the exact mapping plan, validation report, inventory, and build specification. The G2 gate then verifies that the supplied Canonical Bundle's build-provenance hashes match those exact G1-approved artifacts. A prebuilt bundle therefore cannot bypass G0, G1, or G2.
+
 ## Handoff to existing DoR stages
 
 The adapter package is a boundary, not a replacement for DoR's scientific workflow.
@@ -47,11 +59,11 @@ The adapter package is a boundary, not a replacement for DoR's scientific workfl
 1. Register the adapter manifest and its package root as protected source inputs in the Run Plan.
 2. Run `dor prepare-adapter-handoff` in the adapter validation stage. The generated `adapter_handoff.json` is the single routing artifact consumed by subsequent stages.
 3. For a STRUCTURED_DATASET route, run `dor audit --adapter-handoff <adapter_handoff.json> --out <new_audit_directory>`. This audits all supported standardized CSV/JSON artifacts in one pass. Review the resulting source inventory before defining mappings.
-4. Prepare and review the mapping plan and canonical build specification against the exact source inventory. DoR does not infer scientific meanings from labels or filenames.
-5. Build and validate the canonical bundle; reconcile unresolved records without automatic selection, merging, or averaging.
-6. Run exploratory profiling on that exact canonical bundle, then continue through user scope selection and the existing approval-gated analysis stages.
-7. For a CANONICAL_BUNDLE route, use `dor discover-opportunities --adapter-handoff <adapter_handoff.json>` for pre-Run exploration. A later formal Run may use that same bundle only when the package also supplies the matching `source_inventory`, `mapping_plan`, and `build_spec` artifacts, and their hashes/provenance pass the existing G1/G2 checks.
-8. Build endpoint-specific cohorts and continue through the existing approval-gated analysis stages. Exploratory results remain candidates and do not approve a formal task or gate.
+4. For a CANONICAL_BUNDLE route, use `dor discover-opportunities --adapter-handoff <adapter_handoff.json>` for optional pre-Run exploration. This does not authorize formal analysis.
+5. For formal analysis of a prebuilt Canonical Bundle, require the package to provide `source_inventory`, `mapping_plan`, `build_spec`, and `canonical_bundle`; use the canonical-adapter Run Plan template and materialize these artifacts into the Run workspace by generic role.
+6. Follow the existing G0 and G1 approval gates. Revalidate the supplied mapping plan against the exact source inventory, bind the supplied build specification, and verify the Canonical Bundle's provenance before G2. Do not rebuild, merge, or automatically revise the supplied records.
+7. For a STRUCTURED_DATASET route, prepare and review the mapping plan and canonical build specification against the exact source inventory. DoR does not infer scientific meanings from labels or filenames. Build and validate the Canonical Bundle only after G1 approval.
+8. Reconcile unresolved records without automatic selection, merging, or averaging. Run exploratory profiling on the validated Canonical Bundle, then continue through user scope selection, G2, endpoint-specific cohorts, and the existing approval-gated analysis stages. Exploratory results remain candidates and do not approve a formal task or gate.
 
 An adapter may provide a prebuilt canonical bundle only when its entity identities, relationships, provenance, and mappings are explicitly represented. DoR validates structural/reference integrity and preserves external source and adapter hashes; this validation is not a semantic or scientific approval.
 
