@@ -718,23 +718,25 @@ def _required_gate_is_current(stage: Mapping[str, Any], gate_snapshot: dict[str,
 
 def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                  events: list[dict[str, Any]]) -> dict[str, Any]:
-    order, _, _ = _validate_plan(plan, root)
+    order, _, producer_by_artifact = _validate_plan(plan, root)
     stages = _stage_map(plan)
     latest = _latest_stage_events(events)
     gate_snapshot = _gate_status(manifest)
     actions: dict[str, str] = {}
     details: dict[str, dict[str, Any]] = {}
+    source_hashes = {item["artifact_id"]: item["sha256"] for item in manifest["source_artifacts"]}
+    definitions, _ = _artifact_definitions(plan)
+
     for stage_id in order:
         stage = stages[stage_id]
         dependencies = stage["depends_on"]
         dependency_actions = [actions[item] for item in dependencies]
         current_event = latest.get(stage_id)
         reasons: list[str] = []
-        source_hashes = {item["artifact_id"]: item["sha256"] for item in manifest["source_artifacts"]}
         changed_source_inputs = []
         for artifact_id in stage["inputs"]:
-            definition = next((item for item in manifest["source_artifacts"] if item["artifact_id"] == artifact_id), None)
-            if definition is None:
+            definition = definitions[artifact_id]
+            if definition.get("kind") != "source":
                 continue
             path = Path(definition["path"])
             try:
@@ -743,53 +745,84 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                 actual = None
             if actual != source_hashes[artifact_id]:
                 changed_source_inputs.append(artifact_id)
+
         if current_event is not None and current_event["status"] == "RUNNING":
             action = "RUNNING_NEEDS_RECONCILIATION"
             reasons.append("A prior attempt was recorded as RUNNING; inspect the external process before recording another attempt.")
         elif changed_source_inputs:
             action = "SOURCE_CHANGED_NEW_RUN_REQUIRED"
             reasons.append("Protected source inputs changed: " + ", ".join(changed_source_inputs) + ". Initialize a new run.")
-        elif any(item != "REUSE" for item in dependency_actions):
-            action = "INVALIDATED_BY_UPSTREAM" if current_event and current_event.get("status") == "SUCCEEDED" else "WAITING_FOR_DEPENDENCIES"
-            reasons.append("One or more declared dependencies are not currently reusable.")
-        elif not _required_gate_is_current(stage, gate_snapshot):
-            action = "BLOCKED_GATE"
-            reasons.append(f"Required gate {stage.get('required_gate')} is not currently approved.")
-        elif current_event is None:
-            action = "READY_TO_RUN"
-        elif current_event["status"] == "FAILED":
-            action = "RETRY_REQUIRED"
-            reasons.append(current_event.get("reason") or "The prior attempt failed.")
         else:
-            current_gate_approval = _gate_approval(stage, gate_snapshot)
-            if current_event.get("gate_approval") != current_gate_approval:
-                reasons.append("Required approval gate decision changed since this stage attempt.")
-            definitions, _ = _artifact_definitions(plan)
-            source_hashes = {item["artifact_id"]: item["sha256"] for item in manifest["source_artifacts"]}
-            recorded_inputs = {item["artifact_id"]: item for item in current_event.get("input_artifacts", [])}
-            recorded_outputs = {item["artifact_id"]: item for item in current_event.get("output_artifacts", [])}
-            for artifact_id in stage["inputs"]:
-                definition = definitions[artifact_id]
-                path = _artifact_path(root, definition)
-                expected = recorded_inputs.get(artifact_id, {}).get("sha256")
-                try:
-                    actual = sha256_file(path) if path.is_file() else None
-                except OSError:
-                    actual = None
-                if definition.get("kind", "derived") == "source" and actual != source_hashes.get(artifact_id):
-                    reasons.append(f"Protected source changed: {artifact_id}.")
-                if actual is None or actual != expected:
-                    reasons.append(f"Input artifact changed or missing: {artifact_id}.")
-            for output in stage["outputs"]:
-                path = _artifact_path(root, output)
-                expected = recorded_outputs.get(output["artifact_id"], {}).get("sha256")
-                try:
-                    actual = sha256_file(path) if path.is_file() else None
-                except OSError:
-                    actual = None
-                if actual is None or actual != expected:
-                    reasons.append(f"Output artifact changed or missing: {output['artifact_id']}.")
-            action = "REBUILD_REQUIRED" if reasons else "REUSE"
+            activation = stage.get("activation")
+            if activation is not None:
+                activation_producer = producer_by_artifact.get(activation["artifact_id"])
+                if activation_producer is not None and actions.get(activation_producer) != "REUSE":
+                    action = "WAITING_FOR_ACTIVATION_INPUT"
+                    reasons.append("The stage activation input has not yet been produced or is not currently reusable.")
+                else:
+                    activation_result = _evaluate_activation(root, plan, stage)
+                    if activation_result["state"] == "WAITING":
+                        action = "WAITING_FOR_ACTIVATION_INPUT"
+                        reasons.append(activation_result.get("reason", "Activation input is not ready."))
+                    elif activation_result["state"] == "INACTIVE":
+                        try:
+                            current_inputs = _stage_input_snapshots(root, manifest, plan, stage)
+                        except ValueError:
+                            current_inputs = None
+                        if (current_event is not None and current_event["status"] == "SKIPPED"
+                                and current_inputs == current_event.get("input_artifacts")):
+                            action = "SKIPPED"
+                        else:
+                            action = "SKIP_REQUIRED"
+                            reasons.append("The declared activation condition is false; record this optional stage as SKIPPED.")
+                    else:
+                        action = "ACTIVE"
+            else:
+                action = "ACTIVE"
+
+            if action == "ACTIVE":
+                if any(item != "REUSE" for item in dependency_actions):
+                    action = "INVALIDATED_BY_UPSTREAM" if current_event and current_event.get("status") == "SUCCEEDED" else "WAITING_FOR_DEPENDENCIES"
+                    reasons.append("One or more declared dependencies are not currently reusable.")
+                elif not _required_gate_is_current(stage, gate_snapshot):
+                    action = "BLOCKED_GATE"
+                    reasons.append(f"Required gate {stage.get('required_gate')} is not currently approved.")
+                elif current_event is None or current_event.get("status") == "SKIPPED":
+                    action = "READY_TO_RUN"
+                    if current_event and current_event.get("status") == "SKIPPED":
+                        reasons.append("The activation condition is now true; start a new stage attempt.")
+                elif current_event["status"] == "FAILED":
+                    action = "RETRY_REQUIRED"
+                    reasons.append(current_event.get("reason") or "The prior attempt failed.")
+                else:
+                    current_gate_approval = _gate_approval(stage, gate_snapshot)
+                    if current_event.get("gate_approval") != current_gate_approval:
+                        reasons.append("Required approval gate decision changed since this stage attempt.")
+                    recorded_inputs = {item["artifact_id"]: item for item in current_event.get("input_artifacts", [])}
+                    recorded_outputs = {item["artifact_id"]: item for item in current_event.get("output_artifacts", [])}
+                    for artifact_id in stage["inputs"]:
+                        definition = definitions[artifact_id]
+                        path = _artifact_path(root, definition)
+                        expected = recorded_inputs.get(artifact_id, {}).get("sha256")
+                        try:
+                            actual = sha256_file(path) if path.is_file() else None
+                        except OSError:
+                            actual = None
+                        if definition.get("kind", "derived") == "source" and actual != source_hashes.get(artifact_id):
+                            reasons.append(f"Protected source changed: {artifact_id}.")
+                        if actual is None or actual != expected:
+                            reasons.append(f"Input artifact changed or missing: {artifact_id}.")
+                    for output in stage["outputs"]:
+                        path = _artifact_path(root, output)
+                        expected = recorded_outputs.get(output["artifact_id"], {}).get("sha256")
+                        try:
+                            actual = sha256_file(path) if path.is_file() else None
+                        except OSError:
+                            actual = None
+                        if actual is None or actual != expected:
+                            reasons.append(f"Output artifact changed or missing: {output['artifact_id']}.")
+                    action = "REBUILD_REQUIRED" if reasons else "REUSE"
+
         actions[stage_id] = action
         details[stage_id] = {
             "stage_id": stage_id,
@@ -798,11 +831,15 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
             "action": action,
             "dependencies": dependencies,
             "required_gate": stage.get("required_gate"),
+            "activation": stage.get("activation"),
             "reasons": reasons,
             "last_event_hash": current_event.get("event_hash") if current_event else None,
         }
+
     reusable = sum(1 for value in actions.values() if value == "REUSE")
     ready = sum(1 for value in actions.values() if value == "READY_TO_RUN")
+    skipped = sum(1 for value in actions.values() if value == "SKIPPED")
+    skip_required = sum(1 for value in actions.values() if value == "SKIP_REQUIRED")
     rebuild = sum(1 for value in actions.values() if value in {"REBUILD_REQUIRED", "RETRY_REQUIRED", "INVALIDATED_BY_UPSTREAM"})
     blocked_source = sum(1 for value in actions.values() if value == "SOURCE_CHANGED_NEW_RUN_REQUIRED")
     return {
@@ -812,12 +849,13 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
         "stage_count": len(order),
         "reuse_count": reusable,
         "ready_to_run_count": ready,
+        "skipped_count": skipped,
+        "skip_required_count": skip_required,
         "rebuild_or_retry_count": rebuild,
         "source_changed_block_count": blocked_source,
         "stages": [details[stage_id] for stage_id in order],
         "execution_policy": "PLAN_ONLY_NO_COMMANDS_OR_WORKERS_ARE_STARTED_AND_NO_GATE_DECISIONS_ARE_CREATED",
     }
-
 
 def initialize_run(plan_path: Path, run_root: Path, run_id: str | None = None) -> dict[str, Any]:
     source_plan_path = plan_path.expanduser().resolve(strict=True)
