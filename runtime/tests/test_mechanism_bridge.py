@@ -84,17 +84,17 @@ def mechanism_plan(interaction_id):
         "notes": "Draft for Gate G3 review.",
         "mechanism_hypotheses": [{
             "hypothesis_id": "HYP_1",
-            "title": "Coordination-mediated interfacial response",
-            "hypothesis_statement": "the first condition changes local coordination and thereby modifies the response to the second condition",
+            "title": "Condition-dependent system response",
+            "hypothesis_statement": "the first declared condition changes an intermediate system state that modifies the response to the second condition",
             "proposed_process_chain": [
-                "the first condition changes the coordination environment",
-                "the coordination environment changes an interfacial process",
-                "the altered process modifies the measured endpoint"
+                "the first condition changes an intermediate system state",
+                "the intermediate system state changes a system response pathway",
+                "the altered response pathway modifies the measured endpoint"
             ],
-            "scope_statement": "Only within the materials, endpoint definition, and condition ranges represented by the linked sources.",
-            "predicted_observations": ["a measurable coordination change", "a corresponding change in the interfacial process"],
+            "scope_statement": "Only within the systems, endpoint definition, and condition ranges represented by the linked sources.",
+            "predicted_observations": ["a measurable change in the intermediate system state", "a corresponding change in the response pathway"],
             "alternative_explanations": ["study-level protocol differences", "an unmeasured co-varying condition"],
-            "unresolved_variables": ["local pH", "realized rather than nominal condition state"],
+            "unresolved_variables": ["an unobserved system variable", "realized rather than nominal condition state"],
             "evidence_assessments": [
                 {"evidence_id": "EV_DIRECT", "relationship": "SUPPORTS",
                  "evidence_class": "DIRECT_OBSERVATION",
