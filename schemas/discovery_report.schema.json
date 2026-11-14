@@ -10,6 +10,7 @@
     "novelty_assessment",
     "profile",
     "signals",
+    "feature_semantics_review_summary",
     "limitations"
   ],
   "properties": {
@@ -70,6 +71,29 @@
         "supported_joint_condition_combination_count": { "type": "integer", "minimum": 0 },
         "joint_condition_combination_contrast_count": { "type": "integer", "minimum": 0 },
         "joint_condition_hypothesis_candidate_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "feature_semantics_review_summary": {
+      "type": "object",
+      "required": [
+        "mapping_status",
+        "feature_unit_group_count",
+        "representative_evidence_row_count",
+        "max_examples_per_feature_unit",
+        "max_quote_chars_per_worker",
+        "excluded_test_batch_observation_count",
+        "excluded_without_doi_count",
+        "excluded_without_evidence_quote_or_cell_count"
+      ],
+      "properties": {
+        "mapping_status": { "const": "PENDING_HUMAN_SEMANTIC_MAPPING" },
+        "feature_unit_group_count": { "type": "integer", "minimum": 0 },
+        "representative_evidence_row_count": { "type": "integer", "minimum": 0 },
+        "max_examples_per_feature_unit": { "type": "integer", "minimum": 1 },
+        "max_quote_chars_per_worker": { "type": "integer", "minimum": 80 },
+        "excluded_test_batch_observation_count": { "type": "integer", "minimum": 0 },
+        "excluded_without_doi_count": { "type": "integer", "minimum": 0 },
+        "excluded_without_evidence_quote_or_cell_count": { "type": "integer", "minimum": 0 }
       }
     },
     "source_merge_issue_count": {
