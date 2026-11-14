@@ -85,10 +85,16 @@ class WorkflowGateTests(unittest.TestCase):
         })
         make_file("canonical_validation_report", {"valid": True, "errors": [], "warnings": []})
         make_file("reconciliation_report", {
+            "schema_version": "1.0",
             "bundle_sha256": sha256_file(self.files["canonical_bundle"]),
             "valid_bundle": True,
+            "validation_error_count": 0,
+            "validation_warning_count": 0,
             "issue_count": 0,
+            "severity_counts": {"CRITICAL": 0, "REVIEW_REQUIRED": 0, "WARNING": 0, "INFO": 0},
             "issues": [],
+            "decision_policy": "HUMAN_REVIEW_ONLY_NO_CANONICAL_DATA_MUTATION",
+            "validation_scope": "DETERMINISTIC_CANDIDATE_DETECTION_NOT_SCIENTIFIC_RECONCILIATION",
         })
         make_file("reconciliation_decisions", {
             "schema_version": "1.0",
