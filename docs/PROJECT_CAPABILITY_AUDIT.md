@@ -24,7 +24,7 @@ The DoR cross-disciplinary boundary is now explicit in the core Skill and Adapte
 
 **Run versus Acceptance boundary:** the Controlled Acceptance Record remains a separate post-Run artifact by design. It must bind the final Run/Gate ledgers and exact completed outputs; including it as a Run output would create a circular ledger dependency. The Acceptance revision history and detached checkpoint are the independent final project-level review record.
 
-**Still intentionally outside core / not established:** native raw PDF/DOCX and multimodal extraction; host-side Worker Manager invocation and process supervision; general cross-run content-addressed caching; RO-Crate/PROV export; and scientific validity on a user-selected real dataset. These are external integrations or later acceptance work, not silently claimed capabilities.
+**Still intentionally outside core / not established:** native raw PDF/DOCX and multimodal extraction; provider/model catalogue and actual process execution inside the host Worker Manager (the DoR Skill now defines the authorization, dispatch, monitoring, result-staging, and usage-recording handshake); general cross-run content-addressed caching; RO-Crate/PROV export; and scientific validity on a user-selected real dataset. These are external integrations or later acceptance work, not silently claimed capabilities.
 
 **Verification state:** no test suite or CI run was executed during this implementation pass, in accordance with the instruction to complete the project before one unified test/acceptance pass. Test coverage has been updated for the new conditional stage contracts; runtime correctness remains pending that final pass. The earlier audit's test statements describe only its recorded historical snapshot.
 
