@@ -158,37 +158,40 @@ class AdapterHandoffTests(unittest.TestCase):
             package = root / "package"
             package.mkdir()
             artifacts = []
-            for artifact_id, role, payload in (
-                ("source_inventory", "source_inventory", {"schema_version": "1.0", "items": []}),
-                ("mapping_plan", "mapping_plan", {"schema_version": "1.0", "rules": []}),
-                ("build_spec", "build_spec", {"schema_version": "1.0"}),
-                ("canonical_bundle", "canonical_bundle", empty_canonical_bundle()),
-            ):
+            role_payloads = (
+                ("external-inventory-v1", "source_inventory", {"schema_version": "1.0", "items": []}),
+                ("external-mapping-v1", "mapping_plan", {"schema_version": "1.0", "rules": []}),
+                ("external-build-spec-v1", "build_spec", {"schema_version": "1.0"}),
+                ("external-canonical-v1", "canonical_bundle", empty_canonical_bundle()),
+            )
+            source_hashes = {}
+            artifacts = []
+            for artifact_id, role, payload in role_payloads:
                 path = package / f"{artifact_id}.json"
                 write_json(path, payload)
+                source_hashes[role] = digest(path)
                 artifacts.append({
                     "artifact_id": artifact_id,
                     "role": role,
                     "path": path.name,
-                    "sha256": digest(path),
+                    "sha256": source_hashes[role],
                     "format": "json",
                 })
             manifest = self._write_manifest(package, artifacts)
             handoff_path = root / "adapter_handoff.json"
             prepare_adapter_handoff_files(manifest, package, handoff_path)
-            source_hashes = {item["artifact_id"]: digest(package / f"{item['artifact_id']}.json") for item in artifacts}
 
             output_dir = root / "run" / "00_adapter" / "materialized"
+            roles = ["source_inventory", "mapping_plan", "build_spec", "canonical_bundle"]
             result = materialize_adapter_artifacts_files(
-                handoff_path,
-                ["source_inventory", "mapping_plan", "build_spec", "canonical_bundle"],
-                output_dir,
+                handoff_path, output_dir, roles=roles,
             )
             self.assertEqual(result["artifact_count"], 4)
             self.assertFalse(result["source_files_modified"])
-            for artifact_id, expected_hash in source_hashes.items():
-                self.assertEqual(digest(output_dir / f"{artifact_id}.json"), expected_hash)
-                self.assertEqual(digest(package / f"{artifact_id}.json"), expected_hash)
+            for role, expected_hash in source_hashes.items():
+                self.assertEqual(digest(output_dir / f"{role}.json"), expected_hash)
+            for artifact_id, role, _ in role_payloads:
+                self.assertEqual(digest(package / f"{artifact_id}.json"), source_hashes[role])
             materialization = json.loads(
                 Path(result["materialization_manifest"]).read_text(encoding="utf-8")
             )
@@ -255,10 +258,11 @@ class AdapterHandoffTests(unittest.TestCase):
         self.assertEqual(snapshot_args.dataset_manifest_out, Path("dataset_manifest.json"))
         materialize_args = build_parser().parse_args([
             "materialize-adapter-artifacts", "--adapter-handoff", "handoff.json",
-            "--artifact-id", "source_inventory", "--artifact-id", "canonical_bundle",
+            "--role", "source_inventory", "--role", "canonical_bundle",
             "--out-dir", "materialized",
         ])
-        self.assertEqual(materialize_args.artifact_id, ["source_inventory", "canonical_bundle"])
+        self.assertEqual(materialize_args.role, ["source_inventory", "canonical_bundle"])
+        self.assertIsNone(materialize_args.artifact_id)
         discovery_args = build_parser().parse_args([
             "discover-opportunities", "--adapter-handoff", "adapter_handoff.json",
             "--out-dir", "discovery",
