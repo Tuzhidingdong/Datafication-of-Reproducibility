@@ -628,6 +628,23 @@ class RunManagerTests(unittest.TestCase):
             "run-worker-authorize", "run-stage-record",
         ):
             self.assertIn(command, subparsers)
+        status_action = next(
+            action for action in subparsers["run-stage-record"]._actions
+            if action.dest == "status"
+        )
+        self.assertIn("SKIPPED", status_action.choices)
+
+    def test_run_event_schema_declares_conditional_skip_evidence(self):
+        root = Path(__file__).resolve().parents[2]
+        schema = json.loads((root / "schemas" / "run_event.schema.json").read_text(encoding="utf-8"))
+        self.assertIn("SKIPPED", schema["properties"]["status"]["enum"])
+        self.assertIn("activation_evaluation", schema["properties"])
+        skip_rule = next(
+            item for item in schema["allOf"]
+            if item.get("if", {}).get("properties", {}).get("status", {}).get("const") == "SKIPPED"
+        )
+        self.assertIn("activation_evaluation", skip_rule["then"]["required"])
+        self.assertEqual(skip_rule["then"]["properties"]["input_artifacts"]["maxItems"], 1)
 
 
 if __name__ == "__main__":
