@@ -16,19 +16,19 @@
       "proposed_process_chain": [
         "first condition changes an intermediate system state",
         "the intermediate state modifies the response pathway",
-        "the altered hydration changes the measured endpoint"
+        "the changed intermediate state alters the measured endpoint"
       ],
       "scope_statement": "Only within the exact system scope, endpoint, and input ranges represented by the linked evidence.",
       "predicted_observations": [
         "a measurable intermediate-state change across the first condition",
-        "a corresponding change in interfacial hydration"
+        "a corresponding change in a directly measured response variable"
       ],
       "alternative_explanations": [
         "study-level protocol differences",
         "an unmeasured covariate correlated with both conditions"
       ],
       "unresolved_variables": [
-        "local pH",
+        "an unmeasured system variable",
         "realized rather than nominal condition state"
       ],
       "evidence_assessments": [
