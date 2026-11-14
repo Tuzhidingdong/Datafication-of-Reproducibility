@@ -382,6 +382,15 @@ def build_condition_performance_analysis(
             )
             left_median = float(left["median_of_study_medians"])
             right_median = float(right["median_of_study_medians"])
+            paired_higher_count = sum(value > 0 for value in paired_differences)
+            paired_lower_count = sum(value < 0 for value in paired_differences)
+            paired_equal_count = sum(value == 0 for value in paired_differences)
+            aggregate_direction = right_median - left_median
+            paired_opposite_direction_count = (
+                paired_lower_count if aggregate_direction > 0
+                else paired_higher_count if aggregate_direction < 0
+                else min(paired_higher_count, paired_lower_count)
+            )
             contrast_rows.append({
                 "contrast_id": f"CPA-{len(contrast_rows) + 1:05d}",
                 "feature_id": feature,
@@ -397,6 +406,10 @@ def build_condition_performance_analysis(
                 "median_difference_b_minus_a": right_median - left_median,
                 "paired_study_count": len(shared),
                 "paired_study_median_difference": _median(paired_differences),
+                "paired_higher_outcome_in_level_b_count": paired_higher_count,
+                "paired_lower_outcome_in_level_b_count": paired_lower_count,
+                "paired_equal_outcome_count": paired_equal_count,
+                "paired_opposite_to_aggregate_direction_count": paired_opposite_direction_count,
                 "same_target_system_paired_study_count": matched_system_studies,
                 "omitted_supported_levels_from_pairwise_cap": omitted_level_count,
                 "interpretation_status": "DESCRIPTIVE_CROSS_STUDY_ASSOCIATION_NOT_CAUSAL_OR_INFERENTIAL",
@@ -461,6 +474,8 @@ def build_condition_performance_analysis(
         "condition_dimension", "level_a", "level_b", "study_count_a", "study_count_b",
         "median_outcome_a", "median_outcome_b", "median_difference_b_minus_a",
         "paired_study_count", "paired_study_median_difference",
+        "paired_higher_outcome_in_level_b_count", "paired_lower_outcome_in_level_b_count",
+        "paired_equal_outcome_count", "paired_opposite_to_aggregate_direction_count",
         "same_target_system_paired_study_count",
         "omitted_supported_levels_from_pairwise_cap", "interpretation_status",
         "endpoint_semantics_status",
