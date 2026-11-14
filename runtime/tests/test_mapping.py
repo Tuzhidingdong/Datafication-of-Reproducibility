@@ -6,14 +6,14 @@ from dor.mapping import validate_mapping_plan
 def inventory():
     return {"schema_version":"1.0","items":[
         {"inventory_id":"SRC_A","source_file":"data.csv","source_sha256":"a"*64,
-         "locator_type":"csv_column","locator":"temperature","source_format":"csv"}]}
+         "locator_type":"csv_column","locator":"feature_01","source_format":"csv"}]}
 
 def plan(inv_hash):
     return {"schema_version":"1.0","mapping_version":"map-001","source_inventory_sha256":inv_hash,
         "rules":[{"mapping_rule_id":"MAP_A","source_item_id":"SRC_A","target_entity":"conditions",
-          "target_field_id":"temperature","status":"APPROVED",
+          "target_field_id":"feature_01","status":"APPROVED",
           "transformation":{"type":"UNIT_CONVERSION","parameters":{
-              "source_unit":"degC","target_unit":"K","factor":1.0,"offset":273.15}},
+              "source_unit":"unit_01","target_unit":"unit_02","factor":1.0,"offset":0.0}},
           "review":{"reviewer":"human","reviewed_at":"2026-11-07","decision_note":"Checked against source method."}}]}
 
 class MappingPlanTests(unittest.TestCase):
@@ -36,7 +36,7 @@ class MappingPlanTests(unittest.TestCase):
         self.mapping["rules"][0]["source_item_id"]="MISSING"
         result=validate_mapping_plan(self.mapping,self.inv,self.digest)
         self.assertFalse(result["valid"])
-        self.assertIn("UNKNOWN_SOURCE_ITEM",[e["code"] for e in result["errors"]])
+        self.assertIn("UNunit_02NOWN_SOURCE_ITEM",[e["code"] for e in result["errors"]])
 
     def test_unapproved_rule_is_excluded(self):
         self.mapping["rules"][0]["status"]="REVIEWED"
@@ -52,7 +52,7 @@ class MappingPlanTests(unittest.TestCase):
         self.assertIn("APPROVAL_METADATA_REQUIRED",[e["code"] for e in result["errors"]])
 
     def test_unit_conversion_requires_units_and_factor(self):
-        self.mapping["rules"][0]["transformation"]["parameters"]={"source_unit":"degC"}
+        self.mapping["rules"][0]["transformation"]["parameters"]={"source_unit":"unit_01"}
         result=validate_mapping_plan(self.mapping,self.inv,self.digest)
         self.assertFalse(result["valid"])
         self.assertIn("INCOMPLETE_UNIT_CONVERSION",[e["code"] for e in result["errors"]])
