@@ -223,17 +223,22 @@ def prepare_adapter_handoff_files(
 
 def materialize_adapter_artifacts_files(
     handoff_path: Path,
-    artifact_ids: list[str],
     output_dir: Path,
+    artifact_ids: list[str] | None = None,
+    roles: list[str] | None = None,
 ) -> dict[str, Any]:
     """Copy selected, hash-verified adapter artifacts into a new derived Run directory."""
     handoff = load_validated_adapter_handoff(handoff_path)
-    if not isinstance(artifact_ids, list) or not artifact_ids:
-        raise ValueError("At least one adapter artifact ID must be selected.")
-    if len(set(artifact_ids)) != len(artifact_ids):
+    use_ids = isinstance(artifact_ids, list) and bool(artifact_ids)
+    use_roles = isinstance(roles, list) and bool(roles)
+    if use_ids == use_roles:
+        raise ValueError("Supply either one or more artifact_ids or one or more artifact roles, but not both.")
+    if use_ids and len(set(artifact_ids)) != len(artifact_ids):
         raise ValueError("Adapter artifact IDs must be unique.")
-    if "materialization_manifest" in artifact_ids:
+    if use_ids and "materialization_manifest" in artifact_ids:
         raise ValueError("The artifact ID 'materialization_manifest' is reserved by DoR.")
+    if use_roles and len(set(roles)) != len(roles):
+        raise ValueError("Adapter artifact roles must be unique.")
 
     package_root = Path(handoff["package_root"]).resolve()
     output_dir = output_dir.expanduser().resolve()
@@ -246,20 +251,35 @@ def materialize_adapter_artifacts_files(
             raise FileExistsError(f"Refusing to overwrite a non-empty materialization directory: {output_dir}")
 
     by_id = {item["artifact_id"]: item for item in handoff["artifacts"]}
-    missing = set(artifact_ids) - set(by_id)
-    if missing:
-        raise ValueError("Adapter package does not declare requested artifact IDs: " + ", ".join(sorted(missing)))
+    selected: list[tuple[str, dict[str, Any]]] = []
+    if use_ids:
+        missing = set(artifact_ids) - set(by_id)
+        if missing:
+            raise ValueError("Adapter package does not declare requested artifact IDs: " + ", ".join(sorted(missing)))
+        selected = [(artifact_id, by_id[artifact_id]) for artifact_id in artifact_ids]
+    else:
+        valid_roles = {item["role"] for item in handoff["artifacts"]}
+        missing_roles = set(roles) - valid_roles
+        if missing_roles:
+            raise ValueError("Adapter package does not declare requested artifact roles: " + ", ".join(sorted(missing_roles)))
+        for role in roles:
+            candidates = [item for item in handoff["artifacts"] if item["role"] == role]
+            if len(candidates) != 1:
+                raise ValueError(
+                    f"Adapter role {role!r} must resolve to exactly one artifact for role-based materialization; found {len(candidates)}."
+                )
+            selected.append((role, candidates[0]))
 
     output_dir.mkdir(parents=True, exist_ok=True)
     copied: list[dict[str, Any]] = []
-    for artifact_id in artifact_ids:
-        artifact = by_id[artifact_id]
+    for selection_key, artifact in selected:
+        artifact_id = artifact["artifact_id"]
         source = Path(artifact["path"])
         before = _sha256(source)
         if before != artifact["sha256"]:
             raise ValueError(f"Adapter artifact changed before materialization: {artifact_id}")
         suffix = Path(artifact["package_path"]).suffix
-        destination_name = artifact_id + suffix
+        destination_name = (artifact_id if use_ids else selection_key) + suffix
         destination = output_dir / destination_name
         if destination.exists():
             raise FileExistsError(f"Materialization destination already exists: {destination}")
