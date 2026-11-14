@@ -116,7 +116,7 @@ Use the exact Run-relative file paths below. These commands bind the approval to
 
     dor gate-record --workflow-ledger <run_root>/workflow_gate_ledger.jsonl --gate G4 --decision APPROVE --reviewer "<reviewer>" --rationale "<rationale>" --artifact publication_plan=<configuration_root>/publication_package_plan.json --artifact model_report=<run_root>/06_modeling/baseline/model_report.json
 
-For G2, the Gate validator recomputes the reconciliation-decision validation directly from the exact bound decision file, report, and Canonical Bundle. The Run Plan's separate `reconciliation_decision_validation` stage remains a human-readable, hash-recorded output for the review packet; the G2 event need not trust or bind a self-reported `valid=true` result. The G3 `mechanism_plan` artifact is required by the G3 validator only when the selection contains one candidate; omit it for an empty selection.
+For G2, the Gate validator recomputes the reconciliation-decision validation directly from the exact bound decision file, report, and Canonical Bundle. The Run Plan's separate `reconciliation_decision_validation` stage remains a human-readable, hash-recorded output for the review packet; the G2 event need not trust or bind a self-reported `valid=true` result. Every report issue requires exactly one decision. A `CRITICAL` or `REVIEW_REQUIRED` issue marked `REMAINS_UNRESOLVED` blocks G2; pause the Run and obtain additional source evidence or record a justified explicit scope exclusion rather than approving around it. The G3 `mechanism_plan` artifact is required by the G3 validator only when the selection contains one candidate; omit it for an empty selection.
 
 ## Stage status and artifact recording
 
