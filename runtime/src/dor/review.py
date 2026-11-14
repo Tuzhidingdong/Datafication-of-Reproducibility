@@ -245,6 +245,7 @@ def validate_run_review_packet_files(
         "schema_version": "1.0", "contract": "RUN_REVIEW_PACKET",
         "valid": not issues, "run_id": manifest["run_id"],
         "project_id": manifest["project_id"], "stage_id": stage_id,
+        "run_root": str(root.resolve(strict=True)),
         "record": {"path": str(record_file), "sha256": _sha256(record_file)},
         "checked_artifact_count": len(supplied_ids),
         "validation_report_path": str(report_file), "errors": issues,
@@ -524,6 +525,7 @@ def validate_reviewed_findings_files(
         "schema_version": "1.0", "contract": "REVIEWED_WORKER_FINDINGS",
         "valid": not issues, "run_id": manifest["run_id"],
         "project_id": manifest["project_id"], "stage_id": _PROMOTION_STAGE,
+        "run_root": str(root.resolve(strict=True)),
         "record": {"path": str(actual_record), "sha256": _sha256(actual_record)},
         "worker_output": {
             "artifact_id": _WORKER_ID,

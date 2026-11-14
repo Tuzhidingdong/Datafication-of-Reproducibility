@@ -4,6 +4,7 @@ import copy
 import csv
 import json
 import io
+import os
 import shutil
 import sys
 import tempfile
@@ -120,7 +121,63 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         return stdout.getvalue()
 
     @classmethod
+    def _make_gate_review_packet(cls, gate_id, artifact_bindings, run_root=None, packet_dir=None):
+        stage_id = gate_id.lower() + "_review_packet"
+        report_id = stage_id + "_validation"
+        workspace = Path(run_root or cls.root).resolve()
+        output_dir = Path(packet_dir or (cls.root / ".gate_review_packets"))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        packet_path = output_dir / (stage_id + ".json")
+        report_path = output_dir / (report_id + ".json")
+        input_bindings = [
+            {
+                "artifact_id": artifact_id,
+                "path": str(Path(path).resolve(strict=True)),
+                "sha256": sha256_file(Path(path)),
+            }
+            for artifact_id, path in artifact_bindings
+        ]
+        packet = {
+            "schema_version": "1.0",
+            "run_id": "RUN_SYNTHETIC_E2E",
+            "project_id": "PROJECT_SYNTHETIC_E2E",
+            "stage_id": stage_id,
+            "prepared_at": "2026-11-14T00:00:00Z",
+            "packet_status": "AWAITING_HUMAN_REVIEW",
+            "artifact_bindings": input_bindings,
+            "review_items": [{
+                "item_id": "review_all_gate_inputs",
+                "question": "Have all exact gate inputs been examined and unresolved items recorded?",
+                "artifact_ids": [artifact_id for artifact_id, _ in artifact_bindings],
+                "mandatory": True,
+            }],
+            "unresolved_questions": [],
+        }
+        packet_path.write_text(json.dumps(packet, indent=2) + "\n", encoding="utf-8")
+        report = {
+            "schema_version": "1.0",
+            "contract": "RUN_REVIEW_PACKET",
+            "valid": True,
+            "run_id": packet["run_id"],
+            "project_id": packet["project_id"],
+            "stage_id": stage_id,
+            "run_root": str(workspace),
+            "record": {
+                "path": str(packet_path.resolve()),
+                "sha256": sha256_file(packet_path),
+            },
+            "checked_artifact_count": len(input_bindings),
+            "validation_report_path": str(report_path.resolve()),
+            "errors": [],
+        }
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        return [(stage_id, packet_path), (report_id, report_path)]
+
+    @classmethod
     def _approve_gate(cls, gate_id, artifact_bindings, rationale):
+        artifact_bindings = list(artifact_bindings)
+        if gate_id in {"G0", "G1", "G2"}:
+            artifact_bindings.extend(cls._make_gate_review_packet(gate_id, artifact_bindings))
         arguments = [
             "gate-record", "--workflow-ledger", str(cls.gate_ledger),
             "--gate", gate_id, "--decision", "APPROVE",
@@ -953,16 +1010,26 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                     changed_build_spec,
                 ),
             )
+            revised_g1_artifacts = [
+                ("mapping_plan", changed_mapping),
+                ("mapping_validation", self.mapping_validation_path),
+                ("source_inventory", self.audit_dir / "source_inventory.json"),
+                ("build_spec", changed_build_spec),
+                ("build_spec_validation", changed_build_spec_validation),
+            ]
+            common_workspace = Path(os.path.commonpath([
+                str(self.root.resolve()), str(temp_root.resolve())
+            ]))
+            revised_g1_artifacts.extend(self._make_gate_review_packet(
+                "G1",
+                revised_g1_artifacts,
+                run_root=common_workspace,
+                packet_dir=temp_root / ".gate_review_packets",
+            ))
             record_gate_decision(
                 ledger_copy, "G1", "APPROVE", "synthetic-e2e-human-reviewer",
                 "Synthetic approval of a revised but internally consistent mapping/build-spec pair.",
-                [
-                    ("mapping_plan", changed_mapping),
-                    ("mapping_validation", self.mapping_validation_path),
-                    ("source_inventory", self.audit_dir / "source_inventory.json"),
-                    ("build_spec", changed_build_spec),
-                    ("build_spec_validation", changed_build_spec_validation),
-                ],
+                revised_g1_artifacts,
             )
             state = inspect_gate_ledger(ledger_copy)
             self.assertEqual(state["gates"]["G1"]["status"], "APPROVED")

@@ -244,6 +244,57 @@ class WorkflowGateTests(unittest.TestCase):
                 "interaction_id": selected_ids[0],
             })
 
+    def _prepare_review_packet(self, gate, artifact_ids):
+        stage_id = gate.lower() + "_review_packet"
+        report_id = stage_id + "_validation"
+        packet_path = self.root / (stage_id + ".json")
+        report_path = self.root / (report_id + ".json")
+        packet_bindings = [
+            {
+                "artifact_id": artifact_id,
+                "path": str(self.files[artifact_id].resolve()),
+                "sha256": sha256_file(self.files[artifact_id]),
+            }
+            for artifact_id in artifact_ids
+        ]
+        packet = {
+            "schema_version": "1.0",
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "stage_id": stage_id,
+            "prepared_at": "2026-11-14T00:00:00Z",
+            "packet_status": "AWAITING_HUMAN_REVIEW",
+            "artifact_bindings": packet_bindings,
+            "review_items": [{
+                "item_id": "review_all_bound_inputs",
+                "question": "Have all exact input artifacts been inspected and any unresolved issues recorded?",
+                "artifact_ids": list(artifact_ids),
+                "mandatory": True,
+            }],
+            "unresolved_questions": [],
+        }
+        packet_path.write_text(json.dumps(packet, indent=2) + "\n", encoding="utf-8")
+        report = {
+            "schema_version": "1.0",
+            "contract": "RUN_REVIEW_PACKET",
+            "valid": True,
+            "run_id": packet["run_id"],
+            "project_id": packet["project_id"],
+            "stage_id": stage_id,
+            "run_root": str(self.root.resolve()),
+            "record": {
+                "path": str(packet_path.resolve()),
+                "sha256": sha256_file(packet_path),
+            },
+            "checked_artifact_count": len(artifact_ids),
+            "validation_report_path": str(report_path.resolve()),
+            "errors": [],
+        }
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        self.files[stage_id] = packet_path
+        self.files[report_id] = report_path
+        return [stage_id, report_id]
+
     def _record(self, gate, ids, decision="APPROVE"):
         return record_gate_decision(
             self.ledger, gate, decision, "human-reviewer",
@@ -252,21 +303,23 @@ class WorkflowGateTests(unittest.TestCase):
         )
 
     def _record_g0(self):
-        return self._record("G0", ["dataset_manifest", "source_inventory"])
+        ids = ["dataset_manifest", "source_inventory"]
+        ids.extend(self._prepare_review_packet("G0", ids))
+        return self._record("G0", ids)
 
     def _record_g1(self):
-        return self._record(
-            "G1", ["mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"]
-        )
+        ids = ["mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"]
+        ids.extend(self._prepare_review_packet("G1", ids))
+        return self._record("G1", ids)
 
     def _record_g2(self):
-        return self._record(
-            "G2", [
-                "canonical_bundle", "canonical_validation_report",
-                "reconciliation_report", "reconciliation_decisions",
-                "discovery_report", "research_scope_record", "modeling_task",
-            ]
-        )
+        ids = [
+            "canonical_bundle", "canonical_validation_report",
+            "reconciliation_report", "reconciliation_decisions",
+            "discovery_report", "research_scope_record", "modeling_task",
+        ]
+        ids.extend(self._prepare_review_packet("G2", ids))
+        return self._record("G2", ids)
 
     def _record_g3(self, include_mechanism=True):
         ids = [
@@ -453,6 +506,26 @@ class WorkflowGateTests(unittest.TestCase):
         self.ledger.write_text(content, encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "event hash mismatch"):
             inspect_gate_ledger(self.ledger)
+
+    def test_g0_gate_requires_and_rechecks_its_run_review_packet(self):
+        with self.assertRaisesRegex(ValueError, "g0_review_packet"):
+            self._record("G0", ["dataset_manifest", "source_inventory"])
+        ids = ["dataset_manifest", "source_inventory"]
+        review_ids = self._prepare_review_packet("G0", ids)
+        report = json.loads(self.files["g0_review_packet_validation"].read_text(encoding="utf-8"))
+        report["valid"] = False
+        self._write("g0_review_packet_validation", report)
+        with self.assertRaisesRegex(ValueError, "valid=true"):
+            self._record("G0", ids + review_ids)
+
+    def test_g0_review_packet_must_cover_every_gate_bound_input(self):
+        ids = ["dataset_manifest", "source_inventory"]
+        review_ids = self._prepare_review_packet("G0", ids)
+        extra = self.root / "extra_gate_input.json"
+        extra.write_text(json.dumps({"extra": True}), encoding="utf-8")
+        self.files["extra_gate_input"] = extra
+        with self.assertRaisesRegex(ValueError, "cover exactly the Gate-bound input artifacts"):
+            self._record("G0", ids + review_ids + ["extra_gate_input"])
 
     def test_stop_can_be_recorded_without_unavailable_artifacts(self):
         result = record_gate_decision(

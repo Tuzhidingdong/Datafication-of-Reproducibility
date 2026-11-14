@@ -12,8 +12,28 @@
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
+      "artifact_id": "canonical_validation_report",
+      "path": "03_canonical/canonical_validation_report.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
       "artifact_id": "reconciliation_report",
       "path": "04_reconciliation/reconciliation_report.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "reconciliation_review_queue",
+      "path": "04_reconciliation/reconciliation_review_queue.csv",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "research_scope_record",
+      "path": "05_scope/research_scope_record.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "modeling_task",
+      "path": "05_scope/modeling_task.json",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
@@ -22,37 +42,52 @@
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
-      "artifact_id": "modeling_task",
-      "path": "05_scope/modeling_task.json",
+      "artifact_id": "reconciliation_decision_validation",
+      "path": "04_reconciliation/reconciliation_decision_validation.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "discovery_report",
+      "path": "04_discovery/discovery_report.json",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   ],
   "review_items": [
     {
       "item_id": "exact_artifact_binding",
-      "question": "Do all listed artifacts match the active Run and their recorded SHA-256 values?",
+      "question": "Do all declared inputs match the active Run paths and recorded SHA-256 values?",
       "artifact_ids": [
         "canonical_bundle",
+        "canonical_validation_report",
         "reconciliation_report",
+        "reconciliation_review_queue",
+        "research_scope_record",
+        "modeling_task",
         "reconciliation_decisions",
-        "modeling_task"
+        "reconciliation_decision_validation",
+        "discovery_report"
       ],
       "mandatory": true
     },
     {
-      "item_id": "decision_completeness",
-      "question": "Has every reported issue received exactly one valid human disposition?",
+      "item_id": "reconciliation_completeness",
+      "question": "Has every reported issue received exactly one explicit decision, and does decision validation agree with the exact report and bundle?",
       "artifact_ids": [
         "reconciliation_report",
-        "reconciliation_decisions"
+        "reconciliation_review_queue",
+        "reconciliation_decisions",
+        "reconciliation_decision_validation"
       ],
       "mandatory": true
     },
     {
       "item_id": "scope_and_task_alignment",
-      "question": "Does the selected scope match the declared task and its exact source artifacts?",
+      "question": "Does the approved scope and task match the exact Discovery report and Canonical Bundle?",
       "artifact_ids": [
         "canonical_bundle",
+        "canonical_validation_report",
+        "discovery_report",
+        "research_scope_record",
         "modeling_task"
       ],
       "mandatory": true

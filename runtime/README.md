@@ -54,7 +54,7 @@ For a G0, G1, or G2 review packet, first record the manual stage as RUNNING, cre
 
     dor validate-run-review-packet --packet <run_root>/04_reconciliation/g2_review_packet.json --manifest <run_root>/run_manifest.json --out <run_root>/04_reconciliation/g2_review_packet_validation.json
 
-The packet remains AWAITING_HUMAN_REVIEW. A valid packet is not a human decision and does not create a Gate approval.
+The packet remains AWAITING_HUMAN_REVIEW. A valid packet is not a human decision and does not create a Gate approval. For G0/G1/G2, `dor gate-record` also requires this packet and its validation report; Gate validation independently verifies the packet's exact input set, paths, hashes, and review-item coverage.
 
 After the Worker stage is SUCCEEDED and human_review_and_promotion is RUNNING, record one disposition for every Worker finding and validate the record:
 

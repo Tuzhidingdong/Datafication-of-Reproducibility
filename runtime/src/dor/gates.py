@@ -19,9 +19,9 @@ GENESIS_HASH = "0" * 64
 GATE_ORDER = ("G0", "G1", "G2", "G3", "G4")
 PREVIOUS_GATE = {GATE_ORDER[i]: GATE_ORDER[i - 1] for i in range(1, len(GATE_ORDER))}
 REQUIRED_ARTIFACTS = {
-    "G0": {"dataset_manifest", "source_inventory"},
-    "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"},
-    "G2": {"canonical_bundle", "canonical_validation_report", "reconciliation_report", "reconciliation_decisions", "discovery_report", "research_scope_record", "modeling_task"},
+    "G0": {"dataset_manifest", "source_inventory", "g0_review_packet", "g0_review_packet_validation"},
+    "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation", "g1_review_packet", "g1_review_packet_validation"},
+    "G2": {"canonical_bundle", "canonical_validation_report", "reconciliation_report", "reconciliation_decisions", "discovery_report", "research_scope_record", "modeling_task", "g2_review_packet", "g2_review_packet_validation"},
     "G3": {
         "interaction_report", "interaction_manifest",
         "robustness_report", "robustness_manifest", "interaction_selection",
@@ -168,6 +168,153 @@ def _read_json_binding(binding: Mapping[str, Any], label: str) -> dict[str, Any]
 
 def _binding_map(bindings: list[dict[str, str]]) -> dict[str, dict[str, str]]:
     return {item["artifact_id"]: item for item in bindings}
+
+
+def _validate_gate_review_packet(bindings: list[dict[str, str]], gate_id: str) -> None:
+    stage_id = gate_id.lower() + "_review_packet"
+    report_id = stage_id + "_validation"
+    by_id = _binding_map(bindings)
+    packet_binding = by_id[stage_id]
+    report_binding = by_id[report_id]
+    packet = _read_json_binding(packet_binding, gate_id + " review packet")
+    report = _read_json_binding(report_binding, gate_id + " review packet validation")
+
+    if set(packet) - {
+        "schema_version", "run_id", "project_id", "stage_id", "prepared_at",
+        "packet_status", "artifact_bindings", "review_items",
+        "unresolved_questions", "preparation_notes",
+    }:
+        raise ValueError(f"{gate_id} review packet contains unknown top-level properties.")
+    required = {
+        "schema_version", "run_id", "project_id", "stage_id", "prepared_at",
+        "packet_status", "artifact_bindings", "review_items", "unresolved_questions",
+    }
+    if required - set(packet):
+        raise ValueError(f"{gate_id} review packet is missing required properties.")
+    if packet.get("schema_version") != "1.0" or packet.get("stage_id") != stage_id:
+        raise ValueError(f"{gate_id} review packet schema_version or stage_id is invalid.")
+    if packet.get("packet_status") != "AWAITING_HUMAN_REVIEW":
+        raise ValueError(f"{gate_id} review packet must remain AWAITING_HUMAN_REVIEW.")
+    for key in ("run_id", "project_id"):
+        if not isinstance(packet.get(key), str) or not packet[key].strip():
+            raise ValueError(f"{gate_id} review packet {key} must be a non-empty string.")
+    prepared_at = packet.get("prepared_at")
+    if not isinstance(prepared_at, str):
+        raise ValueError(f"{gate_id} review packet prepared_at must be timezone-aware ISO-8601.")
+    try:
+        parsed = datetime.fromisoformat(prepared_at.replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("timezone offset is required")
+    except ValueError as exc:
+        raise ValueError(f"{gate_id} review packet prepared_at must be timezone-aware ISO-8601.") from exc
+
+    run_root_value = report.get("run_root")
+    if not isinstance(run_root_value, str) or not run_root_value.strip():
+        raise ValueError(f"{gate_id} validation report must identify run_root.")
+    run_root = Path(run_root_value).expanduser().resolve(strict=True)
+    if not run_root.is_dir():
+        raise ValueError(f"{gate_id} validation report run_root must be a directory.")
+    packet_path = Path(packet_binding["path"]).expanduser().resolve(strict=True)
+    report_path = Path(report_binding["path"]).expanduser().resolve(strict=True)
+    if not packet_path.is_relative_to(run_root) or not report_path.is_relative_to(run_root):
+        raise ValueError(f"{gate_id} review packet and validation report must be inside the same Run workspace.")
+    if report.get("contract") != "RUN_REVIEW_PACKET" or report.get("valid") is not True:
+        raise ValueError(f"{gate_id} review packet validation report must have contract RUN_REVIEW_PACKET and valid=true.")
+    if report.get("run_id") != packet["run_id"] or report.get("project_id") != packet["project_id"]:
+        raise ValueError(f"{gate_id} validation report Run/project identity differs from the packet.")
+    if report.get("stage_id") != stage_id:
+        raise ValueError(f"{gate_id} validation report stage_id differs from the packet.")
+    if report.get("validation_report_path") != str(report_path):
+        raise ValueError(f"{gate_id} validation report path does not match the Gate-bound report.")
+    record = report.get("record")
+    if not isinstance(record, dict) or (
+        record.get("path") != str(packet_path)
+        or record.get("sha256") != packet_binding["sha256"]
+        or sha256_file(packet_path) != packet_binding["sha256"]
+    ):
+        raise ValueError(f"{gate_id} validation report is not bound to the exact Gate-bound review packet.")
+    if not isinstance(report.get("errors"), list) or report["errors"]:
+        raise ValueError(f"{gate_id} validation report contains errors.")
+    
+    expected_input_ids = set(by_id) - {stage_id, report_id}
+    packet_bindings = packet.get("artifact_bindings")
+    if not isinstance(packet_bindings, list) or not packet_bindings:
+        raise ValueError(f"{gate_id} review packet artifact_bindings must be a non-empty array.")
+    supplied_ids: set[str] = set()
+    for index, item in enumerate(packet_bindings):
+        if not isinstance(item, dict) or set(item) != {"artifact_id", "path", "sha256"}:
+            raise ValueError(f"{gate_id} review packet artifact_bindings[{index}] has an invalid property set.")
+        artifact_id = item.get("artifact_id")
+        raw_path = item.get("path")
+        digest = item.get("sha256")
+        if not isinstance(artifact_id, str) or not artifact_id.strip() or artifact_id in supplied_ids:
+            raise ValueError(f"{gate_id} review packet artifact IDs must be non-empty and unique.")
+        supplied_ids.add(artifact_id)
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            raise ValueError(f"{gate_id} review packet artifact path must be non-empty.")
+        if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            raise ValueError(f"{gate_id} review packet artifact SHA-256 is invalid.")
+        binding = by_id.get(artifact_id)
+        if binding is None:
+            raise ValueError(f"{gate_id} Gate event does not bind packet artifact {artifact_id}.")
+        raw = Path(raw_path).expanduser()
+        candidate = raw if raw.is_absolute() else run_root / raw
+        try:
+            candidate = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise ValueError(f"{gate_id} review packet artifact is missing: {artifact_id}.") from exc
+        if not candidate.is_relative_to(run_root):
+            raise ValueError(f"{gate_id} review packet artifact escapes the Run workspace: {artifact_id}.")
+        gate_path = Path(binding["path"]).expanduser().resolve(strict=True)
+        if candidate != gate_path or digest != binding["sha256"]:
+            raise ValueError(f"{gate_id} review packet artifact {artifact_id} differs from the exact Gate-bound path/hash.")
+        if not candidate.is_file() or sha256_file(candidate) != digest:
+            raise ValueError(f"{gate_id} review packet artifact {artifact_id} changed after review.")
+    if supplied_ids != expected_input_ids:
+        missing = sorted(expected_input_ids - supplied_ids)
+        extra = sorted(supplied_ids - expected_input_ids)
+        raise ValueError(
+            f"{gate_id} review packet must cover exactly the Gate-bound input artifacts; "
+            f"missing={missing}, extra={extra}."
+        )
+    if report.get("checked_artifact_count") != len(supplied_ids):
+        raise ValueError(f"{gate_id} validation report checked_artifact_count is inconsistent.")
+
+    questions = packet.get("review_items")
+    if not isinstance(questions, list) or not questions:
+        raise ValueError(f"{gate_id} review packet requires at least one review item.")
+    question_ids: set[str] = set()
+    covered_ids: set[str] = set()
+    for index, question in enumerate(questions):
+        if not isinstance(question, dict) or set(question) != {"item_id", "question", "artifact_ids", "mandatory"}:
+            raise ValueError(f"{gate_id} review_items[{index}] has an invalid property set.")
+        item_id = question.get("item_id")
+        refs = question.get("artifact_ids")
+        if not isinstance(item_id, str) or not item_id.strip() or item_id in question_ids:
+            raise ValueError(f"{gate_id} review item IDs must be non-empty and unique.")
+        question_ids.add(item_id)
+        if not isinstance(question.get("question"), str) or not question["question"].strip():
+            raise ValueError(f"{gate_id} review item question must be non-empty.")
+        if type(question.get("mandatory")) is not bool:
+            raise ValueError(f"{gate_id} review item mandatory must be boolean.")
+        if (not isinstance(refs, list) or not refs
+                or any(not isinstance(ref, str) or not ref.strip() for ref in refs)
+                or len(refs) != len(set(refs))):
+            raise ValueError(f"{gate_id} review item artifact_ids must be a non-empty unique string array.")
+        if not set(refs).issubset(supplied_ids):
+            raise ValueError(f"{gate_id} review item references an artifact outside the packet.")
+        covered_ids.update(refs)
+    if covered_ids != supplied_ids:
+        raise ValueError(f"{gate_id} review items must collectively cover every Gate-bound input artifact.")
+    if not isinstance(packet.get("unresolved_questions"), list) or any(
+        not isinstance(item, str) for item in packet["unresolved_questions"]
+    ):
+        raise ValueError(f"{gate_id} review packet unresolved_questions must be an array of strings.")
+    if "preparation_notes" in packet and (
+        not isinstance(packet["preparation_notes"], list)
+        or any(not isinstance(item, str) for item in packet["preparation_notes"])
+    ):
+        raise ValueError(f"{gate_id} review packet preparation_notes must be an array of strings.")
 
 
 def _validate_g1_artifacts(
@@ -629,6 +776,8 @@ def _validate_approval_artifacts(
             current_hash = None
         if current_hash != binding["sha256"]:
             return
+    if gate_id in {"G0", "G1", "G2"}:
+        _validate_gate_review_packet(bindings, gate_id)
     if gate_id == "G1":
         _validate_g1_artifacts(bindings, latest_by_gate["G0"])
     elif gate_id == "G2":
