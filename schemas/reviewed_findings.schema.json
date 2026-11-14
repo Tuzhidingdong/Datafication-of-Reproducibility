@@ -12,7 +12,8 @@
     "worker_output",
     "reviewed_artifacts",
     "findings",
-    "promotion_decision"
+    "promotion_decision",
+    "overall_rationale"
   ],
   "properties": {
     "schema_version": {

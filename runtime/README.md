@@ -46,6 +46,24 @@ For a Canonical Bundle supplied inside an external adapter package, use the hash
 
 The scan validates canonical structure and references, hashes the input before and after processing, writes aggregate-only profiles and a bounded Agent brief, and refuses to overwrite a non-empty output directory. It does not create a formal Run or cross G0-G4 approval gates.
 
+## Human review and Worker promotion validation
+
+The Runtime supplies deterministic validators for G0/G1/G2 review packets and the human disposition of Worker findings. These commands bind the records to the active Run Plan, exact Run/project/stage identity, complete declared input sets, Run-relative paths, and current SHA-256 values.
+
+For a G0, G1, or G2 review packet, first record the manual stage as RUNNING, create its packet at the exact declared Run Plan output, and validate it to the paired validation-report output:
+
+    dor validate-run-review-packet --packet <run_root>/04_reconciliation/g2_review_packet.json --manifest <run_root>/run_manifest.json --out <run_root>/04_reconciliation/g2_review_packet_validation.json
+
+The packet remains AWAITING_HUMAN_REVIEW. A valid packet is not a human decision and does not create a Gate approval.
+
+After the Worker stage is SUCCEEDED and human_review_and_promotion is RUNNING, record one disposition for every Worker finding and validate the record:
+
+    dor validate-reviewed-findings --record <run_root>/09_review/reviewed_findings.json --manifest <run_root>/run_manifest.json --out <run_root>/09_review/reviewed_findings_validation.json
+
+Worker findings require stable IDs, bounded supporting-artifact IDs, and exact evidence locators. The human record binds the Worker output and all six inputs supplied to the Worker. The validator checks that every finding is dispositioned once, accepted findings cite reviewed artifacts, ACCEPT_WITH_CHANGES has a revised summary, and the aggregate promotion decision matches the individual dispositions.
+
+The validation reports are declared Run outputs and are hash-recorded with the manual stage. The G4 Gate independently rechecks the Worker result, every human disposition, and each reviewed-artifact hash; the validation report itself is not treated as an approval.
+
 ## Run Manager and conditional stage execution
 
 Declare the complete Run DAG in a Run Plan and initialize a new isolated workspace:

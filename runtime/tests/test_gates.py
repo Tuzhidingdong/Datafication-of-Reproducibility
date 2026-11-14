@@ -135,7 +135,7 @@ class WorkflowGateTests(unittest.TestCase):
             "task_id": "WORKER_TASK_GATE",
             "status": "completed",
             "summary": "Synthetic review fixture.",
-            "findings": [{"finding_id": "WF_001", "summary": "Synthetic finding."}],
+            "findings": [{"finding_id": "WF_001", "summary": "Synthetic finding.", "supporting_artifact_ids": ["model_report"], "evidence": [{"artifact_id": "model_report", "locator": "/selected_model"}]}],
             "artifacts": [],
             "warnings": [],
             "unresolved_questions": [],

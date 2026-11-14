@@ -88,6 +88,10 @@
         {
           "artifact_id": "g0_review_packet",
           "path": "01_review/g0_review_packet.json"
+        },
+        {
+          "artifact_id": "g0_review_packet_validation",
+          "path": "01_review/g0_review_packet_validation.json"
         }
       ]
     },
@@ -150,6 +154,10 @@
         {
           "artifact_id": "g1_review_packet",
           "path": "02_mapping/g1_review_packet.json"
+        },
+        {
+          "artifact_id": "g1_review_packet_validation",
+          "path": "02_mapping/g1_review_packet_validation.json"
         }
       ],
       "required_gate": "G0"
@@ -326,6 +334,10 @@
         {
           "artifact_id": "g2_review_packet",
           "path": "04_reconciliation/g2_review_packet.json"
+        },
+        {
+          "artifact_id": "g2_review_packet_validation",
+          "path": "04_reconciliation/g2_review_packet_validation.json"
         }
       ]
     },
@@ -710,6 +722,7 @@
         "permitted_actions": [
           "Read only the six declared compact JSON/report inputs",
           "Write one structured review JSON to the exact permitted staging path",
+          "Follow schemas/worker_result.schema.json. Assign a stable finding_id to each finding and cite supporting_artifact_ids with exact evidence locators (artifact_id plus JSON path, line, or equivalent location).",
           "Cite exact artifact IDs and JSON paths for each finding",
           "Give every finding a stable unique finding_id and cite only declared artifact IDs and JSON paths"
         ],
@@ -737,17 +750,29 @@
       "depends_on": [
         "independent_result_review",
         "g3_selection_packet",
-        "baseline_model_fit"
+        "baseline_model_fit",
+        "nested_reproducibility_evaluation",
+        "interaction_discovery",
+        "interaction_robustness",
+        "virtual_condition_prediction"
       ],
       "inputs": [
         "worker_review_output",
         "interaction_selection",
-        "model_report"
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "robustness_report",
+        "virtual_prediction"
       ],
       "outputs": [
         {
           "artifact_id": "reviewed_findings",
           "path": "09_review/reviewed_findings.json"
+        },
+        {
+          "artifact_id": "reviewed_findings_validation",
+          "path": "09_review/reviewed_findings_validation.json"
         }
       ]
     },

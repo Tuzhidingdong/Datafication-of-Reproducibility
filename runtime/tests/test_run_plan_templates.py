@@ -205,6 +205,16 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 stages["human_review_and_promotion"]["outputs"][0]["artifact_id"],
                 "reviewed_findings",
             )
+            for stage_id in ("g0_review_packet", "g1_review_packet", "g2_review_packet"):
+                output_ids = {item["artifact_id"] for item in stages[stage_id]["outputs"]}
+                self.assertIn(stage_id + "_validation", output_ids)
+            promotion_outputs = {item["artifact_id"] for item in stages["human_review_and_promotion"]["outputs"]}
+            self.assertIn("reviewed_findings_validation", promotion_outputs)
+            self.assertTrue(
+                set(stages["independent_result_review"]["inputs"]).issubset(
+                    set(stages["human_review_and_promotion"]["inputs"])
+                )
+            )
 
     def test_run_plan_schema_declares_activation_operators(self):
         schema = json.loads(

@@ -20,6 +20,7 @@ from dor.response_surface import generate_interaction_surface_files
 from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 from dor.research_scope import validate_research_scope_files
+from dor.review import validate_run_review_packet_files, validate_reviewed_findings_files
 from dor.publication import build_publication_package_files, audit_publication_package_files
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
@@ -288,6 +289,16 @@ def build_parser() -> argparse.ArgumentParser:
     run_artifacts.add_argument("--manifest", type=Path, required=True)
     run_artifacts.add_argument("--out", type=Path, default=None)
 
+    review_packet = subparsers.add_parser("validate-run-review-packet", help="Validate a G0-G2 review packet against the active Run inputs and hashes")
+    review_packet.add_argument("--packet", type=Path, required=True)
+    review_packet.add_argument("--manifest", type=Path, required=True)
+    review_packet.add_argument("--out", type=Path, required=True, help="Declared Run output path for the validation report")
+
+    reviewed_findings = subparsers.add_parser("validate-reviewed-findings", help="Validate human dispositions against the exact Worker result and reviewed Run artifacts")
+    reviewed_findings.add_argument("--record", type=Path, required=True)
+    reviewed_findings.add_argument("--manifest", type=Path, required=True)
+    reviewed_findings.add_argument("--out", type=Path, required=True, help="Declared Run output path for the validation report")
+
     worker_authorize = subparsers.add_parser("run-worker-authorize", help="Record an explicit pre-dispatch Worker authorization and emit its bounded task packet")
     worker_authorize.add_argument("--manifest", type=Path, required=True)
     worker_authorize.add_argument("--stage", dest="stage_id", required=True)
@@ -396,6 +407,14 @@ def main() -> int:
                     raise ValueError("Artifact manifest output cannot overwrite a declared artifact or Run Manager control file.")
             print(_write_json(args.out, result), end="")
             return 0
+        if args.command == "validate-run-review-packet":
+            result = validate_run_review_packet_files(args.packet, args.manifest, args.out)
+            print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
+        if args.command == "validate-reviewed-findings":
+            result = validate_reviewed_findings_files(args.record, args.manifest, args.out)
+            print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
         if args.command == "run-worker-authorize":
             result = authorize_worker(
                 args.manifest, args.stage_id, args.role, args.provider, args.model,

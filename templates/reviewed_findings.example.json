@@ -16,8 +16,28 @@
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
+      "artifact_id": "reproducibility_evaluation",
+      "path": "06_modeling/reproducibility/reproducibility_evaluation.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "interaction_report",
+      "path": "06_modeling/interactions/interaction_discovery_report.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "robustness_report",
+      "path": "06_modeling/interaction_robustness/interaction_robustness_report.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
       "artifact_id": "interaction_selection",
       "path": "07_review/interaction_selection.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "virtual_prediction",
+      "path": "08_virtual_reproduction/virtual_prediction.json",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   ],
