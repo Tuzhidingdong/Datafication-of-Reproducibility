@@ -53,7 +53,48 @@
         "type": "integer",
         "minimum": 0
       }
+    },
+    "agent_brief_signal_selection": {
+      "type": "object",
+      "description": "Per-category signal counts included in the bounded Agent research brief.",
+      "properties": {
+        "CROSS_STUDY_DESCRIPTIVE_HETEROGENEITY": {
+          "$ref": "#/$defs/briefSignalSelection"
+        },
+        "CONDITION_COVERAGE_OPPORTUNITY": {
+          "$ref": "#/$defs/briefSignalSelection"
+        },
+        "CO_OBSERVED_FEATURE_PAIR_OPPORTUNITY": {
+          "$ref": "#/$defs/briefSignalSelection"
+        }
+      },
+      "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "briefSignalSelection": {
+      "type": "object",
+      "required": [
+        "available",
+        "included",
+        "omitted"
+      ],
+      "properties": {
+        "available": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "included": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "omitted": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }
