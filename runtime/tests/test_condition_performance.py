@@ -172,6 +172,20 @@ class ConditionPerformanceTests(unittest.TestCase):
         self.assertEqual(summary["condition_stratum_row_count"], 2)
         self.assertEqual(summary["descriptive_contrast_count"], 0)
 
+    def test_mixed_electrolyte_components_are_not_treated_as_exclusive_levels(self):
+        observations = [
+            observation("O1", "10.1/a", 10),
+            observation("O2", "10.1/b", 12),
+        ]
+        conditions = [
+            condition("O1", "ZnSO4", numeric_value=None, numeric_unit="", condition_type="electrolyte_component"),
+            condition("O1", "MnSO4", numeric_value=None, numeric_unit="", condition_type="electrolyte_component"),
+            condition("O2", "ZnSO4", numeric_value=None, numeric_unit="", condition_type="electrolyte_component"),
+        ]
+        _out, summary = self.run_analysis(observations, conditions, minimum_studies=2)
+        self.assertEqual(summary["condition_outcome_link_row_count"], 0)
+        self.assertEqual(summary["excluded_condition_candidate_count"], 3)
+
     def test_test_batches_and_unverified_paper_ids_do_not_enter_analysis(self):
         observations = [
             observation("O1", "10.1/a", 10),
