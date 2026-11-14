@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
+from dor.adapters import validate_adapter_package_files
 from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files, validate_condition_decisions_files
 from dor.discovery import run_discovery_scan
 from dor.cohort import build_modeling_cohort_files
@@ -71,6 +72,16 @@ def _parse_artifact_bindings(values: list[str]) -> list[tuple[str, Path]]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dor", description="Datafication of Reproducibility runtime")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    adapter_validation = subparsers.add_parser(
+        "validate-adapter-package",
+        help="Validate an external adapter package without interpreting its data semantics",
+    )
+    adapter_validation.add_argument("--manifest", type=Path, required=True,
+        help="Adapter package manifest JSON")
+    adapter_validation.add_argument("--package-root", type=Path, default=None,
+        help="Package root; defaults to the manifest directory")
+    adapter_validation.add_argument("--out", type=Path, default=None,
+        help="Optional validation report path outside the package root")
     discovery = subparsers.add_parser("discover-opportunities", help="Run a read-only full-corpus exploratory scientific discovery scan")
     discovery.add_argument("--database-json", type=Path, required=True, help="Primary Chem-Literacy aggregate JSON")
     discovery.add_argument("--reconciliation-csv", type=Path, default=None, help="Optional auxiliary ledger CSV joined by paper_id + reconciliation_id")
@@ -288,6 +299,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        if args.command == "validate-adapter-package":
+            report = validate_adapter_package_files(args.manifest, args.package_root, args.out)
+            print(_write_json(None, report), end="")
+            return 0 if report["valid"] else 2
         if args.command == "init-acceptance-ledger":
             result = initialize_acceptance_ledger(args.record, args.ledger, args.actor, args.rationale)
             print(_write_json(None, result), end="")
