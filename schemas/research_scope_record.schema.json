@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/research_scope_record.schema.json",
+  "title": "Human-selected research scope record",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "scope_id",
+    "discovery_report_sha256",
+    "task_id",
+    "target_id",
+    "scope_statement",
+    "selected_signal_ids",
+    "not_selected_signal_ids",
+    "selection_rationale",
+    "reviewed_by",
+    "reviewed_at",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "scope_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "discovery_report_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope_statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selected_signal_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "not_selected_signal_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "selection_rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewed_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "additionalProperties": false
+}
