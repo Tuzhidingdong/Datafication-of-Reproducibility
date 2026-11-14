@@ -147,6 +147,12 @@ def build_feature_semantics_review_queue(
         for rank, item in enumerate(selected, start=1):
             record = item["record"]
             a, b = item["evidence_a"], item["evidence_b"]
+            target_system, target_system_truncated = _clip(
+                _text(record.get("target_system")), max_quote_chars
+            )
+            review_reason, review_reason_truncated = _clip(
+                _text(record.get("review_reason")), max_quote_chars
+            )
             rows.append({
                 "feature_id": feature,
                 "resolved_unit": unit,
@@ -156,8 +162,12 @@ def build_feature_semantics_review_queue(
                 "doi": item["doi"],
                 "status": _text(record.get("status")),
                 "requires_human_review": bool(record.get("requires_human_review")),
+                "review_reason": review_reason,
+                "review_reason_truncated": review_reason_truncated,
+                "source_origin": _text(record.get("source_origin")),
                 "resolved_value": _text(record.get("resolved_value")),
-                "target_system": _text(record.get("target_system")),
+                "target_system": target_system,
+                "target_system_truncated": target_system_truncated,
                 "worker_a_evidence_text": a["text"],
                 "worker_a_evidence_text_kind": a["text_kind"],
                 "worker_a_quote_truncated": a["truncated"],
@@ -184,7 +194,8 @@ def build_feature_semantics_review_queue(
 
     fields = [
         "feature_id", "resolved_unit", "example_rank", "observation_id", "paper_id", "doi",
-        "status", "requires_human_review", "resolved_value", "target_system",
+        "status", "requires_human_review", "review_reason", "review_reason_truncated",
+        "source_origin", "resolved_value", "target_system", "target_system_truncated",
         "worker_a_evidence_text", "worker_a_evidence_text_kind", "worker_a_quote_truncated",
         "worker_a_source_file", "worker_a_source_location", "worker_a_table_reference",
         "worker_a_row_header", "worker_a_col_header", "worker_a_footnote", "worker_a_file_id",
