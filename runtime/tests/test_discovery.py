@@ -79,22 +79,33 @@ class DiscoveryTests(unittest.TestCase):
                      "target_system":"Zn||Zn","status":"AGREED_MATCH","resolved_value":i*10,
                      "resolved_unit":"mAh g-1","requires_human_review":False,
                      "measurement_conditions":{"current_density":1.0}}]})
+            papers.append({"paper_id":"P_PROBE","doi":"","batch_id":"BATCH_20261106_LIMITS_PROBE",
+                "observations":[{"reconciliation_id":"PROBE1","feature_id":"FEAT_X","target_system":"Zn||Zn, 2 M ZnSO4",
+                    "status":"AGREED_MATCH","resolved_value":999,"resolved_unit":"mAh g-1"}]})
             source.write_text(json.dumps({"metadata":{},"papers":papers}),encoding="utf-8")
             before=hashlib.sha256(source.read_bytes()).hexdigest()
             result=run_discovery_scan(source,None,out)
             after=hashlib.sha256(source.read_bytes()).hexdigest()
             self.assertEqual(before,after)
             self.assertEqual(result["observation_count"],3)
+            self.assertEqual(result["input_observation_count"],4)
+            self.assertEqual(result["excluded_test_observation_count"],1)
             self.assertTrue((out/"discovery_manifest.json").is_file())
             brief=(out/"agent_research_brief.md").read_text(encoding="utf-8")
             self.assertNotIn("Private title",brief)
             self.assertIn("paper text",brief)
+            self.assertIn("Condition extraction overview",brief)
+            self.assertIn("Excluded test observations: 1",brief)
             report=json.loads((out/"discovery_report.json").read_text(encoding="utf-8"))
             self.assertNotIn("source_merge_issue_sample",report)
+            self.assertEqual(report["profile"]["eligible_observation_count"],3)
+            self.assertEqual(report["profile"]["excluded_test_observation_count"],1)
+            self.assertEqual(report["condition_extraction_summary"]["excluded_test_observation_count"],1)
             self.assertTrue(all("supporting_studies" not in item for item in report["signals"]))
             manifest=json.loads((out/"discovery_manifest.json").read_text(encoding="utf-8"))
             self.assertFalse(manifest["source_files_modified"])
             self.assertFalse(manifest["raw_observations_in_agent_brief"])
+            self.assertEqual(manifest["excluded_test_observation_count"],1)
 
     def test_nonempty_output_is_not_overwritten(self):
         with tempfile.TemporaryDirectory() as temp:
