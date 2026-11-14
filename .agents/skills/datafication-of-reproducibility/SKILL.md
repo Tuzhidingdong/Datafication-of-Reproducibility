@@ -38,8 +38,9 @@ DoR never assumes a particular source system or research domain. When a project 
 ### Stage -1 — Exploratory discovery (no G0-G4 approval)
 
 - Read the external adapter package contract at ../../../docs/ADAPTER_CONTRACT.md.
-- Validate the package using dor validate-adapter-package and retain the exact manifest and validation report.
-- When the package supplies a Canonical Bundle, run dor discover-opportunities --bundle <canonical_bundle.json> --out-dir <new_discovery_directory>.
+- Create a DoR handoff with dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <adapter_handoff.json>. The output is a hash-bound routing record; it does not approve scientific semantics.
+- Inspect the handoff route. When it is CANONICAL_BUNDLE, run dor discover-opportunities --adapter-handoff <adapter_handoff.json> --out-dir <new_discovery_directory>.
+- When it is STRUCTURED_DATASET, run dor audit --adapter-handoff <adapter_handoff.json> --out <new_audit_directory>, then continue through reviewed mapping and canonical construction. Run discovery on the resulting canonical bundle.
 - Read agent_research_brief.md and discovery_report.json. Use aggregate CSV outputs only when a specific signal needs inspection.
 - Do not load complete source datasets or large evidence collections into an LLM context. Use deterministic local processing and pass only bounded summaries or task-specific evidence packets to Agents.
 - Treat every signal as exploratory. Do not infer domain meanings from identifiers, filenames, or unreviewed labels.
@@ -66,9 +67,11 @@ This exploratory stage does not create a formal Run, approve mappings, initializ
 Use an independently maintained adapter to read source-system files and prepare an adapter package conforming to schemas/adapter_package.schema.json. Adapter code and domain-specific retrieval or vocabulary rules must remain outside the DoR core repository.
 
 - Register the adapter manifest, exact source files, and output artifacts in the Run Plan.
-- Run dor validate-adapter-package before consuming adapter outputs.
-- Treat a valid package report as an integrity result only. It does not approve extraction quality, semantic mappings, entity grain, unit compatibility, or scientific suitability.
-- Run dor audit on the selected original or standardized CSV/JSON artifacts. Review the source inventory before defining mappings.
+- Run dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <adapter_handoff.json> before consuming adapter outputs. This command validates the adapter package and chooses a route using only declared artifact roles and formats.
+- Treat a valid handoff as an integrity and routing result only. It does not approve extraction quality, semantic mappings, entity grain, unit compatibility, or scientific suitability.
+- For a STRUCTURED_DATASET route, run dor audit --adapter-handoff <adapter_handoff.json> --out <new_audit_directory>. This audits every supported standardized_dataset CSV/JSON artifact declared in the package and preserves its package-relative path and artifact identity in the source inventory.
+- For a CANONICAL_BUNDLE route, the handoff command also runs DoR's structural/reference validator. Run discovery through --adapter-handoff so the manifest, sources, and canonical artifact hashes are rechecked before use.
+- Review the source inventory before defining mappings. Use the adapter package's declared source_inventory, mapping_plan, and build_spec as review candidates only; they must be bound to the exact package hashes and pass the usual mapping/G1 checks before formal analysis.
 - Use project-owned domain profiles and human-reviewed mapping/build specifications. Do not infer scientific meanings from identifiers or filenames.
 - If an adapter supplies a Canonical Bundle, validate it and preserve its exact source/adapter provenance before using it for discovery or formal analysis.
 - Never silently merge conflicting source values, remove repeated records, or convert missing information into reported facts.
