@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, v0.1-foundation, feat/scientific-discovery-engine, feat/discovery-brief-condition-diagnostics-20261114]
   pull_request:
-    branches: [main]
+    branches: [main, feat/scientific-discovery-engine]
   workflow_dispatch:
 
 jobs:
