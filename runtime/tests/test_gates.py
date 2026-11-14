@@ -88,6 +88,12 @@ class WorkflowGateTests(unittest.TestCase):
             "bundle_sha256": sha256_file(self.files["canonical_bundle"]),
             "valid_bundle": True,
             "issue_count": 0,
+            "issues": [],
+        })
+        make_file("reconciliation_decisions", {
+            "schema_version": "1.0",
+            "reconciliation_report_sha256": sha256_file(self.files["reconciliation_report"]),
+            "decisions": [],
         })
         make_file("modeling_task", {
             "schema_version": "1.0",
@@ -188,7 +194,7 @@ class WorkflowGateTests(unittest.TestCase):
         return self._record(
             "G2", [
                 "canonical_bundle", "canonical_validation_report",
-                "reconciliation_report", "modeling_task",
+                "reconciliation_report", "reconciliation_decisions", "modeling_task",
             ]
         )
 
@@ -205,6 +211,15 @@ class WorkflowGateTests(unittest.TestCase):
         self._record_g0()
         self._record_g1()
         self._record_g2()
+
+    def test_g2_rejects_reconciliation_decisions_bound_to_an_old_report(self):
+        self._record_g0()
+        self._record_g1()
+        report = json.loads(self.files["reconciliation_report"].read_text(encoding="utf-8"))
+        report["issue_count"] = 1
+        self._write("reconciliation_report", report)
+        with self.assertRaisesRegex(ValueError, "reconciliation decisions"):
+            self._record_g2()
 
     def test_complete_gate_chain_and_exact_artifact_binding(self):
         self._complete_to_g2()
