@@ -11,16 +11,16 @@
   "mechanism_hypotheses": [
     {
       "hypothesis_id": "HYPOTHESIS_001",
-      "title": "Coordination-mediated interfacial response",
-      "hypothesis_statement": "the first condition changes the local coordination environment and thereby modifies the response to the second condition",
+      "title": "Condition-mediated system response",
+      "hypothesis_statement": "the first condition changes an intermediate system state and thereby modifies the response to the second condition",
       "proposed_process_chain": [
-        "first condition changes local coordination",
-        "coordination alters interfacial hydration",
+        "first condition changes an intermediate system state",
+        "the intermediate state modifies the response pathway",
         "the altered hydration changes the measured endpoint"
       ],
       "scope_statement": "Only within the exact system scope, endpoint, and input ranges represented by the linked evidence.",
       "predicted_observations": [
-        "a measurable coordination change across the first condition",
+        "a measurable intermediate-state change across the first condition",
         "a corresponding change in interfacial hydration"
       ],
       "alternative_explanations": [
