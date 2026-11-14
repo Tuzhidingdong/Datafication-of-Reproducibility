@@ -5,6 +5,27 @@
 **Audited commit:** `6275727279f680e887cb9672652a52bbc188eae0`  
 **Scope:** repository implementation, Skill, contracts, schemas, tests, and the documented workflow. No private research corpus was opened or processed for this audit.
 
+> **Historical baseline notice (2026-11-14):** The audit below describes the earlier `v0.1-foundation` snapshot and must not be read as the current branch state. The implementation update below supersedes its workflow-integration and Run Manager gap statements where noted. It does not claim real-data scientific acceptance or a successful test run.
+
+## 2026-11-14 implementation update
+
+Current development branch: `feat/generic-data-adapter-interface-20261114`.
+
+The branch now integrates the previously separate adapter, canonical, discovery, approval, analysis, Worker-review, and publication capabilities into two formal Run Plan routes:
+
+- `STRUCTURED_DATASET`: package handoff, multi-artifact source audit, G0/G1 review, canonical build/validation, Discovery, G2, and the shared downstream workflow.
+- `CANONICAL_BUNDLE`: package handoff, provenance-checked role materialization, G0/G1 checks of the supplied inventory/mapping/build specification, supplied bundle validation, Discovery, G2, and the same downstream workflow.
+
+The shared Run DAG declares all stage dependencies, exact artifact inputs/outputs, executors, and approval gates. Build Specification validation is a separate pre-G1 operation and is recomputed by the G1 validator. Both routes include conditional post-selection stages for mechanism-plan preparation, response-surface generation, and evidence bridging. These activate from the exact selection artifact; empty selection is represented by hash-bound `SKIPPED` events, not fabricated outputs or approvals.
+
+The Run Manager records immutable plan/source snapshots, hash-chained stage events, stage input/output hashes, bounded Worker authorization packets, and dependency-/gate-aware resume decisions. The Skill uses the command-level stage bindings to dispatch local/manual actions and to request Worker authorization. The Runtime itself does not launch arbitrary commands or call a host Worker Manager.
+
+The DoR cross-disciplinary boundary is now explicit in the core Skill and Adapter Contract: domain-specific scientific knowledge, vocabularies, field names, taxonomies, mappings, and assumptions remain in project-owned configuration or independently maintained adapters; they are not part of the DoR core. Shared examples and synthetic fixtures use neutral identifiers and units.
+
+**Still intentionally outside core / not established:** native raw PDF/DOCX and multimodal extraction; host-side Worker Manager invocation and process supervision; general cross-run content-addressed caching; RO-Crate/PROV export; and scientific validity on a user-selected real dataset. These are external integrations or later acceptance work, not silently claimed capabilities.
+
+**Verification state:** no test suite or CI run was executed during this implementation pass, in accordance with the instruction to complete the project before one unified test/acceptance pass. Test coverage has been updated for the new conditional stage contracts; runtime correctness remains pending that final pass. The earlier audit's test statements describe only its recorded historical snapshot.
+
 ## 1. Executive assessment
 
 DOR is already a substantial research-methodology and deterministic-runtime prototype, not an empty framework. At the audited baseline, the Git tree contains 169 entries (152 tracked files), including Python Runtime modules and tests, JSON Schemas, methodology references, workflow contracts, and generic templates.
