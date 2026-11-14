@@ -219,7 +219,7 @@ class ConditionPerformanceTests(unittest.TestCase):
             condition("O3", "ZnSO4|1 mol/L", numeric_value=1, numeric_unit=""),
             condition("O4", "ZnSO4|1 mol/L", numeric_value=1, numeric_unit=""),
         ]
-        _out, summary = self.run_analysis(observations, conditions, minimum_studies=2)
+        out, summary = self.run_analysis(observations, conditions, minimum_studies=2)
         self.assertEqual(summary["condition_stratum_row_count"], 2)
         self.assertEqual(summary["descriptive_contrast_count"], 0)
         with (out / "condition_performance_strata.csv").open(encoding="utf-8", newline="") as handle:
