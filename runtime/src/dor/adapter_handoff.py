@@ -246,7 +246,11 @@ def _validate_source_inventory_provenance(
         raise ValueError("Adapter source_inventory must contain an items array.")
 
     declared: dict[str, dict[str, Any]] = {}
-    for record in handoff.get("sources", []) + handoff.get("artifacts", []):
+    eligible_artifacts = [
+        item for item in handoff.get("artifacts", [])
+        if item.get("role") in {"standardized_dataset", "discovery_dataset", "evidence_index", "auxiliary"}
+    ]
+    for record in handoff.get("sources", []) + eligible_artifacts:
         keys = {
             _normalized_inventory_source_path(record["package_path"]),
             _normalized_inventory_source_path(record["path"]),
