@@ -180,8 +180,11 @@ def prepare_adapter_handoff_files(
     }
     if output_path is not None:
         output = output_path.expanduser().resolve()
-        if output == manifest_path or output.is_relative_to(root):
-            raise ValueError("Adapter handoff output must be outside the protected package root.")
+        protected_files = {manifest_path, *(Path(item["path"]).resolve() for item in sources + artifacts)}
+        if output in protected_files or output.is_relative_to(root):
+            raise ValueError("Adapter handoff output must be outside the protected package and all declared files.")
+        if output.exists():
+            raise FileExistsError(f"Refusing to overwrite an existing adapter handoff: {output}")
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return report
@@ -205,6 +208,8 @@ def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
     if not validation.get("valid"):
         raise ValueError("Adapter package no longer passes package validation.")
     payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+    if handoff.get("package_id") != payload.get("package_id") or handoff.get("adapter") != payload.get("adapter"):
+        raise ValueError("Adapter handoff identity does not match the package manifest.")
     expected_sources, expected_artifacts = _resolve_package_records(payload, package_root)
 
     for label, expected, supplied in (
@@ -235,7 +240,10 @@ def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
         item for item in expected_artifacts
         if item["role"] == "standardized_dataset" and item["format"] in {"csv", "json"}
     ]
+    canonical_expected = [item for item in expected_artifacts if item["role"] == "canonical_bundle"]
     if handoff.get("route") == "STRUCTURED_DATASET":
+        if canonical_expected:
+            raise ValueError("Structured-data handoff cannot omit a canonical_bundle declared in the package manifest.")
         if handoff.get("canonical_bundle") is not None:
             raise ValueError("Structured-data handoff must not declare a canonical bundle.")
         supplied_datasets = handoff.get("standardized_datasets")
@@ -250,7 +258,6 @@ def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
                 if item.get(field) != expected.get(field):
                     raise ValueError(f"Adapter handoff standardized dataset {item['artifact_id']!r} has a modified {field}.")
     elif handoff.get("route") == "CANONICAL_BUNDLE":
-        canonical_expected = [item for item in expected_artifacts if item["role"] == "canonical_bundle"]
         if len(canonical_expected) != 1:
             raise ValueError("Canonical handoff must resolve to exactly one canonical_bundle.")
         supplied = handoff.get("canonical_bundle")
@@ -267,8 +274,21 @@ def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
             raise ValueError("Canonical bundle no longer passes structural/reference validation.")
         if _sha256(bundle_path) != expected["sha256"]:
             raise ValueError("Canonical bundle changed after adapter handoff creation.")
+        supplied_datasets = handoff.get("standardized_datasets")
+        if not isinstance(supplied_datasets, list) or {
+            item.get("artifact_id") for item in supplied_datasets if isinstance(item, dict)
+        } != {item["artifact_id"] for item in standardized_expected}:
+            raise ValueError("Canonical handoff standardized datasets do not match the package manifest.")
+        expected_by_id = {item["artifact_id"]: item for item in standardized_expected}
+        for item in supplied_datasets:
+            expected_dataset = expected_by_id[item["artifact_id"]]
+            for field in ("path", "package_path", "format", "sha256", "role"):
+                if item.get(field) != expected_dataset.get(field):
+                    raise ValueError(f"Canonical handoff standardized dataset {item['artifact_id']!r} has a modified {field}.")
     else:
         raise ValueError(f"Unsupported adapter handoff route: {handoff.get('route')!r}.")
+    if _sha256(manifest_path) != handoff.get("manifest_sha256"):
+        raise ValueError("Adapter manifest changed while consuming the handoff.")
     return handoff
 
 
