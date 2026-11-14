@@ -5,8 +5,6 @@ from pathlib import Path
 from dor.audit import run_audit
 from dor.adapters import validate_adapter_package_files
 from dor.canonical_discovery import run_canonical_discovery_scan
-from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files, validate_condition_decisions_files
-from dor.discovery import run_discovery_scan
 from dor.cohort import build_modeling_cohort_files
 from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
@@ -84,33 +82,12 @@ def build_parser() -> argparse.ArgumentParser:
     adapter_validation.add_argument("--out", type=Path, default=None,
         help="Optional validation report path outside the package root")
     discovery = subparsers.add_parser("discover-opportunities", help="Run a read-only exploratory scan over a canonical data bundle")
-    discovery_input = discovery.add_mutually_exclusive_group(required=True)
-    discovery_input.add_argument("--bundle", type=Path, help="Canonical data bundle produced through the reviewed mapping workflow")
-    discovery_input.add_argument("--database-json", type=Path, help="Legacy aggregate input format")
-    discovery.add_argument("--reconciliation-csv", type=Path, default=None, help="Optional sidecar CSV for the legacy aggregate input mode")
+    discovery.add_argument("--bundle", type=Path, required=True,
+        help="Canonical data bundle produced by the reviewed mapping workflow or an external adapter")
     discovery.add_argument("--out-dir", type=Path, required=True, help="New or empty derived discovery output directory")
     discovery.add_argument("--minimum-studies", type=int, default=3, help="Minimum Study groups for cross-Study descriptive signals")
-    discovery.add_argument("--maximum-pairs", "--maximum-feature-pairs", dest="maximum_pairs", type=int, default=250,
+    discovery.add_argument("--maximum-pairs", type=int, default=250,
         help="Maximum co-observed target pairs to catalogue")
-    chem_import = subparsers.add_parser("ingest-chem-literacy", help="Import Chem-Literacy observations/reconciliation and prepare condition-recovery tasks")
-    source_group = chem_import.add_mutually_exclusive_group(required=True)
-    source_group.add_argument("--database-json", type=Path, help="Aggregate JSON with metadata and papers[].observations[]")
-    source_group.add_argument("--database-csv", type=Path, help="Flattened Chem-Literacy observation/reconciliation CSV")
-    chem_import.add_argument("--reconciliation-csv", type=Path, help="Optional matching Reconciliation Ledger CSV; joined only by paper_id + reconciliation_id")
-    chem_import.add_argument("--source-root", type=Path, help="Read-only root containing exact per-paper source/evidence files")
-    chem_import.add_argument("--condition-profile", type=Path, help="Optional JSON condition-retrieval profile")
-    chem_import.add_argument("--out-dir", type=Path, required=True, help="New or empty derived import directory")
-    recover_validate = subparsers.add_parser("validate-condition-recovery", help="Validate Worker-recovered condition values against the exact task, source hashes, and source quotations")
-    recover_validate.add_argument("--task", type=Path, required=True, help="Exact condition_recovery_tasks.json task packet")
-    recover_validate.add_argument("--result", type=Path, required=True, help="Worker condition recovery proposal JSON")
-    recover_validate.add_argument("--source-root", type=Path, required=True, help="Protected source root containing the task-declared paper/SI files")
-    recover_validate.add_argument("--out", type=Path, required=True, help="Validation report path outside source_root")
-    condition_decisions = subparsers.add_parser("validate-condition-decisions", help="Validate explicit human decisions and export approved recovered conditions")
-    condition_decisions.add_argument("--task", type=Path, required=True, help="Exact condition recovery task packet")
-    condition_decisions.add_argument("--recovery-validation", type=Path, required=True, help="Source-hash and quotation validation report")
-    condition_decisions.add_argument("--decisions", type=Path, required=True, help="Human-reviewed condition decision record")
-    condition_decisions.add_argument("--source-root", type=Path, required=True, help="Protected source root containing task-declared paper/SI files")
-    condition_decisions.add_argument("--out-dir", type=Path, required=True, help="New or empty decision output directory")
     audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
     audit.add_argument("--csv", type=Path, help="Path to a source CSV file")
     audit.add_argument("--json", type=Path, help="Path to a source JSON file")
@@ -404,41 +381,11 @@ def main() -> int:
             print(_write_json(None,report),end="")
             return 0
         if args.command == "discover-opportunities":
-            if args.bundle is not None:
-                if args.reconciliation_csv is not None:
-                    raise ValueError("--reconciliation-csv is only available with the legacy aggregate input mode.")
-                result = run_canonical_discovery_scan(
-                    args.bundle, args.out_dir, args.minimum_studies, args.maximum_pairs,
-                )
-            else:
-                result = run_discovery_scan(
-                    args.database_json, args.reconciliation_csv, args.out_dir,
-                    args.minimum_studies, args.maximum_pairs,
-                )
-            print(json.dumps(result, ensure_ascii=False, indent=2))
-            return 0
-        if args.command == "ingest-chem-literacy":
-            result = ingest_chem_literacy_files(
-                args.database_json, args.database_csv, args.reconciliation_csv,
-                args.source_root, args.out_dir, args.condition_profile,
+            result = run_canonical_discovery_scan(
+                args.bundle, args.out_dir, args.minimum_studies, args.maximum_pairs,
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
-        if args.command == "validate-condition-recovery":
-            report = validate_condition_recovery_files(args.task, args.result, args.source_root, args.out)
-            print(json.dumps({"valid":report["valid"],"task_id":report["task_id"],
-                "verified_found_proposals":report["evidence_quotes_verified_count"],
-                "promotion_status":report["promotion_status"],"errors":report["errors"]},ensure_ascii=False,indent=2))
-            return 0 if report["valid"] else 2
-        if args.command == "validate-condition-decisions":
-            report = validate_condition_decisions_files(
-                args.task, args.recovery_validation, args.decisions, args.source_root, args.out_dir
-            )
-            print(json.dumps({"valid":report["valid"],"task_id":report["task_id"],
-                "accepted_reported_count":report["accepted_reported_count"],
-                "accepted_not_reported_count":report["accepted_not_reported_count"],
-                "errors":report["errors"]},ensure_ascii=False,indent=2))
-            return 0 if report["valid"] else 2
         if args.command == "audit":
             result = run_audit(args.csv, args.json, args.out)
             print(json.dumps({"status":"completed","audit_id":result["audit_id"],
