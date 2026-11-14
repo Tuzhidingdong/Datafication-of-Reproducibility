@@ -1,28 +1,28 @@
 schema_version: "1.0"
 
 project:
-  project_id: "PROJECT_ZN_001"
-  name: "Aqueous zinc battery reproducibility study"
-  description: "Example only. Replace with the actual project scope."
+  project_id: "PROJECT_001"
+  name: "Example research project"
+  description: "Example only. Replace with the approved project scope."
 
-domain_profile: "domain_profiles/zinc_battery/domain_profile.yaml"
+domain_profile: "../project_configuration/domain_profile.yaml"
 
 source_data:
   files:
-    - role: "wide_table"
-      path: "../private_data/consolidated_zinc_battery_database.csv"
+    - role: "primary_dataset"
+      path: "../raw_sources/primary_dataset.csv"
       format: "csv"
-      description: "Literature-derived wide table; row semantics require confirmation."
+      description: "Example tabular source; confirm row and column semantics during audit."
       read_only: true
-    - role: "evidence_database"
-      path: "../private_data/consolidated_zinc_battery_database.json"
+    - role: "structured_records"
+      path: "../raw_sources/structured_records.json"
       format: "json"
-      description: "Nested evidence and context database; schema requires inspection."
+      description: "Example structured source; confirm nested record semantics during audit."
       read_only: true
 
 workspace:
-  runs_dir: "../dor_workspace/runs"
-  cache_dir: "../dor_workspace/cache"
+  runs_dir: "../workspace/runs"
+  cache_dir: "../workspace/cache"
   allow_source_copy: false
 
 workflow:
@@ -36,6 +36,6 @@ workflow:
     require_user_approval_for_deep_investigation: true
 
 notes:
-  - "This is an example configuration, not a verified mapping of the current dataset."
-  - "Adjust local file paths without committing private paths or source data."
-  - "Review the actual CSV and JSON before completing the zinc-battery feature mapping."
+  - "This is a generic example configuration, not a semantic mapping."
+  - "Keep project-specific profiles, adapters, source data, and local paths outside the DoR core repository."
+  - "Review source structure and provenance before approving any semantic mapping."
