@@ -357,7 +357,10 @@ def _merge_ledger(primary: list[dict[str, Any]], ledger: list[dict[str, Any]]) -
             existing, incoming = primary_record.get(field) or {}, ledger_record.get(field) or {}
             primary_record[field] = {
                 key_name: existing.get(key_name) if existing.get(key_name) not in (None, "") else incoming.get(key_name)
-                for key_name in ("file", "location", "quote", "table_reference")
+                for key_name in (
+                    "file", "location", "quote", "table_reference",
+                    "row_header", "col_header", "cell_value", "footnote", "file_id",
+                )
             }
     return merged, issues
 
