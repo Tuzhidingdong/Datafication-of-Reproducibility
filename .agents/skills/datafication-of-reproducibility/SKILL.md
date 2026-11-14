@@ -64,6 +64,18 @@ Before executing any Run Plan, read [the command-level stage bindings](../../../
 - Create a new run directory; never overwrite an earlier run by default.
 - For adapter-backed projects, first create a route-preflight handoff outside the protected package using `dor prepare-adapter-handoff`. Use its route to select the appropriate Run Plan template. Initialize the formal Run with `dor run-init --plan <selected_run_plan.json> --run-root <new_run_root>`, then verify it with `dor run-verify --manifest <run_root>/run_manifest.json`. The formal adapter validation stage must regenerate the handoff inside the Run workspace; the preflight file is not a Run artifact.
 
+### Run Manager execution loop
+
+The Run Manager is the execution ledger and safety controller for the immutable Run Plan; it does not automatically execute arbitrary commands or launch Workers. The Skill is responsible for dispatching the exact stage action after consulting the current Run state.
+
+- Before each stage, run `dor run-resume-plan --manifest <run_root>/run_manifest.json`. Execute a stage only when its action is `READY_TO_RUN`, `RETRY_REQUIRED`, or `REBUILD_REQUIRED`. Recheck the exact inputs and active approval gate before dispatch.
+- For a local stage, record RUNNING with `dor run-stage-record --manifest <run_root>/run_manifest.json --stage <stage_id> --status RUNNING --producer-kind local --command "<exact CLI command>"`. Execute only the command bound to that stage. Verify every declared output before recording SUCCEEDED. Record FAILED with a non-empty reason if execution or output inspection fails.
+- For a manual stage, record RUNNING with `--producer-kind manual` before the review/preparation action and SUCCEEDED only after every declared output has been created and checked. A reviewer's decision is recorded separately in the G0-G4 approval ledger.
+- For a Worker stage, first present the exact role, provider, model, project root, inputs, permitted outputs and task limits. Obtain the user's explicit authorization, record it with `dor run-worker-authorize`, and dispatch only the returned packet. Record the returned job/session/task identifiers and usage only when actually reported.
+- If the resume action is `SKIP_REQUIRED`, record `SKIPPED` with the executor declared in the plan. Do not create placeholder output files. A skip is not an approval and cannot satisfy another stage's declared artifact input.
+- Do not dispatch a stage in `WAITING_FOR_DEPENDENCIES`, `WAITING_FOR_ACTIVATION_INPUT`, or `BLOCKED_GATE`. Present the missing dependency/approval packet instead. For `RUNNING_NEEDS_RECONCILIATION`, inspect the prior external process before considering `--confirm-abandoned`. For `SOURCE_CHANGED_NEW_RUN_REQUIRED`, initialize a new Run from the revised source snapshot.
+- For `REBUILD_REQUIRED`, archive the previous attempt's output files outside their declared output locations before retrying; Run Manager refuses to overwrite existing files. After each stage boundary, use `dor run-verify` and refresh `dor run-artifacts` when artifact lineage changes. On interruption, trust the newly computed resume plan rather than conversational history.
+
 ### External adapter handoff
 
 Use an independently maintained adapter to read source-system files and prepare an adapter package conforming to schemas/adapter_package.schema.json. Adapter code and domain-specific retrieval or vocabulary rules must remain outside the DoR core repository.
