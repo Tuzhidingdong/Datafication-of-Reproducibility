@@ -15,7 +15,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "1.1"
     },
     "discovery_status": {
       "const": "EXPLORATORY_SIGNALS_ONLY_NOT_ACCEPTED_SCIENTIFIC_FINDINGS"
