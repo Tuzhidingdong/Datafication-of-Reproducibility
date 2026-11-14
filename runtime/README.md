@@ -66,7 +66,7 @@ For an external package that already provides a Canonical Bundle and the matchin
 
     dor materialize-adapter-artifacts --adapter-handoff path/to/adapter_handoff.json --role source_inventory --role mapping_plan --role build_spec --role canonical_bundle --out-dir path/to/run/00_adapter/materialized
 
-Each requested role must resolve to exactly one JSON artifact. Files are copied without transformation and each copied file is verified against the package SHA-256. Use `templates/run_plan.canonical_adapter.example.json` for this formal, approval-gated route; it retains G0/G1/G2 and checks the bundle's provenance against the exact G1-approved inventory, mapping plan, and build specification.
+Each requested role must resolve to exactly one JSON artifact. Files are copied without transformation and each copied file is verified against the package SHA-256. Every row in the imported Source Inventory is also matched to a declared Adapter Manifest source/artifact by exact path, file SHA-256, and format. Use `templates/run_plan.canonical_adapter.example.json` for this formal, approval-gated route; it retains G0/G1/G2 and checks the bundle's provenance against the exact G1-approved inventory, mapping plan, and build specification.
 
 ## Validate a canonical bundle
 
