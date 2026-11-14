@@ -417,10 +417,15 @@ def build_condition_performance_analysis(
             median_a = float(left["median_of_study_medians"])
             median_b = float(right["median_of_study_medians"])
             aggregate_difference = median_b - median_a
-            opposite_count = sum(
-                (value < 0 if aggregate_difference > 0 else value > 0)
-                for value in differences
-            )
+            if aggregate_difference > 0:
+                opposite_count = sum(value < 0 for value in differences)
+            elif aggregate_difference < 0:
+                opposite_count = sum(value > 0 for value in differences)
+            else:
+                opposite_count = 0
+            paired_higher_count = sum(value > 0 for value in differences)
+            paired_lower_count = sum(value < 0 for value in differences)
+            paired_equal_count = sum(value == 0 for value in differences)
             combination_contrast_rows.append({
                 "combination_contrast_id": f"CCPA-{len(combination_contrast_rows) + 1:05d}",
                 "feature_id": feature,
@@ -438,6 +443,9 @@ def build_condition_performance_analysis(
                 "median_difference_right_minus_left": aggregate_difference,
                 "shared_doi_study_count": len(shared),
                 "shared_doi_median_difference": _median(differences),
+                "shared_doi_higher_outcome_count": paired_higher_count,
+                "shared_doi_lower_outcome_count": paired_lower_count,
+                "shared_doi_equal_outcome_count": paired_equal_count,
                 "shared_doi_opposite_direction_count": opposite_count,
                 "omitted_supported_combinations_from_pairwise_cap": omitted,
                 "interpretation_status": "DESCRIPTIVE_JOINT_CONDITION_ASSOCIATION_NOT_INTERACTION_EFFECT",
@@ -634,7 +642,9 @@ def build_condition_performance_analysis(
         "doi_study_count_left", "doi_study_count_right", "median_outcome_left",
         "median_outcome_right", "median_difference_right_minus_left",
         "shared_doi_study_count", "shared_doi_median_difference",
-        "shared_doi_opposite_direction_count", "omitted_supported_combinations_from_pairwise_cap",
+        "shared_doi_higher_outcome_count", "shared_doi_lower_outcome_count",
+        "shared_doi_equal_outcome_count", "shared_doi_opposite_direction_count",
+        "omitted_supported_combinations_from_pairwise_cap",
         "interpretation_status", "endpoint_semantics_status",
     ], combination_contrast_rows)
     _write_csv(output_dir / "condition_combination_hypothesis_candidates.csv", [
