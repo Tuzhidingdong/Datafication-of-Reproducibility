@@ -133,28 +133,30 @@ class ConditionPerformanceTests(unittest.TestCase):
     def test_joint_condition_combinations_are_screened_within_same_observation(self):
         observations = []
         conditions = []
-        for index in range(6):
-            doi = f"10.1/combo-{index}"
-            additive = "1% TAC" if index < 3 else "2% TAC"
-            additive_value = 1.0 if index < 3 else 2.0
-            oid = f"COMBO_{index}"
-            observations.append(observation(oid, doi, 10 + index * 3))
-            conditions.append(condition(oid, "ZnSO4|2 M", numeric_value=2.0))
-            conditions.append({
-                "condition_record_id": f"COND_TEST_{oid}_percentage_modifier",
-                "observation_id": oid,
-                "condition_type": "percentage_modifier",
-                "normalized_value": additive,
-                "raw_value": additive,
-                "numeric_value": additive_value,
-                "numeric_unit": "%",
-                "unit_basis": "UNSPECIFIED_PERCENT_BASIS",
-                "source_field": "target_system",
-                "extraction_method": "RULE_PERCENT_MODIFIER",
-                "confidence": "HIGH",
-                "review_status": "CANDIDATE_NOT_HUMAN_ACCEPTED",
-                "data_eligibility": "ELIGIBLE_FOR_EXPLORATORY_ANALYSIS",
-            })
+        for study_index in range(3):
+            doi = f"10.1/combo-{study_index}"
+            for level_index, (additive, additive_value, outcome_value) in enumerate((
+                ("1% TAC", 1.0, 10 + study_index),
+                ("2% TAC", 2.0, 15 + study_index),
+            )):
+                oid = f"COMBO_{study_index}_{level_index}"
+                observations.append(observation(oid, doi, outcome_value))
+                conditions.append(condition(oid, "ZnSO4|2 M", numeric_value=2.0))
+                conditions.append({
+                    "condition_record_id": f"COND_TEST_{oid}_percentage_modifier",
+                    "observation_id": oid,
+                    "condition_type": "percentage_modifier",
+                    "normalized_value": additive,
+                    "raw_value": additive,
+                    "numeric_value": additive_value,
+                    "numeric_unit": "%",
+                    "unit_basis": "UNSPECIFIED_PERCENT_BASIS",
+                    "source_field": "target_system",
+                    "extraction_method": "RULE_PERCENT_MODIFIER",
+                    "confidence": "HIGH",
+                    "review_status": "CANDIDATE_NOT_HUMAN_ACCEPTED",
+                    "data_eligibility": "ELIGIBLE_FOR_EXPLORATORY_ANALYSIS",
+                })
         out, summary = self.run_analysis(observations, conditions)
         with (out / "condition_combination_performance.csv").open(encoding="utf-8", newline="") as handle:
             combinations = list(csv.DictReader(handle))
@@ -167,6 +169,11 @@ class ConditionPerformanceTests(unittest.TestCase):
             row["interpretation_status"] == "JOINT_CONDITION_SUPPORT_NOT_A_STATISTICAL_INTERACTION"
             for row in supported
         ))
+        with (out / "condition_combination_contrasts.csv").open(encoding="utf-8", newline="") as handle:
+            contrasts = list(csv.DictReader(handle))
+        self.assertEqual(contrasts[0]["shared_doi_study_count"], "3")
+        self.assertEqual(contrasts[0]["shared_doi_higher_outcome_count"], "3")
+        self.assertEqual(contrasts[0]["shared_doi_opposite_direction_count"], "0")
         self.assertTrue((out / "condition_combination_hypothesis_candidates.csv").is_file())
 
     def test_paired_doi_contrasts_retain_direction_and_counterexamples(self):
