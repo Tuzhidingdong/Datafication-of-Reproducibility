@@ -125,6 +125,44 @@ class ConditionPerformanceTests(unittest.TestCase):
             strata = list(csv.DictReader(handle))
         self.assertEqual(strata[0]["study_count"], "2")
 
+    def test_joint_condition_combinations_are_screened_within_same_observation(self):
+        observations = []
+        conditions = []
+        for index in range(6):
+            doi = f"10.1/combo-{index}"
+            additive = "1% TAC" if index < 3 else "2% TAC"
+            additive_value = 1.0 if index < 3 else 2.0
+            oid = f"COMBO_{index}"
+            observations.append(observation(oid, doi, 10 + index * 3))
+            conditions.append(condition(oid, "ZnSO4|2 M", numeric_value=2.0))
+            conditions.append({
+                "observation_id": oid,
+                "condition_type": "percentage_modifier",
+                "normalized_value": additive,
+                "raw_value": additive,
+                "numeric_value": additive_value,
+                "numeric_unit": "%",
+                "unit_basis": "UNSPECIFIED_PERCENT_BASIS",
+                "source_field": "target_system",
+                "extraction_method": "RULE_PERCENT_MODIFIER",
+                "confidence": "HIGH",
+                "review_status": "CANDIDATE_NOT_HUMAN_ACCEPTED",
+                "data_eligibility": "ELIGIBLE_FOR_EXPLORATORY_ANALYSIS",
+            })
+        out, summary = self.run_analysis(observations, conditions)
+        with (out / "condition_combination_performance.csv").open(encoding="utf-8", newline="") as handle:
+            combinations = list(csv.DictReader(handle))
+        supported = [row for row in combinations if row["screening_status"] == "SUPPORTED_JOINT_CONDITION_STRATUM"]
+        self.assertEqual(len(supported), 2)
+        self.assertEqual({row["doi_study_count"] for row in supported}, {"3"})
+        self.assertEqual(summary["joint_condition_combination_contrast_count"], 1)
+        self.assertEqual(summary["joint_condition_hypothesis_candidate_count"], 1)
+        self.assertTrue(all(
+            row["interpretation_status"] == "JOINT_CONDITION_SUPPORT_NOT_A_STATISTICAL_INTERACTION"
+            for row in supported
+        ))
+        self.assertTrue((out / "condition_combination_hypothesis_candidates.csv").is_file())
+
     def test_paired_doi_contrasts_retain_direction_and_counterexamples(self):
         observations = []
         conditions = []
