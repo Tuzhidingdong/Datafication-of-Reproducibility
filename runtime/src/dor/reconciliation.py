@@ -368,6 +368,13 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
         if decision.get("decision") == "RESOLVED_WITH_EVIDENCE" and not refs:
             errors.append({"code":"RESOLUTION_EVIDENCE_REQUIRED","path":f"{path}.evidence_refs","message":"RESOLVED_WITH_EVIDENCE requires at least one canonical evidence ID."})
         valid_ids.append(issue_id)
+    missing_issue_ids = sorted(set(issue_by_id) - seen)
+    for issue_id in missing_issue_ids:
+        errors.append({
+            "code": "RECONCILIATION_ISSUE_NOT_REVIEWED",
+            "path": "decisions",
+            "message": f"Reconciliation issue {issue_id} has no explicit human decision.",
+        })
     return {
         "valid": not errors,
         "error_count": len(errors),
