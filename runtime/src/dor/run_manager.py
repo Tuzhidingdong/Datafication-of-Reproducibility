@@ -481,6 +481,11 @@ def _validate_event_semantics(
         if status == "SKIPPED":
             if stage.get("activation") is None:
                 raise ValueError(f"Unconditional stage {stage_id} cannot be recorded as SKIPPED at line {line_number}.")
+            if latest is not None and latest.get("status") == "RUNNING":
+                raise ValueError(
+                    f"Stage {stage_id} has an unresolved RUNNING attempt and cannot be recorded as SKIPPED at line {line_number}; "
+                    "reconcile the prior process and record its terminal status first."
+                )
             if event.get("attempt") != expected_attempt:
                 raise ValueError(f"Skipped stage attempt number mismatch at line {line_number}.")
             producer = event.get("producer")
