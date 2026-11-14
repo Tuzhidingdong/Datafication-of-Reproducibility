@@ -466,6 +466,18 @@ def build_condition_performance_analysis(
             1 for rows in by_dimension.values()
             if sum(1 for row in rows if int(row["study_count"]) >= minimum_studies) > _MAX_CONTRAST_LEVELS
         ),
+        "hypothesis_candidates_preview": [
+            {
+                "hypothesis_candidate_id": row["hypothesis_candidate_id"],
+                "feature_id": row["feature_id"],
+                "outcome_unit": row["outcome_unit"],
+                "condition_dimension": row["condition_dimension"],
+                "supported_condition_level_count": row["supported_condition_level_count"],
+                "total_doi_study_support_across_levels": row["total_doi_study_support_across_levels"],
+                "observed_between_level_median_spread": row["observed_between_level_median_spread"],
+            }
+            for row in hypothesis_rows[:25]
+        ],
         "files": [
             "condition_outcome_links.csv",
             "condition_performance_study_strata.csv",
