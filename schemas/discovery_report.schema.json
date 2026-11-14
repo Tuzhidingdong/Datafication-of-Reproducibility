@@ -34,6 +34,34 @@
         "type": "object"
       }
     },
+    "condition_extraction_summary": {
+      "type": "object"
+    },
+    "condition_performance_analysis": {
+      "type": "object",
+      "required": [
+        "analysis",
+        "mapping_status",
+        "endpoint_semantics_status",
+        "minimum_doi_studies_per_condition_level",
+        "numeric_outcome_observation_count",
+        "condition_outcome_link_row_count",
+        "condition_stratum_row_count",
+        "descriptive_contrast_count",
+        "hypothesis_candidate_count"
+      ],
+      "properties": {
+        "analysis": { "type": "string" },
+        "mapping_status": { "type": "string" },
+        "endpoint_semantics_status": { "type": "string" },
+        "minimum_doi_studies_per_condition_level": { "type": "integer", "minimum": 2 },
+        "numeric_outcome_observation_count": { "type": "integer", "minimum": 0 },
+        "condition_outcome_link_row_count": { "type": "integer", "minimum": 0 },
+        "condition_stratum_row_count": { "type": "integer", "minimum": 0 },
+        "descriptive_contrast_count": { "type": "integer", "minimum": 0 },
+        "hypothesis_candidate_count": { "type": "integer", "minimum": 0 }
+      }
+    },
     "source_merge_issue_count": {
       "type": "integer",
       "minimum": 0
