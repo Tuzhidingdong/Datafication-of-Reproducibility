@@ -4,6 +4,7 @@ import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
 from dor.adapters import validate_adapter_package_files
+from dor.canonical_discovery import run_canonical_discovery_scan
 from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files, validate_condition_decisions_files
 from dor.discovery import run_discovery_scan
 from dor.cohort import build_modeling_cohort_files
@@ -82,12 +83,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Package root; defaults to the manifest directory")
     adapter_validation.add_argument("--out", type=Path, default=None,
         help="Optional validation report path outside the package root")
-    discovery = subparsers.add_parser("discover-opportunities", help="Run a read-only full-corpus exploratory scientific discovery scan")
-    discovery.add_argument("--database-json", type=Path, required=True, help="Primary Chem-Literacy aggregate JSON")
-    discovery.add_argument("--reconciliation-csv", type=Path, default=None, help="Optional auxiliary ledger CSV joined by paper_id + reconciliation_id")
+    discovery = subparsers.add_parser("discover-opportunities", help="Run a read-only exploratory scan over a canonical data bundle")
+    discovery_input = discovery.add_mutually_exclusive_group(required=True)
+    discovery_input.add_argument("--bundle", type=Path, help="Canonical data bundle produced through the reviewed mapping workflow")
+    discovery_input.add_argument("--database-json", type=Path, help="Legacy aggregate input format")
+    discovery.add_argument("--reconciliation-csv", type=Path, default=None, help="Optional sidecar CSV for the legacy aggregate input mode")
     discovery.add_argument("--out-dir", type=Path, required=True, help="New or empty derived discovery output directory")
-    discovery.add_argument("--minimum-studies", type=int, default=3, help="Minimum DOI-verified Study groups for cross-Study signals")
-    discovery.add_argument("--maximum-feature-pairs", type=int, default=250, help="Maximum co-occurring feature pairs to catalogue")
+    discovery.add_argument("--minimum-studies", type=int, default=3, help="Minimum Study groups for cross-Study descriptive signals")
+    discovery.add_argument("--maximum-pairs", "--maximum-feature-pairs", dest="maximum_pairs", type=int, default=250,
+        help="Maximum co-observed target pairs to catalogue")
     chem_import = subparsers.add_parser("ingest-chem-literacy", help="Import Chem-Literacy observations/reconciliation and prepare condition-recovery tasks")
     source_group = chem_import.add_mutually_exclusive_group(required=True)
     source_group.add_argument("--database-json", type=Path, help="Aggregate JSON with metadata and papers[].observations[]")
@@ -400,10 +404,17 @@ def main() -> int:
             print(_write_json(None,report),end="")
             return 0
         if args.command == "discover-opportunities":
-            result = run_discovery_scan(
-                args.database_json, args.reconciliation_csv, args.out_dir,
-                args.minimum_studies, args.maximum_feature_pairs,
-            )
+            if args.bundle is not None:
+                if args.reconciliation_csv is not None:
+                    raise ValueError("--reconciliation-csv is only available with the legacy aggregate input mode.")
+                result = run_canonical_discovery_scan(
+                    args.bundle, args.out_dir, args.minimum_studies, args.maximum_pairs,
+                )
+            else:
+                result = run_discovery_scan(
+                    args.database_json, args.reconciliation_csv, args.out_dir,
+                    args.minimum_studies, args.maximum_pairs,
+                )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
         if args.command == "ingest-chem-literacy":
