@@ -125,6 +125,26 @@ class ConditionPerformanceTests(unittest.TestCase):
             strata = list(csv.DictReader(handle))
         self.assertEqual(strata[0]["study_count"], "2")
 
+    def test_paired_doi_contrasts_retain_direction_and_counterexamples(self):
+        observations = []
+        conditions = []
+        for index in range(1, 4):
+            doi = f"10.1/paired-{index}"
+            for level, numeric, value in (("1 M", 1.0, 10 + index), ("2 M", 2.0, 12 + index)):
+                oid = f"P{index}_{numeric}"
+                observations.append(observation(oid, doi, value))
+                conditions.append(condition(oid, f"ZnSO4|{level}", numeric_value=numeric))
+        out, summary = self.run_analysis(observations, conditions)
+        with (out / "condition_performance_contrasts.csv").open(encoding="utf-8", newline="") as handle:
+            contrasts = list(csv.DictReader(handle))
+        self.assertEqual(len(contrasts), 1)
+        row = contrasts[0]
+        self.assertEqual(row["paired_study_count"], "3")
+        self.assertEqual(row["paired_higher_outcome_in_level_b_count"], "3")
+        self.assertEqual(row["paired_lower_outcome_in_level_b_count"], "0")
+        self.assertEqual(row["paired_opposite_to_aggregate_direction_count"], "0")
+        self.assertEqual(summary["descriptive_contrast_count"], 1)
+
     def test_conflicting_condition_levels_on_one_observation_are_excluded(self):
         observations = [observation("O1", "10.1/a", 10)]
         conditions = [
