@@ -46,6 +46,13 @@ class ConditionExtractionTests(unittest.TestCase):
         rows = extract_observation_conditions(observation())
         additive = next(x for x in rows if x["condition_type"] == "percentage_modifier")
         self.assertEqual(additive["normalized_value"], "1% TAC")
+        self.assertTrue(additive["condition_record_id"].startswith("COND_"))
+        self.assertEqual(len(additive["condition_record_id"]), 25)
+        repeated = next(
+            x for x in extract_observation_conditions(observation())
+            if x["condition_type"] == "percentage_modifier"
+        )
+        self.assertEqual(additive["condition_record_id"], repeated["condition_record_id"])
         self.assertEqual(additive["unit_basis"], "UNSPECIFIED_PERCENT_BASIS")
         self.assertEqual(additive["target_system_raw"], "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC")
 
