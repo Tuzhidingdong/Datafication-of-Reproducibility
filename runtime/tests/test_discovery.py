@@ -101,6 +101,19 @@ class DiscoveryTests(unittest.TestCase):
             self.assertEqual(report["profile"]["eligible_observation_count"],3)
             self.assertEqual(report["profile"]["excluded_test_observation_count"],1)
             self.assertEqual(report["condition_extraction_summary"]["excluded_test_observation_count"],1)
+            performance = report["condition_performance_analysis"]
+            self.assertEqual(performance["numeric_outcome_observation_count"],3)
+            self.assertEqual(performance["condition_outcome_link_row_count"],3)
+            self.assertEqual(performance["endpoint_semantics_status"],"UNMAPPED_FEATURE_SEMANTICS")
+            for filename in (
+                "condition_outcome_links.csv",
+                "condition_performance_study_strata.csv",
+                "condition_performance_strata.csv",
+                "condition_performance_contrasts.csv",
+                "condition_hypothesis_candidates.csv",
+                "condition_performance_analysis_summary.json",
+            ):
+                self.assertTrue((out/filename).is_file(), filename)
             self.assertTrue(all("supporting_studies" not in item for item in report["signals"]))
             manifest=json.loads((out/"discovery_manifest.json").read_text(encoding="utf-8"))
             self.assertFalse(manifest["source_files_modified"])
