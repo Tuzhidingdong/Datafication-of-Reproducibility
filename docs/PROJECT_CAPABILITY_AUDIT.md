@@ -7,7 +7,7 @@
 
 ## 1. Executive assessment
 
-DOR is already a substantial research-methodology and deterministic-runtime prototype, not an empty framework. At the audited baseline, the Git tree contains 169 entries (152 tracked files), including 28 Python runtime modules, 23 Python test modules, 44 JSON Schemas, domain and workflow references, templates, and a provisional zinc-battery profile.
+DOR is already a substantial research-methodology and deterministic-runtime prototype, not an empty framework. At the audited baseline, the Git tree contains 169 entries (152 tracked files), including Python Runtime modules and tests, JSON Schemas, methodology references, workflow contracts, and generic templates.
 
 The strongest existing capabilities are:
 
@@ -36,8 +36,8 @@ A passing structural validator, hash check, approval ledger, or synthetic test m
 |---|---|---|---|
 | Project and Skill entry point | `.agents/skills/datafication-of-reproducibility/SKILL.md`, project config, references | Defines the guided research method, roles, source-preservation policy, approval points, and writing hand-off | Implemented as instructions/contracts; Antigravity GUI behaviour and a complete user session have not been validated here |
 | Structural source audit | `audit.py`, `inventory.py`, `structure.py` | Inspects CSV/JSON structure, row shapes, coverage/type hints, bounded JSON paths, source hashes, and unresolved inventory entries | Synthetic tests; not a semantic extraction engine or a general binary-file reader |
-| Chem-Literacy adapter | `chem_literacy.py` | Imports the aggregate `papers[].observations[]` JSON or flattened observation CSV; optionally joins the reconciliation CSV only by `paper_id + reconciliation_id`; preserves repeated records and disagreements | Synthetic tests; actual zinc-battery source semantics and mapping remain unverified |
-| Condition recovery | `chem_literacy.py`, zinc-battery condition-recovery profile and result/decision schemas | Uses feature-specific search terms against declared preprocessed text files, prepares bounded excerpts and Worker task packets, verifies returned source quotations, and requires human promotion | This is targeted text retrieval plus review plumbing, not native PDF/table/image extraction. It does not establish NOT_REPORTED from a failed search |
+| External adapter package contract | `schemas/adapter_package.schema.json`, `adapters.py` | Validates independently maintained adapter packages, package-relative artifacts, source references, and exact hashes | Integrity validation only; extraction and semantic mapping remain external |
+| Source evidence recovery | External adapter/Worker contracts and canonical Evidence records | Allows independently maintained tools to prepare source-grounded proposals that are hash- and locator-bound before human review | DoR does not bundle subject-specific retrieval terms or native multimodal extraction |
 | Canonical scientific model | `canonical.py`, `schemas/canonical_bundle.schema.json`, canonical model documentation | Represents Study, System, Condition, Experiment, Observation, Comparison, and Evidence with explicit links and missingness states | Structural and referential checks are implemented; scientific entity identity and mappings still require human review |
 | Mapping and construction | `mapping.py`, `builder.py`, `CANONICAL_BUILDER.md` | Binds proposed mappings to an exact inventory; builds entities using declared source selectors, grouping keys, transformations, and joins | Deterministic and conservative. No fuzzy joins, implicit normalization, arbitrary first-value choice, or automatic scientific mapping |
 | Diagnostics and reconciliation | `diagnostics.py`, `reconciliation.py` | Reports possible duplicate payloads, unreferenced entities, endpoint variants, observation variation, explicit replicate/sample conflicts, and evidence-locator disagreements | Review queue only; does not decide equivalence, select values, merge observations, or alter canonical records |
@@ -57,17 +57,17 @@ A passing structural validator, hash check, approval ledger, or synthetic test m
 
 ### 3.1 Source extraction is not yet a complete document-ingestion engine
 
-The generic audit currently handles CSV and JSON structure. The Chem-Literacy condition-recovery path reads declared preprocessed text files, including `main_analysis.md` and `si_analysis.md`, and can use evidence-file paths already present in the imported records. It searches bounded keyword windows and emits candidate excerpts.
+The generic audit handles CSV and JSON structure. Source readers, document parsers, evidence retrieval, and domain-specific extraction rules are supplied by independently maintained adapters. DoR validates their declared outputs and provenance but does not bundle source-system readers or subject-specific retrieval logic.
 
 The current Runtime does **not** natively parse raw PDF/DOCX files, extract PDF tables, interpret figure panels, process microscopy/spectroscopy images, or perform OCR. Those operations must be supplied by an upstream extraction process or an explicitly authorized Worker. Their outputs should preserve original source hashes and exact page/table/figure/panel/row/cell locators.
 
 This distinction matters: DOR has condition-recovery orchestration and verification contracts, but it should not be described as having solved full multimodal literature extraction.
 
-### 3.2 The zinc-battery domain adapter remains provisional
+### 3.2 Domain profiles remain project-supplied
 
-The domain profile labels itself `PROVISIONAL_PENDING_SOURCE_AUDIT`. The feature mapping file is still empty and explicitly pending inspection of the actual CSV/JSON. The documented condition-recovery profile covers 23 feature identifiers; `FEAT_MAEID` is intentionally left unmapped pending scientific definition.
+No subject-specific domain profile is shipped as a supported DoR default. Each project must provide its own semantic definitions, mappings, endpoint specifications, and vocabulary references outside the DoR core repository.
 
-Therefore, the presence of a zinc-battery profile is not evidence that the 24-feature corpus has been semantically mapped or accepted. Actual feature meanings, units, endpoint definitions, study identifiers, experiment grain, and Observation linkage remain to be audited against the source files.
+The presence of a project-provided profile is not evidence that its mappings have been scientifically accepted. Field meanings, units, endpoint definitions, entity grain, and Observation linkage remain subject to source inspection and human review.
 
 ### 3.3 Runtime validation is deliberately narrower than a general schema-validation platform
 
@@ -107,14 +107,14 @@ The Skill says that the Supervisor should display role, provider, model, active 
 
 ## 4. Test and acceptance evidence
 
-The repository has separate test modules for the audit, builder, canonical model, Chem-Literacy adapter, mapping, cohort, modelling, reproducibility, interactions, robustness, response surfaces, mechanism bridge, virtual reproduction, publication package, gates, Run Manager, Acceptance Ledger, and stage contracts. It also has a synthetic end-to-end CLI workflow.
+The repository has separate test modules for the audit, adapter package validator, canonical discovery, builder, canonical model, mapping, cohort, modelling, reproducibility, interactions, robustness, response surfaces, mechanism bridge, virtual reproduction, publication package, gates, Run Manager, Acceptance Ledger, and stage contracts. It also has a synthetic end-to-end CLI workflow.
 
 This is meaningful engineering coverage. It demonstrates that known synthetic data contracts can be exercised across modules.
 
 It does **not** demonstrate:
 
 - correctness of a real paper's extracted values or locators;
-- correctness of the user's zinc-battery feature mappings;
+- correctness of any project-specific domain mappings;
 - correctness of experiment/replicate grain in the actual corpus;
 - whether conditions from text, tables, figures, and SI can be reliably linked to individual Observations;
 - whether real endpoint definitions are comparable across Studies;
@@ -142,7 +142,7 @@ The latest code commits and the prior test history are not a substitute for a fr
 
 DOR already has enough implementation to conduct a tightly scoped real-data pilot. The next step is not another subsystem, database, workflow engine, ontology, or model registry.
 
-The correct next milestone is to select one representative zinc-battery paper and SI, then test the current implementation's strongest promise: preserving scientific grain and recovering source-grounded conditions into a traceable canonical representation without fabricating or silently resolving information.
+The correct next milestone is to select one user-approved real-data case, run it through an independently maintained adapter, and test the generic workflow's strongest promise: preserving source lineage and entity grain into a traceable canonical representation without fabricating or silently resolving information.
 
 Only failures observed in that real workflow should become the next code changes.
 
@@ -151,7 +151,7 @@ Only failures observed in that real workflow should become the next code changes
 - `README.md`
 - `.agents/skills/datafication-of-reproducibility/SKILL.md`
 - `references/v0.1-architecture.md`, `references/core-concept.md`, `references/data-model.md`, `references/guided-workflow.md`, `references/worker-contract.md`
-- `docs/V0.1_SCOPE.md` through `docs/V1.0_CONTROLLED_ACCEPTANCE.md`, plus canonical, mapping, builder, reconciliation, Chem-Literacy, Run Manager, stage-evidence, and Writing Skill interface documents
-- Runtime source modules, test module inventory, schemas, templates, and the zinc-battery domain profile
+- `docs/V0.1_SCOPE.md` through `docs/V1.0_CONTROLLED_ACCEPTANCE.md`, plus canonical, mapping, builder, reconciliation, external adapter, Run Manager, stage-evidence, and Writing Skill interface documents
+- Runtime source modules, test module inventory, schemas, templates and generic templates
 
 This audit records repository state at the commit shown above. It is not a real-data scientific acceptance report.
