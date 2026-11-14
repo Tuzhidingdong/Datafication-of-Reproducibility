@@ -312,10 +312,7 @@ class RunManagerTests(unittest.TestCase):
         for output in self.stage("audit")["outputs"]:
             path = gated_root / output["path"]
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(
-                json.dumps({"stage": "audit", "artifact": output["artifact_id"]}) + "\\n",
-                encoding="utf-8",
-            )
+            path.write_text(json.dumps({"stage": "audit", "artifact": output["artifact_id"]}), encoding="utf-8")
         record_stage_status(gated_manifest, "audit", "SUCCEEDED", "local")
         inventory = gated_root / "01_audit" / "source_inventory.json"
         binding = {

@@ -89,7 +89,7 @@ On resume, use:
     dor run-resume-plan --manifest path/to/run/run_manifest.json
     dor run-artifacts --manifest path/to/run/run_manifest.json --out path/to/run/artifact_manifest.json
 
-The resume plan distinguishes waiting for activation input, SKIP_REQUIRED, SKIPPED, gate-blocked, ready, reusable, and rebuild states. Record SKIPPED only when the calculated action is SKIP_REQUIRED:
+For every stage protected by G0-G4, the Run Manager also compares each artifact ID shared by the stage inputs and the current Gate event. The resolved file path and SHA-256 must match exactly. A Gate approval for a different copy of an identically named file does not authorize the stage: the resume plan reports BLOCKED_GATE, and stage start/Worker authorization repeats the same check before dispatch.\n\nThe resume plan distinguishes waiting for activation input, SKIP_REQUIRED, SKIPPED, gate-blocked, ready, reusable, and rebuild states. Record SKIPPED only when the calculated action is SKIP_REQUIRED:
 
     dor run-stage-record --manifest path/to/run/run_manifest.json --stage optional_stage --status SKIPPED --producer-kind local --reason "Declared activation condition evaluated false."
 

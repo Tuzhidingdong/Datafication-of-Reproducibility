@@ -890,9 +890,11 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                 elif not _required_gate_is_current(stage, gate_snapshot):
                     action = "BLOCKED_GATE"
                     reasons.append(f"Required gate {stage.get('required_gate')} is not currently approved.")
-                elif _stage_gate_input_mismatches(root, manifest, plan, stage, gate_snapshot):
+                elif (gate_input_mismatches := _stage_gate_input_mismatches(
+                    root, manifest, plan, stage, gate_snapshot
+                )):
                     action = "BLOCKED_GATE"
-                    reasons.extend(_stage_gate_input_mismatches(root, manifest, plan, stage, gate_snapshot))
+                    reasons.extend(gate_input_mismatches)
                 elif current_event is None:
                     action = "READY_TO_RUN"
                 elif current_event.get("status") == "SKIPPED":
