@@ -981,10 +981,73 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 "manuscript_sections": ["Results"],
             }],
         })
+        worker_output_path = cls.root / "worker_staging" / "independent_result_review" / "review.json"
+        worker_result = {
+            "schema_version": "1.0",
+            "task_id": "SYNTHETIC_E2E_WORKER_REVIEW",
+            "status": "completed",
+            "summary": "Synthetic independent review of the six declared reports.",
+            "findings": [{
+                "finding_id": "SYNTHETIC_REVIEW_FINDING_001",
+                "summary": "The model report contains a traceable selected-model result.",
+                "supporting_artifact_ids": ["model_report"],
+                "evidence": [{
+                    "artifact_id": "model_report",
+                    "locator": "/selected_model",
+                    "description": "Exact report field used for this synthetic finding.",
+                }],
+            }],
+            "artifacts": [],
+            "warnings": [],
+            "unresolved_questions": [],
+        }
+        write_json(worker_output_path, worker_result)
+
+        reviewed_artifact_sources = [
+            ("model_report", cls.model_dir / "model_report.json"),
+            ("reproducibility_evaluation", cls.evaluation_dir / "reproducibility_evaluation.json"),
+            ("interaction_report", cls.interaction_dir / "interaction_discovery_report.json"),
+            ("robustness_report", cls.robustness_dir / "interaction_robustness_report.json"),
+            ("interaction_selection", cls.interaction_selection_path),
+            ("virtual_prediction", cls.prediction_path),
+        ]
+        reviewed_findings_path = cls.root / "09_review" / "reviewed_findings.json"
+        reviewed_findings = {
+            "schema_version": "1.0",
+            "run_id": "SYNTHETIC_E2E_RUN_001",
+            "project_id": "SYNTHETIC_E2E_PROJECT",
+            "reviewer": "synthetic-e2e-human-reviewer",
+            "reviewed_at": "2026-11-14T00:00:00Z",
+            "worker_output": {
+                "artifact_id": "worker_review_output",
+                "path": str(worker_output_path.resolve()),
+                "sha256": sha256_file(worker_output_path),
+            },
+            "reviewed_artifacts": [
+                {
+                    "artifact_id": artifact_id,
+                    "path": str(path.resolve()),
+                    "sha256": sha256_file(path),
+                }
+                for artifact_id, path in reviewed_artifact_sources
+            ],
+            "findings": [{
+                "worker_finding_id": "SYNTHETIC_REVIEW_FINDING_001",
+                "disposition": "ACCEPT_AS_IS",
+                "reviewer_rationale": "The finding is supported by the exact reviewed report.",
+                "supporting_artifact_ids": ["model_report"],
+            }],
+            "promotion_decision": "PROMOTE_ACCEPTED_ONLY",
+            "overall_rationale": "The one synthetic finding is accepted; no scientific conclusion is implied.",
+        }
+        write_json(reviewed_findings_path, reviewed_findings)
+
         cls._approve_gate("G4", [
             ("publication_plan", cls.package_plan_path),
-            ("model_report", cls.model_dir / "model_report.json"),
-        ], "Synthetic user approval of the final package plan and reviewed model result.")
+            ("worker_review_output", worker_output_path),
+            ("reviewed_findings", reviewed_findings_path),
+            *reviewed_artifact_sources,
+        ], "Synthetic user approval of the package plan and the exact six-artifact human-reviewed Worker review set.")
         cls._run_cli(
             "build-publication-package", "--plan", str(cls.package_plan_path),
             "--workspace-root", str(cls.root), "--out-dir", str(cls.package_dir),

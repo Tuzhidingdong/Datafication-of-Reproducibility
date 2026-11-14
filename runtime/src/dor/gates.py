@@ -18,6 +18,14 @@ from typing import Any, Iterable, Mapping
 GENESIS_HASH = "0" * 64
 GATE_ORDER = ("G0", "G1", "G2", "G3", "G4")
 PREVIOUS_GATE = {GATE_ORDER[i]: GATE_ORDER[i - 1] for i in range(1, len(GATE_ORDER))}
+G4_REQUIRED_REVIEWED_ARTIFACTS = {
+    "model_report",
+    "reproducibility_evaluation",
+    "interaction_report",
+    "robustness_report",
+    "interaction_selection",
+    "virtual_prediction",
+}
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory", "g0_review_packet", "g0_review_packet_validation"},
     "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation", "g1_review_packet", "g1_review_packet_validation"},
@@ -26,12 +34,12 @@ REQUIRED_ARTIFACTS = {
         "interaction_report", "interaction_manifest",
         "robustness_report", "robustness_manifest", "interaction_selection",
     },
-    "G4": {"publication_plan", "worker_review_output", "reviewed_findings"},
+    "G4": {
+        "publication_plan", "worker_review_output", "reviewed_findings",
+        *G4_REQUIRED_REVIEWED_ARTIFACTS,
+    },
 }
-G4_REVIEWABLE_ARTIFACTS = {
-    "model_report", "reproducibility_report", "interaction_report",
-    "mechanism_findings", "virtual_prediction",
-}
+G4_REVIEWABLE_ARTIFACTS = G4_REQUIRED_REVIEWED_ARTIFACTS
 
 
 # These sets mirror the two supported generic Run Plan entry routes. They are
@@ -190,8 +198,8 @@ def _load_events(ledger_path: Path) -> list[dict[str, Any]]:
                 missing = REQUIRED_ARTIFACTS[gate] - artifact_ids
                 if missing:
                     raise ValueError(f"Gate {gate} event at line {line_number} lacks required artifacts: {', '.join(sorted(missing))}.")
-                if gate == "G4" and not (G4_REVIEWABLE_ARTIFACTS & artifact_ids):
-                    raise ValueError("G4 requires at least one reviewed scientific result artifact.")
+                if gate == "G4" and not G4_REVIEWABLE_ARTIFACTS.issubset(artifact_ids):
+                    raise ValueError("G4 requires the complete six-artifact input set supplied to independent_result_review.")
             prior_gate = PREVIOUS_GATE.get(gate)
             expected_dependency = latest_by_gate.get(prior_gate, {}).get("event_hash") if prior_gate else None
             if event.get("depends_on_event_hash") != expected_dependency:
@@ -760,8 +768,13 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
         path = Path(binding["path"])
         if not path.is_file() or sha256_file(path) != binding["sha256"]:
             raise ValueError(f"G4 reviewed artifact {artifact_id} changed after human review.")
-    if not (G4_REVIEWABLE_ARTIFACTS & reviewed_ids):
-        raise ValueError("G4 reviewed_findings must include at least one reviewable result artifact.")
+    if reviewed_ids != G4_REQUIRED_REVIEWED_ARTIFACTS:
+        missing = sorted(G4_REQUIRED_REVIEWED_ARTIFACTS - reviewed_ids)
+        unexpected = sorted(reviewed_ids - G4_REQUIRED_REVIEWED_ARTIFACTS)
+        raise ValueError(
+            "G4 reviewed_findings must bind exactly the six artifacts supplied to independent_result_review; "
+            + "missing=" + ", ".join(missing) + "; unexpected=" + ", ".join(unexpected) + "."
+        )
     for finding_id, finding in worker_findings.items():
         if not set(finding["supporting_artifact_ids"]).issubset(reviewed_ids):
             raise ValueError(f"G4 Worker finding {finding_id} cites an artifact outside the human-reviewed artifact set.")
@@ -1013,10 +1026,9 @@ def record_gate_decision(
         missing = REQUIRED_ARTIFACTS[gate_id] - ids
         if missing:
             raise ValueError(f"Gate {gate_id} requires artifact IDs: {', '.join(sorted(missing))}.")
-        if gate_id == "G4" and not (G4_REVIEWABLE_ARTIFACTS & ids):
+        if gate_id == "G4" and not G4_REVIEWABLE_ARTIFACTS.issubset(ids):
             raise ValueError(
-                "G4 requires at least one reviewed result: model_report, reproducibility_report, "
-                "interaction_report, mechanism_findings, or virtual_prediction."
+                "G4 requires the complete six-artifact input set supplied to independent_result_review."
             )
     ledger_path = ledger_path.expanduser().resolve()
     lock_path = ledger_path.with_name(ledger_path.name + ".lock")

@@ -130,6 +130,8 @@ class WorkflowGateTests(unittest.TestCase):
         })
         make_file("publication_plan", {"schema_version": "1.0", "artifacts": []})
         make_file("model_report", {"task_id": "TASK_GATE", "selected_model": "TEST_MODEL"})
+        make_file("reproducibility_evaluation", {"task_id": "TASK_GATE", "valid": True})
+        make_file("virtual_prediction", {"task_id": "TASK_GATE", "status": "SYNTHETIC"})
         make_file("worker_review_output", {
             "schema_version": "1.0",
             "task_id": "WORKER_TASK_GATE",
@@ -243,6 +245,7 @@ class WorkflowGateTests(unittest.TestCase):
                 "schema_version": "1.0", "task_id": "TASK_GATE",
                 "interaction_id": selected_ids[0],
             })
+        self._refresh_reviewed_artifact_bindings()
 
     def _prepare_review_packet(self, gate, artifact_ids):
         stage_id = gate.lower() + "_review_packet"
@@ -309,6 +312,30 @@ class WorkflowGateTests(unittest.TestCase):
             [(item, self.files[item]) for item in ids],
         )
 
+    def _g4_artifact_ids(self):
+        return [
+            "publication_plan", "worker_review_output", "reviewed_findings",
+            "model_report", "reproducibility_evaluation", "interaction_report",
+            "robustness_report", "interaction_selection", "virtual_prediction",
+        ]
+
+    def _refresh_reviewed_artifact_bindings(self):
+        reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
+        artifact_ids = [
+            "model_report", "reproducibility_evaluation", "interaction_report",
+            "robustness_report", "interaction_selection", "virtual_prediction",
+        ]
+        reviewed["reviewed_artifacts"] = [
+            {
+                "artifact_id": artifact_id,
+                "path": str(self.files[artifact_id]),
+                "sha256": sha256_file(self.files[artifact_id]),
+            }
+            for artifact_id in artifact_ids
+        ]
+        self._write("reviewed_findings", reviewed)
+
+
     def _record_g0(self):
         ids = ["dataset_manifest", "source_inventory", "data_audit_report", "mapping_review_queue", "adapter_handoff"]
         for artifact_id in ids:
@@ -374,7 +401,7 @@ class WorkflowGateTests(unittest.TestCase):
     def test_complete_gate_chain_and_exact_artifact_binding(self):
         self._complete_to_g2()
         self._record_g3()
-        self._record("G4", ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"])
+        self._record("G4", self._g4_artifact_ids())
         snapshot = inspect_gate_ledger(self.ledger)
         self.assertTrue(snapshot["valid_ledger"])
         self.assertEqual(snapshot["workflow_status"], "READY_FOR_FINALIZATION")
@@ -411,11 +438,12 @@ class WorkflowGateTests(unittest.TestCase):
             self._record_g2()
         self.assertEqual(inspect_gate_ledger(self.ledger)["event_count"], 2)
 
-    def test_g4_requires_a_reviewed_scientific_result(self):
+    def test_g4_requires_all_six_worker_review_inputs(self):
         self._complete_to_g2()
         self._record_g3()
-        with self.assertRaisesRegex(ValueError, "G4 requires at least one reviewed result"):
-            self._record("G4", ["publication_plan", "worker_review_output", "reviewed_findings"])
+        incomplete = [item for item in self._g4_artifact_ids() if item != "virtual_prediction"]
+        with self.assertRaisesRegex(ValueError, "requires artifact IDs"):
+            self._record("G4", incomplete)
 
     def test_g4_rejects_worker_findings_without_traceable_evidence(self):
         self._complete_to_g2()
@@ -439,7 +467,7 @@ class WorkflowGateTests(unittest.TestCase):
         reviewed["findings"] = []
         self._write("reviewed_findings", reviewed)
         with self.assertRaisesRegex(ValueError, "cover every Worker finding exactly once"):
-            self._record("G4", ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"])
+            self._record("G4", self._g4_artifact_ids())
 
     def test_g4_rejects_promotion_decision_inconsistent_with_dispositions(self):
         self._complete_to_g2()
@@ -448,18 +476,18 @@ class WorkflowGateTests(unittest.TestCase):
         reviewed["promotion_decision"] = "DO_NOT_PROMOTE"
         self._write("reviewed_findings", reviewed)
         with self.assertRaisesRegex(ValueError, "inconsistent with the individual human finding dispositions"):
-            self._record("G4", ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"])
+            self._record("G4", self._g4_artifact_ids())
 
     def test_g4_requires_gate_bindings_for_every_human_reviewed_artifact(self):
         self._complete_to_g2()
         self._record_g3()
         with self.assertRaisesRegex(ValueError, "Gate event must bind reviewed artifact"):
-            self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
+            self._record("G4", self._g4_artifact_ids())
 
     def test_changed_artifact_invalidates_its_gate_and_all_downstream_gates(self):
         self._complete_to_g2()
         self._record_g3()
-        self._record("G4", ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"])
+        self._record("G4", self._g4_artifact_ids())
         self.files["canonical_bundle"].write_text('{"changed": true}', encoding="utf-8")
         snapshot = inspect_gate_ledger(self.ledger)
         self.assertEqual(snapshot["gates"]["G2"]["status"], "STALE_ARTIFACT")
