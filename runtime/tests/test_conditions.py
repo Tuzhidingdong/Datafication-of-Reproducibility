@@ -46,6 +46,7 @@ class ConditionExtractionTests(unittest.TestCase):
         additive = next(x for x in rows if x["condition_type"] == "percentage_modifier")
         self.assertEqual(additive["normalized_value"], "1% TAC")
         self.assertEqual(additive["unit_basis"], "UNSPECIFIED_PERCENT_BASIS")
+        self.assertEqual(additive["target_system_raw"], "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC")
 
     def test_preserves_abbreviation_without_expansion(self):
         rows = extract_observation_conditions(observation(target_system="Zn||Zn, 1% TAC"))
