@@ -165,7 +165,7 @@ def summarize_observations(records: list[dict[str, Any]], minimum_studies: int =
         "status_counts": dict(sorted(statuses.items())), "feature_support_row_count": len(feature_rows),
         "condition_support_row_count": len(condition_rows), "joint_support_pair_count": len(joint_rows),
         "signals_count": len(signals), "minimum_studies_threshold": minimum_studies,
-        "semantic_mapping_status": "NOT_VERIFIED_BY_DISCOVERY_SCAN"}
+        "semantic_mapping_status": "PENDING_INSPECTION_OF_ACTUAL_CSV_AND_JSON"}
     limitations = [
         "Exploratory signals are not accepted scientific findings.",
         "DOI defines verified Study support; paper-ID fallbacks are unverified and excluded from cross-Study thresholds.",
@@ -173,7 +173,9 @@ def summarize_observations(records: list[dict[str, Any]], minimum_studies: int =
         "Feature endpoint definitions and unit comparability require domain mapping review.",
         "No causal effects, p-values, FDR claims, or physical mechanisms are estimated.",
         "Novelty requires targeted literature review.",
-        "The Agent brief contains aggregate summaries, not raw observations or paper text."]
+        "The Agent brief contains aggregate summaries, not raw observations or paper text.",
+        "Condition-performance contrasts are descriptive Study-level associations, not causal effects or inferential tests.",
+        "Feature semantics remain unmapped; no feature identifier may be interpreted as a scientific endpoint until reviewed."]
     return {"profile": profile, "feature_rows": feature_rows, "study_rows": study_rows,
         "condition_rows": condition_rows, "joint_rows": joint_rows, "signals": signals,
         "limitations": limitations}
@@ -210,7 +212,7 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
     for path, expected in source_hashes.items():
         if sha256_file(Path(path)) != expected: raise RuntimeError("Protected input changed during discovery scan: " + path)
     output_dir.mkdir(parents=True, exist_ok=True)
-    condition_summary = write_condition_outputs(records, output_dir, source_hashes)
+    condition_summary = write_condition_outputs(records, output_dir, source_hashes, minimum_studies=minimum_studies)
     (output_dir / "discovery_data_profile.json").write_text(
         json.dumps(summary["profile"], indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     _write_csv(output_dir / "feature_support.csv", [
@@ -246,6 +248,7 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "novelty_assessment":"REQUIRES_TARGETED_LITERATURE_REVIEW",
         "profile":summary["profile"],"signals":compact_signals,
         "condition_extraction_summary":condition_summary,
+        "condition_performance_analysis":condition_summary["condition_performance_analysis"],
         "source_merge_issue_count":len(merge_issues),"source_merge_issue_counts":merge_issue_counts,
         "limitations":summary["limitations"],"agent_brief_file":"agent_research_brief.md"}
     (output_dir / "discovery_report.json").write_text(
@@ -280,6 +283,24 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         brief.append(f"| {condition_type} | {count} |")
     brief.extend(["", "Use condition_coverage.csv and condition_records.csv for aggregate coverage and source-level provenance. "
         "These are deterministic candidates, not human-accepted conditions.", ""])
+    performance = condition_summary["condition_performance_analysis"]
+    brief.extend(["", "## Condition-performance association screen", "",
+        f"- Eligible numeric outcome observations: {performance['numeric_outcome_observation_count']}",
+        f"- Outcome observations linked to candidate conditions: {performance['numeric_outcome_observations_linked_to_conditions']}",
+        f"- DOI-level condition strata: {performance['condition_stratum_row_count']}",
+        f"- Supported condition strata (minimum {minimum_studies} DOI Studies): {performance['supported_condition_stratum_count']}",
+        f"- Descriptive contrasts: {performance['descriptive_contrast_count']}",
+        f"- Hypothesis candidates requiring domain review: {performance['hypothesis_candidate_count']}",
+        "- Endpoint semantics: UNMAPPED_FEATURE_SEMANTICS; FEAT identifiers are not interpreted.",
+        "- Contrasts are differences between Study-level medians, not p-values, causal effects, or evidence of mechanism.",
+        "", "Files: condition_outcome_links.csv, condition_performance_study_strata.csv, "
+        "condition_performance_strata.csv, condition_performance_contrasts.csv, and condition_hypothesis_candidates.csv.",
+        "", "| Feature ID | Unit | Condition dimension | Supported levels | Study support | Median spread |",
+        "|---|---|---|---:|---:|---:|"])
+    for candidate in performance["hypothesis_candidates_preview"]:
+        brief.append(f"| {candidate['feature_id']} | {candidate['outcome_unit']} | {candidate['condition_dimension']} | "
+            f"{candidate['supported_condition_level_count']} | {candidate['total_doi_study_support_across_levels']} | "
+            f"{candidate['observed_between_level_median_spread']} |")
     brief.extend(["", "## Candidate signals", "", "| Signal | Type | Feature(s) | DOI Studies | Status |",
         "|---|---|---|---:|---|"])
     for signal in summary["signals"][:100]:
