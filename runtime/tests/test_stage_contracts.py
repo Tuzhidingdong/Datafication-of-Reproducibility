@@ -211,10 +211,10 @@ class StageEvidenceContractTests(unittest.TestCase):
             "schema_version": "1.0", "engine_version": "synthetic", "task_id": "T1",
             "model_type": "ridge_regression", "target_id": "Y",
             "endpoint_definition": "endpoint", "outcome_value_field": "raw_value",
-            "outcome_unit": "mAh/g",
+            "outcome_unit": "unit_outcome",
             "feature_bindings": [{
-                "feature_id": "concentration", "condition_type": "concentration",
-                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+                "feature_id": "feature_01", "condition_type": "feature_01",
+                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "unit_feature",
             }],
             "selected_candidate_id": "ridge_1", "selection_metric": "validation_mae",
             "training_observation_ids": ["O1"], "training_study_ids": ["S1"],
@@ -230,10 +230,10 @@ class StageEvidenceContractTests(unittest.TestCase):
         task = {
             "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
             "endpoint_definition": "endpoint", "outcome_type": "NUMERIC",
-            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "outcome_value_field": "raw_value", "outcome_unit": "unit_outcome",
             "feature_bindings": [{
-                "feature_id": "concentration", "condition_type": "concentration",
-                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+                "feature_id": "feature_01", "condition_type": "feature_01",
+                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "unit_feature",
             }],
             "split": {
                 "strategy": "EXPLICIT_STUDIES",
@@ -390,13 +390,13 @@ class StageEvidenceContractTests(unittest.TestCase):
     def _valid_modeling_validation_evidence(self):
         study_ids = ["S1", "S2", "S3", "S4"]
         feature_bindings = [{
-            "feature_id": "concentration", "condition_type": "concentration",
-            "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+            "feature_id": "feature_01", "condition_type": "feature_01",
+            "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "unit_feature",
         }]
         task = {
             "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
             "endpoint_definition": "specific endpoint", "outcome_type": "NUMERIC",
-            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "outcome_value_field": "raw_value", "outcome_unit": "unit_outcome",
             "feature_bindings": feature_bindings,
             "split": {"strategy": "GROUPED_HOLDOUT", "fractions": {
                 "train": 0.5, "validation": 0.25, "test": 0.25,
@@ -405,7 +405,7 @@ class StageEvidenceContractTests(unittest.TestCase):
         report = {
             "schema_version": "1.0", "task_id": "T1", "target_id": "Y",
             "endpoint_definition": "specific endpoint", "outcome_type": "NUMERIC",
-            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "outcome_value_field": "raw_value", "outcome_unit": "unit_outcome",
             "primary_selection_metric": "validation_rmse_minimized",
             "selected_model": "ridge_regression", "selected_candidate_id": "ridge_1",
             "validation_comparison": [{"candidate_id": "ridge_1"}],
@@ -415,7 +415,7 @@ class StageEvidenceContractTests(unittest.TestCase):
             "schema_version": "1.0", "engine_version": "synthetic", "task_id": "T1",
             "model_type": "ridge_regression", "target_id": "Y",
             "endpoint_definition": "specific endpoint", "outcome_value_field": "raw_value",
-            "outcome_unit": "mAh/g", "feature_bindings": json.loads(json.dumps(feature_bindings)),
+            "outcome_unit": "unit_outcome", "feature_bindings": json.loads(json.dumps(feature_bindings)),
             "selected_candidate_id": "ridge_1", "selection_metric": "validation_rmse_minimized",
             "training_observation_ids": ["O1", "O2", "O3"],
             "training_study_ids": ["S1", "S2", "S3"], "test_observation_ids": ["O4"],
@@ -488,7 +488,7 @@ class StageEvidenceContractTests(unittest.TestCase):
 
     def test_model_validation_rejects_feature_binding_drift_from_task(self):
         evidence, prior, study_ids = self._valid_modeling_validation_evidence()
-        evidence[1]["payload"]["feature_bindings"][0]["expected_unit"] = "mmol/L"
+        evidence[1]["payload"]["feature_bindings"][0]["expected_unit"] = "munit_feature"
         codes = {item["code"] for item in validate_stage_evidence(
             "modeling_validation", evidence, run_id="R1", project_id="P1",
             study_ids=study_ids, source_snapshot=[], prior_payloads=prior,
