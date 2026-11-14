@@ -223,16 +223,14 @@ def run_audit_sources(source_specs: list[dict[str, Any]], output_dir: Path) -> d
                     **item,
                     "value_types": json.dumps(item["value_types"], ensure_ascii=False, sort_keys=True),
                 })
-    if any(source["format"] == "csv" for source in sources):
-        with (output_dir / "column_coverage.csv").open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=csv_columns)
-            writer.writeheader()
-            writer.writerows(csv_rows)
-    if any(source["format"] == "json" for source in sources):
-        with (output_dir / "json_structure_paths.csv").open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=json_columns)
-            writer.writeheader()
-            writer.writerows(json_rows)
+    with (output_dir / "column_coverage.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=csv_columns)
+        writer.writeheader()
+        writer.writerows(csv_rows)
+    with (output_dir / "json_structure_paths.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=json_columns)
+        writer.writeheader()
+        writer.writerows(json_rows)
 
     inventory = build_source_inventory(sources)
     write_source_inventory(inventory, output_dir)
