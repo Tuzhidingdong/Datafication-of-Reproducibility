@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from dor.canonical_discovery import run_canonical_discovery_scan, summarize_canonical_bundle
+from dor.cli import build_parser
+
+
+def make_bundle():
+    bundle = {
+        "schema_version": "1.0",
+        "project_id": "generic-test",
+        "mapping_version": "test-1",
+        "studies": [],
+        "systems": [],
+        "conditions": [],
+        "experiments": [],
+        "observations": [],
+        "comparisons": [],
+        "evidence": [],
+    }
+    for index, value in enumerate((10.0, 20.0, 30.0), start=1):
+        study_id = f"S{index}"
+        system_id = f"SYS{index}"
+        condition_id = f"C{index}"
+        experiment_id = f"E{index}"
+        bundle["studies"].append({"study_id": study_id, "source_locators": []})
+        bundle["systems"].append({
+            "system_id": system_id, "study_ids": [study_id], "system_type": "unspecified"
+        })
+        bundle["conditions"].append({
+            "condition_id": condition_id, "system_ids": [system_id],
+            "condition_type": "condition_type_x", "raw_value": "reported",
+            "value_state": "REPORTED"
+        })
+        bundle["experiments"].append({
+            "experiment_id": experiment_id, "study_id": study_id,
+            "system_id": system_id, "condition_ids": [condition_id]
+        })
+        bundle["observations"].extend([
+            {
+                "observation_id": f"O{index}A", "experiment_id": experiment_id,
+                "target_id": "TARGET_A", "value_state": "REPORTED",
+                "raw_value": value, "normalized_value": value, "raw_unit": "unit-x",
+                "normalized_unit": "unit-x", "evidence_ids": []
+            },
+            {
+                "observation_id": f"O{index}B", "experiment_id": experiment_id,
+                "target_id": "TARGET_B", "value_state": "REPORTED",
+                "raw_value": value + 1, "normalized_value": value + 1, "raw_unit": "unit-y",
+                "normalized_unit": "unit-y", "evidence_ids": []
+            }
+        ])
+    return bundle
+
+
+class CanonicalDiscoveryTests(unittest.TestCase):
+    def test_profiles_generic_canonical_entities(self):
+        result = summarize_canonical_bundle(make_bundle(), minimum_studies=3)
+        self.assertEqual(result["profile"]["study_count"], 3)
+        self.assertEqual(result["profile"]["observation_count"], 6)
+        self.assertEqual(result["profile"]["reported_numeric_observation_count"], 6)
+        variation = [item for item in result["signals"]
+                     if item["signal_type"] == "CROSS_STUDY_DESCRIPTIVE_VARIATION"]
+        self.assertEqual(len(variation), 2)
+        pair = next(item for item in result["signals"]
+                    if item["signal_type"] == "CO_OBSERVED_TARGET_PAIR")
+        self.assertEqual(pair["supporting_study_count"], 3)
+        self.assertEqual(pair["interpretation_status"], "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION")
+
+    def test_scan_writes_aggregate_outputs_and_preserves_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle_path = root / "bundle.json"
+            bundle_path.write_text(json.dumps(make_bundle()), encoding="utf-8")
+            before = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+            output = root / "discovery"
+            result = run_canonical_discovery_scan(bundle_path, output)
+            after = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+            self.assertEqual(before, after)
+            self.assertEqual(result["profile"]["study_count"], 3)
+            self.assertTrue((output / "discovery_manifest.json").is_file())
+            self.assertTrue((output / "target_support.csv").is_file())
+            self.assertTrue((output / "agent_research_brief.md").is_file())
+            brief = (output / "agent_research_brief.md").read_text(encoding="utf-8")
+            self.assertNotIn("O1A", brief)
+            manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
+            self.assertFalse(manifest["source_files_modified"])
+            self.assertFalse(manifest["raw_observations_in_agent_brief"])
+
+    def test_cli_accepts_canonical_bundle_input(self):
+        args = build_parser().parse_args([
+            "discover-opportunities", "--bundle", "canonical_bundle.json", "--out-dir", "discovery"
+        ])
+        self.assertEqual(args.bundle, Path("canonical_bundle.json"))
+        self.assertEqual(args.maximum_pairs, 250)
+
+    def test_invalid_bundle_fails_without_creating_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle_path = root / "invalid.json"
+            bundle_path.write_text(json.dumps({"schema_version": "1.0"}), encoding="utf-8")
+            output = root / "out"
+            with self.assertRaises(ValueError):
+                run_canonical_discovery_scan(bundle_path, output)
+            self.assertFalse(output.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
