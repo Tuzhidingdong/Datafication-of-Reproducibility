@@ -22,6 +22,9 @@ _EXCLUDED_CONDITION_TYPES = {
     "system_domain", "chemical_formula_component", "electrolyte_component",
 }
 _MIN_CONFIDENCE = {"HIGH", "MEDIUM"}
+_REDUNDANT_COMBINATION_TYPE_PAIRS = {
+    frozenset({"cell_configuration", "cell_configuration_class"}),
+}
 _MAX_CONTRAST_LEVELS = 25
 
 
@@ -310,6 +313,7 @@ def build_condition_performance_analysis(
     combination_study_values: dict[tuple[str, str, str, str, str, str, str], list[float]] = defaultdict(list)
     combination_study_systems: dict[tuple[str, str, str, str, str, str, str], set[str]] = defaultdict(set)
     combination_study_observation_counts: dict[tuple[str, str, str, str, str, str, str], int] = defaultdict(int)
+    redundant_combination_pair_count = 0
     for observation_id, links in links_by_observation.items():
         if len(links) < 2:
             continue
@@ -319,6 +323,9 @@ def build_condition_performance_analysis(
         }
         ordered_links = sorted(unique_dimensions.values(), key=lambda item: item["condition_dimension"])
         for left, right in itertools.combinations(ordered_links, 2):
+            if frozenset({left["condition_type"], right["condition_type"]}) in _REDUNDANT_COMBINATION_TYPE_PAIRS:
+                redundant_combination_pair_count += 1
+                continue
             key = (
                 outcome["feature_id"], outcome["outcome_unit"],
                 left["condition_dimension"], left["condition_level"],
@@ -727,6 +734,7 @@ def build_condition_performance_analysis(
         "descriptive_contrast_count": len(contrast_rows),
         "hypothesis_candidate_count": len(hypothesis_rows),
         "joint_condition_observation_count": len(links_by_observation),
+        "redundant_joint_condition_pairs_skipped": redundant_combination_pair_count,
         "joint_condition_combination_study_strata_count": len(combination_by_study_rows),
         "joint_condition_combination_strata_count": len(combination_rows),
         "supported_joint_condition_combination_count": sum(
@@ -778,6 +786,7 @@ def build_condition_performance_analysis(
             "Feature identifiers remain semantically unmapped; do not label an endpoint or interpret the direction as better/worse until domain mapping is reviewed.",
             "Contrasts are descriptive differences of Study-level medians, not p-values, confidence intervals, causal effects, or mechanisms.",
             "No dose-response trend is fitted and percentage bases are never inferred.",
+            "Cell configuration and its derived cell-configuration class are not paired as independent conditions because that would create a deterministic duplicate combination.",
             "Joint condition combination files describe co-recorded condition support and outcomes; they do not estimate statistical interaction terms, synergistic effects, or causal modification.",
         ],
     }
