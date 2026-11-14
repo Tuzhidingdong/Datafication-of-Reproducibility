@@ -68,15 +68,17 @@ def _condition_dimension(candidate: dict[str, Any]) -> tuple[str, str]:
     """Return a comparison dimension and level without inferring hidden chemistry."""
     condition_type = _text(candidate.get("condition_type"))
     normalized = _text(candidate.get("normalized_value")) or _text(candidate.get("raw_value"))
+    numeric_unit = _text(candidate.get("numeric_unit"))
+    unit_suffix = f"[{numeric_unit}]" if numeric_unit else ""
     if condition_type == "salt_concentration" and "|" in normalized:
         salt, level = normalized.split("|", 1)
         salt = salt.strip()
-        return f"salt_concentration[{salt}]", level.strip()
+        return f"salt_concentration[{salt}]{unit_suffix}", level.strip()
     if condition_type == "percentage_modifier":
         match = re.match(r"\s*([0-9]+(?:\.[0-9]+)?\s*%)\s*(.*?)\s*$", normalized)
         if match and match.group(2):
-            return f"percentage_modifier[{match.group(2).casefold()}]", normalized
-    return condition_type, normalized
+            return f"percentage_modifier[{match.group(2).casefold()}]{unit_suffix}", normalized
+    return f"{condition_type}{unit_suffix}", normalized
 
 
 def _source_priority(source_field: str) -> int:
