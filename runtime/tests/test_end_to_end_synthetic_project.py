@@ -85,6 +85,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             cls.mapping_validation_path, cls.build_spec_validation_path, cls.canonical_validation_path,
             cls.plan_path, cls.spec_path, cls.task_path,
             cls.mechanism_plan_path, cls.interaction_selection_path,
+            cls.reconciliation_decisions_path, cls.reconciliation_decision_validation_path,
             cls.query_path, cls.gate_ledger,
         ]
         cls.source_bytes_after_build = {
@@ -496,11 +497,41 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "reconcile-bundle", "--input", str(cls.bundle_path),
             "--out-dir", str(cls.reconciliation_dir),
         )
-        cls.reconciliation = {
-            "report": json.loads(
-                (cls.reconciliation_dir / "reconciliation_report.json").read_text(encoding="utf-8")
-            )
-        }
+        reconciliation_report_path = cls.reconciliation_dir / "reconciliation_report.json"
+        reconciliation_report = json.loads(
+            reconciliation_report_path.read_text(encoding="utf-8")
+        )
+        cls.reconciliation = {"report": reconciliation_report}
+        cls.reconciliation_decisions_path = cls.reconciliation_dir / "reconciliation_decisions.json"
+        decision_rows = [
+            {
+                "issue_id": issue["issue_id"],
+                "decision": "REMAINS_UNRESOLVED",
+                "reviewer": "synthetic-reviewer",
+                "reviewed_at": "2026-11-14T00:00:00Z",
+                "rationale": "Retained unresolved in the synthetic workflow fixture; canonical data is not modified.",
+                "evidence_refs": [],
+            }
+            for issue in reconciliation_report.get("issues", [])
+        ]
+        write_json(cls.reconciliation_decisions_path, {
+            "schema_version": "1.0",
+            "reconciliation_report_sha256": sha256_file(reconciliation_report_path),
+            "decisions": decision_rows,
+        })
+        cls.reconciliation_decision_validation_path = cls.reconciliation_dir / "reconciliation_decision_validation.json"
+        cls._run_cli(
+            "validate-reconciliation-decisions",
+            "--decisions", str(cls.reconciliation_decisions_path),
+            "--report", str(reconciliation_report_path),
+            "--bundle", str(cls.bundle_path),
+            "--out", str(cls.reconciliation_decision_validation_path),
+        )
+        decision_validation = json.loads(
+            cls.reconciliation_decision_validation_path.read_text(encoding="utf-8")
+        )
+        if not decision_validation["valid"]:
+            raise AssertionError("Synthetic reconciliation decisions failed validation: " + repr(decision_validation["errors"]))
         task = {
             "schema_version": "1.0",
             "task_id": "SYNTHETIC_INTERACTION_TASK",
@@ -544,7 +575,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls._approve_gate("G2", [
             ("canonical_bundle", cls.bundle_path),
             ("canonical_validation_report", cls.canonical_validation_path),
-            ("reconciliation_report", cls.reconciliation_dir / "reconciliation_report.json"),
+            ("reconciliation_report", reconciliation_report_path),
+            ("reconciliation_decisions", cls.reconciliation_decisions_path),
             ("modeling_task", cls.task_path),
         ], "Synthetic user approval of exact canonical data, reconciliation state, endpoint, feature bindings, and Study split.")
         cls._run_cli(
