@@ -19,6 +19,12 @@ An adapter package contains an adapter_manifest.json, the declared output artifa
 
 Supported artifact roles are standardized_dataset, discovery_dataset, source_inventory, mapping_plan, build_spec, canonical_bundle, domain_profile, evidence_index, and auxiliary. These are handoff labels, not semantic interpretations.
 
+## Current format support
+
+The package validator can verify hashes for all declared formats in the manifest. The current structural source audit and canonical builder directly parse CSV and JSON. For other or proprietary formats, an external adapter must create a structured CSV/JSON handoff suitable for the declared mapping and entity-grain review. Preserve each original source file as an immutable package source and retain the exact source hash plus page, record, object, row, cell, or other stable locator in the evidence/provenance records.
+
+DoR does not claim to parse arbitrary binary documents, images, instrument files, or domain-specific formats. Those conversions and their quality checks belong to the external adapter. The adapter must not discard source records or silently infer semantic mappings while converting formats.
+
 ## Validation
 
 Run:
