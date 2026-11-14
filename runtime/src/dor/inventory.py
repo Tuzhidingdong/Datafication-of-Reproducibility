@@ -21,7 +21,8 @@ def build_source_inventory(sources: list[dict[str, Any]]) -> list[dict[str, Any]
                 items.append({
                     "inventory_id": _stable_id(source["sha256"], locator_type, locator, source_file if source_id or artifact_id else None),
                     "source_role": source["role"], "source_file": source_file,
-                    "source_sha256": source["sha256"], "source_format": "csv",\n                    "source_id": source_id, "artifact_id": artifact_id,
+                    "source_sha256": source["sha256"], "source_format": "csv",
+                    "source_id": source_id, "artifact_id": artifact_id,
                     "locator_type": locator_type, "locator": locator,
                     "observed_types": [column["sampled_type_hint"]],
                     "coverage": column["coverage"], "mapping_status": "UNRESOLVED",
@@ -32,7 +33,8 @@ def build_source_inventory(sources: list[dict[str, Any]]) -> list[dict[str, Any]
                 items.append({
                     "inventory_id": _stable_id(source["sha256"], locator_type, locator),
                     "source_role": source["role"], "source_file": source_file,
-                    "source_sha256": source["sha256"], "source_format": "json",\n                    "source_id": source_id, "artifact_id": artifact_id,
+                    "source_sha256": source["sha256"], "source_format": "json",
+                    "source_id": source_id, "artifact_id": artifact_id,
                     "locator_type": locator_type, "locator": locator,
                     "observed_types": sorted(node["value_types"]),
                     "coverage": None, "mapping_status": "UNRESOLVED",
