@@ -214,6 +214,10 @@ def build_condition_performance_analysis(
             "condition_extraction_methods": methods,
             "condition_confidence": _text(preferred.get("confidence")),
             "condition_record_match_count": len(source_candidates),
+            "condition_record_ids": sorted({
+                _text(item.get("condition_record_id"))
+                for item in source_candidates if _text(item.get("condition_record_id"))
+            }),
         }
         link_rows.append(link)
         links_by_observation[observation_id].append(link)
@@ -651,6 +655,7 @@ def build_condition_performance_analysis(
         "condition_dimension", "condition_level", "condition_normalized_value", "condition_numeric_value",
         "condition_numeric_unit", "condition_unit_basis", "condition_source_fields",
         "condition_extraction_methods", "condition_confidence", "condition_record_match_count",
+        "condition_record_ids",
     ], link_rows)
     _write_csv(output_dir / "condition_performance_study_strata.csv", [
         "feature_id", "outcome_unit", "condition_type", "condition_dimension",
