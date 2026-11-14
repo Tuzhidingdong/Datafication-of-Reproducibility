@@ -7,6 +7,7 @@ or unspecified percentage bases into inferred chemistry.
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import re
 from collections import Counter, defaultdict
@@ -84,8 +85,26 @@ def _record(
     review_status: str = "CANDIDATE_NOT_HUMAN_ACCEPTED",
 ) -> dict[str, Any]:
     evidence = evidence or {}
+    observation_id = _clean(observation.get("observation_id"))
+    identity_payload = {
+        "observation_id": observation_id,
+        "condition_type": condition_type,
+        "normalized_value": normalized_value,
+        "source_field": source_field,
+        "extraction_method": extraction_method,
+        "source_file": _clean(evidence.get("file")),
+        "source_location": _clean(evidence.get("location")),
+        "table_id": _clean(evidence.get("table_reference")),
+        "row_header": _clean(evidence.get("row_header")),
+        "col_header": _clean(evidence.get("col_header")),
+        "verbatim_quote": _clean(evidence.get("quote")),
+    }
+    condition_record_id = "COND_" + hashlib.sha256(
+        json.dumps(identity_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:20]
     return {
-        "observation_id": _clean(observation.get("observation_id")),
+        "condition_record_id": condition_record_id,
+        "observation_id": observation_id,
         "paper_id": _clean(observation.get("paper_id")),
         "doi": _clean(observation.get("doi")),
         "reconciliation_id": _clean(observation.get("reconciliation_id")),
@@ -475,7 +494,7 @@ def write_condition_outputs(
         ],
     }
     condition_fields = [
-        "observation_id", "paper_id", "doi", "reconciliation_id", "feature_id", "batch_id",
+        "condition_record_id", "observation_id", "paper_id", "doi", "reconciliation_id", "feature_id", "batch_id",
         "target_system_raw", "data_eligibility", "condition_type", "raw_value", "normalized_value", "numeric_value",
         "numeric_unit", "unit_basis", "source_field", "source_file", "source_location",
         "table_id", "row_header", "col_header", "verbatim_quote", "footnote", "source_file_id",
