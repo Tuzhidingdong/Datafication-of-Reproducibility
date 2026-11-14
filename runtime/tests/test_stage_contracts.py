@@ -524,7 +524,7 @@ class StageEvidenceContractTests(unittest.TestCase):
         ]
         payload = {"schema_version": "1.0", "items": [{
             "inventory_id": "INV_1", "source_file": "data.csv", "source_sha256": "a" * 64,
-            "source_format": "csv", "locator_type": "csv_column", "locator": "capacity",
+            "source_format": "csv", "locator_type": "csv_column", "locator": "feature_02",
             "mapping_status": "UNRESOLVED",
         }]}
         codes = {item["code"] for item in validate_stage_payload(
