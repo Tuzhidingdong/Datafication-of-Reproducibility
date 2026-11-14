@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "run_id": "RUN_EXAMPLE",
+  "project_id": "PROJECT_EXAMPLE",
+  "stage_id": "g2_review_packet",
+  "prepared_at": "2026-11-14T00:00:00Z",
+  "packet_status": "AWAITING_HUMAN_REVIEW",
+  "artifact_bindings": [
+    {
+      "artifact_id": "canonical_bundle",
+      "path": "03_canonical/canonical_bundle.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "reconciliation_report",
+      "path": "04_reconciliation/reconciliation_report.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "reconciliation_decisions",
+      "path": "04_reconciliation/reconciliation_decisions.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "modeling_task",
+      "path": "05_scope/modeling_task.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "review_items": [
+    {
+      "item_id": "exact_artifact_binding",
+      "question": "Do all listed artifacts match the active Run and their recorded SHA-256 values?",
+      "artifact_ids": [
+        "canonical_bundle",
+        "reconciliation_report",
+        "reconciliation_decisions",
+        "modeling_task"
+      ],
+      "mandatory": true
+    },
+    {
+      "item_id": "decision_completeness",
+      "question": "Has every reported issue received exactly one valid human disposition?",
+      "artifact_ids": [
+        "reconciliation_report",
+        "reconciliation_decisions"
+      ],
+      "mandatory": true
+    },
+    {
+      "item_id": "scope_and_task_alignment",
+      "question": "Does the selected scope match the declared task and its exact source artifacts?",
+      "artifact_ids": [
+        "canonical_bundle",
+        "modeling_task"
+      ],
+      "mandatory": true
+    }
+  ],
+  "unresolved_questions": [],
+  "preparation_notes": [
+    "This packet records materials presented for human review. It does not record or imply a G2 approval."
+  ]
+}
