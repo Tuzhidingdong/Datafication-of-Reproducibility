@@ -21,7 +21,7 @@ PREVIOUS_GATE = {GATE_ORDER[i]: GATE_ORDER[i - 1] for i in range(1, len(GATE_ORD
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory"},
     "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"},
-    "G2": {"canonical_bundle", "canonical_validation_report", "reconciliation_report", "reconciliation_decisions", "modeling_task"},
+    "G2": {"canonical_bundle", "canonical_validation_report", "reconciliation_report", "reconciliation_decisions", "discovery_report", "research_scope_record", "modeling_task"},
     "G3": {
         "interaction_report", "interaction_manifest",
         "robustness_report", "robustness_manifest", "interaction_selection",
@@ -243,12 +243,16 @@ def _validate_g2_artifacts(
     validation_binding = by_id["canonical_validation_report"]
     reconciliation_binding = by_id["reconciliation_report"]
     decisions_binding = by_id["reconciliation_decisions"]
+    discovery_binding = by_id["discovery_report"]
+    scope_binding = by_id["research_scope_record"]
     task_binding = by_id["modeling_task"]
     prior = _binding_map(previous_gate_event["artifacts"])
     bundle = _read_json_binding(bundle_binding, "G2 canonical_bundle")
     validation = _read_json_binding(validation_binding, "G2 canonical_validation_report")
     reconciliation = _read_json_binding(reconciliation_binding, "G2 reconciliation_report")
     task = _read_json_binding(task_binding, "G2 modeling_task")
+    discovery = _read_json_binding(discovery_binding, "G2 discovery_report")
+    scope = _read_json_binding(scope_binding, "G2 research_scope_record")
 
     if validation.get("valid") is not True:
         raise ValueError("G2 canonical_validation_report must have valid=true.")
@@ -264,6 +268,19 @@ def _validate_g2_artifacts(
         raise ValueError(
             "G2 reconciliation decisions do not pass exact report/Canonical Bundle provenance validation."
         )
+    from dor.research_scope import validate_research_scope_files
+    scope_validation = validate_research_scope_files(
+        Path(scope_binding["path"]),
+        Path(discovery_binding["path"]),
+        Path(task_binding["path"]),
+    )
+    if scope_validation.get("valid") is not True:
+        raise ValueError(
+            "G2 research_scope_record does not validate against the exact Discovery report and modeling task: "
+            + "; ".join(item.get("message", item.get("code", "invalid")) for item in scope_validation.get("errors", []))
+        )
+    if scope.get("discovery_report_sha256") != discovery_binding["sha256"]:
+        raise ValueError("G2 research_scope_record does not bind the exact approved Discovery report hash.")
     provenance = bundle.get("build_provenance")
     if not isinstance(provenance, dict):
         raise ValueError("G2 canonical_bundle has no build_provenance object.")
