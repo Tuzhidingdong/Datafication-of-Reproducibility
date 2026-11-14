@@ -20,15 +20,23 @@ The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The m
 
 DoR consumes packages prepared by independently maintained adapters. The package contract is in ../schemas/adapter_package.schema.json and ../docs/ADAPTER_CONTRACT.md.
 
-    dor validate-adapter-package --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/reports/adapter_validation.json
+    dor prepare-adapter-handoff --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/run/00_adapter/adapter_handoff.json
 
-This verifies declared source and artifact files, package-relative artifact paths, and exact SHA-256 hashes. It does not interpret domain semantics or approve mappings.
+This validates the external package, verifies exact source/artifact SHA-256 hashes, and selects one generic route:
+- `STRUCTURED_DATASET`: one or more declared CSV/JSON `standardized_dataset` artifacts. The audit entry processes all of them in one run.
+- `CANONICAL_BUNDLE`: exactly one JSON `canonical_bundle` artifact. The Canonical Bundle receives structural/reference validation and can be sent directly to Discovery.
+
+The handoff is a data-routing and integrity result only. It does not interpret scientific semantics or approve mappings.
 
 ## Exploratory discovery
 
 Use a validated Canonical Bundle as the shared input to exploratory profiling and the formal analysis workflow:
 
     dor discover-opportunities --bundle path/to/canonical_bundle.json --out-dir path/to/new/discovery_run
+
+For a Canonical Bundle supplied inside an external adapter package, use the hash-rechecking handoff:
+
+    dor discover-opportunities --adapter-handoff path/to/run/00_adapter/adapter_handoff.json --out-dir path/to/new/discovery_run
 
 The scan validates canonical structure and references, hashes the input before and after processing, writes aggregate-only profiles and a bounded Agent brief, and refuses to overwrite a non-empty output directory. It does not create a formal Run or cross G0-G4 approval gates.
 
@@ -47,6 +55,18 @@ The current runtime uses the Python standard library only.
     dor audit --csv path/to/input.csv --json path/to/input.json --out path/to/separate/run/01_audit
 
 Either input may be omitted, but at least one must be supplied. Output must be a separate derived-data directory. The audit produces dataset_manifest.json, data_audit_report.md, source_inventory.json, and mapping_review_queue.csv, plus the CSV/JSON-specific profile files when those sources are supplied.
+
+To audit every supported `standardized_dataset` artifact declared by an adapter package:
+
+    dor audit --adapter-handoff path/to/adapter_handoff.json --out path/to/separate/run/01_audit
+
+This route rechecks the handoff, source and artifact hashes, audits all declared CSV/JSON standardized datasets, and keeps their artifact IDs and package-relative paths in the source inventory.
+
+For an external package that already provides a Canonical Bundle and the matching provenance artifacts, materialize selected artifacts into a new Run workspace:
+
+    dor materialize-adapter-artifacts --adapter-handoff path/to/adapter_handoff.json --role source_inventory --role mapping_plan --role build_spec --role canonical_bundle --out-dir path/to/run/00_adapter/materialized
+
+Each requested role must resolve to exactly one JSON artifact. Files are copied without transformation and each copied file is verified against the package SHA-256. Use `templates/run_plan.canonical_adapter.example.json` for this formal, approval-gated route; it retains G0/G1/G2 and checks the bundle's provenance against the exact G1-approved inventory, mapping plan, and build specification.
 
 ## Validate a canonical bundle
 
