@@ -241,9 +241,13 @@ class AdapterHandoffTests(unittest.TestCase):
             handoff = root / "handoff.json"
             prepare_adapter_handoff_files(manifest, package, handoff)
             with self.assertRaisesRegex(ValueError, "does not declare"):
-                materialize_adapter_artifacts_files(handoff, ["missing-artifact"], root / "out")
+                materialize_adapter_artifacts_files(
+                    handoff, root / "out", artifact_ids=["missing-artifact"],
+                )
             with self.assertRaisesRegex(ValueError, "outside the protected adapter package"):
-                materialize_adapter_artifacts_files(handoff, ["canonical-data"], package / "run-output")
+                materialize_adapter_artifacts_files(
+                    handoff, package / "run-output", artifact_ids=["canonical-data"],
+                )
 
     def test_cli_exposes_generic_handoff_and_discovery_routes(self):
         handoff_args = build_parser().parse_args([
