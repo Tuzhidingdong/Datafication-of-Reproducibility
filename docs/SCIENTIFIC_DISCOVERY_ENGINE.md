@@ -29,6 +29,7 @@ The dor discover-opportunities command:
 - condition_review_queue.csv — bounded queue of target_system values not matched by deterministic rules.
 - condition_extraction_summary.json — extraction coverage, confidence, and explicit test-data exclusion counts.
 - condition_manifest.json — rule/code versions plus input/output SHA256 hashes, including the condition-performance outputs.
+- condition_performance_feature_coverage.csv — eligible numeric outcome denominators and condition-linkage coverage by feature/unit.
 - condition_outcome_links.csv — observation-level links between eligible numeric outcomes and condition candidates, with stable observation IDs and extraction provenance fields.
 - condition_performance_study_strata.csv — within-DOI aggregation (one median per feature/unit/condition level/Study), with observation counts and target-system context.
 - condition_performance_strata.csv — cross-Study descriptive summaries for each condition level (Study count, median of Study medians, MAD, and IQR).
