@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from dor.chem_literacy import _load_csv_observations, _load_json_observations, _merge_ledger
 from dor.mapping import sha256_file
+from dor.conditions import EXCLUDED_TEST_BATCH_IDS, is_excluded_test_record, write_condition_outputs
 
 def _number(value: Any) -> float | None:
     if isinstance(value, bool) or value is None: return None
@@ -199,10 +200,17 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
     if reconciliation_csv:
         records, merge_issues = _merge_ledger(records, _load_csv_observations(reconciliation_csv, "RECONCILIATION_CSV"))
     if not records: raise ValueError("The primary Chem-Literacy JSON contains no observations.")
-    summary = summarize_observations(records, minimum_studies, maximum_feature_pairs)
+    eligible_records = [record for record in records if not is_excluded_test_record(record)]
+    excluded_test_observation_count = len(records) - len(eligible_records)
+    summary = summarize_observations(eligible_records, minimum_studies, maximum_feature_pairs)
+    summary["profile"]["input_observation_count"] = len(records)
+    summary["profile"]["eligible_observation_count"] = len(eligible_records)
+    summary["profile"]["excluded_test_observation_count"] = excluded_test_observation_count
+    summary["profile"]["excluded_test_batch_ids"] = sorted(EXCLUDED_TEST_BATCH_IDS)
     for path, expected in source_hashes.items():
         if sha256_file(Path(path)) != expected: raise RuntimeError("Protected input changed during discovery scan: " + path)
     output_dir.mkdir(parents=True, exist_ok=True)
+    condition_summary = write_condition_outputs(records, output_dir, source_hashes)
     (output_dir / "discovery_data_profile.json").write_text(
         json.dumps(summary["profile"], indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     _write_csv(output_dir / "feature_support.csv", [
@@ -237,6 +245,7 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "research_opportunity_synthesis":"REQUIRES_AGENT_SCIENTIFIC_REVIEW",
         "novelty_assessment":"REQUIRES_TARGETED_LITERATURE_REVIEW",
         "profile":summary["profile"],"signals":compact_signals,
+        "condition_extraction_summary":condition_summary,
         "source_merge_issue_count":len(merge_issues),"source_merge_issue_counts":merge_issue_counts,
         "limitations":summary["limitations"],"agent_brief_file":"agent_research_brief.md"}
     (output_dir / "discovery_report.json").write_text(
@@ -268,7 +277,8 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "3. Treat feature-pair co-occurrence as a data-linkage opportunity, never as an interaction.",
         "4. Propose testable questions with Study support, confounders, counterexamples, and validation needs.",
         "5. Assess novelty only after targeted literature review.",
-        "6. Recommend a direction based on scientific value and identifiability, not record count alone.", "",
+        "6. Recommend a direction based on scientific value and identifiability, not record count alone.",
+        "7. Treat condition_records.csv values as deterministic candidates, not human-accepted facts; follow the evidence locator and confidence.", "",
         "## Limitations", ""])
     brief.extend("- " + item for item in summary["limitations"])
     (output_dir / "agent_research_brief.md").write_text("\n".join(brief) + "\n", encoding="utf-8")
@@ -276,13 +286,19 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
     manifest = {"schema_version":"1.0","operation":"dor discover-opportunities",
         "scope":"READ_ONLY_FULL_CORPUS_EXPLORATORY_SCAN",
         "inputs":[{"path":str(p),"sha256":source_hashes[str(p)]} for p in inputs],
-        "observation_count":len(records),"minimum_studies":minimum_studies,
+        "observation_count":len(eligible_records),"input_observation_count":len(records),
+        "excluded_test_observation_count":excluded_test_observation_count,
+        "excluded_test_batch_ids":sorted(EXCLUDED_TEST_BATCH_IDS),"minimum_studies":minimum_studies,
         "maximum_feature_pairs":maximum_feature_pairs,"outputs":output_hashes,
         "source_files_modified":False,"raw_observations_in_agent_brief":False}
     (output_dir / "discovery_manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     return {"status":report["discovery_status"],"output_dir":str(output_dir),
-        "observation_count":len(records),"paper_count":summary["profile"]["unique_paper_count"],
+        "observation_count":len(eligible_records),"input_observation_count":len(records),
+        "excluded_test_observation_count":excluded_test_observation_count,
+        "condition_record_count":condition_summary["condition_record_count_eligible"],
+        "condition_summary":str(output_dir / "condition_extraction_summary.json"),
+        "paper_count":summary["profile"]["unique_paper_count"],
         "verified_doi_study_count":summary["profile"]["verified_doi_study_count"],
         "feature_count":summary["profile"]["feature_count"],"signal_count":len(summary["signals"]),
         "agent_brief":str(output_dir / "agent_research_brief.md"),
