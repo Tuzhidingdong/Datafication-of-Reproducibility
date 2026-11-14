@@ -79,7 +79,7 @@ class FeatureSemanticsReviewTests(unittest.TestCase):
             build_feature_semantics_review_queue(records, out, max_quote_chars=100)
             with (out / "feature_semantics_review_queue.csv").open(encoding="utf-8", newline="") as handle:
                 row = next(csv.DictReader(handle))
-            self.assertLessEqual(len(row["worker_a_evidence_text"]), 120)
+            self.assertLessEqual(len(row["worker_a_evidence_text"]), 100)
             self.assertEqual(row["worker_a_quote_truncated"], "True")
             self.assertEqual(row["worker_b_table_reference"], "Table S2")
             self.assertEqual(row["worker_b_row_header"], "Electrolyte")
