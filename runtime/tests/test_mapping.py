@@ -36,7 +36,7 @@ class MappingPlanTests(unittest.TestCase):
         self.mapping["rules"][0]["source_item_id"]="MISSING"
         result=validate_mapping_plan(self.mapping,self.inv,self.digest)
         self.assertFalse(result["valid"])
-        self.assertIn("UNunit_02NOWN_SOURCE_ITEM",[e["code"] for e in result["errors"]])
+        self.assertIn("UNKNOWN_SOURCE_ITEM",[e["code"] for e in result["errors"]])
 
     def test_unapproved_rule_is_excluded(self):
         self.mapping["rules"][0]["status"]="REVIEWED"
