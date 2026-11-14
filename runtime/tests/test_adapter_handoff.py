@@ -200,6 +200,35 @@ class AdapterHandoffTests(unittest.TestCase):
                 set(source_hashes),
             )
 
+    def test_role_materialization_uses_runplan_json_filename(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            package.mkdir()
+            dataset_path = package / "records.csv"
+            dataset_path.write_text("id,value\\nA,1\\n", encoding="utf-8")
+            mapping_path = package / "mapping_plan.payload"
+            write_json(mapping_path, {"schema_version": "1.0", "rules": []})
+            manifest = self._write_manifest(package, [
+                {
+                    "artifact_id": "dataset", "role": "standardized_dataset",
+                    "path": "records.csv", "sha256": digest(dataset_path), "format": "csv",
+                },
+                {
+                    "artifact_id": "external-mapping", "role": "mapping_plan",
+                    "path": "mapping_plan.payload", "sha256": digest(mapping_path), "format": "json",
+                },
+            ])
+            handoff = root / "handoff.json"
+            prepare_adapter_handoff_files(manifest, package, handoff)
+            output_dir = root / "materialized"
+            result = materialize_adapter_artifacts_files(
+                handoff, output_dir, roles=["mapping_plan"],
+            )
+            self.assertEqual(result["artifact_count"], 1)
+            self.assertEqual(digest(output_dir / "mapping_plan.json"), digest(mapping_path))
+            self.assertTrue((output_dir / "materialization_manifest.json").is_file())
+
     def test_role_materialization_requires_json_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
