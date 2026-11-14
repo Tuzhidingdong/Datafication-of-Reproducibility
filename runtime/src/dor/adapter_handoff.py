@@ -265,12 +265,15 @@ def materialize_adapter_artifacts_files(
         missing_roles = set(roles) - valid_roles
         if missing_roles:
             raise ValueError("Adapter package does not declare requested artifact roles: " + ", ".join(sorted(missing_roles)))
+        json_roles = {"source_inventory", "mapping_plan", "build_spec", "canonical_bundle"}
         for role in roles:
             candidates = [item for item in handoff["artifacts"] if item["role"] == role]
             if len(candidates) != 1:
                 raise ValueError(
                     f"Adapter role {role!r} must resolve to exactly one artifact for role-based materialization; found {len(candidates)}."
                 )
+            if role in json_roles and candidates[0]["format"] != "json":
+                raise ValueError(f"Adapter role {role!r} must be delivered as JSON for the existing DoR validators.")
             selected.append((role, candidates[0]))
 
     output_dir.mkdir(parents=True, exist_ok=True)
