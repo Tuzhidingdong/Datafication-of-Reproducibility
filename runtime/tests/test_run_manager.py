@@ -524,7 +524,7 @@ class RunManagerTests(unittest.TestCase):
         self.write_outputs("audit")
         manifest = self.run_root / "01_audit/dataset_manifest.json"
         manifest.write_text(
-            json.dumps({"selected_ids": selected_ids}, ensure_ascii=False) + "\\n",
+            json.dumps({"selected_ids": selected_ids}, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
 
@@ -569,7 +569,7 @@ class RunManagerTests(unittest.TestCase):
 
         # Change the activation value. The producer is stale until its outputs are rebuilt.
         dataset_manifest = self.run_root / "01_audit/dataset_manifest.json"
-        dataset_manifest.write_text('{"selected_ids":["ITEM_1"]}\\n', encoding="utf-8")
+        dataset_manifest.write_text('{"selected_ids":["ITEM_1"]}\n', encoding="utf-8")
         actions = {
             item["stage_id"]: item["action"]
             for item in build_resume_plan(self.manifest_path)["stages"]
@@ -589,7 +589,7 @@ class RunManagerTests(unittest.TestCase):
         record_stage_status(self.manifest_path, "optional_analysis", "SUCCEEDED", "local")
 
         # A later false decision is recorded as a skip; old outputs remain historical.
-        dataset_manifest.write_text('{"selected_ids":[]}\\n', encoding="utf-8")
+        dataset_manifest.write_text('{"selected_ids":[]}\n', encoding="utf-8")
         self.assertEqual(
             next(item["action"] for item in build_resume_plan(self.manifest_path)["stages"]
                  if item["stage_id"] == "audit"),
@@ -608,7 +608,7 @@ class RunManagerTests(unittest.TestCase):
         )
 
         # Reactivation cannot overwrite the successful output from the previous attempt.
-        dataset_manifest.write_text('{"selected_ids":["ITEM_1"]}\\n', encoding="utf-8")
+        dataset_manifest.write_text('{"selected_ids":["ITEM_1"]}\n', encoding="utf-8")
         self._archive_stage_outputs("audit")
         self._run_audit_with_selection(["ITEM_1"])
         action = next(
