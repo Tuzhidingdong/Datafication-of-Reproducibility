@@ -492,6 +492,131 @@ class RunManagerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only to worker_staging"):
             initialize_run(bad_path, self.root / "runs" / "BAD", "BAD")
 
+    def _initialize_conditional_plan(self, include_unavailable_dependency=False):
+        conditional = {
+            "stage_id": "optional_analysis",
+            "executor": "local",
+            "depends_on": ["audit"] + (["independent_summary"] if include_unavailable_dependency else []),
+            "inputs": ["dataset_manifest"] + (["independent_summary"] if include_unavailable_dependency else []),
+            "activation": {
+                "artifact_id": "dataset_manifest",
+                "json_pointer": "/selected_ids",
+                "operator": "array_non_empty",
+            },
+            "outputs": [{
+                "artifact_id": "optional_analysis_output",
+                "path": "05_optional/analysis.json",
+            }],
+        }
+        self.plan["stages"].append(conditional)
+        self.write_plan()
+        self.run_root = self.root / "runs" / (
+            "RUN_CONDITIONAL_WITH_PENDING_DEP" if include_unavailable_dependency else "RUN_CONDITIONAL_REACTIVATION"
+        )
+        self.manifest_path = self.run_root / "run_manifest.json"
+        initialize_run(
+            self.plan_path,
+            self.run_root,
+            "RUN_CONDITIONAL_WITH_PENDING_DEP" if include_unavailable_dependency else "RUN_CONDITIONAL_REACTIVATION",
+        )
+
+    def _write_audit_outputs_with_selection(self, selected_ids):
+        self.write_outputs("audit")
+        manifest = self.run_root / "01_audit/dataset_manifest.json"
+        manifest.write_text(
+            json.dumps({"selected_ids": selected_ids}, ensure_ascii=False) + "\\n",
+            encoding="utf-8",
+        )
+
+    def _archive_stage_outputs(self, stage_id):
+        for output in self.stage(stage_id)["outputs"]:
+            path = self.run_root / output["path"]
+            if path.exists():
+                path.unlink()
+
+    def _run_audit_with_selection(self, selected_ids):
+        record_stage_status(self.manifest_path, "audit", "RUNNING", "local", command="audit")
+        self._write_audit_outputs_with_selection(selected_ids)
+        return record_stage_status(self.manifest_path, "audit", "SUCCEEDED", "local")
+
+    def test_conditional_stage_can_be_skipped_without_non_activation_inputs(self):
+        self._initialize_conditional_plan(include_unavailable_dependency=True)
+        self._run_audit_with_selection([])
+        resume = build_resume_plan(self.manifest_path)
+        actions = {item["stage_id"]: item["action"] for item in resume["stages"]}
+        self.assertEqual(actions["independent_summary"], "READY_TO_RUN")
+        self.assertEqual(actions["optional_analysis"], "SKIP_REQUIRED")
+
+        result = record_stage_status(
+            self.manifest_path, "optional_analysis", "SKIPPED", "local",
+            reason="The selection array is empty.",
+        )
+        self.assertEqual(result["status"], "SKIPPED")
+        self.assertTrue(verify_run(self.manifest_path)["valid_manifest_and_event_chain"])
+        actions = {
+            item["stage_id"]: item["action"]
+            for item in build_resume_plan(self.manifest_path)["stages"]
+        }
+        self.assertEqual(actions["optional_analysis"], "SKIPPED")
+
+    def test_skipped_stage_reactivates_and_requires_archiving_older_outputs(self):
+        self._initialize_conditional_plan()
+        self._run_audit_with_selection([])
+        record_stage_status(
+            self.manifest_path, "optional_analysis", "SKIPPED", "local",
+            reason="No item was selected.",
+        )
+
+        # Change the activation value. The producer is stale until its outputs are rebuilt.
+        dataset_manifest = self.run_root / "01_audit/dataset_manifest.json"
+        dataset_manifest.write_text('{"selected_ids":["ITEM_1"]}\\n', encoding="utf-8")
+        actions = {
+            item["stage_id"]: item["action"]
+            for item in build_resume_plan(self.manifest_path)["stages"]
+        }
+        self.assertEqual(actions["audit"], "REBUILD_REQUIRED")
+        self.assertEqual(actions["optional_analysis"], "WAITING_FOR_ACTIVATION_INPUT")
+
+        self._archive_stage_outputs("audit")
+        self._run_audit_with_selection(["ITEM_1"])
+        actions = {
+            item["stage_id"]: item["action"]
+            for item in build_resume_plan(self.manifest_path)["stages"]
+        }
+        self.assertEqual(actions["optional_analysis"], "READY_TO_RUN")
+        record_stage_status(self.manifest_path, "optional_analysis", "RUNNING", "local")
+        self.write_outputs("optional_analysis")
+        record_stage_status(self.manifest_path, "optional_analysis", "SUCCEEDED", "local")
+
+        # A later false decision is recorded as a skip; old outputs remain historical.
+        dataset_manifest.write_text('{"selected_ids":[]}\\n', encoding="utf-8")
+        self.assertEqual(
+            next(item["action"] for item in build_resume_plan(self.manifest_path)["stages"]
+                 if item["stage_id"] == "audit"),
+            "REBUILD_REQUIRED",
+        )
+        self._archive_stage_outputs("audit")
+        self._run_audit_with_selection([])
+        self.assertEqual(
+            next(item["action"] for item in build_resume_plan(self.manifest_path)["stages"]
+                 if item["stage_id"] == "optional_analysis"),
+            "SKIP_REQUIRED",
+        )
+        record_stage_status(
+            self.manifest_path, "optional_analysis", "SKIPPED", "local",
+            reason="Selection was withdrawn.",
+        )
+
+        # Reactivation cannot overwrite the successful output from the previous attempt.
+        dataset_manifest.write_text('{"selected_ids":["ITEM_1"]}\\n', encoding="utf-8")
+        self._archive_stage_outputs("audit")
+        self._run_audit_with_selection(["ITEM_1"])
+        action = next(
+            item["action"] for item in build_resume_plan(self.manifest_path)["stages"]
+            if item["stage_id"] == "optional_analysis"
+        )
+        self.assertEqual(action, "REBUILD_REQUIRED")
+
     def test_cli_registers_run_manager_commands(self):
         parser = build_parser()
         subparsers = next(
