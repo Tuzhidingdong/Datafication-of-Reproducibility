@@ -1,85 +1,81 @@
 # Datafication-of-Reproducibility
 
-An Antigravity-native research-methodology Skill for learning the reproducible structure of experimental phenomena from scientific data and literature.
+An Antigravity-native, cross-disciplinary Skill for building traceable and reproducible analysis workflows from structured research data and source evidence.
 
-The project aims to reconstruct relationships among reported experimental conditions, latent physical states, interacting processes, and observable outcomes. Machine learning is used to predict outcomes and discover candidate interactions; scientific interpretation and independent validation are required before statistical relationships are described as mechanisms.
+DoR separates source-specific ingestion and domain semantics from the reusable scientific workflow. External adapters prepare data packages; project-provided profiles and reviewed mappings supply domain meaning; the DoR Runtime validates provenance and executes general-purpose data construction, analysis, validation, and publication operations.
 
-## Design commitments
+## Non-negotiable architecture boundaries
 
-- **Platform:** Antigravity Skill, distributed from this repository.
-- **Execution:** Hybrid. Python performs deterministic data processing and modelling; Agents handle scientific planning, semantic interpretation, critical review, and mechanism reasoning.
-- **Automation:** Guided. The workflow pauses at defined scientific decision gates.
-- **Source data:** Preserve. Original input files are read-only; all normalized datasets, derived data, models, and reports are written to separate run directories.
-- **Research outputs:** Every completed analysis must produce a traceable scientific record and a paper-oriented deliverables package, including a guide and machine-readable manifest for a downstream writing Skill.
+- **Cross-disciplinary core:** no built-in subject-area vocabulary, material system, protocol, target definitions, domain mappings, or discipline-specific retrieval rules.
+- **External adapters:** source-system readers and format converters are independently maintained and versioned outside the DoR core.
+- **External domain profiles:** projects supply their own semantic definitions, mappings, and configuration. DoR does not bundle a default domain profile.
+- **Deterministic execution:** Python performs structural validation, data construction, modelling, metrics, and artifact verification.
+- **Guided scientific decisions:** Agents support planning and critical review; human approval remains required at declared decision gates.
+- **Source preservation:** original files are read-only. Derived datasets, models, and reports are written to separate run workspaces.
+- **Traceability:** every accepted result must link to exact source evidence, data, configuration, code version, and validation artifacts.
 
-## Repository status
+## Repository layout
 
-This Draft development branch contains V0.1–V0.9: canonical scientific data contracts, deterministic construction/reconciliation, Study-level cohort and validation, predictive interaction screening/robustness, mechanism-evidence packaging, publication outputs, G0–G4 approval gates, and the hash-bound Run Manager. Engineering acceptance has used synthetic fixtures only. V1.0 introduces a controlled real-data acceptance protocol; it does not authorize bulk corpus processing or imply scientific validity before a user-selected pilot is reviewed.
+- .agents/skills/datafication-of-reproducibility/SKILL.md — Antigravity Skill entry point.
+- references/ — general methodology, data model, modelling, validation, evidence, orchestration, and publication specifications.
+- schemas/ — machine-readable contracts, including the external adapter package contract.
+- runtime/ — deterministic general-purpose Python engine.
+- docs/ — implementation and workflow contracts.
+- templates/ — generic project, workflow, and acceptance templates.
 
-## Planned layout
-
-- `.agents/skills/datafication-of-reproducibility/SKILL.md`: Antigravity Skill entry point.
-- `references/`: methodology, data model, modelling, validation, evidence, orchestration, and publication-output specifications.
-- `domain_profiles/template/`: reusable domain-adapter templates.
-- `domain_profiles/zinc_battery/`: initial adapter scaffold; mappings remain provisional until actual source files are audited.
-- `schemas/`: machine-readable contracts for projects, datasets, workflow state, tasks, findings, publication manifests, and V1.0 acceptance records.
-- `runtime/`: deterministic Python engine for audit, canonical construction, reconciliation, modelling, validation, interaction analysis, publication assembly, and run management.
-- `docs/V0.9_RUN_MANAGER.md`: explicit stage DAG, artifact lineage, Worker authorization, and safe recovery.
-- `docs/V1.0_CONTROLLED_ACCEPTANCE.md`: real-data pilot scope, fixed acceptance stages, evidence requirements, and scientific limits.
-- `templates/v1_acceptance_record.example.json`: machine-readable V1.0 acceptance-record starting point.
+No project-specific source adapter or domain vocabulary is part of the supported core interface.
 
 ## Quick start
 
-1. Install the Skill into a workspace under `.agents/skills/` or into the Antigravity global Skill directory.
-2. Create a project configuration pointing to the original research data.
-3. Audit and hash source inputs without modifying them.
-4. Review the source inventory and research scope at G0.
-5. Continue only after explicit approval at each applicable gate.
+1. Install the Skill into a workspace under .agents/skills/ or the Antigravity global Skill directory.
+2. Select or develop an external adapter for the project's source format.
+3. Prepare an adapter package and validate its manifest and exact hashes.
+4. Audit source structure and review the generated inventory.
+5. Supply project-owned semantic mappings and explicit entity-grain decisions.
+6. Continue through the approval-gated canonical and analysis workflow.
 
 ## Scientific safeguards
 
 - Missing information is not silently imputed as reported fact.
-- The reported experimental label is not assumed to fully describe the actual physical state.
-- Statistical interaction is not automatically interpreted as physical causation.
-- Records from the same Study are kept together during Study-level validation.
-- Every model, figure, table, and scientific finding must be traceable to data, configuration, code version, and evidence.
+- Source labels are not assumed to fully describe the underlying system or state.
+- Statistical associations and predictive interactions are not automatically interpreted as causation or mechanism.
+- Records from the same Study remain together during Study-level validation unless a justified alternative is documented.
+- The Runtime does not infer semantic mappings from identifiers, filenames, or sampled values.
 - Publication prose is generated from structured research records, not from recollection of source code or chat history.
-- One paper/Study is not enough to claim cross-Study reproducibility or support Study-held-out model validation.
+- A passing structural validator, hash check, or synthetic test is not proof of scientific validity.
 
-## License and data policy
+## External adapter interface
 
-A project license has not yet been selected. Do not commit private literature databases, full-text papers, credentials, local paths containing personal information, run caches, or derived data that cannot be redistributed.
+The adapter package contract is defined in schemas/adapter_package.schema.json and docs/ADAPTER_CONTRACT.md.
 
-## V0.9 Run Manager
+Validate an adapter package with:
 
-The Runtime provides explicit project run workspaces, a hash-chained run event ledger, stage-attempt recording, bounded Worker authorization packets, dependency-aware resume planning, and regenerable artifact inventories. Run plans are authored up front and name every source/artifact/stage/dependency; no workspace crawling or automatic stage inference is performed. The Run Manager never launches Workers or creates scientific gate approvals. See `docs/V0.9_RUN_MANAGER.md`.
+    dor validate-adapter-package --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/reports/adapter_validation.json
 
-## V1.0 controlled acceptance
+The validator checks package structure, path safety, file availability, and exact hashes. It does not interpret research semantics or approve mappings.
 
-The first formal V1.0 scientific acceptance remains limited to one user-selected primary paper and its SI. This acceptance protocol is distinct from the read-only exploratory full-corpus scan provided by Scientific Discovery Engine. The fixed eight-stage protocol, machine-readable record, and deterministic `dor validate-acceptance` validator are defined in `docs/V1.0_CONTROLLED_ACCEPTANCE.md`, `schemas/v1_acceptance_record.schema.json`, and `templates/v1_acceptance_record.example.json`. A one-Study pilot may validate ingestion, provenance, mapping, canonical construction, and reconciliation, but cannot validate cross-Study modelling.
+## Exploratory discovery
 
+The domain-neutral discovery entry point accepts a validated Canonical Bundle:
 
-## Scientific Discovery Engine
+    dor discover-opportunities --bundle path/to/canonical_bundle.json --out-dir path/to/new/discovery_run
 
-The discovery-first entry point is `dor discover-opportunities`. It performs a read-only full-corpus exploratory scan using the Chem-Literacy aggregate JSON as the primary input and an optional reconciliation CSV. It writes aggregate-only evidence tables and an Agent research brief; it does not generate accepted scientific findings, automatically establish novelty, or launch formal modelling. See [Scientific Discovery Engine](docs/SCIENTIFIC_DISCOVERY_ENGINE.md).
+It produces aggregate-only profiles and candidate signals. The same canonical data artifact can be registered in a formal Run Plan and passed into downstream reconciliation, cohort construction, modelling, validation, and publication. Exploratory results do not approve a formal analysis task or cross G0-G4 gates. See docs/SCIENTIFIC_DISCOVERY_ENGINE.md.
 
-The formal V1.0 controlled acceptance remains a one-paper/SI scientific validation protocol. It does not block an earlier read-only exploratory scan of the structured corpus.
+## Run Manager
 
-## Chem-Literacy integration
+The Runtime provides explicit project run workspaces, a hash-chained run event ledger, stage-attempt recording, bounded Worker authorization packets, dependency-aware resume planning, and regenerable artifact inventories. Run plans declare every source, artifact, stage, and dependency. The Run Manager does not crawl workspaces, execute stages, dispatch Workers, or create scientific approvals. See docs/V0.9_RUN_MANAGER.md.
 
-The v0.1-foundation branch adds dor ingest-chem-literacy for the aggregate papers[].observations[] JSON and optional Reconciliation Ledger CSV. The adapter preserves repeated measurements, links the two exports only by paper_id + reconciliation_id, reports source disagreements, and writes evidence-aware condition-recovery packets. numeric_target_candidates.csv is a candidate-label inventory, not a ready-to-train feature matrix. See docs/CHEM_LITERACY_INTEGRATION.md.
+## Controlled acceptance
 
-A condition missing from the extraction is not automatically considered absent from the paper. DOR searches the declared local main text/SI, prepares bounded Worker tasks, verifies proposed quotations against exact source files, and leaves every promotion pending human review.
-
-
-The Chem-Literacy integration also defines a human decision step for recovered experimental conditions. A Worker proposal can be marked REPORTED only after its exact quotation passes source verification and a reviewer accepts it. NOT_REPORTED requires a human-reviewed main text and all available SI with exact source hashes; it cannot be inferred from a missing extraction or failed search. See docs/CHEM_LITERACY_INTEGRATION.md.
+The V1.0 controlled acceptance protocol defines a fixed evidence-backed review sequence, a machine-readable acceptance record, and deterministic validation. A controlled pilot validates only its declared scope; it does not establish broader cross-Study validity without enough independent Studies. See docs/V1.0_CONTROLLED_ACCEPTANCE.md.
 
 ## Architecture and standards review
 
-The current implementation inventory, real-data validation gaps, standards reuse decisions, and target module boundaries are documented in:
+The implementation inventory, standards alignment, capability boundaries, and target architecture are documented in:
 
-- [Project Capability Audit](docs/PROJECT_CAPABILITY_AUDIT.md)
-- [Standards Alignment](docs/STANDARDS_ALIGNMENT.md)
-- [Target Architecture](docs/TARGET_ARCHITECTURE.md)
+- docs/PROJECT_CAPABILITY_AUDIT.md
+- docs/STANDARDS_ALIGNMENT.md
+- docs/TARGET_ARCHITECTURE.md
 
-These documents define an architecture-convergence phase before additional Runtime feature development. The next scientific acceptance target remains one user-selected real paper/SI pilot; synthetic engineering fixtures do not establish real-corpus validity.
+DoR's core remains domain-neutral. Concrete adapters, project configurations, and domain profiles must be maintained outside this repository.
