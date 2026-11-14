@@ -58,8 +58,17 @@ The materialization command copies files only. It does not parse, repair, re-map
 | `interaction_robustness` | `dor assess-interaction-robustness --cohort-dir <run_root>/05_modeling/cohort --task <modeling_task.json> --out-dir <run_root>/06_modeling/interaction_robustness --workflow-ledger <workflow_gate_ledger.jsonl>` |
 | `g3_selection_packet` | Manual classification of every reported candidate as selected or not selected; record G3 only after explicit approval |
 | `virtual_condition_prediction` | `dor predict-virtual-condition --model-run-dir <run_root>/06_modeling/baseline --query <configuration_root>/virtual_reproduction_query.json --out <run_root>/08_virtual_reproduction/virtual_prediction.json --workflow-ledger <workflow_gate_ledger.jsonl>` |
-| `independent_result_review` | Worker stage: authorize and record the declared Worker through Run Manager; Worker cannot approve gates or alter analysis artifacts |
+| `independent_result_review` | First authorize the declared Worker with `dor run-worker-authorize --manifest <run_root>/run_manifest.json --stage independent_result_review --role <role> --provider <provider> --model <model> --project-root <project_root> --authorized-by <reviewer> --rationale <reason>`. Dispatch only the returned bounded task packet. The Worker cannot approve gates or alter analysis artifacts. |
 | `human_review_and_promotion` | Manual review and explicit promotion decision; Worker output is not automatically accepted |
+
+## Stage status and artifact recording
+
+Run Manager execution records are separate from the G0-G4 approval ledger. They do not create scientific approvals.
+
+- Before a command starts, record the stage as RUNNING with `dor run-stage-record --manifest <run_root>/run_manifest.json --stage <stage_id> --status RUNNING --producer-kind local --command "<exact CLI command>"`.
+- After checking all declared outputs and their hashes, record SUCCEEDED with the same stage ID and producer metadata. Record FAILED when the command or its output validation fails; never record success for a partial output set.
+- For a Worker stage, include the exact role/provider/model and returned job/session/task identifiers plus available usage fields in the RUNNING/SUCCEEDED records. For a manual stage, use `--producer-kind manual` and record the reviewer context in the rationale/command metadata.
+- Run `dor run-verify --manifest <run_root>/run_manifest.json` after a stage boundary that changes artifact lineage. Use `dor run-resume-plan --manifest <run_root>/run_manifest.json` after interruption; do not rerun successful unaffected stages.
 | `publication_package_assembly` | `dor build-publication-package --plan <configuration_root>/publication_package_plan.json --workspace-root <run_root> --out-dir <run_root>/10_publication/package --workflow-ledger <workflow_gate_ledger.jsonl>` |
 | `publication_package_audit` | `dor audit-publication-package --package-dir <run_root>/10_publication/package --out <run_root>/10_publication/package_integrity_report.json` |
 
