@@ -205,20 +205,25 @@ class AdapterHandoffTests(unittest.TestCase):
             root = Path(tmp)
             package = root / "package"
             package.mkdir()
-            bundle_path = package / "canonical_bundle.txt"
-            bundle_path.write_text("not json", encoding="utf-8")
-            manifest = self._write_manifest(package, [{
-                "artifact_id": "canonical-data",
-                "role": "canonical_bundle",
-                "path": "canonical_bundle.txt",
-                "sha256": digest(bundle_path),
-                "format": "text",
-            }])
+            dataset_path = package / "records.csv"
+            dataset_path.write_text("id,value\\nA,1\\n", encoding="utf-8")
+            mapping_path = package / "mapping_plan.txt"
+            mapping_path.write_text("not json", encoding="utf-8")
+            manifest = self._write_manifest(package, [
+                {
+                    "artifact_id": "dataset", "role": "standardized_dataset",
+                    "path": "records.csv", "sha256": digest(dataset_path), "format": "csv",
+                },
+                {
+                    "artifact_id": "mapping", "role": "mapping_plan",
+                    "path": "mapping_plan.txt", "sha256": digest(mapping_path), "format": "text",
+                },
+            ])
             handoff = root / "handoff.json"
             prepare_adapter_handoff_files(manifest, package, handoff)
             with self.assertRaisesRegex(ValueError, "must be delivered as JSON"):
                 materialize_adapter_artifacts_files(
-                    handoff, root / "materialized", roles=["canonical_bundle"],
+                    handoff, root / "materialized", roles=["mapping_plan"],
                 )
 
     def test_dataset_snapshot_manifest_is_created_outside_package(self):
