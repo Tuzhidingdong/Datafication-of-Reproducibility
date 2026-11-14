@@ -310,6 +310,15 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         brief.append(f"| {candidate['feature_id']} | {candidate['outcome_unit']} | {candidate['condition_dimension']} | "
             f"{candidate['supported_condition_level_count']} | {candidate['total_doi_study_support_across_levels']} | "
             f"{candidate['observed_between_level_median_spread']} |")
+    brief.extend(["", "## Joint condition combination candidates", "",
+        "| Feature ID | Unit | Condition dimension A | Condition dimension B | Supported combinations | DOI support | Median spread |",
+        "|---|---|---|---|---:|---:|---:|"])
+    for candidate in performance["joint_condition_hypothesis_preview"]:
+        brief.append(f"| {candidate['feature_id']} | {candidate['outcome_unit']} | "
+            f"{candidate['condition_dimension_a']} | {candidate['condition_dimension_b']} | "
+            f"{candidate['supported_combination_count']} | "
+            f"{candidate['total_doi_study_support_across_combinations']} | "
+            f"{candidate['observed_combination_median_spread']} |")
     brief.extend(["", "## Condition linkage coverage by feature/unit", "",
         "| Feature ID | Unit | Eligible numeric observations | Linked observations | Linkage coverage | DOI Studies | Linked DOI Studies |",
         "|---|---|---:|---:|---:|---:|---:|"])
@@ -334,7 +343,9 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "7. Treat condition_records.csv values as deterministic candidates, not human-accepted facts; follow the evidence locator and confidence.",
         "8. Use condition_outcome_links.csv to trace each association back to observation IDs and condition_records.csv.",
         "9. Prioritize contrasts with within-DOI paired support, inspect paired direction/counterexample counts, and do not infer causal effects.",
-        "10. Do not interpret percentage modifiers as dose levels unless the percentage basis is explicitly verified.", "",
+        "10. Do not interpret percentage modifiers as dose levels unless the percentage basis is explicitly verified.",
+        "11. Joint condition combinations are co-recorded support only; use them to prioritize follow-up, not to claim an interaction or synergy.",
+        "12. Same-DOI comparisons are Study-level paired summaries only; they do not prove matched experiments, specimens, or replicates.", "",
         "## Limitations", ""])
     brief.extend("- " + item for item in summary["limitations"])
     (output_dir / "agent_research_brief.md").write_text("\n".join(brief) + "\n", encoding="utf-8")
