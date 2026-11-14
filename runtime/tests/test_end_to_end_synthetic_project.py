@@ -82,7 +82,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls.protected_source_paths = [
             cls.csv_path, cls.json_path,
             cls.audit_dir / "source_inventory.json",
-            cls.mapping_validation_path, cls.canonical_validation_path,
+            cls.mapping_validation_path, cls.build_spec_validation_path, cls.canonical_validation_path,
             cls.plan_path, cls.spec_path, cls.task_path,
             cls.mechanism_plan_path, cls.interaction_selection_path,
             cls.query_path, cls.gate_ledger,
@@ -449,12 +449,26 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         if not mapping_validation["valid"]:
             raise AssertionError("Synthetic mapping plan failed validation: " + repr(mapping_validation["errors"]))
         cls.mapping_validation = mapping_validation
+
+        build_validation_path = cls.root / "build_spec_validation.json"
+        cls.build_spec_validation_path = build_validation_path
+        cls._run_cli(
+            "validate-build-spec", "--plan", str(cls.plan_path),
+            "--inventory", str(inventory_path), "--spec", str(cls.spec_path),
+            "--out", str(build_validation_path),
+        )
+        build_spec_validation = json.loads(build_validation_path.read_text(encoding="utf-8"))
+        if not build_spec_validation["valid"]:
+            raise AssertionError("Synthetic Build Spec failed validation: " + repr(build_spec_validation["errors"]))
+        cls.build_spec_validation = build_spec_validation
+
         cls._approve_gate("G1", [
             ("mapping_plan", cls.plan_path),
             ("mapping_validation", cls.mapping_validation_path),
             ("source_inventory", inventory_path),
             ("build_spec", cls.spec_path),
-        ], "Synthetic user approval of explicit source mappings and entity grouping grain.")
+            ("build_spec_validation", cls.build_spec_validation_path),
+        ], "Synthetic user approval of explicit source mappings, entity grouping, and link rules.")
 
     @classmethod
     def _build_canonical_bundle(cls):
@@ -847,6 +861,16 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             revised_spec = json.loads(self.spec_path.read_text(encoding="utf-8"))
             revised_spec["mapping_plan_sha256"] = sha256_file(changed_mapping)
             write_json(changed_build_spec, revised_spec)
+            changed_build_spec_validation = temp_root / "build_spec_validation_revised.json"
+            from dor.builder import validate_build_spec_files
+            write_json(
+                changed_build_spec_validation,
+                validate_build_spec_files(
+                    changed_mapping,
+                    self.audit_dir / "source_inventory.json",
+                    changed_build_spec,
+                ),
+            )
             record_gate_decision(
                 ledger_copy, "G1", "APPROVE", "synthetic-e2e-human-reviewer",
                 "Synthetic approval of a revised but internally consistent mapping/build-spec pair.",
@@ -855,6 +879,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                     ("mapping_validation", self.mapping_validation_path),
                     ("source_inventory", self.audit_dir / "source_inventory.json"),
                     ("build_spec", changed_build_spec),
+                    ("build_spec_validation", changed_build_spec_validation),
                 ],
             )
             state = inspect_gate_ledger(ledger_copy)
