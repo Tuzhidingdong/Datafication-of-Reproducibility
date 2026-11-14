@@ -132,7 +132,7 @@ Worker execution is deliberately delegated to the host Skill environment. Run Ma
 6. Retrieve only the declared output; place it at the exact `worker_staging` path in the Run workspace, then verify its format and content contract. Record SUCCEEDED with the actual returned identifiers and usage fields, or FAILED with a non-empty reason and any identifiers/usage actually reported.
 7. If the host job is still active after a reconnect, continue monitoring that same job using its identifiers or the Run/Stage/authorization tags. If its state is unknown or abandoned, inspect it before using `--confirm-abandoned`; a replacement attempt requires a fresh authorization packet. Never duplicate a potentially active job.
 
-If the configured Worker Manager is unavailable, keep the stage blocked and report the missing host capability. Do not perform an invisible local substitute. The provider/model execution adapter belongs to the host environment; no provider-specific model catalogue or research-domain logic is embedded in DoR core.
+If the configured Worker Manager is unavailable before the stage is marked RUNNING, leave the stage blocked and report the missing host capability. If dispatch fails after RUNNING was recorded, append FAILED with a non-empty reason so the attempt is terminal and safely retryable. Do not perform an invisible local substitute. The provider/model execution adapter belongs to the host environment; no provider-specific model catalogue or research-domain logic is embedded in DoR core.
 
 ## Stage status and artifact recording
 
