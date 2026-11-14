@@ -80,6 +80,12 @@ This checks required entity fields, duplicate IDs, broken references, selected r
 
 The plan must contain the SHA-256 digest of the exact inventory file. Regenerating or editing that inventory invalidates the plan's digest. Only approved rules with valid references, targets, explicit transformations, and review metadata are eligible. Any error fails closed and produces no eligible rule IDs.
 
+## Validate a canonical Build Spec
+
+    dor validate-build-spec --plan mapping_plan.json --inventory source_inventory.json --spec canonical_build_spec.json --out build_spec_validation.json
+
+This checks the exact mapping-plan and inventory hashes, entity source declarations, CSV/JSON selectors, grouping keys, mapping-rule compatibility, and relationship declarations. It does not read source datasets or create a canonical bundle. The G1 gate recomputes this report against the exact bound artifacts and refuses stale or non-deterministic reports.
+
 ## Build a canonical bundle
 
     dor build-canonical --plan mapping_plan.json --inventory source_inventory.json --spec canonical_build_spec.json --source-root path/to/source/files --out-dir path/to/new/derived/run/02_canonical
