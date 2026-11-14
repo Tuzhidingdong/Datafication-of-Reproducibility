@@ -643,7 +643,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         gate_artifact_ids = {
             "G0": ["source_inventory"],
             "G1": ["mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"],
-            "G2": ["canonical_bundle", "reconciliation_report", "modeling_task"],
+            "G2": ["canonical_bundle", "reconciliation_report", "reconciliation_decisions", "modeling_task"],
             "G3": ["cohort_report", "split_manifest", "modeling_cohort_manifest"],
             "G4": ["model_report"],
         }
