@@ -26,7 +26,7 @@ REQUIRED_ARTIFACTS = {
         "interaction_report", "interaction_manifest",
         "robustness_report", "robustness_manifest", "interaction_selection",
     },
-    "G4": {"publication_plan"},
+    "G4": {"publication_plan", "worker_review_output", "reviewed_findings"},
 }
 G4_REVIEWABLE_ARTIFACTS = {
     "model_report", "reproducibility_report", "interaction_report",
@@ -408,6 +408,126 @@ def _validate_g3_selection(
             raise ValueError("G3 mechanism_plan interaction_id is not in selected_interaction_ids.")
 
 
+def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
+    by_id = _binding_map(bindings)
+    worker_binding = by_id["worker_review_output"]
+    reviewed_binding = by_id["reviewed_findings"]
+    worker_result = _read_json_binding(worker_binding, "G4 worker_review_output")
+    reviewed = _read_json_binding(reviewed_binding, "G4 reviewed_findings")
+
+    if worker_result.get("schema_version") != "1.0":
+        raise ValueError("G4 worker_review_output schema_version must be 1.0.")
+    if not isinstance(worker_result.get("task_id"), str) or not worker_result["task_id"].strip():
+        raise ValueError("G4 worker_review_output requires a non-empty task_id.")
+    raw_findings = worker_result.get("findings", [])
+    if not isinstance(raw_findings, list):
+        raise ValueError("G4 worker_review_output findings must be an array.")
+    worker_ids: list[str] = []
+    for index, item in enumerate(raw_findings):
+        finding_id = item.get("finding_id") if isinstance(item, dict) else None
+        if not isinstance(finding_id, str) or not finding_id.strip():
+            raise ValueError(f"G4 Worker finding at index {index} requires a stable non-empty finding_id.")
+        worker_ids.append(finding_id)
+    if len(worker_ids) != len(set(worker_ids)):
+        raise ValueError("G4 worker_review_output contains duplicate finding_id values.")
+
+    if reviewed.get("schema_version") != "1.0":
+        raise ValueError("G4 reviewed_findings schema_version must be 1.0.")
+    for key in ("run_id", "project_id", "reviewer"):
+        if not isinstance(reviewed.get(key), str) or not reviewed[key].strip():
+            raise ValueError(f"G4 reviewed_findings requires a non-empty {key}.")
+    reviewed_at = reviewed.get("reviewed_at")
+    if not isinstance(reviewed_at, str) or not reviewed_at.strip():
+        raise ValueError("G4 reviewed_findings requires reviewed_at.")
+    try:
+        parsed_time = datetime.fromisoformat(reviewed_at.replace("Z", "+00:00"))
+        if parsed_time.tzinfo is None or parsed_time.utcoffset() is None:
+            raise ValueError("timezone offset is required")
+    except ValueError as exc:
+        raise ValueError("G4 reviewed_findings reviewed_at must be an ISO-8601 timestamp with timezone.") from exc
+
+    worker_ref = reviewed.get("worker_output")
+    if not isinstance(worker_ref, dict):
+        raise ValueError("G4 reviewed_findings must bind worker_output.")
+    if (worker_ref.get("artifact_id") != "worker_review_output"
+            or worker_ref.get("path") != worker_binding["path"]
+            or worker_ref.get("sha256") != worker_binding["sha256"]):
+        raise ValueError("G4 reviewed_findings worker_output does not bind the exact G4 worker_review_output artifact.")
+
+    reviewed_artifacts = reviewed.get("reviewed_artifacts")
+    if not isinstance(reviewed_artifacts, list) or not reviewed_artifacts:
+        raise ValueError("G4 reviewed_findings requires at least one reviewed_artifact.")
+    reviewed_ids: set[str] = set()
+    for index, item in enumerate(reviewed_artifacts):
+        if not isinstance(item, dict):
+            raise ValueError(f"G4 reviewed_artifacts[{index}] must be an object.")
+        artifact_id = item.get("artifact_id")
+        if not isinstance(artifact_id, str) or not artifact_id.strip() or artifact_id in reviewed_ids:
+            raise ValueError("G4 reviewed_findings reviewed_artifacts must have unique non-empty artifact IDs.")
+        reviewed_ids.add(artifact_id)
+        binding = by_id.get(artifact_id)
+        if binding is None:
+            raise ValueError(f"G4 Gate event must bind reviewed artifact {artifact_id}.")
+        if item.get("path") != binding["path"] or item.get("sha256") != binding["sha256"]:
+            raise ValueError(f"G4 reviewed_findings artifact {artifact_id} does not match the exact Gate-bound path and SHA-256.")
+        path = Path(binding["path"])
+        if not path.is_file() or sha256_file(path) != binding["sha256"]:
+            raise ValueError(f"G4 reviewed artifact {artifact_id} changed after human review.")
+    if not (G4_REVIEWABLE_ARTIFACTS & reviewed_ids):
+        raise ValueError("G4 reviewed_findings must include at least one reviewable scientific result artifact.")
+
+    records = reviewed.get("findings")
+    if not isinstance(records, list):
+        raise ValueError("G4 reviewed_findings findings must be an array.")
+    human_ids: list[str] = []
+    dispositions: list[str] = []
+    allowed = {"ACCEPT_AS_IS", "ACCEPT_WITH_CHANGES", "REJECT", "DEFER"}
+    for index, item in enumerate(records):
+        if not isinstance(item, dict):
+            raise ValueError(f"G4 reviewed_findings item {index} must be an object.")
+        finding_id = item.get("worker_finding_id")
+        disposition = item.get("disposition")
+        rationale = item.get("reviewer_rationale")
+        if not isinstance(finding_id, str) or not finding_id.strip():
+            raise ValueError(f"G4 reviewed_findings item {index} requires worker_finding_id.")
+        if not isinstance(disposition, str) or disposition not in allowed:
+            raise ValueError(f"G4 reviewed_findings item {finding_id} has an unsupported disposition.")
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise ValueError(f"G4 reviewed_findings item {finding_id} requires reviewer_rationale.")
+        if disposition == "ACCEPT_WITH_CHANGES":
+            revised = item.get("revised_finding_summary")
+            if not isinstance(revised, str) or not revised.strip():
+                raise ValueError(f"G4 finding {finding_id} requires revised_finding_summary for ACCEPT_WITH_CHANGES.")
+        supporting = item.get("supporting_artifact_ids", [])
+        if (not isinstance(supporting, list)
+                or any(not isinstance(ref, str) for ref in supporting)
+                or len(supporting) != len(set(supporting))
+                or any(ref not in reviewed_ids for ref in supporting)):
+            raise ValueError(f"G4 finding {finding_id} references artifacts outside the reviewed artifact set.")
+        human_ids.append(finding_id)
+        dispositions.append(disposition)
+    if len(human_ids) != len(set(human_ids)):
+        raise ValueError("G4 reviewed_findings contains duplicate worker_finding_id values.")
+    if set(human_ids) != set(worker_ids) or len(human_ids) != len(worker_ids):
+        raise ValueError("G4 human dispositions must cover every Worker finding exactly once, with no unknown finding IDs.")
+
+    accepted = sum(value in {"ACCEPT_AS_IS", "ACCEPT_WITH_CHANGES"} for value in dispositions)
+    changed = dispositions.count("ACCEPT_WITH_CHANGES")
+    deferred = dispositions.count("DEFER")
+    decision = reviewed.get("promotion_decision")
+    consistent = (
+        (decision == "PROMOTE_ACCEPTED_ONLY" and accepted > 0 and changed == 0)
+        or (decision == "PROMOTE_WITH_CHANGES" and accepted > 0 and changed > 0)
+        or (decision == "DO_NOT_PROMOTE" and accepted == 0 and deferred == 0)
+        or (decision == "DEFER" and accepted == 0 and deferred > 0)
+    )
+    if not consistent:
+        raise ValueError("G4 promotion_decision is inconsistent with the individual human finding dispositions.")
+    rationale = reviewed.get("overall_rationale")
+    if not isinstance(rationale, str) or not rationale.strip():
+        raise ValueError("G4 reviewed_findings requires an overall_rationale.")
+
+
 def _validate_approval_artifacts(
     gate_id: str,
     bindings: list[dict[str, str]],
@@ -429,6 +549,8 @@ def _validate_approval_artifacts(
         _validate_g2_artifacts(bindings, latest_by_gate["G1"])
     elif gate_id == "G3":
         _validate_g3_selection(bindings, latest_by_gate["G2"])
+    elif gate_id == "G4":
+        _validate_g4_reviewed_findings(bindings)
 
 
 def require_selected_interaction_id(ledger_path: Path, interaction_id: str) -> dict[str, Any]:
