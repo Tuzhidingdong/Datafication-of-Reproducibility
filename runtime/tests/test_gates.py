@@ -247,8 +247,15 @@ class WorkflowGateTests(unittest.TestCase):
     def _prepare_review_packet(self, gate, artifact_ids):
         stage_id = gate.lower() + "_review_packet"
         report_id = stage_id + "_validation"
-        packet_path = self.root / (stage_id + ".json")
-        report_path = self.root / (report_id + ".json")
+        output_directory = {
+            "G0": "01_audit",
+            "G1": "02_mapping",
+            "G2": "04_reconciliation",
+        }[gate]
+        output_root = self.root / output_directory
+        output_root.mkdir(parents=True, exist_ok=True)
+        packet_path = output_root / (stage_id + ".json")
+        report_path = output_root / (report_id + ".json")
         packet_bindings = [
             {
                 "artifact_id": artifact_id,
@@ -303,7 +310,12 @@ class WorkflowGateTests(unittest.TestCase):
         )
 
     def _record_g0(self):
-        ids = ["dataset_manifest", "source_inventory"]
+        ids = ["dataset_manifest", "source_inventory", "data_audit_report", "mapping_review_queue", "adapter_handoff"]
+        for artifact_id in ids:
+            if artifact_id not in self.files:
+                path = self.root / (artifact_id + ".json")
+                path.write_text(json.dumps({"schema_version": "1.0", "artifact_id": artifact_id}), encoding="utf-8")
+                self.files[artifact_id] = path
         ids.extend(self._prepare_review_packet("G0", ids))
         return self._record("G0", ids)
 
@@ -315,9 +327,15 @@ class WorkflowGateTests(unittest.TestCase):
     def _record_g2(self):
         ids = [
             "canonical_bundle", "canonical_validation_report",
-            "reconciliation_report", "reconciliation_decisions",
+            "reconciliation_report", "reconciliation_review_queue",
+            "reconciliation_decisions", "reconciliation_decision_validation",
             "discovery_report", "research_scope_record", "modeling_task",
         ]
+        for artifact_id in ids:
+            if artifact_id not in self.files:
+                path = self.root / (artifact_id + ".json")
+                path.write_text(json.dumps({"schema_version": "1.0", "artifact_id": artifact_id}), encoding="utf-8")
+                self.files[artifact_id] = path
         ids.extend(self._prepare_review_packet("G2", ids))
         return self._record("G2", ids)
 
@@ -510,22 +528,30 @@ class WorkflowGateTests(unittest.TestCase):
     def test_g0_gate_requires_and_rechecks_its_run_review_packet(self):
         with self.assertRaisesRegex(ValueError, "g0_review_packet"):
             self._record("G0", ["dataset_manifest", "source_inventory"])
-        ids = ["dataset_manifest", "source_inventory"]
-        review_ids = self._prepare_review_packet("G0", ids)
+        self._record_g0()
+        ids = ["dataset_manifest", "source_inventory", "data_audit_report", "mapping_review_queue", "adapter_handoff"]
+        review_ids = ["g0_review_packet", "g0_review_packet_validation"]
         report = json.loads(self.files["g0_review_packet_validation"].read_text(encoding="utf-8"))
         report["valid"] = False
         self._write("g0_review_packet_validation", report)
         with self.assertRaisesRegex(ValueError, "valid=true"):
             self._record("G0", ids + review_ids)
 
+    def test_g0_gate_cannot_omit_a_formal_run_plan_input(self):
+        self._record_g0()
+        partial_ids = [
+            "dataset_manifest", "source_inventory",
+            "g0_review_packet", "g0_review_packet_validation",
+        ]
+        with self.assertRaisesRegex(ValueError, "exact supported Run Plan input set"):
+            self._record("G0", partial_ids)
+
     def test_g0_review_packet_must_cover_every_gate_bound_input(self):
-        ids = ["dataset_manifest", "source_inventory"]
-        review_ids = self._prepare_review_packet("G0", ids)
-        extra = self.root / "extra_gate_input.json"
-        extra.write_text(json.dumps({"extra": True}), encoding="utf-8")
-        self.files["extra_gate_input"] = extra
+        self._record_g0()
+        ids = ["dataset_manifest", "source_inventory", "data_audit_report", "mapping_review_queue", "adapter_handoff"]
+        review_ids = self._prepare_review_packet("G0", ids[:-1])
         with self.assertRaisesRegex(ValueError, "cover exactly the Gate-bound input artifacts"):
-            self._record("G0", ids + review_ids + ["extra_gate_input"])
+            self._record("G0", ids + review_ids)
 
     def test_stop_can_be_recorded_without_unavailable_artifacts(self):
         result = record_gate_decision(

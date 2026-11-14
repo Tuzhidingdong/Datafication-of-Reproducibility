@@ -201,6 +201,43 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             for stage_id in ("g0_review_packet", "g1_review_packet", "g2_review_packet"):
                 self.assertEqual(stages[stage_id]["executor"], "manual")
                 self.assertEqual(stages[stage_id]["outputs"][0]["artifact_id"], stage_id)
+            expected_g0_inputs = {
+                frozenset({
+                    "dataset_manifest", "source_inventory", "data_audit_report",
+                    "mapping_review_queue", "adapter_handoff",
+                }),
+                frozenset({
+                    "dataset_manifest", "source_inventory", "adapter_handoff",
+                    "materialization_manifest",
+                }),
+            }
+            self.assertIn(frozenset(stages["g0_review_packet"]["inputs"]), expected_g0_inputs)
+            self.assertEqual(
+                frozenset(stages["g1_review_packet"]["inputs"]),
+                frozenset({
+                    "mapping_plan", "mapping_validation", "source_inventory",
+                    "build_spec", "build_spec_validation",
+                }),
+            )
+            self.assertEqual(
+                frozenset(stages["g2_review_packet"]["inputs"]),
+                frozenset({
+                    "canonical_bundle", "canonical_validation_report",
+                    "reconciliation_report", "reconciliation_review_queue",
+                    "reconciliation_decisions", "reconciliation_decision_validation",
+                    "discovery_report", "research_scope_record", "modeling_task",
+                }),
+            )
+            expected_packet_dirs = {
+                "g0_review_packet": "01_audit" if "data_audit_report" in stages["g0_review_packet"]["inputs"] else "01_review",
+                "g1_review_packet": "02_mapping",
+                "g2_review_packet": "04_reconciliation",
+            }
+            for stage_id, directory in expected_packet_dirs.items():
+                packet_output = next(item for item in stages[stage_id]["outputs"] if item["artifact_id"] == stage_id)
+                validation_output = next(item for item in stages[stage_id]["outputs"] if item["artifact_id"] == stage_id + "_validation")
+                self.assertTrue(packet_output["path"].startswith(directory + "/"))
+                self.assertTrue(validation_output["path"].startswith(directory + "/"))
             self.assertEqual(
                 stages["human_review_and_promotion"]["outputs"][0]["artifact_id"],
                 "reviewed_findings",

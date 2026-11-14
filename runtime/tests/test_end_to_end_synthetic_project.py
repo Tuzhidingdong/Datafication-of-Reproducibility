@@ -121,11 +121,47 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         return stdout.getvalue()
 
     @classmethod
-    def _make_gate_review_packet(cls, gate_id, artifact_bindings, run_root=None, packet_dir=None):
+    def _make_gate_review_packet(cls, gate_id, artifact_bindings, run_root=None):
         stage_id = gate_id.lower() + "_review_packet"
         report_id = stage_id + "_validation"
         workspace = Path(run_root or cls.root).resolve()
-        output_dir = Path(packet_dir or (cls.root / ".gate_review_packets"))
+        artifact_bindings = list(artifact_bindings)
+        extra_paths = {
+            "G0": {
+                "data_audit_report": cls.audit_dir / "data_audit_report.md",
+                "mapping_review_queue": cls.audit_dir / "mapping_review_queue.csv",
+                "adapter_handoff": cls.root / "00_adapter" / "adapter_handoff.json",
+            },
+            "G2": {
+                "reconciliation_review_queue": cls.reconciliation_dir / "reconciliation_review_queue.csv",
+                "reconciliation_decision_validation": cls.reconciliation_decision_validation_path,
+            },
+        }.get(gate_id, {})
+        original_ids = {artifact_id for artifact_id, _ in artifact_bindings}
+        existing_ids = set(original_ids)
+        for artifact_id, path in extra_paths.items():
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if path.suffix.lower() == ".csv":
+                    path.write_text("record_id,status\n", encoding="utf-8")
+                elif path.suffix.lower() == ".md":
+                    path.write_text("Synthetic review input artifact.\n", encoding="utf-8")
+                else:
+                    write_json(path, {
+                        "schema_version": "1.0",
+                        "artifact_id": artifact_id,
+                        "synthetic_fixture": True,
+                    })
+            if artifact_id not in existing_ids:
+                artifact_bindings.append((artifact_id, path))
+                existing_ids.add(artifact_id)
+
+        output_directory = {
+            "G0": "01_audit",
+            "G1": "02_mapping",
+            "G2": "04_reconciliation",
+        }[gate_id]
+        output_dir = workspace / output_directory
         output_dir.mkdir(parents=True, exist_ok=True)
         packet_path = output_dir / (stage_id + ".json")
         report_path = output_dir / (report_id + ".json")
@@ -171,7 +207,11 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "errors": [],
         }
         report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        return [(stage_id, packet_path), (report_id, report_path)]
+        newly_added_inputs = [
+            (artifact_id, path) for artifact_id, path in artifact_bindings
+            if artifact_id not in original_ids
+        ]
+        return newly_added_inputs + [(stage_id, packet_path), (report_id, report_path)]
 
     @classmethod
     def _approve_gate(cls, gate_id, artifact_bindings, rationale):
@@ -1024,7 +1064,6 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 "G1",
                 revised_g1_artifacts,
                 run_root=common_workspace,
-                packet_dir=temp_root / ".gate_review_packets",
             ))
             record_gate_decision(
                 ledger_copy, "G1", "APPROVE", "synthetic-e2e-human-reviewer",

@@ -34,6 +34,60 @@ G4_REVIEWABLE_ARTIFACTS = {
 }
 
 
+# These sets mirror the two supported generic Run Plan entry routes. They are
+# workflow contracts (artifact IDs only), not discipline-specific assumptions.
+_GATE_REVIEW_INPUT_SETS = {
+    "G0": (
+        frozenset({
+            "dataset_manifest", "source_inventory", "data_audit_report",
+            "mapping_review_queue", "adapter_handoff",
+        }),
+        frozenset({
+            "dataset_manifest", "source_inventory", "adapter_handoff",
+            "materialization_manifest",
+        }),
+    ),
+    "G1": (
+        frozenset({
+            "mapping_plan", "mapping_validation", "source_inventory",
+            "build_spec", "build_spec_validation",
+        }),
+    ),
+    "G2": (
+        frozenset({
+            "canonical_bundle", "canonical_validation_report",
+            "reconciliation_report", "reconciliation_review_queue",
+            "reconciliation_decisions", "reconciliation_decision_validation",
+            "discovery_report", "research_scope_record", "modeling_task",
+        }),
+    ),
+}
+_GATE_REVIEW_OUTPUT_PATHS = {
+    "G0": {
+        "STRUCTURED_DATASET": (
+            "01_audit/g0_review_packet.json",
+            "01_audit/g0_review_packet_validation.json",
+        ),
+        "CANONICAL_BUNDLE": (
+            "01_review/g0_review_packet.json",
+            "01_review/g0_review_packet_validation.json",
+        ),
+    },
+    "G1": {
+        "DEFAULT": (
+            "02_mapping/g1_review_packet.json",
+            "02_mapping/g1_review_packet_validation.json",
+        ),
+    },
+    "G2": {
+        "DEFAULT": (
+            "04_reconciliation/g2_review_packet.json",
+            "04_reconciliation/g2_review_packet_validation.json",
+        ),
+    },
+}
+
+
 def _canonical_json(value: Any) -> str:
     return json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
@@ -218,6 +272,21 @@ def _validate_gate_review_packet(bindings: list[dict[str, str]], gate_id: str) -
     report_path = Path(report_binding["path"]).expanduser().resolve(strict=True)
     if not packet_path.is_relative_to(run_root) or not report_path.is_relative_to(run_root):
         raise ValueError(f"{gate_id} review packet and validation report must be inside the same Run workspace.")
+    actual_input_ids = frozenset(set(by_id) - {stage_id, report_id})
+    allowed_input_sets = _GATE_REVIEW_INPUT_SETS[gate_id]
+    if actual_input_ids not in allowed_input_sets:
+        raise ValueError(
+            f"{gate_id} Gate-bound input artifacts must match one exact supported Run Plan input set."
+        )
+    if gate_id == "G0":
+        route = "CANONICAL_BUNDLE" if "materialization_manifest" in actual_input_ids else "STRUCTURED_DATASET"
+    else:
+        route = "DEFAULT"
+    expected_packet_rel, expected_report_rel = _GATE_REVIEW_OUTPUT_PATHS[gate_id][route]
+    if packet_path.relative_to(run_root).as_posix() != expected_packet_rel:
+        raise ValueError(f"{gate_id} review packet path must be {expected_packet_rel}.")
+    if report_path.relative_to(run_root).as_posix() != expected_report_rel:
+        raise ValueError(f"{gate_id} review validation report path must be {expected_report_rel}.")
     if report.get("contract") != "RUN_REVIEW_PACKET" or report.get("valid") is not True:
         raise ValueError(f"{gate_id} review packet validation report must have contract RUN_REVIEW_PACKET and valid=true.")
     if report.get("run_id") != packet["run_id"] or report.get("project_id") != packet["project_id"]:
