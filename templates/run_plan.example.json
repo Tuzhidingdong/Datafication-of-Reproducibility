@@ -243,6 +243,45 @@
       ]
     },
     {
+      "stage_id": "reconciliation_decision_review",
+      "executor": "manual",
+      "depends_on": [
+        "canonical_reconciliation",
+        "canonical_build"
+      ],
+      "inputs": [
+        "canonical_bundle",
+        "reconciliation_report",
+        "reconciliation_review_queue"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reconciliation_decisions",
+          "path": "04_reconciliation/reconciliation_decisions.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "reconciliation_decision_validation",
+      "executor": "local",
+      "depends_on": [
+        "canonical_reconciliation",
+        "canonical_build",
+        "reconciliation_decision_review"
+      ],
+      "inputs": [
+        "canonical_bundle",
+        "reconciliation_report",
+        "reconciliation_decisions"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reconciliation_decision_validation",
+          "path": "04_reconciliation/reconciliation_decision_validation.json"
+        }
+      ]
+    },
+    {
       "stage_id": "exploratory_discovery",
       "executor": "local",
       "depends_on": [
@@ -315,7 +354,8 @@
         "canonical_build",
         "canonical_bundle_validation",
         "canonical_reconciliation",
-        "research_scope_selection"
+        "research_scope_selection",
+        "reconciliation_decision_validation"
       ],
       "inputs": [
         "canonical_bundle",
@@ -323,7 +363,9 @@
         "reconciliation_report",
         "reconciliation_review_queue",
         "research_scope_record",
-        "modeling_task"
+        "modeling_task",
+        "reconciliation_decisions",
+        "reconciliation_decision_validation"
       ],
       "outputs": [
         {
