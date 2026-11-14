@@ -414,6 +414,13 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
     reviewed_binding = by_id["reviewed_findings"]
     worker_result = _read_json_binding(worker_binding, "G4 worker_review_output")
     reviewed = _read_json_binding(reviewed_binding, "G4 reviewed_findings")
+    for label, binding in (
+        ("worker_review_output", worker_binding),
+        ("reviewed_findings", reviewed_binding),
+    ):
+        bound_path = Path(binding["path"])
+        if not bound_path.is_file() or sha256_file(bound_path) != binding["sha256"]:
+            raise ValueError(f"G4 {label} changed after the Gate artifact hash was recorded.")
 
     if worker_result.get("schema_version") != "1.0":
         raise ValueError("G4 worker_review_output schema_version must be 1.0.")
