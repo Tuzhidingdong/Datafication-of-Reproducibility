@@ -31,7 +31,7 @@ def make_task(categorical=False):
         "endpoint_definition":"exact endpoint A","outcome_type":"CATEGORICAL" if categorical else "NUMERIC",
         "outcome_value_field":"normalized_value","outcome_unit":"class" if categorical else "unit-y",
         "feature_bindings":[
-            {"feature_id":"temperature","condition_type":"numeric_condition","value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"unit-x"},
+            {"feature_id":"NUMERIC_INPUT","condition_type":"numeric_condition","value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"unit-x"},
             {"feature_id":"FEATURE_CATEGORY","condition_type":"condition_category","value_field":"normalized_value","value_type":"CATEGORICAL","expected_unit":None}
         ],
         "split":{"strategy":"EXPLICIT_STUDIES","validation_study_ids":["ST5","ST6"],"test_study_ids":["ST7","ST8"]},
