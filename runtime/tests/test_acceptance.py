@@ -241,9 +241,9 @@ class AcceptanceValidatorTests(unittest.TestCase):
             })
             observations.append({
                 "observation_id": observation_id, "experiment_id": experiment_id,
-                "target_id": "CAPACITY", "value_state": "REPORTED",
+                "target_id": "TARGET_01", "value_state": "REPORTED",
                 "raw_value": 100.0 + index, "raw_unit": "unit_outcome",
-                "endpoint_definition": "specific discharge capacity",
+                "endpoint_definition": "synthetic endpoint",
                 "evidence_ids": [evidence_id],
             })
             evidence.append({
@@ -284,7 +284,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
 
         task = {
             "schema_version": "1.0", "task_id": "TASK_1",
-            "target_id": "CAPACITY", "endpoint_definition": "specific discharge capacity",
+            "target_id": "TARGET_01", "endpoint_definition": "synthetic endpoint",
             "outcome_type": "NUMERIC", "outcome_value_field": "raw_value",
             "outcome_unit": "unit_outcome",
             "feature_bindings": [{
@@ -301,7 +301,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
 
         cohort = {
             "schema_version": "1.0", "valid": True, "task_id": "TASK_1",
-            "target_id": "CAPACITY", "endpoint_definition": "specific discharge capacity",
+            "target_id": "TARGET_01", "endpoint_definition": "synthetic endpoint",
             "eligible_observation_count": len(ids), "eligible_study_count": len(ids),
             "eligible_study_ids": sorted(ids),
             "bundle_sha256": canonical_hash, "task_sha256": task_hash,
@@ -348,8 +348,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
         training_study_ids = sorted(study_id for study_id, partition in groups.items() if partition != "test")
         test_study_ids = sorted(study_id for study_id, partition in groups.items() if partition == "test")
         model_report = {
-            "schema_version": "1.0", "task_id": "TASK_1", "target_id": "CAPACITY",
-            "endpoint_definition": "specific discharge capacity", "outcome_type": "NUMERIC",
+            "schema_version": "1.0", "task_id": "TASK_1", "target_id": "TARGET_01",
+            "endpoint_definition": "synthetic endpoint", "outcome_type": "NUMERIC",
             "outcome_value_field": "raw_value", "outcome_unit": "unit_outcome",
             "selected_model": "ridge_regression", "selected_candidate_id": "ridge_1",
             "primary_selection_metric": "validation_mae", "validation_comparison": [{"candidate_id": "ridge_1"}],
@@ -361,8 +361,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
         model_report_hash = self._write_json(paths["model_report"], model_report)
         model_artifact = {
             "schema_version": "1.0", "engine_version": "synthetic", "task_id": "TASK_1",
-            "model_type": "ridge_regression", "target_id": "CAPACITY",
-            "endpoint_definition": "specific discharge capacity",
+            "model_type": "ridge_regression", "target_id": "TARGET_01",
+            "endpoint_definition": "synthetic endpoint",
             "outcome_value_field": "raw_value", "outcome_unit": "unit_outcome",
             "feature_bindings": [{
                 "feature_id": "feature_01", "condition_type": "feature_01",
@@ -411,8 +411,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
             })
             per_study.append({"study_id": held_out_id, "fold": fold_index, "n": 1, "selected_model": "Ridge"})
         evaluation = {
-            "schema_version": "1.0", "task_id": "TASK_1", "target_id": "CAPACITY",
-            "endpoint_definition": "specific discharge capacity", "outcome_type": "NUMERIC",
+            "schema_version": "1.0", "task_id": "TASK_1", "target_id": "TARGET_01",
+            "endpoint_definition": "synthetic endpoint", "outcome_type": "NUMERIC",
             "fold_count": len(ids), "study_count": len(ids), "observation_count": len(ids),
             "seed": 42, "outer_split_strategy": "DETERMINISTIC_GROUPED_K_FOLD_BY_STUDY",
             "inner_selection_strategy": "NESTED_STUDY_HOLDOUT_WITHIN_OUTER_TRAINING_STUDIES",
