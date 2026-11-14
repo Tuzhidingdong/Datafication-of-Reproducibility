@@ -221,7 +221,7 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
                 raise ValueError(f"Stage {stage_id} activation.json_pointer must be an RFC 6901 JSON Pointer.")
             if re.search(r"~(?![01])", pointer):
                 raise ValueError(f"Stage {stage_id} activation.json_pointer contains an invalid escape.")
-            if operator not in operators:
+            if not isinstance(operator, str) or operator not in operators:
                 raise ValueError(f"Stage {stage_id} activation.operator is unsupported.")
             if operator in {"equals", "not_equals"} and "value" not in activation:
                 raise ValueError(f"Stage {stage_id} activation operator {operator} requires value.")
@@ -681,10 +681,15 @@ def _evaluate_activation(root: Path, plan: Mapping[str, Any], stage: Mapping[str
         matched = found and value is True
     elif operator == "boolean_false":
         matched = found and value is False
-    elif operator == "equals":
-        matched = found and value == activation["value"]
-    elif operator == "not_equals":
-        matched = found and value != activation["value"]
+    elif operator in {"equals", "not_equals"}:
+        expected = activation["value"]
+        if isinstance(value, bool) or isinstance(expected, bool):
+            equal = type(value) is type(expected) and value == expected
+        elif isinstance(value, (int, float)) and isinstance(expected, (int, float)):
+            equal = value == expected
+        else:
+            equal = type(value) is type(expected) and value == expected
+        matched = found and (equal if operator == "equals" else not equal)
     else:
         raise ValueError(f"Unsupported activation operator: {operator}")
     observed_hash = _hash_payload({"exists": found, "value": value if found else None})
