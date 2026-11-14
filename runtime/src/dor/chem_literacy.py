@@ -337,9 +337,11 @@ def _merge_ledger(primary: list[dict[str, Any]], ledger: list[dict[str, Any]]) -
             merged.append(extra)
             continue
         primary_record = merged[matches[0]]
+        disagreement_fields: list[str] = []
         for field in compare_fields:
             left, right = primary_record.get(field), ledger_record.get(field)
             if left not in (None, "") and right not in (None, "") and str(left) != str(right):
+                disagreement_fields.append(field)
                 issues.append({
                     "issue_code": "JSON_CSV_FIELD_DISAGREEMENT",
                     "source_record_key": key,
@@ -350,6 +352,12 @@ def _merge_ledger(primary: list[dict[str, Any]], ledger: list[dict[str, Any]]) -
                 })
             elif left in (None, "") and right not in (None, ""):
                 primary_record[field] = right
+        if disagreement_fields:
+            primary_record["requires_human_review"] = True
+            reason = "JSON_CSV_FIELD_DISAGREEMENT: " + ", ".join(sorted(disagreement_fields))
+            primary_record["review_reason"] = (
+                (str(primary_record.get("review_reason") or "").strip() + " | " + reason).strip(" |")
+            )
         if primary_record.get("doi"):
             primary_record["study_group_id"] = primary_record["doi"]
             primary_record["study_group_id_source"] = "DOI"
