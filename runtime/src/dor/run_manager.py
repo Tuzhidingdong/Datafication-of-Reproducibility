@@ -753,6 +753,74 @@ def _required_gate_is_current(stage: Mapping[str, Any], gate_snapshot: dict[str,
                 and _gate_approval(stage, gate_snapshot).get("status") == "APPROVED")
 
 
+def _gate_input_mismatches(
+    stage: Mapping[str, Any], gate_snapshot: dict[str, Any] | None,
+    input_snapshots: list[Mapping[str, str]],
+) -> list[str]:
+    required_gate = stage.get("required_gate")
+    if required_gate is None:
+        return []
+    if not gate_snapshot or not gate_snapshot.get("valid_ledger"):
+        return [f"Required gate {required_gate} has no valid approval ledger snapshot."]
+    gate_event = gate_snapshot.get("events", {}).get(required_gate)
+    if not isinstance(gate_event, Mapping):
+        return [f"Required gate {required_gate} has no inspectable approval event."]
+    gate_artifacts = gate_event.get("artifacts")
+    if not isinstance(gate_artifacts, list):
+        return [f"Required gate {required_gate} has no inspectable artifact bindings."]
+    approved_by_id: dict[str, Mapping[str, Any]] = {}
+    for binding in gate_artifacts:
+        if not isinstance(binding, Mapping):
+            continue
+        artifact_id = binding.get("artifact_id")
+        if isinstance(artifact_id, str):
+            approved_by_id[artifact_id] = binding
+
+    mismatches: list[str] = []
+    for current in input_snapshots:
+        artifact_id = current.get("artifact_id")
+        if not isinstance(artifact_id, str):
+            continue
+        approved = approved_by_id.get(artifact_id)
+        if approved is None:
+            continue
+        approved_path = approved.get("path")
+        current_path = current.get("path")
+        if not isinstance(approved_path, str) or not isinstance(current_path, str):
+            mismatches.append(
+                f"Approved {required_gate} artifact {artifact_id} has no comparable path binding."
+            )
+            continue
+        approved_resolved = Path(approved_path).expanduser().resolve(strict=False)
+        current_resolved = Path(current_path).expanduser().resolve(strict=False)
+        if approved_resolved != current_resolved:
+            mismatches.append(
+                f"Approved {required_gate} artifact {artifact_id} path differs from the stage input path."
+            )
+        approved_hash = approved.get("sha256")
+        current_hash = current.get("sha256")
+        if not isinstance(approved_hash, str) or approved_hash != current_hash:
+            mismatches.append(
+                f"Approved {required_gate} artifact {artifact_id} SHA-256 differs from the stage input SHA-256."
+            )
+    return mismatches
+
+
+def _stage_gate_input_mismatches(
+    root: Path, manifest: Mapping[str, Any], plan: Mapping[str, Any],
+    stage: Mapping[str, Any], gate_snapshot: dict[str, Any] | None,
+) -> list[str]:
+    if stage.get("required_gate") is None:
+        return []
+    try:
+        input_snapshots = _snapshot_artifacts(
+            root, manifest, plan, list(stage.get("inputs", []))
+        )
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return [f"Could not verify required-gate inputs for stage {stage.get('stage_id')}: {exc}"]
+    return _gate_input_mismatches(stage, gate_snapshot, input_snapshots)
+
+
 def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                  events: list[dict[str, Any]]) -> dict[str, Any]:
     order, _, producer_by_artifact = _validate_plan(plan, root)
@@ -822,6 +890,9 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                 elif not _required_gate_is_current(stage, gate_snapshot):
                     action = "BLOCKED_GATE"
                     reasons.append(f"Required gate {stage.get('required_gate')} is not currently approved.")
+                elif _stage_gate_input_mismatches(root, manifest, plan, stage, gate_snapshot):
+                    action = "BLOCKED_GATE"
+                    reasons.extend(_stage_gate_input_mismatches(root, manifest, plan, stage, gate_snapshot))
                 elif current_event is None:
                     action = "READY_TO_RUN"
                 elif current_event.get("status") == "SKIPPED":
@@ -1107,7 +1178,10 @@ def _stage_input_snapshots(root: Path, manifest: dict[str, Any], plan: dict[str,
     return _snapshot_artifacts(root, manifest, plan, stage["inputs"])
 
 
-def _check_gate(stage: Mapping[str, Any], manifest: Mapping[str, Any]) -> dict[str, Any] | None:
+def _check_gate(
+    stage: Mapping[str, Any], manifest: Mapping[str, Any],
+    input_snapshots: list[Mapping[str, str]],
+) -> dict[str, Any] | None:
     required = stage.get("required_gate")
     if required is None:
         return None
@@ -1115,6 +1189,12 @@ def _check_gate(stage: Mapping[str, Any], manifest: Mapping[str, Any]) -> dict[s
     approval = _gate_approval(stage, snapshot)
     if not snapshot or not snapshot.get("valid_ledger") or approval.get("status") != "APPROVED":
         raise ValueError(f"Stage requires a currently approved {required} gate; no approval was created.")
+    mismatches = _gate_input_mismatches(stage, snapshot, input_snapshots)
+    if mismatches:
+        raise ValueError(
+            f"Stage inputs do not match the currently approved {required} Gate artifacts: "
+            + " ".join(mismatches)
+        )
     return approval
 
 
@@ -1142,8 +1222,8 @@ def authorize_worker(
         allowed_actions.add("RUNNING_NEEDS_RECONCILIATION")
     if state["action"] not in allowed_actions:
         raise ValueError(f"Worker stage is not ready for authorization (action={state['action']}).")
-    gate_approval = _check_gate(stage, manifest)
     input_artifacts = _stage_input_snapshots(root, manifest, plan, stage)
+    gate_approval = _check_gate(stage, manifest, input_artifacts)
     permitted_outputs = []
     for output in stage["outputs"]:
         path = _artifact_path(root, output)
@@ -1280,8 +1360,8 @@ def record_stage_status(
             raise ValueError("A protected source input changed after run initialization; create a new run from the revised source snapshot.")
         if state["action"] not in allowed:
             raise ValueError(f"Stage cannot start a new attempt (action={state['action']}).")
-        gate_approval = _check_gate(stage, manifest)
         input_snapshots = _stage_input_snapshots(root, manifest, plan, stage)
+        gate_approval = _check_gate(stage, manifest, input_snapshots)
         attempt = (latest.get("attempt", 0) if latest else 0) + 1
         for output in stage["outputs"]:
             output_path = _artifact_path(root, output)

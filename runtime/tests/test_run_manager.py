@@ -11,7 +11,6 @@ import unittest
 from pathlib import Path
 
 from dor.cli import build_parser
-from dor.gates import record_gate_decision
 from dor.mapping import sha256_file
 from dor.run_manager import (
     EVENT_GENESIS_HASH, _append_event, authorize_worker, build_artifact_manifest,
@@ -300,58 +299,96 @@ class RunManagerTests(unittest.TestCase):
         self.write_outputs("worker_review")
         record_stage_status(self.manifest_path, "worker_review", "SUCCEEDED", "worker")
 
-    def test_gate_requirement_blocks_stage_without_approval(self):
-        ledger = self.root / "workflow_gate_ledger.jsonl"
+    def _prepare_gated_mapping_run(self, run_id):
+        ledger = self.root / (run_id + "_workflow_gate_ledger.jsonl")
         self.plan["workflow_ledger_path"] = str(ledger)
-        self.stage("audit")["required_gate"] = "G0"
+        self.stage("mapping")["required_gate"] = "G0"
         self.write_plan()
-        # Reinitialize into a fresh run because the plan is hash-bound at init.
-        new_root = self.root / "runs" / "RUN_GATED"
-        initialize_run(self.plan_path, new_root, "RUN_GATED")
-        gated_manifest = new_root / "run_manifest.json"
-        state = build_resume_plan(gated_manifest)
-        self.assertEqual(state["stages"][0]["action"], "BLOCKED_GATE")
-        dataset_manifest = self.source_root / "dataset_manifest.json"
-        inventory = self.source_root / "inventory.json"
-        dataset_manifest.write_text('{"audit": "ok"}\n', encoding="utf-8")
-        inventory.write_text('{"items": []}\n', encoding="utf-8")
-        record_gate_decision(
-            ledger, "G0", "APPROVE", "human-reviewer", "Approved the source audit scope.",
-            [("dataset_manifest", dataset_manifest), ("source_inventory", inventory)],
-        )
-        state = build_resume_plan(gated_manifest)
-        self.assertEqual(state["stages"][0]["action"], "READY_TO_RUN")
-
-    def test_new_gate_approval_invalidates_stage_that_used_previous_decision(self):
-        ledger = self.root / "workflow_gate_ledger.jsonl"
-        self.plan["workflow_ledger_path"] = str(ledger)
-        self.stage("audit")["required_gate"] = "G0"
-        self.write_plan()
-        gated_root = self.root / "runs" / "RUN_GATE_REVISION"
-        initialize_run(self.plan_path, gated_root, "RUN_GATE_REVISION")
+        gated_root = self.root / "runs" / run_id
+        initialize_run(self.plan_path, gated_root, run_id)
         gated_manifest = gated_root / "run_manifest.json"
-        dataset_manifest = self.source_root / "dataset_manifest.json"
-        inventory = self.source_root / "inventory.json"
-        dataset_manifest.write_text('{"audit": "ok"}\n', encoding="utf-8")
-        inventory.write_text('{"items": []}\n', encoding="utf-8")
-        record_gate_decision(
-            ledger, "G0", "APPROVE", "reviewer-1", "Initial scope approval.",
-            [("dataset_manifest", dataset_manifest), ("source_inventory", inventory)],
-        )
-        record_stage_status(gated_manifest, "audit", "RUNNING", "local")
+
+        record_stage_status(gated_manifest, "audit", "RUNNING", "local", command="synthetic gated audit")
         for output in self.stage("audit")["outputs"]:
             path = gated_root / output["path"]
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("{}\n", encoding="utf-8")
+            path.write_text(
+                json.dumps({"stage": "audit", "artifact": output["artifact_id"]}) + "\\n",
+                encoding="utf-8",
+            )
         record_stage_status(gated_manifest, "audit", "SUCCEEDED", "local")
-        record_gate_decision(
-            ledger, "G0", "APPROVE", "reviewer-2", "Re-reviewed scope decision.",
-            [("dataset_manifest", dataset_manifest), ("source_inventory", inventory)],
-        )
-        state = build_resume_plan(gated_manifest)
-        self.assertEqual(state["stages"][0]["action"], "REBUILD_REQUIRED")
+        inventory = gated_root / "01_audit" / "source_inventory.json"
+        binding = {
+            "artifact_id": "source_inventory",
+            "path": str(inventory.resolve()),
+            "sha256": sha256_file(inventory),
+        }
+        gate_snapshot = {
+            "valid_ledger": True,
+            "gates": {
+                "G0": {"status": "APPROVED", "event_hash": "a" * 64},
+            },
+            "events": {
+                "G0": {"artifacts": [binding]},
+            },
+        }
+        return gated_manifest, inventory, gate_snapshot
+
+    def test_gate_requirement_blocks_stage_without_approval(self):
+        gated_manifest, _inventory, approved_snapshot = self._prepare_gated_mapping_run("RUN_GATED")
+        with patch("dor.run_manager._gate_status", return_value=None):
+            state = build_resume_plan(gated_manifest)
+        mapping_state = next(item for item in state["stages"] if item["stage_id"] == "mapping")
+        self.assertEqual(mapping_state["action"], "BLOCKED_GATE")
+
+        with patch("dor.run_manager._gate_status", return_value=approved_snapshot):
+            state = build_resume_plan(gated_manifest)
+            mapping_state = next(item for item in state["stages"] if item["stage_id"] == "mapping")
+            self.assertEqual(mapping_state["action"], "READY_TO_RUN")
+            record_stage_status(gated_manifest, "mapping", "RUNNING", "local")
+
+    def test_gate_approval_requires_the_exact_same_artifact_path(self):
+        gated_manifest, inventory, approved_snapshot = self._prepare_gated_mapping_run("RUN_GATE_PATH")
+        external_copy = self.root / "reviewed_source_inventory.json"
+        external_copy.write_bytes(inventory.read_bytes())
+        approved_snapshot["events"]["G0"]["artifacts"][0]["path"] = str(external_copy.resolve())
+        with patch("dor.run_manager._gate_status", return_value=approved_snapshot):
+            state = build_resume_plan(gated_manifest)
+            mapping_state = next(item for item in state["stages"] if item["stage_id"] == "mapping")
+            self.assertEqual(mapping_state["action"], "BLOCKED_GATE")
+            self.assertTrue(any("path differs" in reason for reason in mapping_state["reasons"]))
+            with self.assertRaisesRegex(ValueError, "BLOCKED_GATE"):
+                record_stage_status(gated_manifest, "mapping", "RUNNING", "local")
+
+    def test_gate_approval_requires_the_exact_same_artifact_sha256(self):
+        gated_manifest, _inventory, approved_snapshot = self._prepare_gated_mapping_run("RUN_GATE_HASH")
+        approved_snapshot["events"]["G0"]["artifacts"][0]["sha256"] = "f" * 64
+        with patch("dor.run_manager._gate_status", return_value=approved_snapshot):
+            state = build_resume_plan(gated_manifest)
+            mapping_state = next(item for item in state["stages"] if item["stage_id"] == "mapping")
+            self.assertEqual(mapping_state["action"], "BLOCKED_GATE")
+            self.assertTrue(any("SHA-256 differs" in reason for reason in mapping_state["reasons"]))
+            with self.assertRaisesRegex(ValueError, "BLOCKED_GATE"):
+                record_stage_status(gated_manifest, "mapping", "RUNNING", "local")
+
+    def test_new_gate_approval_invalidates_stage_that_used_previous_decision(self):
+        gated_manifest, _inventory, first_snapshot = self._prepare_gated_mapping_run("RUN_GATE_REVISION")
+        with patch("dor.run_manager._gate_status", return_value=first_snapshot):
+            record_stage_status(gated_manifest, "mapping", "RUNNING", "local")
+            for output in self.stage("mapping")["outputs"]:
+                path = gated_manifest.parent / output["path"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("{}\\n", encoding="utf-8")
+            record_stage_status(gated_manifest, "mapping", "SUCCEEDED", "local")
+
+        revised_snapshot = json.loads(json.dumps(first_snapshot))
+        revised_snapshot["gates"]["G0"]["event_hash"] = "b" * 64
+        with patch("dor.run_manager._gate_status", return_value=revised_snapshot):
+            state = build_resume_plan(gated_manifest)
+        mapping_state = next(item for item in state["stages"] if item["stage_id"] == "mapping")
+        self.assertEqual(mapping_state["action"], "REBUILD_REQUIRED")
         self.assertTrue(any("gate decision changed" in reason.lower()
-                            for reason in state["stages"][0]["reasons"]))
+                            for reason in mapping_state["reasons"]))
 
     def test_concurrent_stale_event_append_is_rejected(self):
         record_stage_status(self.manifest_path, "audit", "RUNNING", "local")

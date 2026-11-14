@@ -252,6 +252,10 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     set(stages["human_review_and_promotion"]["inputs"])
                 )
             )
+            source_artifact_ids = {item["artifact_id"] for item in plan["source_artifacts"]}
+            self.assertIn("publication_plan", source_artifact_ids)
+            self.assertIn("publication_plan", stages["publication_package_assembly"]["inputs"])
+            self.assertNotIn("publication_plan_input", source_artifact_ids)
 
     def test_run_plan_schema_declares_activation_operators(self):
         schema = json.loads(
