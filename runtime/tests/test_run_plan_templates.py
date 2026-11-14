@@ -214,6 +214,52 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "HUMAN_DISPOSITION_RECORD",
             "HUMAN_DISPOSITION_VALIDATION",
         }.issubset(publication_ids))
+        plan_items = {item["artifact_id"]: item for item in publication_plan["artifacts"]}
+        self.assertNotIn("domain_profile", publication_plan)
+        self.assertEqual(plan_items["DATA_DICTIONARY_001"]["status"], "not_generated")
+        self.assertNotIn("source_path", plan_items["DATA_DICTIONARY_001"])
+        for relative_path in (
+            "templates/run_plan.example.json",
+            "templates/run_plan.canonical_adapter.example.json",
+        ):
+            run_plan = json.loads((ROOT / relative_path).read_text(encoding="utf-8"))
+            output_paths = {
+                output["artifact_id"]: output["path"]
+                for stage in run_plan["stages"]
+                for output in stage["outputs"]
+            }
+            source_bindings = {
+                "MODEL_ARTIFACT_001": "model_artifact",
+                "MODEL_REPORT_001": "model_report",
+                "REPRODUCIBILITY_EVALUATION_001": "reproducibility_evaluation",
+                "INTERACTION_REPORT_001": "interaction_report",
+                "INTERACTION_ROBUSTNESS_001": "robustness_report",
+                "INTERACTION_SELECTION_001": "interaction_selection",
+                "VIRTUAL_PREDICTION_001": "virtual_prediction",
+                "WORKER_REVIEW_RECORD": "worker_review_output",
+                "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
+                "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+            }
+            for package_id, run_artifact_id in source_bindings.items():
+                self.assertEqual(
+                    plan_items[package_id]["source_path"],
+                    output_paths[run_artifact_id],
+                )
+            optional_paths = {
+                "MECHANISM_BRIDGE_001": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
+                "MECHANISM_FINDINGS_001": "07_mechanism_bridge/mechanism_findings.json",
+                "MECHANISM_LEDGER_001": "07_mechanism_bridge/mechanism_evidence_ledger.csv",
+                "MECHANISM_REVIEW_QUEUE_001": "07_mechanism_bridge/mechanism_review_queue.csv",
+                "MECHANISM_MANIFEST_001": "07_mechanism_bridge/mechanism_evidence_bridge_manifest.json",
+                "RESPONSE_SURFACE_REPORT_001": "07_response_surface/interaction_response_surface_report.json",
+                "RESPONSE_SURFACE_DATA_001": "07_response_surface/interaction_response_surface.csv",
+                "RESPONSE_SURFACE_SUPPORT_001": "07_response_surface/interaction_observed_support.csv",
+                "RESPONSE_SURFACE_MARGINALS_001": "07_response_surface/interaction_marginal_effects.csv",
+            }
+            for package_id, expected_path in optional_paths.items():
+                self.assertEqual(plan_items[package_id]["path"], expected_path)
+                self.assertEqual(plan_items[package_id]["status"], "not_generated")
+                self.assertNotIn("source_path", plan_items[package_id])
         for relative_path in (
             "templates/run_plan.example.json",
             "templates/run_plan.canonical_adapter.example.json",

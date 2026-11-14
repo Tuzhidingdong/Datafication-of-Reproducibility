@@ -62,7 +62,7 @@ After the Worker stage is SUCCEEDED and human_review_and_promotion is RUNNING, r
 
 Worker findings require stable IDs, bounded supporting-artifact IDs, and exact evidence locators. The human record binds the Worker output and all six inputs supplied to the Worker. The validator checks that every finding is dispositioned once, accepted findings cite reviewed artifacts, ACCEPT_WITH_CHANGES has a revised summary, and the aggregate promotion decision matches the individual dispositions.
 
-The validation reports are declared Run outputs and are hash-recorded with the manual stage. The G4 Gate independently rechecks the Worker result, every human disposition, and each reviewed-artifact hash; the validation report itself is not treated as an approval.
+The validation reports are declared Run outputs and are hash-recorded with the manual stage. The example publication plan uses the current formal Run-relative paths for model, interaction, virtual-prediction, mechanism, response-surface, and Worker records. Optional mechanism/response-surface entries start as `not_generated`; set a source_path only after the corresponding conditional stage actually produces the file. The G4 Gate independently rechecks the Worker result, every human disposition, and each reviewed-artifact hash; the validation report itself is not treated as an approval.
 
 ## Run Manager and conditional stage execution
 

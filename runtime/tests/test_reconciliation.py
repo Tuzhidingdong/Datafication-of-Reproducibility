@@ -9,18 +9,18 @@ def bundle():
     return {
         "schema_version":"1.0","project_id":"P1","mapping_version":"map-v1",
         "studies":[{"study_id":"ST1","doi":"10.1000/example","source_locators":[]}],
-        "systems":[{"system_id":"SY1","study_ids":["ST1"],"system_type":"battery_cell"}],
+        "systems":[{"system_id":"SY1","study_ids":["ST1"],"system_type":"system_type_01"}],
         "conditions":[{"condition_id":"CO1","system_ids":["SY1"],"condition_type":"temperature",
             "raw_value":25,"raw_unit":"degC","value_state":"REPORTED"}],
         "experiments":[{"experiment_id":"EX1","study_id":"ST1","system_id":"SY1","condition_ids":["CO1"]}],
         "observations":[{"observation_id":"OB1","experiment_id":"EX1","target_id":"TARGET_CAPACITY",
-            "raw_value":120,"raw_unit":"mAh g-1","value_state":"REPORTED",
-            "endpoint_definition":"specific discharge capacity after 100 cycles",
-            "timepoint":"100 cycles","evidence_ids":["EV1"]}],
+            "raw_value":120,"raw_unit":"unit-x","value_state":"REPORTED",
+            "endpoint_definition":"response metric after interval 100",
+            "timepoint":"interval 100","evidence_ids":["EV1"]}],
         "comparisons":[],
         "evidence":[{"evidence_id":"EV1","study_id":"ST1","source_locator":{
             "source_file":"paper.pdf","source_sha256":"a"*64,"locator_type":"pdf_page","locator":"p.4"},
-            "evidence_type":"table_value","extraction_status":"VERIFIED","quoted_text":"120 mAh g-1"}]
+            "evidence_type":"table_value","extraction_status":"VERIFIED","quoted_text":"120 unit-x"}]
     }
 
 
@@ -64,7 +64,7 @@ class ReconciliationTests(unittest.TestCase):
     def test_same_evidence_locator_with_different_extraction_is_flagged(self):
         data=bundle()
         duplicate=copy.deepcopy(data["evidence"][0])
-        duplicate.update({"evidence_id":"EV2","quoted_text":"118 mAh g-1"})
+        duplicate.update({"evidence_id":"EV2","quoted_text":"118 unit-x"})
         data["evidence"].append(duplicate)
         report=reconcile_canonical_bundle(data,"a"*64)
         self.assertTrue(any(x["category"]=="EVIDENCE_EXTRACTION_DISAGREEMENT" for x in report["issues"]))

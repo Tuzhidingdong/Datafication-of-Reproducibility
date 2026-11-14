@@ -3,17 +3,15 @@
   "project_id": "PROJECT_001",
   "run_id": "RUN_0001",
   "package_version": "0.5.0",
-  "domain_profile": null,
   "writing_guide_source": null,
   "source_hashes": {},
   "artifacts": [
     {
       "artifact_id": "DATA_DICTIONARY_001",
       "path": "data/data_dictionary.csv",
-      "source_path": "03_canonical/data_dictionary.csv",
       "type": "data_dictionary",
-      "description": "Approved feature definitions, semantic mappings, units and missingness states.",
-      "status": "complete",
+      "description": "Optional data dictionary prepared from project-approved mappings; the core Runtime does not guarantee this separate export.",
+      "status": "not_generated",
       "linked_record_ids": [],
       "manuscript_sections": [
         "Methods",
@@ -23,7 +21,7 @@
     {
       "artifact_id": "MODEL_ARTIFACT_001",
       "path": "models/baseline/model_artifact.json",
-      "source_path": "04_modeling/baseline_run/model_artifact.json",
+      "source_path": "06_modeling/baseline/model_artifact.json",
       "type": "model_artifact",
       "description": "Selected model and preprocessing parameters fitted on train plus validation; test observations excluded from fitting.",
       "status": "complete",
@@ -38,17 +36,17 @@
     },
     {
       "artifact_id": "MECHANISM_BRIDGE_001",
-      "path": "mechanisms/bridge/mechanism_evidence_bridge_report.json",
-      "source_path": "05_mechanisms/bridge/mechanism_evidence_bridge_report.json",
+      "path": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
       "type": "mechanism_evidence_bridge_report",
-      "description": "Evidence-linked mechanism hypotheses and contradictory evidence pending user review.",
-      "status": "requires_review",
+      "description": "Optional output of the conditional mechanism-evidence stage. When generated, set source_path to this Run-relative path and retain its user-review state.",
+      "status": "not_generated",
       "linked_record_ids": [
         "INT_SELECTED"
       ],
       "manuscript_sections": [
         "Results",
-        "Discussion"
+        "Discussion",
+        "Supporting Information"
       ]
     },
     {
@@ -96,6 +94,200 @@
       "status": "complete",
       "linked_record_ids": [],
       "manuscript_sections": [
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MECHANISM_FINDINGS_001",
+      "path": "07_mechanism_bridge/mechanism_findings.json",
+      "type": "research_findings",
+      "description": "Candidate findings from the optional evidence bridge; not established conclusions. When generated, set source_path to this same Run-relative path and change status only after the declared review.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MECHANISM_LEDGER_001",
+      "path": "07_mechanism_bridge/mechanism_evidence_ledger.csv",
+      "type": "mechanism_evidence_ledger",
+      "description": "Evidence-level links and provenance for the optional mechanism review. When generated, set source_path to this same Run-relative path and change status only after the declared review.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MECHANISM_REVIEW_QUEUE_001",
+      "path": "07_mechanism_bridge/mechanism_review_queue.csv",
+      "type": "mechanism_review_queue",
+      "description": "Items requiring human review within the optional mechanism evidence package. When generated, set source_path to this same Run-relative path and change status only after the declared review.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MECHANISM_MANIFEST_001",
+      "path": "07_mechanism_bridge/mechanism_evidence_bridge_manifest.json",
+      "type": "mechanism_evidence_bridge_manifest",
+      "description": "Provenance manifest for the optional mechanism evidence bridge. When generated, set source_path to this same Run-relative path and change status only after the declared review.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RESPONSE_SURFACE_REPORT_001",
+      "path": "07_response_surface/interaction_response_surface_report.json",
+      "type": "interaction_response_surface_report",
+      "description": "Descriptive response-surface output for a human-selected interaction, when that conditional stage is active. When generated, set source_path to this same Run-relative path and change status only after the declared review.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RESPONSE_SURFACE_DATA_001",
+      "path": "07_response_surface/interaction_response_surface.csv",
+      "type": "interaction_response_surface",
+      "description": "Tabular surface values for a human-selected interaction, when generated. When generated, set source_path to this same Run-relative path and change status only after the declared review.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RESPONSE_SURFACE_SUPPORT_001",
+      "path": "07_response_surface/interaction_observed_support.csv",
+      "type": "interaction_observed_support",
+      "description": "Observed-support diagnostics for the optional response surface. When generated, set source_path to this same Run-relative path and change status only after the declared review.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RESPONSE_SURFACE_MARGINALS_001",
+      "path": "07_response_surface/interaction_marginal_effects.csv",
+      "type": "interaction_marginal_effects",
+      "description": "Marginal-effect diagnostics for the optional response surface. When generated, set source_path to this same Run-relative path and change status only after the declared review.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MODEL_REPORT_001",
+      "path": "results/model_report.json",
+      "source_path": "06_modeling/baseline/model_report.json",
+      "type": "model_report",
+      "description": "Executed baseline modelling report.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "REPRODUCIBILITY_EVALUATION_001",
+      "path": "validation/reproducibility_evaluation.json",
+      "source_path": "06_modeling/reproducibility/reproducibility_evaluation.json",
+      "type": "reproducibility_evaluation",
+      "description": "Cross-study evaluation and study-held-out performance summaries.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "INTERACTION_REPORT_001",
+      "path": "results/interaction_discovery_report.json",
+      "source_path": "06_modeling/interactions/interaction_discovery_report.json",
+      "type": "interaction_discovery_report",
+      "description": "Candidate predictive interaction discovery report.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "INTERACTION_ROBUSTNESS_001",
+      "path": "results/interaction_robustness_report.json",
+      "source_path": "06_modeling/interaction_robustness/interaction_robustness_report.json",
+      "type": "interaction_robustness_report",
+      "description": "Repeated-seed robustness report for candidate interactions.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "INTERACTION_SELECTION_001",
+      "path": "reviews/interaction_selection.json",
+      "source_path": "07_review/interaction_selection.json",
+      "type": "interaction_selection",
+      "description": "Complete human selection/disposition of discovered candidates.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "VIRTUAL_PREDICTION_001",
+      "path": "predictions/virtual_prediction.json",
+      "source_path": "08_virtual_reproduction/virtual_prediction.json",
+      "type": "virtual_prediction",
+      "description": "Fully specified model-based scenario estimate with its support warnings.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Discussion",
         "Supporting Information"
       ]
     }
