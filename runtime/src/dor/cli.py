@@ -101,8 +101,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     materialize.add_argument("--adapter-handoff", type=Path, required=True,
         help="Validated adapter_handoff.json")
-    materialize.add_argument("--artifact-id", action="append", required=True,
+    materialize_selector = materialize.add_mutually_exclusive_group(required=True)
+    materialize_selector.add_argument("--artifact-id", action="append",
         help="Declared adapter artifact ID to materialize; repeat for multiple artifacts")
+    materialize_selector.add_argument("--role", action="append",
+        help="Declared adapter artifact role to materialize; each role must resolve to exactly one artifact")
     materialize.add_argument("--out-dir", type=Path, required=True,
         help="New or empty derived output directory outside the adapter package")
     discovery = subparsers.add_parser("discover-opportunities", help="Run a read-only exploratory scan over a canonical data bundle")
@@ -420,7 +423,8 @@ def main() -> int:
             return 0
         if args.command == "materialize-adapter-artifacts":
             result = materialize_adapter_artifacts_files(
-                args.adapter_handoff, args.artifact_id, args.out_dir,
+                args.adapter_handoff, args.out_dir,
+                artifact_ids=args.artifact_id, roles=args.role,
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
