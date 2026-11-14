@@ -98,6 +98,12 @@ def _record(
         "row_header": _clean(evidence.get("row_header")),
         "col_header": _clean(evidence.get("col_header")),
         "verbatim_quote": _clean(evidence.get("quote")),
+        "footnote": _clean(evidence.get("footnote")),
+        "source_file_id": _clean(evidence.get("file_id")),
+        "raw_value": raw_value,
+        "numeric_value": numeric_value,
+        "numeric_unit": numeric_unit,
+        "unit_basis": unit_basis,
     }
     condition_record_id = "COND_" + hashlib.sha256(
         json.dumps(identity_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
