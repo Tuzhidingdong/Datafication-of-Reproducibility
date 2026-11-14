@@ -31,7 +31,7 @@ _SALTS = (
 )
 _SALT_PATTERN = "|".join(re.escape(item) for item in sorted(_SALTS, key=len, reverse=True))
 _CONCENTRATION_BEFORE_SALT = re.compile(
-    rf"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>M|mol\s*(?:/|)\\s*L(?:-1|−1)?)\s*"
+    rf"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>M|mol\s*/\s*L(?:-1|−1)?|mol\s+L(?:-1|−1)?)\s*"
     rf"(?P<salt>{_SALT_PATTERN})\b",
     re.IGNORECASE,
 )
