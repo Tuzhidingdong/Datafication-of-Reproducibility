@@ -224,6 +224,75 @@ def prepare_adapter_handoff_files(
     return report
 
 
+def _normalized_inventory_source_path(raw: Any) -> str:
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("Each source inventory item must declare a non-empty source_file.")
+    value = raw.strip().replace("\\", "/")
+    candidate = Path(value).expanduser()
+    if candidate.is_absolute():
+        return str(candidate.resolve()).replace("\\", "/")
+    if any(part in {"", ".", ".."} for part in value.split("/")):
+        raise ValueError(f"Unsafe source_file path in source inventory: {raw!r}")
+    return value
+
+
+def _validate_source_inventory_provenance(
+    handoff: dict[str, Any],
+    inventory: dict[str, Any],
+) -> dict[str, Any]:
+    """Require every inventory source reference to resolve to a declared package file."""
+    items = inventory.get("items") if isinstance(inventory, dict) else None
+    if not isinstance(items, list):
+        raise ValueError("Adapter source_inventory must contain an items array.")
+
+    declared: dict[str, dict[str, Any]] = {}
+    for record in handoff.get("sources", []) + handoff.get("artifacts", []):
+        keys = {
+            _normalized_inventory_source_path(record["package_path"]),
+            _normalized_inventory_source_path(record["path"]),
+        }
+        for key in keys:
+            previous = declared.get(key)
+            if previous is not None and (
+                previous["sha256"] != record["sha256"]
+                or previous["format"] != record["format"]
+            ):
+                raise ValueError(
+                    f"Adapter manifest declares conflicting file identities for source path {key!r}."
+                )
+            declared[key] = record
+
+    matched = 0
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ValueError(f"Adapter source_inventory item {index} must be an object.")
+        source_path = _normalized_inventory_source_path(item.get("source_file"))
+        descriptor = declared.get(source_path)
+        if descriptor is None:
+            raise ValueError(
+                f"Adapter source_inventory item {index} references {source_path!r}, "
+                "which is not declared by the adapter manifest."
+            )
+        source_hash = item.get("source_sha256")
+        if not isinstance(source_hash, str) or source_hash.lower() != descriptor["sha256"].lower():
+            raise ValueError(
+                f"Adapter source_inventory item {index} SHA-256 does not match its declared source file."
+            )
+        source_format = item.get("source_format")
+        if source_format != descriptor["format"]:
+            raise ValueError(
+                f"Adapter source_inventory item {index} format does not match its declared source file."
+            )
+        matched += 1
+
+    return {
+        "valid": True,
+        "inventory_item_count": len(items),
+        "matched_source_item_count": matched,
+        "validation_scope": "SOURCE_INVENTORY_FILE_IDENTITY_AND_FORMAT_MATCHED_TO_ADAPTER_MANIFEST",
+    }
+
+
 def materialize_adapter_artifacts_files(
     handoff_path: Path,
     output_dir: Path,
@@ -276,6 +345,20 @@ def materialize_adapter_artifacts_files(
                 raise ValueError(f"Adapter role {role!r} must be delivered as JSON for the existing DoR validators.")
             selected.append((role, candidates[0]))
 
+    inventory_artifacts = [artifact for _, artifact in selected if artifact["role"] == "source_inventory"]
+    if len(inventory_artifacts) > 1:
+        raise ValueError("Materialization may include at most one source_inventory artifact.")
+    inventory_validation = None
+    if inventory_artifacts:
+        inventory_artifact = inventory_artifacts[0]
+        try:
+            inventory_payload = json.loads(
+                Path(inventory_artifact["path"]).read_text(encoding="utf-8-sig")
+            )
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Adapter source_inventory is not valid JSON: {exc}") from exc
+        inventory_validation = _validate_source_inventory_provenance(handoff, inventory_payload)
+
     output_dir.mkdir(parents=True, exist_ok=True)
     copied: list[dict[str, Any]] = []
     for selection_key, artifact in selected:
@@ -313,6 +396,7 @@ def materialize_adapter_artifacts_files(
         "adapter_manifest_sha256": handoff["manifest_sha256"],
         "adapter_handoff_path": str(Path(handoff_path).expanduser().resolve()),
         "artifacts": copied,
+        "source_inventory_validation": inventory_validation,
         "source_files_modified": False,
     }
     manifest_path = output_dir / "materialization_manifest.json"
