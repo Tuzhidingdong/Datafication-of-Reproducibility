@@ -301,6 +301,14 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         brief.append(f"| {candidate['feature_id']} | {candidate['outcome_unit']} | {candidate['condition_dimension']} | "
             f"{candidate['supported_condition_level_count']} | {candidate['total_doi_study_support_across_levels']} | "
             f"{candidate['observed_between_level_median_spread']} |")
+    brief.extend(["", "## Condition linkage coverage by feature/unit", "",
+        "| Feature ID | Unit | Eligible numeric observations | Linked observations | Linkage coverage | DOI Studies | Linked DOI Studies |",
+        "|---|---|---:|---:|---:|---:|---:|"])
+    for coverage in performance["feature_coverage_preview"]:
+        brief.append(f"| {coverage['feature_id']} | {coverage['outcome_unit']} | "
+            f"{coverage['eligible_numeric_outcome_observation_count']} | {coverage['condition_linked_observation_count']} | "
+            f"{coverage['condition_linkage_coverage_fraction']:.1%} | {coverage['doi_study_count']} | "
+            f"{coverage['condition_linked_doi_study_count']} |")
     brief.extend(["", "## Candidate signals", "", "| Signal | Type | Feature(s) | DOI Studies | Status |",
         "|---|---|---|---:|---|"])
     for signal in summary["signals"][:100]:
