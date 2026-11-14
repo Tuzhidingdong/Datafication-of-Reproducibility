@@ -4,7 +4,8 @@ import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit, run_audit_from_adapter_handoff
 from dor.adapters import validate_adapter_package_files
-from dor.adapter_handoff import prepare_adapter_handoff_files, canonical_bundle_from_handoff
+from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle_from_handoff,
+    materialize_adapter_artifacts_files)
 from dor.canonical_discovery import run_canonical_discovery_scan
 from dor.cohort import build_modeling_cohort_files
 from dor.builder import build_canonical_files
@@ -92,6 +93,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Package root; defaults to the manifest directory")
     adapter_handoff.add_argument("--out", type=Path, required=True,
         help="New handoff JSON path outside the protected adapter package")
+    adapter_handoff.add_argument("--dataset-manifest-out", type=Path, default=None,
+        help="Optional package snapshot manifest path outside the protected adapter package")
+    materialize = subparsers.add_parser(
+        "materialize-adapter-artifacts",
+        help="Copy selected hash-verified adapter artifacts into a new derived Run directory",
+    )
+    materialize.add_argument("--adapter-handoff", type=Path, required=True,
+        help="Validated adapter_handoff.json")
+    materialize.add_argument("--artifact-id", action="append", required=True,
+        help="Declared adapter artifact ID to materialize; repeat for multiple artifacts")
+    materialize.add_argument("--out-dir", type=Path, required=True,
+        help="New or empty derived output directory outside the adapter package")
     discovery = subparsers.add_parser("discover-opportunities", help="Run a read-only exploratory scan over a canonical data bundle")
     discovery_source = discovery.add_mutually_exclusive_group(required=True)
     discovery_source.add_argument("--bundle", type=Path,
@@ -397,9 +410,19 @@ def main() -> int:
             print(_write_json(None,report),end="")
             return 0
         if args.command == "prepare-adapter-handoff":
-            result = prepare_adapter_handoff_files(args.manifest, args.package_root, args.out)
-            print(json.dumps({**result, "handoff_path": str(args.out.expanduser().resolve())},
-                ensure_ascii=False, indent=2))
+            result = prepare_adapter_handoff_files(
+                args.manifest, args.package_root, args.out, args.dataset_manifest_out,
+            )
+            payload = {**result, "handoff_path": str(args.out.expanduser().resolve())}
+            if args.dataset_manifest_out is not None:
+                payload["dataset_manifest_path"] = str(args.dataset_manifest_out.expanduser().resolve())
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "materialize-adapter-artifacts":
+            result = materialize_adapter_artifacts_files(
+                args.adapter_handoff, args.artifact_id, args.out_dir,
+            )
+            print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
         if args.command == "discover-opportunities":
             bundle_path = args.bundle if args.bundle is not None else canonical_bundle_from_handoff(args.adapter_handoff)
