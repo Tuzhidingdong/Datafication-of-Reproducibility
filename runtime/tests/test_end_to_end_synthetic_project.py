@@ -210,7 +210,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             else:
                 z_value = 0.0
             for condition_type, value, unit in (
-                ("temperature", x_value, "arb-x"),
+                ("condition_01", x_value, "arb-x"),
                 ("pressure", z_value, "arb-z"),
             ):
                 conditions.append({
@@ -511,7 +511,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "outcome_unit": "a.u.",
             "feature_bindings": [
                 {
-                    "feature_id": "temperature", "condition_type": "temperature",
+                    "feature_id": "condition_01", "condition_type": "condition_01",
                     "value_field": "normalized_value", "value_type": "NUMERIC",
                     "expected_unit": "arb-x",
                 },
@@ -735,7 +735,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "target_id": cls.task["target_id"],
             "endpoint_definition": cls.task["endpoint_definition"],
             "features": {
-                "temperature": {"value": 0.25, "unit": "arb-x"},
+                "condition_01": {"value": 0.25, "unit": "arb-x"},
                 "pressure": {"value": -0.5, "unit": "arb-z"},
             },
         })
