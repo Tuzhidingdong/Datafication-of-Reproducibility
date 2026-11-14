@@ -1,25 +1,25 @@
 {
   "schema_version": "1.0",
   "task_id": "DORCR_EXAMPLE",
-  "paper_id": "paper_example",
+  "project_id": "PROJECT_EXAMPLE",
   "source_hashes": {},
   "field_reviews": [
     {
-      "condition_type": "current_density",
+      "condition_type": "feature_01",
       "status": "FOUND",
       "candidate_value": 1,
-      "candidate_unit": "mA cm-2",
-      "source_file": "main_analysis.md",
-      "page_or_locator": "Page 7, paragraph 2",
-      "verbatim_quote": "The cell was cycled at a current density of 1 mA cm-2.",
+      "candidate_unit": "unit_01",
+      "source_file": "source_document.md",
+      "page_or_locator": "Section 2, paragraph 1",
+      "verbatim_quote": "The system was evaluated using the declared setting of 1.0 unit_01.",
       "linked_observation_ids": [
         "DOROBS_EXAMPLE"
       ],
-      "rationale": "The sentence reports a numeric value and unit; confirm applicability to the linked sample and measurement.",
-      "condition_instance_id": "current-density-obs-1"
+      "rationale": "The source passage contains a value and unit; verify its scope and applicability to the linked record before promotion.",
+      "condition_instance_id": "feature-01-observation-1"
     },
     {
-      "condition_type": "areal_capacity",
+      "condition_type": "feature_02",
       "status": "NOT_FOUND_IN_SEARCH",
       "candidate_value": null,
       "candidate_unit": null,
@@ -29,12 +29,12 @@
       "linked_observation_ids": [
         "DOROBS_EXAMPLE"
       ],
-      "rationale": "No value was verified in the searched excerpts. This is not a claim that the paper/SI does not report it.",
-      "condition_instance_id": "areal-capacity-obs-1"
+      "rationale": "No value was verified in the searched excerpts. This is not a claim that the source does not report it.",
+      "condition_instance_id": "feature-02-observation-1"
     }
   ],
   "main_text_reviewed": false,
-  "si_reviewed": false,
+  "supplementary_sources_reviewed": false,
   "coverage_notes": [
     "Human review is required before any condition is promoted to REPORTED or NOT_REPORTED."
   ],
