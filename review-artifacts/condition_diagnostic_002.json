@@ -1,0 +1,1670 @@
+{
+  "diagnostic_version": "2.0",
+  "source": {
+    "name": "consolidated_zinc_battery_database.json",
+    "size_bytes": 68284939,
+    "sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6"
+  },
+  "counts": {
+    "papers": 2345,
+    "observations": 66405,
+    "papers_without_doi": 4,
+    "distinct_target_system_strings": 40862
+  },
+  "batch_id_distribution_top_100": [
+    {
+      "batch_id": "BATCH_20261107_012",
+      "paper_count_or_record_count": 50
+    },
+    {
+      "batch_id": "BATCH_20261107_018",
+      "paper_count_or_record_count": 50
+    },
+    {
+      "batch_id": "BATCH_20261107_029",
+      "paper_count_or_record_count": 49
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_018",
+      "paper_count_or_record_count": 48
+    },
+    {
+      "batch_id": "BATCH_20261107_004",
+      "paper_count_or_record_count": 47
+    },
+    {
+      "batch_id": "BATCH_20261107_007",
+      "paper_count_or_record_count": 47
+    },
+    {
+      "batch_id": "BATCH_20261107_013",
+      "paper_count_or_record_count": 47
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_015",
+      "paper_count_or_record_count": 47
+    },
+    {
+      "batch_id": "BATCH_20261107_002",
+      "paper_count_or_record_count": 46
+    },
+    {
+      "batch_id": "BATCH_20261107_015",
+      "paper_count_or_record_count": 46
+    },
+    {
+      "batch_id": "BATCH_20261107_026",
+      "paper_count_or_record_count": 46
+    },
+    {
+      "batch_id": "BATCH_20261107_027",
+      "paper_count_or_record_count": 46
+    },
+    {
+      "batch_id": "BATCH_20261107_030",
+      "paper_count_or_record_count": 46
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_013",
+      "paper_count_or_record_count": 46
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_021",
+      "paper_count_or_record_count": 46
+    },
+    {
+      "batch_id": "BATCH_20261107_006",
+      "paper_count_or_record_count": 45
+    },
+    {
+      "batch_id": "BATCH_20261107_024",
+      "paper_count_or_record_count": 45
+    },
+    {
+      "batch_id": "BATCH_20261107_028",
+      "paper_count_or_record_count": 45
+    },
+    {
+      "batch_id": "BATCH_20261107_031",
+      "paper_count_or_record_count": 45
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_011",
+      "paper_count_or_record_count": 45
+    },
+    {
+      "batch_id": "BATCH_20261107_008",
+      "paper_count_or_record_count": 44
+    },
+    {
+      "batch_id": "BATCH_20261107_016",
+      "paper_count_or_record_count": 44
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_012",
+      "paper_count_or_record_count": 44
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_014",
+      "paper_count_or_record_count": 44
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_016",
+      "paper_count_or_record_count": 44
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_019",
+      "paper_count_or_record_count": 44
+    },
+    {
+      "batch_id": "BATCH_20261107_011",
+      "paper_count_or_record_count": 43
+    },
+    {
+      "batch_id": "BATCH_20261107_017",
+      "paper_count_or_record_count": 43
+    },
+    {
+      "batch_id": "BATCH_20261107_001",
+      "paper_count_or_record_count": 42
+    },
+    {
+      "batch_id": "BATCH_20261107_005",
+      "paper_count_or_record_count": 41
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_005",
+      "paper_count_or_record_count": 41
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_010",
+      "paper_count_or_record_count": 41
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_017",
+      "paper_count_or_record_count": 41
+    },
+    {
+      "batch_id": "BATCH_20261107_014",
+      "paper_count_or_record_count": 40
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_002",
+      "paper_count_or_record_count": 40
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_020",
+      "paper_count_or_record_count": 40
+    },
+    {
+      "batch_id": "BATCH_20261107_025",
+      "paper_count_or_record_count": 39
+    },
+    {
+      "batch_id": "BATCH_20261107_032",
+      "paper_count_or_record_count": 39
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_006",
+      "paper_count_or_record_count": 39
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_004",
+      "paper_count_or_record_count": 38
+    },
+    {
+      "batch_id": "BATCH_20261107_023",
+      "paper_count_or_record_count": 37
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_023",
+      "paper_count_or_record_count": 37
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_024",
+      "paper_count_or_record_count": 37
+    },
+    {
+      "batch_id": "BATCH_REC_20261113_005",
+      "paper_count_or_record_count": 37
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_022",
+      "paper_count_or_record_count": 36
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_007",
+      "paper_count_or_record_count": 29
+    },
+    {
+      "batch_id": "BATCH_20261107_019",
+      "paper_count_or_record_count": 28
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_009",
+      "paper_count_or_record_count": 27
+    },
+    {
+      "batch_id": "BATCH_20261107_009",
+      "paper_count_or_record_count": 24
+    },
+    {
+      "batch_id": "BATCH_REC_20261113_002",
+      "paper_count_or_record_count": 24
+    },
+    {
+      "batch_id": "BATCH_REC_20261113_003",
+      "paper_count_or_record_count": 24
+    },
+    {
+      "batch_id": "BATCH_REC_20261111_002",
+      "paper_count_or_record_count": 23
+    },
+    {
+      "batch_id": "BATCH_REC_20261111_004",
+      "paper_count_or_record_count": 22
+    },
+    {
+      "batch_id": "BATCH_REC_20261113_004",
+      "paper_count_or_record_count": 22
+    },
+    {
+      "batch_id": "BATCH_REC_20261111_001",
+      "paper_count_or_record_count": 21
+    },
+    {
+      "batch_id": "BATCH_REC_20261111_006",
+      "paper_count_or_record_count": 21
+    },
+    {
+      "batch_id": "BATCH_REC_20261114_001",
+      "paper_count_or_record_count": 21
+    },
+    {
+      "batch_id": "BATCH_REC_20261111_005",
+      "paper_count_or_record_count": 19
+    },
+    {
+      "batch_id": "BATCH_REC_20261111_003",
+      "paper_count_or_record_count": 17
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_001",
+      "paper_count_or_record_count": 12
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_025",
+      "paper_count_or_record_count": 12
+    },
+    {
+      "batch_id": "BATCH_20261107_010",
+      "paper_count_or_record_count": 10
+    },
+    {
+      "batch_id": "BATCH_REC_20261114_003",
+      "paper_count_or_record_count": 8
+    },
+    {
+      "batch_id": "BATCH_REC_20261114_004",
+      "paper_count_or_record_count": 8
+    },
+    {
+      "batch_id": "BATCH_20261107_003",
+      "paper_count_or_record_count": 7
+    },
+    {
+      "batch_id": "BATCH_REC_20261114_002",
+      "paper_count_or_record_count": 7
+    },
+    {
+      "batch_id": "BATCH_REC_20261111_007",
+      "paper_count_or_record_count": 5
+    },
+    {
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "paper_count_or_record_count": 3
+    },
+    {
+      "batch_id": "BATCH_REC_20261112_003",
+      "paper_count_or_record_count": 3
+    },
+    {
+      "batch_id": "BATCH_20261106_SMOKE_NR_94908118",
+      "paper_count_or_record_count": 1
+    }
+  ],
+  "probe_or_test_batch_observation_samples": [
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 1,
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn-MnO2, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0001"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 2,
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn-MnO2, 2 M Zn(CF3SO3)2, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0002"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 3,
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn-MnO2, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0003"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 4,
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn-MnO2, 2 M ZnSO4 + 0.1 M MnSO4, 0% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0004"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 5,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0005"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 6,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0006"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 7,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0007"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 8,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0008"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 9,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0009"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 10,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0010"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 11,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0011"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 12,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0012"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 13,
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0013"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 14,
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0014"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 15,
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn, 2 M Zn(OAc)2, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0015"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 16,
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn, 2 M Zn(OAc)2, 0% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0016"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 17,
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn, 2 M Zn(CF3SO3)2, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0017"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 18,
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn, 2 M ZnCl2, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0018"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 19,
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn, 2 M ZnCl2, 0% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0019"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 20,
+      "feature_id": "FEAT_E_ADS",
+      "target_system": "0% TAC-Zn2+ (DFT)",
+      "status": "AGREED_MATCH",
+      "reconciliation_id": "REC_0020"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 21,
+      "feature_id": "FEAT_E_ADS",
+      "target_system": "1% TAC-Zn2+ (DFT)",
+      "status": "AGREED_MATCH",
+      "reconciliation_id": "REC_0021"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 22,
+      "feature_id": "FEAT_CONTACT_ANGLE",
+      "target_system": "0% TAC substrate, water droplet",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0022"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 23,
+      "feature_id": "FEAT_CONTACT_ANGLE",
+      "target_system": "0.5% TAC substrate, water droplet",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0023"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 24,
+      "feature_id": "FEAT_CONTACT_ANGLE",
+      "target_system": "1% TAC substrate, water droplet",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0024"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 25,
+      "feature_id": "FEAT_CONTACT_ANGLE",
+      "target_system": "3% TAC substrate, water droplet",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0025"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 26,
+      "feature_id": "FEAT_CAP_RET",
+      "target_system": "Zn-MnO2, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0026"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 27,
+      "feature_id": "FEAT_CAP_RET",
+      "target_system": "Zn-MnO2, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0027"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 28,
+      "feature_id": "FEAT_CAP_RET",
+      "target_system": "Zn-MnO2, 2 M Zn(CF3SO3)2, 1% TAC",
+      "status": "PASS_A_ONLY",
+      "reconciliation_id": "REC_0028"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 29,
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn-MnO2 full cell (1% TAC, ZnSO4 + 0.1 M MnSO4 electrolyte)",
+      "status": "PASS_B_ONLY",
+      "reconciliation_id": "REC_0029"
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "observation_index": 30,
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn-MnO2 full cell (1% TAC, 2 M Zn(CF3SO3)2 electrolyte)",
+      "status": "PASS_B_ONLY",
+      "reconciliation_id": "REC_0030"
+    }
+  ],
+  "target_system_top_60": [
+    {
+      "count": 692,
+      "paper_id": "10.1002_adma.202306601",
+      "doi": "10.1002/adma.202306601",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn"
+    },
+    {
+      "count": 602,
+      "paper_id": "10.1002_adma.202206754",
+      "doi": "10.1002/adma.202206754",
+      "batch_id": "BATCH_REC_20261111_001",
+      "feature_id": "FEAT_EA",
+      "target_system": "N/A"
+    },
+    {
+      "count": 415,
+      "paper_id": "10.1016_j.jcis.2024.05.202",
+      "doi": "10.1016/j.jcis.2024.05.202",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_CDL",
+      "target_system": "bare Zn"
+    },
+    {
+      "count": 238,
+      "paper_id": "10.1002_adma.202306601",
+      "doi": "10.1002/adma.202306601",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Cu"
+    },
+    {
+      "count": 194,
+      "paper_id": "10.1021_acs.nanolett.2c03919",
+      "doi": "10.1021/acs.nanolett.2c03919",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn symmetric cell"
+    },
+    {
+      "count": 192,
+      "paper_id": "10.1002_smll.202203061",
+      "doi": "10.1002/smll.202203061",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "bare Zn symmetric cell"
+    },
+    {
+      "count": 82,
+      "paper_id": "10.1002_smll.202203061",
+      "doi": "10.1002/smll.202203061",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_EA",
+      "target_system": "bare Zn electrode"
+    },
+    {
+      "count": 79,
+      "paper_id": "10.1002_adfm.202513580",
+      "doi": "10.1002/adfm.202513580",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_IONIC_COND",
+      "target_system": "bare Zn anode"
+    },
+    {
+      "count": 75,
+      "paper_id": "10.1002_anie.202409957",
+      "doi": "10.1002/anie.202409957",
+      "batch_id": "BATCH_REC_20261111_001",
+      "feature_id": "FEAT_MAEID",
+      "target_system": "n/a"
+    },
+    {
+      "count": 74,
+      "paper_id": "10.1007_s40820-022-00969-4",
+      "doi": "10.1007/s40820-022-00969-4",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_CONTACT_ANGLE",
+      "target_system": "Bare Zn"
+    },
+    {
+      "count": 71,
+      "paper_id": "10.1039_d5sc03114a",
+      "doi": "10.1039/d5sc03114a",
+      "batch_id": "BATCH_REC_20261112_004",
+      "feature_id": "FEAT_RCT",
+      "target_system": "Zn||I2@PAC full cell (I2@PAC cathode DRT)"
+    },
+    {
+      "count": 68,
+      "paper_id": "10.1016_j.esci.2026.100644",
+      "doi": "10.1016/j.esci.2026.100644",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_EA",
+      "target_system": "Zn//Zn"
+    },
+    {
+      "count": 64,
+      "paper_id": "10.1016_j.esci.2026.100644",
+      "doi": "10.1016/j.esci.2026.100644",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_ICORR",
+      "target_system": "Zn anode"
+    },
+    {
+      "count": 63,
+      "paper_id": "10.1007_s40820-023-01171-w",
+      "doi": "10.1007/s40820-023-01171-w",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn in 2 M ZnSO4"
+    },
+    {
+      "count": 62,
+      "paper_id": "10.1002_adma.74645",
+      "doi": "10.1002/adma.74645",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_ROUGH_RA",
+      "target_system": "Zn||Zn (bare Zn)"
+    },
+    {
+      "count": 60,
+      "paper_id": "10.1002_smll.202513846",
+      "doi": "10.1002/smll.202513846",
+      "batch_id": "BATCH_REC_20261111_001",
+      "feature_id": "FEAT_EA",
+      "target_system": "-"
+    },
+    {
+      "count": 56,
+      "paper_id": "10.1002_adma.74645",
+      "doi": "10.1002/adma.74645",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "bare Zn||bare Zn symmetric cell"
+    },
+    {
+      "count": 53,
+      "paper_id": "10_26599_nr_2025_94908118",
+      "doi": "",
+      "batch_id": "BATCH_20261106_SMOKE_NR_94908118",
+      "feature_id": "FEAT_EA",
+      "target_system": "Zn||Zn, 2 M ZnSO4"
+    },
+    {
+      "count": 51,
+      "paper_id": "10.1016_j.esci.2026.100644",
+      "doi": "10.1016/j.esci.2026.100644",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn//Cu"
+    },
+    {
+      "count": 49,
+      "paper_id": "10.1002_exp.20240007",
+      "doi": "10.1002/exp.20240007",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn||Cu asymmetric cell"
+    },
+    {
+      "count": 49,
+      "paper_id": "10.1007_s40820-022-00969-4",
+      "doi": "10.1007/s40820-022-00969-4",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_EA",
+      "target_system": "Bare Zn symmetric cell"
+    },
+    {
+      "count": 48,
+      "paper_id": "10.1002_smtd.71045",
+      "doi": "10.1002/smtd.71045",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn (2 M ZnSO4)"
+    },
+    {
+      "count": 46,
+      "paper_id": "10.1007_s40820-026-02153-4",
+      "doi": "10.1007/s40820-026-02153-4",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_LUMO",
+      "target_system": "H2O molecule"
+    },
+    {
+      "count": 46,
+      "paper_id": "10.1186_s43074-024-00122-x",
+      "doi": "10.1186/s43074-024-00122-x",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn//Zn symmetric cell"
+    },
+    {
+      "count": 46,
+      "paper_id": "10.1039_d6sc05531a",
+      "doi": "10.1039/d6sc05531a",
+      "batch_id": "BATCH_20261107_006",
+      "feature_id": "FEAT_ROUGH_RA",
+      "target_system": "Zn@Cr in 1.0 M ZnSO4"
+    },
+    {
+      "count": 46,
+      "paper_id": "10.1002_smll.202200567",
+      "doi": "10.1002/smll.202200567",
+      "batch_id": "BATCH_20261107_008",
+      "feature_id": "FEAT_CONTACT_ANGLE",
+      "target_system": "Bare Zn electrode"
+    },
+    {
+      "count": 44,
+      "paper_id": "10.1002_adma.74645",
+      "doi": "10.1002/adma.74645",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "bare Zn||bare Zn"
+    },
+    {
+      "count": 44,
+      "paper_id": "10.1038_s41467-022-35630-6",
+      "doi": "10.1038/s41467-022-35630-6",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_ICORR",
+      "target_system": "Zn foil"
+    },
+    {
+      "count": 43,
+      "paper_id": "10.1016_j.jcis.2025.139764",
+      "doi": "10.1016/j.jcis.2025.139764",
+      "batch_id": "BATCH_20261107_007",
+      "feature_id": "FEAT_CONTACT_ANGLE",
+      "target_system": "bare Zn in 2 M ZnSO4"
+    },
+    {
+      "count": 41,
+      "paper_id": "10.1007_s40820-026-02153-4",
+      "doi": "10.1007/s40820-026-02153-4",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_T_ZN",
+      "target_system": "Zn||Zn symmetric cell (bare Zn)"
+    },
+    {
+      "count": 40,
+      "paper_id": "10.1002_adfm.202513580",
+      "doi": "10.1002/adfm.202513580",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_EA",
+      "target_system": "Zn||Zn symmetric cell (bare Zn anode)"
+    },
+    {
+      "count": 39,
+      "paper_id": "10.1002_anie.202423244",
+      "doi": "10.1002/anie.202423244",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "bare Zn||Zn"
+    },
+    {
+      "count": 36,
+      "paper_id": "10.1039_d2sc01818g",
+      "doi": "10.1039/d2sc01818g",
+      "batch_id": "BATCH_20261107_005",
+      "feature_id": "FEAT_ENG_DENS",
+      "target_system": "Zn||MnO2"
+    },
+    {
+      "count": 35,
+      "paper_id": "10.1002_anie.202511490",
+      "doi": "10.1002/anie.202511490",
+      "batch_id": "BATCH_20261107_016",
+      "feature_id": "FEAT_EA",
+      "target_system": "Not reported"
+    },
+    {
+      "count": 33,
+      "paper_id": "10.1002_advs.202201433",
+      "doi": "10.1002/advs.202201433",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_EA",
+      "target_system": "Zn||Zn symmetric cell (2 M ZnSO4)"
+    },
+    {
+      "count": 32,
+      "paper_id": "10.1007_s12274-024-6912-y",
+      "doi": "10.1007/s12274-024-6912-y",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn symmetric cell in 2 M ZnSO4"
+    },
+    {
+      "count": 32,
+      "paper_id": "10.1007_s40820-025-01794-1",
+      "doi": "10.1007/s40820-025-01794-1",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_MSD_D",
+      "target_system": "2 M ZnSO4 electrolyte"
+    },
+    {
+      "count": 31,
+      "paper_id": "10.1002_anie.202407261",
+      "doi": "10.1002/anie.202407261",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_OVERPOT_NUC",
+      "target_system": "Zn||Zn symmetric cell (ZS electrolyte)"
+    },
+    {
+      "count": 31,
+      "paper_id": "10.1016_j.electacta.2024.145291",
+      "doi": "10.1016/j.electacta.2024.145291",
+      "batch_id": "BATCH_REC_20261112_007",
+      "feature_id": "FEAT_EA",
+      "target_system": "not reported"
+    },
+    {
+      "count": 30,
+      "paper_id": "10.1039_d2sc01818g",
+      "doi": "10.1039/d2sc01818g",
+      "batch_id": "BATCH_20261107_005",
+      "feature_id": "FEAT_ENG_DENS",
+      "target_system": "Zn||MnO2 full cell"
+    },
+    {
+      "count": 29,
+      "paper_id": "10.1039_d5sc08853d",
+      "doi": "10.1039/d5sc08853d",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_E_ADS",
+      "target_system": "H2O on Zn(002)"
+    },
+    {
+      "count": 29,
+      "paper_id": "10.1002_smll.76425",
+      "doi": "10.1002/smll.76425",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_CE",
+      "target_system": "Zn||Ti"
+    },
+    {
+      "count": 29,
+      "paper_id": "10.1002_smll.74344",
+      "doi": "10.1002/smll.74344",
+      "batch_id": "BATCH_20261107_005",
+      "feature_id": "FEAT_OVERPOT_NUC",
+      "target_system": "Zn||Zn symmetric cell in ZSO electrolyte"
+    },
+    {
+      "count": 29,
+      "paper_id": "10.1002_anie.202410011",
+      "doi": "10.1002/anie.202410011",
+      "batch_id": "BATCH_20261107_008",
+      "feature_id": "FEAT_EA",
+      "target_system": "Zn"
+    },
+    {
+      "count": 29,
+      "paper_id": "10.1007_s40820-024-01380-x",
+      "doi": "10.1007/s40820-024-01380-x",
+      "batch_id": "BATCH_20261107_014",
+      "feature_id": "FEAT_OVERPOT_PLAT",
+      "target_system": "Zn||Zn symmetric cells"
+    },
+    {
+      "count": 28,
+      "paper_id": "10.1016_j.jcis.2025.138854",
+      "doi": "10.1016/j.jcis.2025.138854",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_OVERPOT_NUC",
+      "target_system": "Zn anode in ZSO electrolyte"
+    },
+    {
+      "count": 27,
+      "paper_id": "10.1021_acsami.4c20613",
+      "doi": "10.1021/acsami.4c20613",
+      "batch_id": "BATCH_20261107_002",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Bare Zn||Zn"
+    },
+    {
+      "count": 26,
+      "paper_id": "10.1016_j.jcis.2024.05.202",
+      "doi": "10.1016/j.jcis.2024.05.202",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_CE",
+      "target_system": "bare Zn||Cu"
+    },
+    {
+      "count": 26,
+      "paper_id": "10.1002_adma.73811",
+      "doi": "10.1002/adma.73811",
+      "batch_id": "BATCH_20261107_004",
+      "feature_id": "FEAT_EA",
+      "target_system": "Zn anode in ZS electrolyte"
+    },
+    {
+      "count": 26,
+      "paper_id": "10.1039_d6sc04691f",
+      "doi": "10.1039/d6sc04691f",
+      "batch_id": "BATCH_20261107_006",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn symmetric cell (ZSO electrolyte)"
+    },
+    {
+      "count": 26,
+      "paper_id": "10.1007_s40820-022-00921-6",
+      "doi": "10.1007/s40820-022-00921-6",
+      "batch_id": "BATCH_20261107_014",
+      "feature_id": "FEAT_OVERPOT_NUC",
+      "target_system": "bare Zn||bare Zn symmetric"
+    },
+    {
+      "count": 26,
+      "paper_id": "10.1002_smtd.202401021",
+      "doi": "10.1002/smtd.202401021",
+      "batch_id": "BATCH_20261107_016",
+      "feature_id": "FEAT_CE",
+      "target_system": "W UME | 1 M ZnCl2"
+    },
+    {
+      "count": 25,
+      "paper_id": "10.1039_d2sc01818g",
+      "doi": "10.1039/d2sc01818g",
+      "batch_id": "BATCH_20261107_005",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Zn||Zn in 1 M ZnSO4"
+    },
+    {
+      "count": 25,
+      "paper_id": "10.1002_advs.202522067",
+      "doi": "10.1002/advs.202522067",
+      "batch_id": "BATCH_20261107_006",
+      "feature_id": "FEAT_CONTACT_ANGLE",
+      "target_system": "bare Zn foil"
+    },
+    {
+      "count": 25,
+      "paper_id": "10.1002_smll.202502480",
+      "doi": "10.1002/smll.202502480",
+      "batch_id": "BATCH_20261107_011",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "Bare Zn||Bare Zn"
+    },
+    {
+      "count": 24,
+      "paper_id": "10.1002_anie.202218872",
+      "doi": "10.1002/anie.202218872",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_T_ZN",
+      "target_system": "2 M ZnSO4"
+    },
+    {
+      "count": 24,
+      "paper_id": "10.1002_chem.71309",
+      "doi": "10.1002/chem.71309",
+      "batch_id": "BATCH_20261107_001",
+      "feature_id": "FEAT_EA",
+      "target_system": "Zn||Zn (ZS electrolyte)"
+    },
+    {
+      "count": 24,
+      "paper_id": "10.1002_adma.73811",
+      "doi": "10.1002/adma.73811",
+      "batch_id": "BATCH_20261107_004",
+      "feature_id": "FEAT_LUMO",
+      "target_system": "H2O"
+    },
+    {
+      "count": 24,
+      "paper_id": "10.1007_s40820-025-01709-0",
+      "doi": "10.1007/s40820-025-01709-0",
+      "batch_id": "BATCH_20261107_004",
+      "feature_id": "FEAT_ICORR",
+      "target_system": "Zn electrode in ZSO electrolyte"
+    },
+    {
+      "count": 24,
+      "paper_id": "10.3390_molecules29071501",
+      "doi": "10.3390/molecules29071501",
+      "batch_id": "BATCH_20261107_004",
+      "feature_id": "FEAT_LIFE_SYM",
+      "target_system": "bare Zn||Zn symmetric cell"
+    }
+  ],
+  "worker_evidence_object_counts": {
+    "worker_a_evidence:object": 40038,
+    "worker_b_evidence:null_or_nonobject": 33178,
+    "worker_b_evidence:object": 33227,
+    "worker_a_evidence:null_or_nonobject": 26367
+  },
+  "worker_evidence_key_counts": {
+    "worker_a_evidence": {
+      "file_path": 37075,
+      "section_or_page": 36961,
+      "verbatim_quote": 36934,
+      "table_id": 3104,
+      "row_header": 3104,
+      "col_header": 3104,
+      "cell_value": 3104,
+      "footnote": 42,
+      "file_id": 1
+    },
+    "worker_b_evidence": {
+      "file_path": 30649,
+      "section_or_page": 30545,
+      "verbatim_quote": 30545,
+      "table_id": 2682,
+      "row_header": 2682,
+      "col_header": 2682,
+      "cell_value": 2682
+    }
+  },
+  "worker_evidence_nonempty_interesting_fields": {
+    "worker_a_evidence.file_path": 37075,
+    "worker_a_evidence.section_or_page": 36961,
+    "worker_a_evidence.verbatim_quote": 36934,
+    "worker_b_evidence.file_path": 30649,
+    "worker_b_evidence.section_or_page": 30545,
+    "worker_b_evidence.verbatim_quote": 30545,
+    "worker_a_evidence.table_id": 3104,
+    "worker_a_evidence.cell_value": 3104,
+    "worker_b_evidence.table_id": 2682,
+    "worker_b_evidence.cell_value": 2682
+  },
+  "worker_evidence_samples": {
+    "worker_a_evidence": [
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_CE",
+        "target_system": "Zn-MnO2, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 11 (MAIN)",
+          "verbatim_quote": "current density of 5 C. The coulombic efficiency of the battery using 1% TAC reached 99.9% during"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_CE",
+        "target_system": "Zn-MnO2, 2 M Zn(CF3SO3)2, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 12 (MAIN)",
+          "verbatim_quote": "capacity retention maintained at 73.7% and the coulombic efficiency approached 99.9% after 1000 cycles."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_CE",
+        "target_system": "Zn-MnO2, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 10 (MAIN)",
+          "verbatim_quote": "Moreover, the coulomb efficiencies of 1% TAC and 0% TAC approached 99.9% at various current densities."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_CE",
+        "target_system": "Zn-MnO2, 2 M ZnSO4 + 0.1 M MnSO4, 0% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 10 (MAIN)",
+          "verbatim_quote": "Moreover, the coulomb efficiencies of 1% TAC and 0% TAC approached 99.9% at various current densities."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 7 (MAIN)",
+          "verbatim_quote": "displayed overpotential values of 32.81, 36.00, 46.33, and 55.94 mV at current densities of 0.1, 0.2, 0.5 and"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 7 (MAIN)",
+          "verbatim_quote": "displayed overpotential values of 32.81, 36.00, 46.33, and 55.94 mV at current densities of 0.1, 0.2, 0.5 and"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 7 (MAIN)",
+          "verbatim_quote": "displayed overpotential values of 32.81, 36.00, 46.33, and 55.94 mV at current densities of 0.1, 0.2, 0.5 and"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 7 (MAIN)",
+          "verbatim_quote": "displayed overpotential values of 32.81, 36.00, 46.33, and 55.94 mV at current densities of 0.1, 0.2, 0.5 and"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 9 (MAIN)",
+          "verbatim_quote": "100th, 200th, 400th, and 500th cycles were 38.40, 39.80, 35.62, 45.76, and 42.96 mV, respectively"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 9 (MAIN)",
+          "verbatim_quote": "100th, 200th, 400th, and 500th cycles were 38.40, 39.80, 35.62, 45.76, and 42.96 mV, respectively"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 9 (MAIN)",
+          "verbatim_quote": "100th, 200th, 400th, and 500th cycles were 38.40, 39.80, 35.62, 45.76, and 42.96 mV, respectively"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn, 2 M ZnSO4 + 0.1 M MnSO4, 1% TAC",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 9 (MAIN)",
+          "verbatim_quote": "100th, 200th, 400th, and 500th cycles were 38.40, 39.80, 35.62, 45.76, and 42.96 mV, respectively"
+        }
+      }
+    ],
+    "worker_b_evidence": [
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_E_ADS",
+        "target_system": "0% TAC-Zn2+ (DFT)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 9 (MAIN)",
+          "verbatim_quote": "the Eb of 0% TAC-Zn2+ and 1% TAC-Zn2+ was -0.2898 and -0.5713 eV, respectively."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_E_ADS",
+        "target_system": "1% TAC-Zn2+ (DFT)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 9 (MAIN)",
+          "verbatim_quote": "the Eb of 0% TAC-Zn2+ and 1% TAC-Zn2+ was -0.2898 and -0.5713 eV, respectively."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_CE",
+        "target_system": "Zn-MnO2 full cell (1% TAC, ZnSO4 + 0.1 M MnSO4 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 11 (MAIN)",
+          "verbatim_quote": "The coulombic efficiency of the battery using 1% TAC reached 99.9% during 1,000 cycles, which was attributed to the strong inhibitory effect of the 1% TAC on the side reaction and the"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_CE",
+        "target_system": "Zn-MnO2 full cell (1% TAC, 2 M Zn(CF3SO3)2 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 12 (MAIN)",
+          "verbatim_quote": "The discharge capacity retention maintained at 73.7% and the coulombic efficiency approached 99.9% after 1000 cycles."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_CE",
+        "target_system": "Zn-MnO2 full cell (1% TAC, ZnSO4 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 11 (MAIN)",
+          "verbatim_quote": "the coulomb efficiencies of 1% TAC and 0% TAC approached 99.9% at various current densities."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_CE",
+        "target_system": "Zn-MnO2 full cell (0% TAC, ZnSO4 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 11 (MAIN)",
+          "verbatim_quote": "the coulomb efficiencies of 1% TAC and 0% TAC approached 99.9% at various current densities."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_OVERPOT_PLAT",
+        "target_system": "Zn||Zn symmetric cell (1% TAC, 2 M ZnSO4 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 9 (MAIN)",
+          "verbatim_quote": "Notably, the potentials observed after the first, 100th, 200th, 400th, and 500th cycles were 38.40, 39.80, 35.62, 45.76, and 42.96 mV, respectively"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_LIFE_SYM",
+        "target_system": "Zn||Zn symmetric cell (1% TAC, 2 M ZnSO4 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 9 (MAIN)",
+          "verbatim_quote": "sustained functionality for over 2,300 h at a current density of 0.5 mA cm-2."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_LIFE_SYM",
+        "target_system": "Zn||Zn symmetric cell (1% TAC, 2 M Zn(CF3SO3)2 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 10 (MAIN)",
+          "verbatim_quote": "1% TAC consistently steadily work for 2,800 h without degradation while 0% TAC failed in short time."
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_LIFE_SYM",
+        "target_system": "Zn||Zn symmetric cell (1% TAC, 2 M Zn(OAc)2 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 10 (MAIN)",
+          "verbatim_quote": "1% TAC nearly stably cycles for 1,200 h while the battery using 0% TAC shot-circuited within 100 h"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_LIFE_SYM",
+        "target_system": "Zn||Zn symmetric cell (0% TAC, 2 M Zn(OAc)2 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 10 (MAIN)",
+          "verbatim_quote": "the battery using 0% TAC shot-circuited within 100 h"
+        }
+      },
+      {
+        "paper_id": "10_20517_energymater_2024_299",
+        "doi": "",
+        "batch_id": "BATCH_20261106_LIMITS_PROBE",
+        "feature_id": "FEAT_LIFE_SYM",
+        "target_system": "Zn||Zn symmetric cell (1% TAC, 2 M ZnCl2 electrolyte)",
+        "evidence_keys": [
+          "file_path",
+          "section_or_page",
+          "verbatim_quote"
+        ],
+        "evidence_values": {
+          "file_path": "main_analysis.md",
+          "section_or_page": "Page 10 (MAIN)",
+          "verbatim_quote": "1% TAC performed steadily for 420 h"
+        }
+      }
+    ]
+  },
+  "probe_evidence_key_samples": [
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    },
+    {
+      "paper_id": "10_20517_energymater_2024_299",
+      "doi": "",
+      "batch_id": "BATCH_20261106_LIMITS_PROBE",
+      "evidence_a_keys": [
+        "file_path",
+        "section_or_page",
+        "verbatim_quote"
+      ],
+      "evidence_b_keys": []
+    }
+  ],
+  "evidence_field_presence": {
+    "quote_like": {
+      "worker_a_evidence.verbatim_quote": 36934,
+      "worker_b_evidence.verbatim_quote": 30545
+    },
+    "location_like": {
+      "worker_a_evidence.section_or_page": 36961,
+      "worker_b_evidence.section_or_page": 30545,
+      "worker_a_evidence.table_id": 3104,
+      "worker_b_evidence.table_id": 2682
+    },
+    "file_like": {
+      "worker_a_evidence.file_path": 37075,
+      "worker_b_evidence.file_path": 30649
+    }
+  },
+  "limits": {
+    "target_system_examples_max": 60,
+    "evidence_samples_per_side_max": 12,
+    "probe_samples_max": 30,
+    "quotes_truncated": true,
+    "full_paper_text_excluded": true,
+    "original_database_excluded": true
+  }
+}
