@@ -1,5 +1,11 @@
 # External data adapter contract
 
+## Immutable cross-disciplinary boundary
+
+DoR core is a cross-disciplinary Skill and Runtime. Its schemas, examples, Run Plans, fixtures, and documentation may define only general data-integrity, provenance, workflow, validation, and review contracts. They must not contain discipline-specific scientific knowledge, terminology, entity taxonomies, field names, dataset examples, or research assumptions.
+
+Domain-specific retrieval, vocabulary, parsing, normalization, mappings, and project assumptions belong in independently maintained external adapters and user-owned project configuration. An adapter may produce a package that satisfies this generic contract, but it must not cause domain-specific logic to be copied into DoR core. This is a hard architectural boundary, not an optional convention.
+
 ## Purpose
 
 DoR is a cross-disciplinary Skill. The Runtime must not contain built-in assumptions about a research subject, discipline, material, protocol, target vocabulary, or source-system field names.
