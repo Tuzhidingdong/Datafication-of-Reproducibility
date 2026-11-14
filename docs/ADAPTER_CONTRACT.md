@@ -50,7 +50,7 @@ Materialize the four generic provenance artifacts into the Run workspace:
 
 Role-based materialization requires exactly one artifact for each requested role. It preserves each external artifact ID in the materialization manifest, copies the file without transforming it, and verifies source and copied-file hashes. The resulting filenames are the generic role names with their original file extensions.
 
-Use `templates/run_plan.canonical_adapter.example.json` for this route. The package must provide exactly one artifact for each of `source_inventory`, `mapping_plan`, `build_spec`, and `canonical_bundle`. After G0 approval, DoR re-runs mapping validation on the supplied mapping plan and inventory. G1 approval binds the exact mapping plan, validation report, inventory, and build specification. The G2 gate then verifies that the supplied Canonical Bundle's build-provenance hashes match those exact G1-approved artifacts. A prebuilt bundle therefore cannot bypass G0, G1, or G2.
+Use `templates/run_plan.canonical_adapter.example.json` for this route. The package must provide exactly one artifact for each of `source_inventory`, `mapping_plan`, `build_spec`, and `canonical_bundle`. After G0 approval, DoR re-runs mapping validation and Build Spec validation against the supplied mapping plan, inventory, and build specification. G1 approval binds the exact mapping plan, both validation reports, inventory, and build specification. The G2 gate then verifies that the supplied Canonical Bundle's build-provenance hashes match those exact G1-approved artifacts. A prebuilt bundle therefore cannot bypass G0, G1, or G2.
 
 ## Handoff to existing DoR stages
 
