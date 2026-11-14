@@ -41,10 +41,11 @@ def _resolve_package_records(payload: dict[str, Any], package_root: Path) -> tup
     sources = []
     for item in payload["sources"]:
         path = _source_path(package_root, item["path"])
+        package_path = path.relative_to(package_root).as_posix() if path.is_relative_to(package_root) else item["path"]
         sources.append({
             "source_id": item["source_id"],
             "path": str(path),
-            "package_path": item["path"],
+            "package_path": package_path,
             "format": item["format"],
             "role": item.get("role"),
             "sha256": item["sha256"].lower(),
@@ -57,7 +58,7 @@ def _resolve_package_records(payload: dict[str, Any], package_root: Path) -> tup
             "artifact_id": item["artifact_id"],
             "role": item["role"],
             "path": str(path),
-            "package_path": item["path"],
+            "package_path": path.relative_to(package_root).as_posix(),
             "format": item["format"],
             "media_type": item.get("media_type"),
             "sha256": item["sha256"].lower(),
