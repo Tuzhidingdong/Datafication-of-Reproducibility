@@ -7,6 +7,7 @@ from typing import Any
 from dor.chem_literacy import _load_csv_observations, _load_json_observations, _merge_ledger
 from dor.mapping import sha256_file
 from dor.conditions import EXCLUDED_TEST_BATCH_IDS, is_excluded_test_record, write_condition_outputs
+from dor.feature_semantics import build_feature_semantics_review_queue
 
 def _number(value: Any) -> float | None:
     if isinstance(value, bool) or value is None: return None
@@ -213,6 +214,7 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         if sha256_file(Path(path)) != expected: raise RuntimeError("Protected input changed during discovery scan: " + path)
     output_dir.mkdir(parents=True, exist_ok=True)
     condition_summary = write_condition_outputs(records, output_dir, source_hashes, minimum_studies=minimum_studies)
+    feature_semantics_summary = build_feature_semantics_review_queue(records, output_dir)
     (output_dir / "discovery_data_profile.json").write_text(
         json.dumps(summary["profile"], indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     _write_csv(output_dir / "feature_support.csv", [
@@ -252,6 +254,7 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
             if key != "condition_performance_analysis"
         },
         "condition_performance_analysis":condition_summary["condition_performance_analysis"],
+        "feature_semantics_review_summary":feature_semantics_summary,
         "source_merge_issue_count":len(merge_issues),"source_merge_issue_counts":merge_issue_counts,
         "limitations":summary["limitations"],"agent_brief_file":"agent_research_brief.md"}
     (output_dir / "discovery_report.json").write_text(
@@ -268,6 +271,13 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         f"- Feature identifiers: {summary['profile']['feature_count']}",
         f"- Status distribution: {json.dumps(summary['profile']['status_counts'], ensure_ascii=False, sort_keys=True)}",
         f"- Semantic mapping: {summary['profile']['semantic_mapping_status']}", "",
+        "## Feature semantics review queue", "",
+        f"- Feature/unit groups needing explicit mapping review: {feature_semantics_summary['feature_unit_group_count']}",
+        f"- Bounded DOI-distinct source examples: {feature_semantics_summary['representative_evidence_row_count']}",
+        f"- Maximum examples per feature/unit: {feature_semantics_summary['max_examples_per_feature_unit']}",
+        "- The queue contains clipped Worker evidence excerpts and source locators; it does not create or approve a feature mapping.",
+        "- Review file: feature_semantics_review_queue.csv",
+        "",
         "## Feature support", "",
         "| Feature | Unit | Observations | DOI Studies | Agreed numeric candidates |",
         "|---|---|---:|---:|---:|"]
@@ -341,11 +351,12 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "5. Assess novelty only after targeted literature review.",
         "6. Recommend a direction based on scientific value and identifiability, not record count alone.",
         "7. Treat condition_records.csv values as deterministic candidates, not human-accepted facts; follow the evidence locator and confidence.",
-        "8. Use condition_outcome_links.csv to trace each association back to observation IDs and condition_records.csv.",
-        "9. Prioritize contrasts with within-DOI paired support, inspect paired direction/counterexample counts, and do not infer causal effects.",
-        "10. Do not interpret percentage modifiers as dose levels unless the percentage basis is explicitly verified.",
-        "11. Joint condition combinations are co-recorded support only; use them to prioritize follow-up, not to claim an interaction or synergy.",
-        "12. Same-DOI comparisons are Study-level paired summaries only; they do not prove matched experiments, specimens, or replicates.", "",
+        "8. Use feature_semantics_review_queue.csv to propose explicit feature definitions from the bounded DOI-distinct excerpts; do not write or approve mappings automatically.",
+        "9. Use condition_outcome_links.csv to trace each association back to observation IDs and condition_records.csv.",
+        "10. Prioritize contrasts with within-DOI support, inspect direction/counterexample counts, and do not infer causal effects.",
+        "11. Do not interpret percentage modifiers as dose levels unless the percentage basis is explicitly verified.",
+        "12. Joint condition combinations are co-recorded support only; use them to prioritize follow-up, not to claim an interaction or synergy.",
+        "13. Same-DOI comparisons are Study-level summaries only; they do not prove matched experiments, specimens, or replicates.", "",
         "## Limitations", ""])
     brief.extend("- " + item for item in summary["limitations"])
     (output_dir / "agent_research_brief.md").write_text("\n".join(brief) + "\n", encoding="utf-8")
@@ -371,6 +382,7 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "condition_record_count":condition_summary["condition_record_count_eligible"],
         "condition_summary":str(output_dir / "condition_extraction_summary.json"),
         "condition_performance_analysis":condition_summary["condition_performance_analysis"],
+        "feature_semantics_review_summary":feature_semantics_summary,
         "paper_count":summary["profile"]["unique_paper_count"],
         "verified_doi_study_count":summary["profile"]["verified_doi_study_count"],
         "feature_count":summary["profile"]["feature_count"],"signal_count":len(summary["signals"]),
