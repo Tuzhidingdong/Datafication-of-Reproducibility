@@ -11,11 +11,11 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.source = self.root / "source.csv"
         with self.source.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.writer(handle)
-            writer.writerow(["DOI","Title","System","Temperature","ConditionType","ValueState","Experiment","Target","Value"])
-            writer.writerow(["10.1000/a","Study A","Cell A","25","temperature","REPORTED","E1","capacity","100"])
-            writer.writerow(["10.1000/a","Study A","Cell A","25","temperature","REPORTED","E2","capacity","110"])
+            writer.writerow(["DOI","Title","System","Feature01","ConditionType","ValueState","Experiment","Target","Value"])
+            writer.writerow(["10.1000/a","Study A","System A","25","feature_01","REPORTED","E1","TARGET_01","100"])
+            writer.writerow(["10.1000/a","Study A","System A","25","feature_01","REPORTED","E2","TARGET_01","110"])
         self.source_hash = sha256_file(self.source)
-        columns = ["DOI","Title","System","Temperature","ConditionType","ValueState","Experiment","Target","Value"]
+        columns = ["DOI","Title","System","Feature01","ConditionType","ValueState","Experiment","Target","Value"]
         self.inventory = {"schema_version":"1.0","items":[
             {"inventory_id":f"SRC_{name}","source_file":"source.csv","source_sha256":self.source_hash,
              "source_format":"csv","locator_type":"csv_column","locator":name}
@@ -31,7 +31,7 @@ class CanonicalBuilderTests(unittest.TestCase):
         add("R_SYS_TYPE","System","systems","system_type")
         add("R_COND_TYPE","ConditionType","conditions","condition_type")
         add("R_COND_STATE","ValueState","conditions","value_state")
-        add("R_TEMP","Temperature","conditions","raw_value","NUMERIC_PARSE")
+        add("R_FEATURE_01","Feature01","conditions","raw_value","NUMERIC_PARSE")
         add("R_EXP_KEY","Experiment","experiments","source_experiment_key")
         add("R_TARGET","Target","observations","target_id")
         add("R_OBS_STATE","ValueState","observations","value_state")
@@ -51,7 +51,7 @@ class CanonicalBuilderTests(unittest.TestCase):
             {"definition_id":"D_SYSTEM","entity_type":"systems","source_file":"source.csv",
              "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System"]},"field_rule_ids":["R_SYS_TYPE"]},
             {"definition_id":"D_CONDITION","entity_type":"conditions","source_file":"source.csv",
-             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System","SRC_Temperature"]},"field_rule_ids":["R_COND_TYPE","R_COND_STATE","R_TEMP"]},
+             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System","SRC_Feature01"]},"field_rule_ids":["R_COND_TYPE","R_COND_STATE","R_FEATURE_01"]},
             {"definition_id":"D_EXPERIMENT","entity_type":"experiments","source_file":"source.csv",
              "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment"]},"field_rule_ids":["R_EXP_KEY"]},
             {"definition_id":"D_OBSERVATION","entity_type":"observations","source_file":"source.csv",
@@ -85,8 +85,8 @@ class CanonicalBuilderTests(unittest.TestCase):
     def _switch_observations_to_json(self):
         json_path = self.root / "observations.json"
         payload = {"observations":[
-            {"experiment_ref":"E1","target":"capacity","state":"REPORTED","value":"101"},
-            {"experiment_ref":"E2","target":"capacity","state":"REPORTED","value":"111"}
+            {"experiment_ref":"E1","target":"TARGET_01","state":"REPORTED","value":"101"},
+            {"experiment_ref":"E2","target":"TARGET_01","state":"REPORTED","value":"111"}
         ]}
         json_path.write_text(json.dumps(payload,ensure_ascii=False),encoding="utf-8")
         digest=sha256_file(json_path)
@@ -173,7 +173,7 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertTrue(any(e["code"]=="VALUE_TRANSFORM_FAILED" for e in report["errors"]))
 
     def test_conflicting_values_within_group_fail_closed(self):
-        content=self.source.read_text(encoding="utf-8").replace("10.1000/a,Study A,Cell A,25", "10.1000/a,Different title,Cell A,25", 1)
+        content=self.source.read_text(encoding="utf-8").replace("10.1000/a,Study A,System A,25", "10.1000/a,Different title,System A,25", 1)
         self.source.write_text(content,encoding="utf-8")
         new_hash=sha256_file(self.source)
         for item in self.inventory["items"]:
