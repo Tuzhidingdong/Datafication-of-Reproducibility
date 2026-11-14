@@ -29,7 +29,19 @@ class WorkflowGateTests(unittest.TestCase):
             self.files[artifact_id] = path
 
         make_file("dataset_manifest", {"schema_version": "1.0", "audit_id": "AUDIT_TEST"})
-        make_file("source_inventory", {"schema_version": "1.0", "items": []})
+        make_file("source_inventory", {
+            "schema_version": "1.0",
+            "items": [{
+                "inventory_id": "SRC_TEST_1",
+                "source_file": "records.csv",
+                "source_sha256": "a" * 64,
+                "source_format": "csv",
+                "locator_type": "csv_column",
+                "locator": "record_id",
+                "observed_types": ["string"],
+                "coverage": 1.0,
+            }],
+        })
         inventory_hash = sha256_file(self.files["source_inventory"])
         mapping_plan = {
             "schema_version": "1.0",
