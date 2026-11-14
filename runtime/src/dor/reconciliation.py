@@ -461,6 +461,17 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
             errors.append({"code":"INVALID_DECISION_EVIDENCE","path":f"{path}.evidence_refs","message":"evidence_refs must contain unique evidence IDs present in the canonical bundle."})
         if decision.get("decision") == "RESOLVED_WITH_EVIDENCE" and not refs:
             errors.append({"code":"RESOLUTION_EVIDENCE_REQUIRED","path":f"{path}.evidence_refs","message":"RESOLVED_WITH_EVIDENCE requires at least one canonical evidence ID."})
+        issue = issue_by_id[issue_id]
+        if (issue.get("severity") in {"CRITICAL", "REVIEW_REQUIRED"}
+                and decision.get("decision") == "REMAINS_UNRESOLVED"):
+            errors.append({
+                "code": "BLOCKING_RECONCILIATION_ISSUE_UNRESOLVED",
+                "path": f"{path}.decision",
+                "message": (
+                    f"Issue {issue_id} has severity {issue.get('severity')} and cannot remain unresolved "
+                    "when the reconciliation decision packet is submitted for G2."
+                ),
+            })
         valid_ids.append(issue_id)
     missing_issue_ids = sorted(set(issue_by_id) - seen)
     for issue_id in missing_issue_ids:
