@@ -194,9 +194,9 @@ def _parse_target_system(observation: dict[str, Any]) -> list[dict[str, Any]]:
         add("system_domain", raw, "COMPUTATIONAL_MODEL", "RULE_COMPUTATIONAL_CONTEXT", "MEDIUM")
     elif re.search(r"\b(contact\s+angle|water\s+droplet|substrate)\b", raw, re.IGNORECASE):
         add("system_domain", raw, "SURFACE_OR_WETTING_TEST", "RULE_SURFACE_CONTEXT", "MEDIUM")
-    elif found:
-        add("system_domain", raw, "ELECTROCHEMICAL_OR_MATERIAL_SYSTEM",
-            "RULE_CONTEXT_FROM_PARSED_SYSTEM", "LOW")
+    # Do not emit a generic domain label merely because one or more tokens
+    # matched. Cell/electrolyte/material records already carry those facts;
+    # a generic tag would inflate condition counts without adding a condition.
 
     return found
 
