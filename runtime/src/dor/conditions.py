@@ -90,6 +90,7 @@ def _record(
         "reconciliation_id": _clean(observation.get("reconciliation_id")),
         "feature_id": _clean(observation.get("feature_id")),
         "batch_id": _clean(observation.get("batch_id")),
+        "target_system_raw": _clean(observation.get("target_system")),
         "data_eligibility": "EXCLUDED_TEST_DATA" if is_excluded_test_record(observation) else "ELIGIBLE_FOR_EXPLORATORY_ANALYSIS",
         "condition_type": condition_type,
         "raw_value": raw_value,
@@ -469,7 +470,7 @@ def write_condition_outputs(
     }
     condition_fields = [
         "observation_id", "paper_id", "doi", "reconciliation_id", "feature_id", "batch_id",
-        "data_eligibility", "condition_type", "raw_value", "normalized_value", "numeric_value",
+        "target_system_raw", "data_eligibility", "condition_type", "raw_value", "normalized_value", "numeric_value",
         "numeric_unit", "unit_basis", "source_field", "source_file", "source_location",
         "table_id", "row_header", "col_header", "verbatim_quote", "footnote", "source_file_id",
         "extraction_method", "rule_version", "confidence", "review_status",
