@@ -23,7 +23,7 @@ EVENT_GENESIS_HASH = "0" * 64
 _STAGE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _GATE_IDS = {"G0", "G1", "G2", "G3", "G4"}
 _PRODUCER_KINDS = {"local", "worker", "manual"}
-_STAGE_STATUSES = {"RUNNING", "SUCCEEDED", "FAILED"}
+_STAGE_STATUSES = {"RUNNING", "SUCCEEDED", "FAILED", "SKIPPED"}
 
 
 def _now() -> str:
@@ -206,6 +206,27 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
         gate = stage.get("required_gate")
         if gate is not None and gate not in _GATE_IDS:
             raise ValueError(f"Stage {stage_id} required_gate must be G0-G4 or null.")
+        activation = stage.get("activation")
+        if activation is not None:
+            if not isinstance(activation, dict) or set(activation) - {"artifact_id", "json_pointer", "operator", "value"}:
+                raise ValueError(f"Stage {stage_id} activation must be a supported condition object.")
+            activation_artifact = activation.get("artifact_id")
+            pointer = activation.get("json_pointer")
+            operator = activation.get("operator")
+            operators = {"exists", "not_exists", "array_non_empty", "array_empty",
+                         "boolean_true", "boolean_false", "equals", "not_equals"}
+            if activation_artifact not in inputs:
+                raise ValueError(f"Stage {stage_id} activation.artifact_id must also be declared in inputs.")
+            if not isinstance(pointer, str) or (pointer and not pointer.startswith("/")):
+                raise ValueError(f"Stage {stage_id} activation.json_pointer must be an RFC 6901 JSON Pointer.")
+            if re.search(r"~(?![01])", pointer):
+                raise ValueError(f"Stage {stage_id} activation.json_pointer contains an invalid escape.")
+            if operator not in operators:
+                raise ValueError(f"Stage {stage_id} activation.operator is unsupported.")
+            if operator in {"equals", "not_equals"} and "value" not in activation:
+                raise ValueError(f"Stage {stage_id} activation operator {operator} requires value.")
+            if operator not in {"equals", "not_equals"} and "value" in activation:
+                raise ValueError(f"Stage {stage_id} activation value is only valid for equals/not_equals.")
         normalized_outputs = []
         for output in outputs:
             if not isinstance(output, dict):
@@ -244,7 +265,7 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
         stages[stage_id] = {
             "stage_id": stage_id, "depends_on": list(dependencies), "required_gate": gate,
             "inputs": list(inputs), "outputs": normalized_outputs, "executor": executor,
-            "worker_task": worker_task,
+            "worker_task": worker_task, "activation": activation,
         }
 
     for stage_id, stage in stages.items():
@@ -582,6 +603,72 @@ def _artifact_path(root: Path, definition: Mapping[str, Any]) -> Path:
         return Path(definition["path"]).expanduser().resolve(strict=False)
     return _safe_relative_path(root, definition["path"], f"Artifact {definition['artifact_id']} path")
 
+
+def _json_pointer_lookup(document: Any, pointer: str) -> tuple[bool, Any]:
+    if pointer == "":
+        return True, document
+    current = document
+    for raw_token in pointer[1:].split("/"):
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, dict):
+            if token not in current:
+                return False, None
+            current = current[token]
+        elif isinstance(current, list):
+            if not token.isdigit() or (len(token) > 1 and token.startswith("0")):
+                return False, None
+            index = int(token)
+            if index >= len(current):
+                return False, None
+            current = current[index]
+        else:
+            return False, None
+    return True, current
+
+
+def _evaluate_activation(root: Path, plan: Mapping[str, Any], stage: Mapping[str, Any]) -> dict[str, Any]:
+    activation = stage.get("activation")
+    if activation is None:
+        return {"state": "ACTIVE", "matched": True}
+    definitions, _ = _artifact_definitions(plan)
+    artifact_id = activation["artifact_id"]
+    path = _artifact_path(root, definitions[artifact_id])
+    if not path.is_file():
+        return {"state": "WAITING", "matched": None,
+                "reason": f"Activation input {artifact_id} is not available yet."}
+    try:
+        document = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Activation input {artifact_id} must be readable JSON: {exc}") from exc
+    found, value = _json_pointer_lookup(document, activation["json_pointer"])
+    operator = activation["operator"]
+    if operator == "exists":
+        matched = found
+    elif operator == "not_exists":
+        matched = not found
+    elif operator == "array_non_empty":
+        matched = found and isinstance(value, list) and len(value) > 0
+    elif operator == "array_empty":
+        matched = found and isinstance(value, list) and len(value) == 0
+    elif operator == "boolean_true":
+        matched = found and value is True
+    elif operator == "boolean_false":
+        matched = found and value is False
+    elif operator == "equals":
+        matched = found and value == activation["value"]
+    elif operator == "not_equals":
+        matched = found and value != activation["value"]
+    else:
+        raise ValueError(f"Unsupported activation operator: {operator}")
+    observed_hash = _hash_payload({"exists": found, "value": value if found else None})
+    return {
+        "state": "ACTIVE" if matched else "INACTIVE",
+        "matched": bool(matched),
+        "artifact_id": artifact_id,
+        "json_pointer": activation["json_pointer"],
+        "operator": operator,
+        "observed_value_sha256": observed_hash,
+    }
 
 def _snapshot_artifacts(root: Path, manifest: Mapping[str, Any], plan: Mapping[str, Any],
                         artifact_ids: list[str]) -> list[dict[str, str]]:
