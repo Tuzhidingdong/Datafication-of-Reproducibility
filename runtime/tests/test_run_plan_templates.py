@@ -177,6 +177,12 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
         findings_schema = json.loads(
             (ROOT / "schemas" / "reviewed_findings.schema.json").read_text(encoding="utf-8")
         )
+        worker_schema = json.loads(
+            (ROOT / "schemas" / "worker_result.schema.json").read_text(encoding="utf-8")
+        )
+        worker_example = json.loads(
+            (ROOT / "templates" / "worker_result.example.json").read_text(encoding="utf-8")
+        )
         review_example = json.loads(
             (ROOT / "templates" / "run_review_packet.example.json").read_text(encoding="utf-8")
         )
@@ -192,6 +198,22 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "ACCEPT_WITH_CHANGES",
             findings_schema["properties"]["findings"]["items"]["properties"]["disposition"]["enum"],
         )
+        worker_finding = worker_schema["properties"]["findings"]["items"]
+        self.assertTrue({
+            "finding_id", "summary", "supporting_artifact_ids", "evidence",
+        }.issubset(set(worker_finding["required"])))
+        self.assertEqual(worker_example["schema_version"], "1.0")
+        self.assertIn("evidence", worker_example["findings"][0])
+        publication_plan = json.loads(
+            (ROOT / "templates" / "publication_package_plan.example.json").read_text(encoding="utf-8")
+        )
+        self.assertIsNone(publication_plan.get("domain_profile"))
+        publication_ids = {item["artifact_id"] for item in publication_plan["artifacts"]}
+        self.assertTrue({
+            "WORKER_REVIEW_RECORD",
+            "HUMAN_DISPOSITION_RECORD",
+            "HUMAN_DISPOSITION_VALIDATION",
+        }.issubset(publication_ids))
         for relative_path in (
             "templates/run_plan.example.json",
             "templates/run_plan.canonical_adapter.example.json",
@@ -256,6 +278,12 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             self.assertIn("publication_plan", source_artifact_ids)
             self.assertIn("publication_plan", stages["publication_package_assembly"]["inputs"])
             self.assertNotIn("publication_plan_input", source_artifact_ids)
+            publication = stages["publication_package_assembly"]
+            self.assertTrue({
+                "worker_review_output", "reviewed_findings",
+                "reviewed_findings_validation",
+            }.issubset(set(publication["inputs"])))
+            self.assertIn("independent_result_review", publication["depends_on"])
 
     def test_run_plan_schema_declares_activation_operators(self):
         schema = json.loads(

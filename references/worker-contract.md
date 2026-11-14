@@ -22,7 +22,7 @@ The full raw dataset should not be placed in the prompt. Workers should read sel
 
 ## Result packet
 
-A Worker result must include task status, concise findings, paths to generated artifacts, sources and evidence pointers, assumptions and unresolved issues, warnings, and recommended next action.
+A Worker result must include task status, concise findings, paths to generated artifacts, sources and evidence pointers, assumptions and unresolved issues, warnings, and recommended next action. For a DoR formal review stage, write the result at the exact declared staging path and conform to `schemas/worker_result.schema.json`; use `templates/worker_result.example.json` as the neutral format reference. Every finding must have a stable `finding_id`, concise summary, one or more supporting input artifact IDs, and exact locators within those inputs. The `task_id` must be the actual task ID returned by the host Worker Manager, not an invented identifier.
 
 Numerical claims must cite the Python-generated artifact from which they were read. Worker prose is not an authoritative substitute for deterministic output.
 

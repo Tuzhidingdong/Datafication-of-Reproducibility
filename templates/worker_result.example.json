@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "task_id": "REPLACE_WITH_ACTUAL_WORKER_TASK_ID",
+  "status": "completed",
+  "summary": "Concise summary of the bounded review task and its outcome.",
+  "findings": [
+    {
+      "finding_id": "FINDING_001",
+      "summary": "A concise, evidence-bounded finding that can be independently checked.",
+      "supporting_artifact_ids": ["model_report"],
+      "evidence": [
+        {
+          "artifact_id": "model_report",
+          "locator": "/replace/with/exact/json_pointer",
+          "description": "Exact location in the declared input that supports this finding."
+        }
+      ],
+      "limitations": ["State what the available inputs do not establish."]
+    }
+  ],
+  "artifacts": [],
+  "warnings": [],
+  "unresolved_questions": [],
+  "recommended_next_action": "Describe the smallest useful next action, or state that no action is required."
+}

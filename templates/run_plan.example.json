@@ -769,7 +769,8 @@
         "permitted_actions": [
           "Read only the six declared compact JSON/report inputs",
           "Write one structured review JSON to the exact permitted staging path",
-          "Follow schemas/worker_result.schema.json. Assign a stable finding_id to each finding and cite supporting_artifact_ids with exact evidence locators (artifact_id plus JSON path, line, or equivalent location)."
+          "Follow schemas/worker_result.schema.json. Assign a stable finding_id to each finding and cite supporting_artifact_ids with exact evidence locators (artifact_id plus JSON path, line, or equivalent location).",
+          "Conform the JSON result to schemas/worker_result.schema.json and use templates/worker_result.example.json as a neutral format reference; each finding needs a stable ID, supporting artifact IDs, and exact evidence locators."
         ],
         "forbidden_actions": [
           "Modify source data or analysis artifacts",
@@ -831,7 +832,8 @@
         "interaction_robustness",
         "g3_selection_packet",
         "virtual_condition_prediction",
-        "human_review_and_promotion"
+        "human_review_and_promotion",
+        "independent_result_review"
       ],
       "required_gate": "G4",
       "inputs": [
@@ -842,7 +844,9 @@
         "robustness_report",
         "interaction_selection",
         "virtual_prediction",
-        "reviewed_findings"
+        "reviewed_findings",
+        "worker_review_output",
+        "reviewed_findings_validation"
       ],
       "outputs": [
         {

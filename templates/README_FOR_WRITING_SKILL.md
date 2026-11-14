@@ -38,6 +38,7 @@ Never use source code or old chat history as the authority for an executed param
 | Supporting Information | supporting_information/ |
 | Limitations | limitations/, validation reports, applicability-domain records |
 | Claim verification | findings/, evidence links, source DOI/page/figure pointers |
+| Independent review and promotion trail | reviews/worker_review_output.json, reviews/reviewed_findings.json, reviews/reviewed_findings_validation.json |
 
 Paths above are logical conventions. The exact paths for this run are given in package_manifest.json.
 
@@ -54,6 +55,10 @@ Paths above are logical conventions. The exact paths for this run are given in p
 - Do not invent references or model parameters, sample counts, conditions, or results.
 - If an essential item is missing or ambiguous, add an explicit author query rather than guessing.
 - Every manuscript claim should be traceable to one or more finding IDs, model IDs, figure/table IDs, or original-source evidence pointers.
+
+## Independent review and promotion records
+
+Treat `reviews/worker_review_output.json` as the original independent review proposal, not as an approval. Use `reviews/reviewed_findings.json` as the authoritative record of the human disposition for each Worker finding. Only `ACCEPT_AS_IS` and `ACCEPT_WITH_CHANGES` may be represented as promoted findings; `REJECT` and `DEFER` remain unpromoted. Preserve the original Worker result and `reviews/reviewed_findings_validation.json` as an audit trail. Do not infer acceptance from a Worker recommendation or from the presence of a finding.
 
 ## Paper section workflow
 

@@ -3,7 +3,7 @@
   "project_id": "PROJECT_001",
   "run_id": "RUN_0001",
   "package_version": "0.5.0",
-  "domain_profile": "domain_profiles/zinc_battery/domain_profile.yaml",
+  "domain_profile": null,
   "writing_guide_source": null,
   "source_hashes": {},
   "artifacts": [
@@ -15,7 +15,10 @@
       "description": "Approved feature definitions, semantic mappings, units and missingness states.",
       "status": "complete",
       "linked_record_ids": [],
-      "manuscript_sections": ["Methods", "Supporting Information"]
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
     },
     {
       "artifact_id": "MODEL_ARTIFACT_001",
@@ -24,8 +27,14 @@
       "type": "model_artifact",
       "description": "Selected model and preprocessing parameters fitted on train plus validation; test observations excluded from fitting.",
       "status": "complete",
-      "linked_record_ids": ["TASK_001"],
-      "manuscript_sections": ["Methods", "Results", "Supporting Information"]
+      "linked_record_ids": [
+        "TASK_001"
+      ],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Supporting Information"
+      ]
     },
     {
       "artifact_id": "MECHANISM_BRIDGE_001",
@@ -34,8 +43,13 @@
       "type": "mechanism_evidence_bridge_report",
       "description": "Evidence-linked mechanism hypotheses and contradictory evidence pending user review.",
       "status": "requires_review",
-      "linked_record_ids": ["INT_SELECTED"],
-      "manuscript_sections": ["Results", "Discussion"]
+      "linked_record_ids": [
+        "INT_SELECTED"
+      ],
+      "manuscript_sections": [
+        "Results",
+        "Discussion"
+      ]
     },
     {
       "artifact_id": "FIGURE_001",
@@ -45,7 +59,45 @@
       "description": "Planned primary results figure; no rendered output exists yet.",
       "status": "not_generated",
       "linked_record_ids": [],
-      "manuscript_sections": ["Results"]
+      "manuscript_sections": [
+        "Results"
+      ]
+    },
+    {
+      "artifact_id": "WORKER_REVIEW_RECORD",
+      "path": "reviews/worker_review_output.json",
+      "source_path": "worker_staging/independent_result_review/review.json",
+      "type": "worker_review_record",
+      "description": "Original independent Worker result retained as audit provenance; it does not constitute scientific approval.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "HUMAN_DISPOSITION_RECORD",
+      "path": "reviews/reviewed_findings.json",
+      "source_path": "09_review/reviewed_findings.json",
+      "type": "human_review_record",
+      "description": "Human disposition of every Worker finding, including accepted, rejected, and deferred items.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "HUMAN_DISPOSITION_VALIDATION",
+      "path": "reviews/reviewed_findings_validation.json",
+      "source_path": "09_review/reviewed_findings_validation.json",
+      "type": "validation_report",
+      "description": "Deterministic validation of the Worker result, reviewed inputs, one-to-one dispositions, and aggregate promotion decision.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Supporting Information"
+      ]
     }
   ]
 }
