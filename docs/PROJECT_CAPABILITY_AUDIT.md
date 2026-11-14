@@ -22,6 +22,8 @@ The Run Manager records immutable plan/source snapshots, hash-chained stage even
 
 The DoR cross-disciplinary boundary is now explicit in the core Skill and Adapter Contract: domain-specific scientific knowledge, vocabularies, field names, taxonomies, mappings, and assumptions remain in project-owned configuration or independently maintained adapters; they are not part of the DoR core. Shared examples and synthetic fixtures use neutral identifiers and units.
 
+**Run versus Acceptance boundary:** the Controlled Acceptance Record remains a separate post-Run artifact by design. It must bind the final Run/Gate ledgers and exact completed outputs; including it as a Run output would create a circular ledger dependency. The Acceptance revision history and detached checkpoint are the independent final project-level review record.
+
 **Still intentionally outside core / not established:** native raw PDF/DOCX and multimodal extraction; host-side Worker Manager invocation and process supervision; general cross-run content-addressed caching; RO-Crate/PROV export; and scientific validity on a user-selected real dataset. These are external integrations or later acceptance work, not silently claimed capabilities.
 
 **Verification state:** no test suite or CI run was executed during this implementation pass, in accordance with the instruction to complete the project before one unified test/acceptance pass. Test coverage has been updated for the new conditional stage contracts; runtime correctness remains pending that final pass. The earlier audit's test statements describe only its recorded historical snapshot.
