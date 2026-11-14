@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "run_id": "RUN_EXAMPLE",
+  "project_id": "PROJECT_EXAMPLE",
+  "reviewer": "REPLACE_WITH_REVIEWER",
+  "reviewed_at": "2026-11-14T00:00:00Z",
+  "worker_output": {
+    "artifact_id": "worker_review_output",
+    "path": "worker_staging/independent_result_review/review.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "reviewed_artifacts": [
+    {
+      "artifact_id": "model_report",
+      "path": "06_modeling/baseline/model_report.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_id": "interaction_selection",
+      "path": "07_review/interaction_selection.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "findings": [
+    {
+      "worker_finding_id": "WF_001",
+      "disposition": "ACCEPT_WITH_CHANGES",
+      "reviewer_rationale": "The finding is relevant but its scope statement needs to be narrowed to the exact artifacts reviewed.",
+      "revised_finding_summary": "Replace with the human-approved bounded wording.",
+      "supporting_artifact_ids": [
+        "model_report"
+      ]
+    }
+  ],
+  "promotion_decision": "PROMOTE_WITH_CHANGES",
+  "overall_rationale": "Only explicitly accepted or revised findings are promoted; other Worker suggestions remain unpromoted."
+}
