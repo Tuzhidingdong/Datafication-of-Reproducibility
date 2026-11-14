@@ -16,13 +16,21 @@ The runtime provides:
 
 The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The mapping plan schema is in ../schemas/mapping_plan.schema.json. The build specification schema is in ../schemas/canonical_build_spec.schema.json. Reconciliation report and human decision schemas are in ../schemas/reconciliation_report.schema.json and ../schemas/reconciliation_decisions.schema.json. See ../docs/CANONICAL_DATA_MODEL.md, ../docs/MAPPING_CONTRACT.md, ../docs/CANONICAL_BUILDER.md, and ../docs/RECONCILIATION.md.
 
-## Scientific Discovery scan
+## External adapter packages
 
-Use the aggregate Chem-Literacy JSON as the primary input. The reconciliation CSV is optional and is joined only through the existing paper_id + reconciliation_id adapter contract.
+DoR consumes packages prepared by independently maintained adapters. The package contract is in ../schemas/adapter_package.schema.json and ../docs/ADAPTER_CONTRACT.md.
 
-    dor discover-opportunities --database-json path/to/consolidated_zinc_battery_database.json --reconciliation-csv path/to/consolidated_zinc_battery_database.csv --out-dir path/to/dor_discovery
+    dor validate-adapter-package --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/reports/adapter_validation.json
 
-The command creates a new or empty output directory and refuses to overwrite non-empty output. It hashes inputs before and after processing. The Agent should read agent_research_brief.md and discovery_report.json, not the original corpus or all generated observation-level data. The scan is exploratory; it does not create a formal Run or cross G0-G4 approval gates.
+This verifies declared source and artifact files, package-relative artifact paths, and exact SHA-256 hashes. It does not interpret domain semantics or approve mappings.
+
+## Exploratory discovery
+
+Use a validated Canonical Bundle as the shared input to exploratory profiling and the formal analysis workflow:
+
+    dor discover-opportunities --bundle path/to/canonical_bundle.json --out-dir path/to/new/discovery_run
+
+The scan validates canonical structure and references, hashes the input before and after processing, writes aggregate-only profiles and a bounded Agent brief, and refuses to overwrite a non-empty output directory. It does not create a formal Run or cross G0-G4 approval gates.
 
 ## Setup
 
@@ -216,39 +224,4 @@ It lists source and derived artifacts by ID/path/producer, expected and actual S
 The resume planner reports `SOURCE_CHANGED_NEW_RUN_REQUIRED` when a declared source input no longer matches its run-init snapshot. Do not rebuild against changed source data inside the same run; initialize a new Run.
 
 
-The first run event is RUN_INITIALIZED. It hash-binds the Run Manifest's source snapshot, plan hash, workspace, workflow-ledger path, and stage order. Every Runtime operation compares the manifest against this event before trusting any stage status.
-
-
-## Chem-Literacy import and condition recovery
-
-Import the Chem-Literacy aggregate JSON and its optional flattened Reconciliation Ledger:
-
-~~~bash
-dor ingest-chem-literacy \
-  --database-json path/to/consolidated_zinc_battery_database.json \
-  --reconciliation-csv path/to/reconciliation_ledger.csv \
-  --source-root path/to/chem_literacy/preprocessed \
-  --out-dir path/to/new/derived/00_chem_literacy_import
-~~~
-
-Use --database-csv instead when the flattened observation CSV is the only primary source. The adapter preserves repeated records and Worker evidence, merges the optional ledger only by paper_id + reconciliation_id, reports disagreements, and never overwrites a conflicting JSON value.
-
-The import creates normalized observations, a reconciliation review queue, numeric agreed-label candidates, and feature-specific condition-recovery packets. These label candidates are not a ready-to-train matrix. Do not pivot repeated feature/system records unless an explicit experiment/condition identity makes matching unambiguous.
-
-For missing experimental conditions, DOR distinguishes information absent from the extraction from information absent from the paper. It searches bounded excerpts in the declared paper/SI files and prepares Worker task packets. A failed keyword search is NOT_ASSESSED, never NOT_REPORTED. Only explicit review after checking relevant main text and SI can establish NOT_REPORTED. See ../docs/CHEM_LITERACY_INTEGRATION.md.
-
-
-### Validate condition-recovery decisions
-
-After a Worker recovery proposal passes source hash and exact-quotation checks, prepare a human decision record using ../schemas/condition_decisions.schema.json and run:
-
-~~~bash
-dor validate-condition-decisions \
-  --task condition_recovery_task.json \
-  --recovery-validation condition_recovery_validation_report.json \
-  --decisions human_condition_decisions.json \
-  --source-root path/to/chem_literacy/preprocessed \
-  --out-dir path/to/new/derived/condition_decisions
-~~~
-
-The command writes condition_decisions_validation_report.json and, only when valid, condition_decisions_accepted.json plus approved_conditions.csv. It does not edit source data or the imported observations. REPORTED values must exactly match source-verified Worker proposals. NOT_REPORTED requires human confirmation that the full main text and all available SI were checked, plus exact source hashes and review scope. Other states remain explicit non-values.
+The first run event is RUN_INITIALIZED. It hash-binds the Run Manifest's source snapshot, plan hash, workspace, workflow-ledger path, and stage order. Every Runtime operation compares the manifest against this event before trusting any stage status.\n
