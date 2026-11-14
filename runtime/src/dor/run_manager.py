@@ -486,13 +486,16 @@ def _validate_event_semantics(
             producer = event.get("producer")
             if not isinstance(producer, dict) or producer.get("kind") != stage["executor"]:
                 raise ValueError(f"Skipped stage producer does not match its plan at line {line_number}.")
-            validate_snapshots(event.get("input_artifacts"), stage["inputs"], "Skipped stage inputs", line_number)
+            activation = stage["activation"]
+            validate_snapshots(
+                event.get("input_artifacts"), [activation["artifact_id"]],
+                "Skipped stage activation input", line_number,
+            )
             if event.get("output_artifacts") != [] or event.get("gate_approval") is not None:
                 raise ValueError(f"SKIPPED event cannot claim outputs or a gate approval at line {line_number}.")
             if not isinstance(event.get("reason"), str) or not event["reason"].strip():
                 raise ValueError(f"SKIPPED stage event lacks a non-empty reason at line {line_number}.")
             evaluation = event.get("activation_evaluation")
-            activation = stage["activation"]
             if (not isinstance(evaluation, dict)
                     or any(evaluation.get(key) != activation.get(key)
                            for key in ("artifact_id", "json_pointer", "operator"))
@@ -789,10 +792,8 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                         action = "WAITING_FOR_ACTIVATION_INPUT"
                         reasons.append(activation_result.get("reason", "Activation input is not ready."))
                     elif activation_result["state"] == "INACTIVE":
-                        try:
-                            current_inputs = _stage_input_snapshots(root, manifest, plan, stage)
-                        except ValueError:
-                            current_inputs = None
+                        current_inputs = _snapshot_artifacts(
+                            root, manifest, plan, [activation["artifact_id"]])
                         if (current_event is not None and current_event["status"] == "SKIPPED"
                                 and current_inputs == current_event.get("input_artifacts")):
                             action = "SKIPPED"
@@ -1229,7 +1230,8 @@ def record_stage_status(
         activation_result = _evaluate_activation(root, plan, stage)
         if activation_result.get("state") != "INACTIVE":
             raise ValueError("Stage activation condition is not false; refusing to record SKIPPED.")
-        input_snapshots = _stage_input_snapshots(root, manifest, plan, stage)
+        input_snapshots = _snapshot_artifacts(
+            root, manifest, plan, [activation_result["artifact_id"]])
         attempt = (latest.get("attempt", 0) if latest else 0) + 1
         event_payload = {
             "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "SKIPPED",
