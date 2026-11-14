@@ -151,11 +151,18 @@ class WorkflowGateTests(unittest.TestCase):
                 "path": str(self.files["worker_review_output"]),
                 "sha256": sha256_file(self.files["worker_review_output"]),
             },
-            "reviewed_artifacts": [{
-                "artifact_id": "model_report",
-                "path": str(self.files["model_report"]),
-                "sha256": sha256_file(self.files["model_report"]),
-            }],
+            "reviewed_artifacts": [
+                {
+                    "artifact_id": "model_report",
+                    "path": str(self.files["model_report"]),
+                    "sha256": sha256_file(self.files["model_report"]),
+                },
+                {
+                    "artifact_id": "interaction_selection",
+                    "path": str(self.files["interaction_selection"]),
+                    "sha256": sha256_file(self.files["interaction_selection"]),
+                },
+            ],
             "findings": [{
                 "worker_finding_id": "WF_001",
                 "disposition": "ACCEPT_AS_IS",
@@ -296,7 +303,7 @@ class WorkflowGateTests(unittest.TestCase):
     def test_complete_gate_chain_and_exact_artifact_binding(self):
         self._complete_to_g2()
         self._record_g3()
-        self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
+        self._record("G4", ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"])
         snapshot = inspect_gate_ledger(self.ledger)
         self.assertTrue(snapshot["valid_ledger"])
         self.assertEqual(snapshot["workflow_status"], "READY_FOR_FINALIZATION")
@@ -346,7 +353,7 @@ class WorkflowGateTests(unittest.TestCase):
         reviewed["findings"] = []
         self._write("reviewed_findings", reviewed)
         with self.assertRaisesRegex(ValueError, "cover every Worker finding exactly once"):
-            self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
+            self._record("G4", ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"])
 
     def test_g4_rejects_promotion_decision_inconsistent_with_dispositions(self):
         self._complete_to_g2()
@@ -355,18 +362,18 @@ class WorkflowGateTests(unittest.TestCase):
         reviewed["promotion_decision"] = "DO_NOT_PROMOTE"
         self._write("reviewed_findings", reviewed)
         with self.assertRaisesRegex(ValueError, "inconsistent with the individual human finding dispositions"):
-            self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
+            self._record("G4", ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"])
 
     def test_g4_requires_gate_bindings_for_every_human_reviewed_artifact(self):
         self._complete_to_g2()
         self._record_g3()
         with self.assertRaisesRegex(ValueError, "Gate event must bind reviewed artifact"):
-            self._record("G4", ["publication_plan", "worker_review_output", "reviewed_findings"])
+            self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
 
     def test_changed_artifact_invalidates_its_gate_and_all_downstream_gates(self):
         self._complete_to_g2()
         self._record_g3()
-        self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
+        self._record("G4", ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"])
         self.files["canonical_bundle"].write_text('{"changed": true}', encoding="utf-8")
         snapshot = inspect_gate_ledger(self.ledger)
         self.assertEqual(snapshot["gates"]["G2"]["status"], "STALE_ARTIFACT")
