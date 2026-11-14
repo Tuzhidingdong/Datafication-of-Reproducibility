@@ -269,7 +269,10 @@ def run_canonical_discovery_scan(
     _write_csv(output_dir / "joint_support.csv",
         ["target_a", "target_b", "supporting_study_count", "linkage_basis"], result["joint_rows"])
     _write_csv(output_dir / "signal_catalogue.csv",
-        sorted({key for item in result["signals"] for key in item}), result["signals"])
+        ["signal_id", "signal_type", "target_id", "target_a", "target_b", "unit",
+         "condition_type", "supporting_observation_count", "supporting_study_count",
+         "study_median_min", "study_median_median", "study_median_max",
+         "interpretation_status"], result["signals"])
 
     report = {
         "schema_version": "1.0",
