@@ -559,6 +559,21 @@ class RunManagerTests(unittest.TestCase):
         }
         self.assertEqual(actions["optional_analysis"], "SKIPPED")
 
+    def test_running_conditional_stage_cannot_be_closed_as_skipped(self):
+        self._initialize_conditional_plan()
+        self._run_audit_with_selection(["ITEM_1"])
+        record_stage_status(
+            self.manifest_path, "optional_analysis", "RUNNING", "local",
+        )
+        dataset_manifest = self.run_root / "01_audit/dataset_manifest.json"
+        dataset_manifest.write_text('{"selected_ids":[]}\\n', encoding="utf-8")
+        # The unfinished process must be reconciled before a SKIPPED event can be appended.
+        with self.assertRaisesRegex(ValueError, "cannot be recorded as SKIPPED"):
+            record_stage_status(
+                self.manifest_path, "optional_analysis", "SKIPPED", "local",
+                reason="Condition became false.",
+            )
+
     def test_skipped_stage_reactivates_and_requires_archiving_older_outputs(self):
         self._initialize_conditional_plan()
         self._run_audit_with_selection([])
