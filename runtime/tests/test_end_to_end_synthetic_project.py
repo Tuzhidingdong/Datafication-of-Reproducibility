@@ -86,6 +86,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             cls.plan_path, cls.spec_path, cls.task_path,
             cls.mechanism_plan_path, cls.interaction_selection_path,
             cls.reconciliation_decisions_path, cls.reconciliation_decision_validation_path,
+            cls.discovery_report_path, cls.research_scope_record_path,
             cls.query_path, cls.gate_ledger,
         ]
         cls.source_bytes_after_build = {
@@ -580,11 +581,52 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         }
         write_json(cls.task_path, task)
         cls.task = task
+        cls.discovery_report_path = cls.root / "discovery_report.json"
+        write_json(cls.discovery_report_path, {
+            "schema_version": "1.0",
+            "discovery_status": "EXPLORATORY_SIGNALS_ONLY_NOT_ACCEPTED_SCIENTIFIC_FINDINGS",
+            "research_opportunity_synthesis": "REQUIRES_AGENT_SCIENTIFIC_REVIEW",
+            "novelty_assessment": "REQUIRES_TARGETED_LITERATURE_REVIEW",
+            "profile": {},
+            "signals": [
+                {"signal_id": "SYNTHETIC_SIGNAL_01", "signal_type": "SYNTHETIC_TYPE_A"},
+                {"signal_id": "SYNTHETIC_SIGNAL_02", "signal_type": "SYNTHETIC_TYPE_B"},
+            ],
+            "limitations": ["Synthetic gate fixture; not a scientific discovery report."],
+        })
+        cls.research_scope_record_path = cls.root / "research_scope_record.json"
+        write_json(cls.research_scope_record_path, {
+            "schema_version": "1.0",
+            "scope_id": "SYNTHETIC_SCOPE_01",
+            "discovery_report_sha256": sha256_file(cls.discovery_report_path),
+            "task_id": task["task_id"],
+            "target_id": task["target_id"],
+            "scope_statement": "A bounded synthetic scope for the end-to-end workflow fixture.",
+            "selected_signal_ids": ["SYNTHETIC_SIGNAL_01"],
+            "not_selected_signal_ids": ["SYNTHETIC_SIGNAL_02"],
+            "selection_rationale": "Select one synthetic signal and explicitly classify the remaining signal.",
+            "reviewed_by": "synthetic-reviewer",
+            "reviewed_at": "2026-11-14T00:00:00Z",
+            "limitations": ["Synthetic fixture only."],
+        })
+        cls.research_scope_validation_path = cls.root / "research_scope_validation.json"
+        cls._run_cli(
+            "validate-research-scope",
+            "--scope", str(cls.research_scope_record_path),
+            "--discovery-report", str(cls.discovery_report_path),
+            "--task", str(cls.task_path),
+            "--out", str(cls.research_scope_validation_path),
+        )
+        scope_validation = json.loads(cls.research_scope_validation_path.read_text(encoding="utf-8"))
+        if not scope_validation["valid"]:
+            raise AssertionError("Synthetic research scope failed validation: " + repr(scope_validation["errors"]))
         cls._approve_gate("G2", [
             ("canonical_bundle", cls.bundle_path),
             ("canonical_validation_report", cls.canonical_validation_path),
             ("reconciliation_report", reconciliation_report_path),
             ("reconciliation_decisions", cls.reconciliation_decisions_path),
+            ("discovery_report", cls.discovery_report_path),
+            ("research_scope_record", cls.research_scope_record_path),
             ("modeling_task", cls.task_path),
         ], "Synthetic user approval of exact canonical data, reconciliation state, endpoint, feature bindings, and Study split.")
         cls._run_cli(
