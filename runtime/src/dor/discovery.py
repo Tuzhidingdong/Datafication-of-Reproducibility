@@ -37,6 +37,30 @@ def _write_csv(path: Path, fields: list[str], rows: list[dict[str, Any]]) -> Non
             writer.writerow({k: json.dumps(v, ensure_ascii=False, sort_keys=True)
                              if isinstance(v, (dict, list, tuple)) else v for k, v in row.items()})
 
+BRIEF_SIGNAL_SECTIONS = [
+    ("CROSS_STUDY_DESCRIPTIVE_HETEROGENEITY", "Cross-study descriptive heterogeneity", 100),
+    ("CONDITION_COVERAGE_OPPORTUNITY", "Structured condition coverage", 40),
+    ("CO_OBSERVED_FEATURE_PAIR_OPPORTUNITY", "Feature-pair co-occurrence (not interactions)", 25),
+]
+
+
+def _select_brief_signals(signals: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Select signals by scientific category so high-frequency pairs cannot crowd out heterogeneity."""
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for signal in signals:
+        grouped[_text(signal.get("signal_type"), "OTHER")].append(signal)
+    selected: dict[str, dict[str, Any]] = {}
+    for signal_type, _label, limit in BRIEF_SIGNAL_SECTIONS:
+        items = sorted(grouped.get(signal_type, []), key=lambda item: (
+            -int(item.get("supporting_study_count", 0)), _text(item.get("signal_id"))))
+        selected[signal_type] = {
+            "available": len(items),
+            "included": items[:limit],
+            "omitted": max(0, len(items) - limit),
+        }
+    return selected
+
+
 def summarize_observations(records: list[dict[str, Any]], minimum_studies: int = 3,
                            maximum_feature_pairs: int = 250) -> dict[str, Any]:
     """Return aggregate-only profiles and cautious exploratory signals."""
@@ -164,12 +188,19 @@ def summarize_observations(records: list[dict[str, Any]], minimum_studies: int =
         "status_counts": dict(sorted(statuses.items())), "feature_support_row_count": len(feature_rows),
         "condition_support_row_count": len(condition_rows), "joint_support_pair_count": len(joint_rows),
         "signals_count": len(signals), "minimum_studies_threshold": minimum_studies,
+        "observations_with_structured_conditions": sum(
+            1 for item in records if isinstance(item.get("measurement_conditions"), dict)
+            and any(value not in (None, "", [], {}) for value in item["measurement_conditions"].values())),
+        "observations_with_raw_experimental_context": sum(
+            1 for item in records if bool(_text(item.get("experimental_context_raw")))),
+        "structured_condition_field_count": len({name for _feature, name in by_condition}),
         "semantic_mapping_status": "NOT_VERIFIED_BY_DISCOVERY_SCAN"}
     limitations = [
         "Exploratory signals are not accepted scientific findings.",
         "DOI defines verified Study support; paper-ID fallbacks are unverified and excluded from cross-Study thresholds.",
         "Paper/system/batch co-occurrence does not prove experiment, specimen, or replicate linkage.",
         "Feature endpoint definitions and unit comparability require domain mapping review.",
+        "Free-text experimental_context_raw is preserved by ingestion but is not interpreted by this deterministic discovery scan; zero structured-condition rows do not establish that source papers lack experimental conditions.",
         "No causal effects, p-values, FDR claims, or physical mechanisms are estimated.",
         "Novelty requires targeted literature review.",
         "The Agent brief contains aggregate summaries, not raw observations or paper text."]
@@ -232,11 +263,19 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         {key: value for key, value in signal.items() if key != "supporting_studies"}
         for signal in summary["signals"]
     ]
+    brief_signal_groups = _select_brief_signals(summary["signals"])
+    brief_signal_selection = {
+        signal_type: {"available": group["available"],
+                      "included": len(group["included"]),
+                      "omitted": group["omitted"]}
+        for signal_type, group in brief_signal_groups.items()
+    }
     report = {"schema_version":"1.0",
         "discovery_status":"EXPLORATORY_SIGNALS_ONLY_NOT_ACCEPTED_SCIENTIFIC_FINDINGS",
         "research_opportunity_synthesis":"REQUIRES_AGENT_SCIENTIFIC_REVIEW",
         "novelty_assessment":"REQUIRES_TARGETED_LITERATURE_REVIEW",
         "profile":summary["profile"],"signals":compact_signals,
+        "agent_brief_signal_selection":brief_signal_selection,
         "source_merge_issue_count":len(merge_issues),"source_merge_issue_counts":merge_issue_counts,
         "limitations":summary["limitations"],"agent_brief_file":"agent_research_brief.md"}
     (output_dir / "discovery_report.json").write_text(
@@ -250,18 +289,48 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         f"- Unverified paper-ID fallbacks: {summary['profile']['paper_id_fallback_count']}",
         f"- Feature identifiers: {summary['profile']['feature_count']}",
         f"- Status distribution: {json.dumps(summary['profile']['status_counts'], ensure_ascii=False, sort_keys=True)}",
+        f"- Structured-condition observations: {summary['profile']['observations_with_structured_conditions']}",
+        f"- Raw/unparsed experimental-context observations: {summary['profile']['observations_with_raw_experimental_context']}",
+        f"- Structured condition field categories: {summary['profile']['structured_condition_field_count']}",
         f"- Semantic mapping: {summary['profile']['semantic_mapping_status']}", "",
+        "## Condition-data coverage", "",
+        f"- Structured condition coverage rows: {summary['profile']['condition_support_row_count']}",
+        "- Free-text experimental context is not parsed by this scan. Empty structured coverage is not evidence that papers omit conditions.",
+        "- Inspect the bounded condition-diagnostic package before deciding whether a separate condition-recovery pass is needed.", "",
         "## Feature support", "",
         "| Feature | Unit | Observations | DOI Studies | Agreed numeric candidates |",
         "|---|---|---:|---:|---:|"]
-    for row in summary["feature_rows"][:100]:
+    for row in summary["feature_rows"]:
         brief.append(f"| {row['feature_id']} | {row['unit']} | {row['observation_count']} | {row['verified_doi_study_count']} | {row['agreed_numeric_candidate_count']} |")
-    brief.extend(["", "## Candidate signals", "", "| Signal | Type | Feature(s) | DOI Studies | Status |",
-        "|---|---|---|---:|---|"])
-    for signal in summary["signals"][:100]:
-        feature = signal.get("feature_id") or (str(signal.get("feature_a", "")) + " x " + str(signal.get("feature_b", "")))
-        if signal.get("condition_type"): feature += " / " + signal["condition_type"]
-        brief.append(f"| {signal['signal_id']} | {signal['signal_type']} | {feature} | {signal.get('supporting_study_count', 0)} | {signal.get('screening_status', '')} |")
+    brief.extend(["", "## Candidate signals", "",
+        "Signal categories are reported separately. The complete compact signal catalogue remains in discovery_report.json.",
+        ""])
+    for signal_type, label, _limit in BRIEF_SIGNAL_SECTIONS:
+        group = brief_signal_groups[signal_type]
+        brief.extend([f"### {label}",
+            f"- Candidates identified: {group['available']}; included in this brief: {len(group['included'])}; omitted here: {group['omitted']}."])
+        if not group["included"]:
+            brief.append("- No candidates were detected in this category.")
+            brief.append("")
+            continue
+        if signal_type == "CROSS_STUDY_DESCRIPTIVE_HETEROGENEITY":
+            brief.extend(["| Signal | Feature | Target system | Unit | DOI Studies | Study-median range | Between-study MAD |",
+                "|---|---|---|---|---:|---:|---:|"])
+            for signal in group["included"]:
+                value_range = f"{signal.get('study_median_min')}–{signal.get('study_median_max')}"
+                brief.append(f"| {signal['signal_id']} | {signal.get('feature_id', '')} | {signal.get('target_system', '')} | {signal.get('unit', '')} | {signal.get('supporting_study_count', 0)} | {value_range} | {signal.get('between_study_median_mad', '')} |")
+        elif signal_type == "CONDITION_COVERAGE_OPPORTUNITY":
+            brief.extend(["| Signal | Feature | Condition field | DOI Studies | Status |",
+                "|---|---|---|---:|---|"])
+            for signal in group["included"]:
+                brief.append(f"| {signal['signal_id']} | {signal.get('feature_id', '')} | {signal.get('condition_type', '')} | {signal.get('supporting_study_count', 0)} | {signal.get('screening_status', '')} |")
+        else:
+            brief.extend(["| Signal | Feature pair | DOI Studies | Paper/system/batch scopes | Status |",
+                "|---|---|---:|---:|---|"])
+            for signal in group["included"]:
+                pair = f"{signal.get('feature_a', '')} x {signal.get('feature_b', '')}"
+                brief.append(f"| {signal['signal_id']} | {pair} | {signal.get('supporting_study_count', 0)} | {signal.get('paper_system_batch_scope_count', 0)} | {signal.get('screening_status', '')} |")
+        brief.append("")
     brief.extend(["", "## Agent instructions", "",
         "1. Do not infer scientific meaning from FEAT identifiers alone; inspect the domain profile and flag unmapped fields.",
         "2. Treat descriptive spread as a candidate question, not a formal heterogeneity test.",
