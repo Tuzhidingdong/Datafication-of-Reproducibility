@@ -14,7 +14,7 @@ def make_bundle(categorical=False):
         data["systems"].append({"system_id":syid,"study_ids":[sid],"system_type":"test_system"})
         data["conditions"].append({"condition_id":tempid,"system_ids":[syid],"condition_type":"temperature",
             "raw_value":float(20+i),"raw_unit":"degC","normalized_value":float(20+i),"normalized_unit":"degC","value_state":"REPORTED"})
-        data["conditions"].append({"condition_id":catid,"system_ids":[syid],"condition_type":"electrolyte",
+        data["conditions"].append({"condition_id":catid,"system_ids":[syid],"condition_type":"condition_category",
             "raw_value":"salt-A" if i%2==0 else "salt-B","raw_unit":None,
             "normalized_value":"salt-A" if i%2==0 else "salt-B","normalized_unit":None,"value_state":"REPORTED"})
         data["experiments"].append({"experiment_id":exid,"study_id":sid,"system_id":syid,"condition_ids":[tempid,catid]})
@@ -32,7 +32,7 @@ def make_task(categorical=False):
         "outcome_value_field":"normalized_value","outcome_unit":"class" if categorical else "unit-y",
         "feature_bindings":[
             {"feature_id":"temperature","condition_type":"temperature","value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"degC"},
-            {"feature_id":"electrolyte","condition_type":"electrolyte","value_field":"normalized_value","value_type":"CATEGORICAL","expected_unit":None}
+            {"feature_id":"FEATURE_CATEGORY","condition_type":"condition_category","value_field":"normalized_value","value_type":"CATEGORICAL","expected_unit":None}
         ],
         "split":{"strategy":"EXPLICIT_STUDIES","validation_study_ids":["ST5","ST6"],"test_study_ids":["ST7","ST8"]},
         "modeling":{"ridge_alphas":[0.01,0.1,1.0,10.0],"max_iter":2000,"tolerance":1e-8,
