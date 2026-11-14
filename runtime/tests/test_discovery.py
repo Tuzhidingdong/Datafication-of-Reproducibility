@@ -78,7 +78,9 @@ class DiscoveryTests(unittest.TestCase):
                     "observations":[{"reconciliation_id":f"R{i}","feature_id":"FEAT_X",
                      "target_system":"Zn||Zn","status":"AGREED_MATCH","resolved_value":i*10,
                      "resolved_unit":"mAh g-1","requires_human_review":False,
-                     "measurement_conditions":{"current_density":1.0}}]})
+                     "measurement_conditions":{"current_density":1.0},
+                     "worker_a_evidence":{"file_path":"main_analysis.md","section_or_page":"Page 3",
+                         "verbatim_quote":f"The reported feature result for study {i} was {i*10} mAh g-1."}}]})
             papers.append({"paper_id":"P_PROBE","doi":"","batch_id":"BATCH_20261106_LIMITS_PROBE",
                 "observations":[{"reconciliation_id":"PROBE1","feature_id":"FEAT_X","target_system":"Zn||Zn, 2 M ZnSO4",
                     "status":"AGREED_MATCH","resolved_value":999,"resolved_unit":"mAh g-1"}]})
@@ -101,6 +103,12 @@ class DiscoveryTests(unittest.TestCase):
             self.assertEqual(report["profile"]["eligible_observation_count"],3)
             self.assertEqual(report["profile"]["excluded_test_observation_count"],1)
             self.assertEqual(report["condition_extraction_summary"]["excluded_test_observation_count"],1)
+            semantics = report["feature_semantics_review_summary"]
+            self.assertEqual(semantics["feature_unit_group_count"],1)
+            self.assertEqual(semantics["representative_evidence_row_count"],3)
+            self.assertTrue((out/"feature_semantics_review_queue.csv").is_file())
+            self.assertTrue((out/"feature_semantics_review_summary.json").is_file())
+            self.assertIn("Feature semantics review queue",brief)
             performance = report["condition_performance_analysis"]
             self.assertEqual(performance["numeric_outcome_observation_count"],3)
             self.assertEqual(performance["condition_outcome_link_row_count"],3)
