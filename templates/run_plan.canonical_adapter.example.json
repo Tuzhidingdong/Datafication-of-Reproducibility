@@ -114,6 +114,7 @@
       "stage_id": "build_spec_validation",
       "executor": "local",
       "depends_on": [
+        "adapter_artifact_materialization",
         "mapping_validation"
       ],
       "inputs": [
