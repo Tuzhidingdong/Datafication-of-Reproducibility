@@ -635,3 +635,76 @@ def build_canonical_files(mapping_plan_path: Path, inventory_path: Path, build_s
     return build_canonical_bundle(mapping_plan, inventory, build_spec, source_root,
                                   sha256_file(mapping_plan_path), sha256_file(inventory_path),
                                   sha256_file(build_spec_path))
+
+
+
+def validate_build_spec_files(
+    mapping_plan_path: Path,
+    inventory_path: Path,
+    build_spec_path: Path,
+) -> dict[str, Any]:
+    """Validate an explicit Build Spec without reading source data or building entities."""
+    mapping_plan_path = mapping_plan_path.expanduser().resolve()
+    inventory_path = inventory_path.expanduser().resolve()
+    build_spec_path = build_spec_path.expanduser().resolve()
+
+    hashes_before = {
+        "mapping_plan_sha256": sha256_file(mapping_plan_path),
+        "source_inventory_sha256": sha256_file(inventory_path),
+        "build_spec_sha256": sha256_file(build_spec_path),
+    }
+    try:
+        with mapping_plan_path.open("r", encoding="utf-8-sig") as handle:
+            mapping_plan = json.load(handle)
+        with inventory_path.open("r", encoding="utf-8-sig") as handle:
+            inventory = json.load(handle)
+        with build_spec_path.open("r", encoding="utf-8-sig") as handle:
+            build_spec = json.load(handle)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Mapping plan, source inventory, and build spec must be valid JSON: {exc}") from exc
+
+    mapping_validation = validate_mapping_plan(
+        mapping_plan, inventory, hashes_before["source_inventory_sha256"]
+    ) if isinstance(mapping_plan, dict) else {
+        "valid": False,
+        "errors": [_issue("PLAN_NOT_OBJECT", "$", "Mapping plan must be a JSON object.")],
+        "warnings": [],
+        "approved_rule_ids": [],
+    }
+    errors = list(mapping_validation.get("errors", []))
+    if mapping_validation.get("valid") is True:
+        errors.extend(_validate_build_spec(
+            build_spec,
+            mapping_plan,
+            inventory,
+            mapping_validation,
+            hashes_before["mapping_plan_sha256"],
+            hashes_before["source_inventory_sha256"],
+        ))
+
+    hashes_after = {
+        "mapping_plan_sha256": sha256_file(mapping_plan_path),
+        "source_inventory_sha256": sha256_file(inventory_path),
+        "build_spec_sha256": sha256_file(build_spec_path),
+    }
+    if hashes_after != hashes_before:
+        raise RuntimeError("Mapping plan, source inventory, or build spec changed during validation.")
+
+    return {
+        "schema_version": "1.0",
+        "valid": not errors,
+        "error_count": len(errors),
+        "warning_count": len(mapping_validation.get("warnings", [])),
+        "errors": errors,
+        "warnings": mapping_validation.get("warnings", []),
+        "mapping_plan_sha256": hashes_before["mapping_plan_sha256"],
+        "source_inventory_sha256": hashes_before["source_inventory_sha256"],
+        "build_spec_sha256": hashes_before["build_spec_sha256"],
+        "mapping_version": (
+            build_spec.get("mapping_version") if isinstance(build_spec, dict) else None
+        ),
+        "validation_scope": (
+            "EXPLICIT_BUILD_SPEC_STRUCTURE_REFERENCE_GRAIN_AND_LINK_VALIDATION; "
+            "NO_SOURCE_DATA_READ_AND_NO_CANONICAL_BUILD"
+        ),
+    }
