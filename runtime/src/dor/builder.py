@@ -223,6 +223,22 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
         if not isinstance(fmt, str) or fmt not in {"csv", "json"}:
             errors.append(_issue("INVALID_SOURCE_FORMAT", f"{path}.source_format", "source_format must be csv or json."))
             fmt = "unsupported"
+        matching_source_items = [
+            item for item in item_by_id.values()
+            if item.get("source_file") == source_file
+        ]
+        if not matching_source_items:
+            errors.append(_issue(
+                "SOURCE_FILE_NOT_IN_INVENTORY",
+                f"{path}.source_file",
+                "Entity source_file must be represented by at least one item in the exact source inventory.",
+            ))
+        elif any(item.get("source_format") != fmt for item in matching_source_items):
+            errors.append(_issue(
+                "SOURCE_FORMAT_INVENTORY_MISMATCH",
+                f"{path}.source_format",
+                "Entity source_format must match the source inventory entries for this source_file.",
+            ))
         selector_tokens = None
         if fmt == "json":
             try:
