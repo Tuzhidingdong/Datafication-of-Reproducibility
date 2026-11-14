@@ -307,6 +307,10 @@ def build_condition_performance_analysis(
         stratum_rows.append(row)
         summaries[key] = row
 
+    study_lookup_by_stratum: dict[tuple[str, str, str, str, str], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for key, value in study_lookup.items():
+        study_lookup_by_stratum[key[:5]][key[5]] = value
+
     # Pairwise contrasts are descriptive differences in Study-level medians, not
     # inferential effects. Bound high-cardinality dimensions to avoid combinatorial
     # output while retaining every stratum in condition_performance_strata.csv.
@@ -334,14 +338,8 @@ def build_condition_performance_analysis(
         for left, right in itertools.combinations(contrast_levels, 2):
             left_key = (feature, unit, condition_type, dimension, left["condition_level"])
             right_key = (feature, unit, condition_type, dimension, right["condition_level"])
-            left_studies = {
-                key[-1]: value for key, value in study_lookup.items()
-                if key[:5] == left_key
-            }
-            right_studies = {
-                key[-1]: value for key, value in study_lookup.items()
-                if key[:5] == right_key
-            }
+            left_studies = study_lookup_by_stratum.get(left_key, {})
+            right_studies = study_lookup_by_stratum.get(right_key, {})
             shared = sorted(set(left_studies) & set(right_studies))
             paired_differences = [
                 right_studies[study_id]["median"] - left_studies[study_id]["median"]
