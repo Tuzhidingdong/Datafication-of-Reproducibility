@@ -111,7 +111,12 @@ class DiscoveryTests(unittest.TestCase):
             self.assertIn("Feature semantics review queue",brief)
             performance = report["condition_performance_analysis"]
             self.assertEqual(performance["numeric_outcome_observation_count"],3)
-            self.assertEqual(performance["condition_outcome_link_row_count"],3)
+            self.assertEqual(performance["numeric_outcome_observations_linked_to_conditions"],3)
+            self.assertEqual(performance["condition_outcome_link_row_count"],6)
+            with (out/"condition_outcome_links.csv").open(encoding="utf-8",newline="") as handle:
+                condition_links=list(csv.DictReader(handle))
+            self.assertEqual(len({row["observation_id"] for row in condition_links}),3)
+            self.assertEqual(len(condition_links),6)
             self.assertEqual(performance["endpoint_semantics_status"],"UNMAPPED_FEATURE_SEMANTICS")
             for filename in (
                 "condition_performance_feature_coverage.csv",
