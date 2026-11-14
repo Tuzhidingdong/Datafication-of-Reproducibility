@@ -37,7 +37,7 @@ _CONCENTRATION_BEFORE_SALT = re.compile(
 )
 _SALT_WITHOUT_CONCENTRATION = re.compile(rf"(?<![A-Za-z0-9])(?P<salt>{_SALT_PATTERN})(?![A-Za-z0-9])", re.IGNORECASE)
 _PERCENT_MODIFIER = re.compile(
-    r"(?P<value>\d+(?:\.\d+)?)\s*%\s*(?P<name>[A-Za-z][A-Za-z0-9_+.-]{0,24})"
+    r"(?P<value>\d+(?:\.\d+)?)\s*%\s*(?P<name>[A-Za-z][A-Za-z0-9_+]{0,20})"
 )
 _CELL_PAIR = re.compile(
     r"(?<![A-Za-z0-9])(?P<left>Zn|Cu|Ti|MnO2|I2|V2O5|S|C)\s*(?P<separator>\|\||//)\s*"
@@ -56,6 +56,10 @@ _MISSING = {"", "n/a", "na", "n.a.", "not reported", "not specified", "unknown",
 def is_excluded_test_record(record: dict[str, Any]) -> bool:
     """Return True only for the two explicitly identified diagnostic batches."""
     return str(record.get("batch_id") or "").strip() in EXCLUDED_TEST_BATCH_IDS
+
+
+def _canonical_material(value: str) -> str:
+    return {"zn": "Zn", "cu": "Cu", "ti": "Ti", "mno2": "MnO2", "i2": "I2", "v2o5": "V2O5", "s": "S", "c": "C"}.get(value.casefold(), value)
 
 
 def _clean(value: Any) -> str:
@@ -124,7 +128,7 @@ def _parse_target_system(observation: dict[str, Any]) -> list[dict[str, Any]]:
 
     for match in _CELL_PAIR.finditer(raw):
         left, separator, right = match.group("left", "separator", "right")
-        normalized = f"{left.upper()}{separator}{right.upper()}"
+        normalized = f"{_canonical_material(left)}{separator}{_canonical_material(right)}"
         add("cell_configuration", match.group(0), normalized, "RULE_CELL_PAIR")
     if re.search(r"\b(full\s+cell|coin\s+cell|pouch\s+cell)\b", raw, re.IGNORECASE):
         match = re.search(r"\b(full\s+cell|coin\s+cell|pouch\s+cell)\b", raw, re.IGNORECASE)
