@@ -3,7 +3,6 @@
   "project_id": "PROJECT_REPLACE_ME",
   "source_roots": [
     "D:/Research/Project/raw_sources",
-    "D:/Research/Project/raw_sources/adapter_package",
     "D:/Research/Project/configuration"
   ],
   "workflow_ledger_path": "D:/Research/Project/run_control/workflow_gate_ledger.jsonl",
@@ -116,6 +115,7 @@
       "stage_id": "mapping_preparation",
       "executor": "manual",
       "depends_on": [
+        "source_audit",
         "g0_review_packet"
       ],
       "inputs": [
@@ -156,6 +156,8 @@
       "stage_id": "g1_review_packet",
       "executor": "manual",
       "depends_on": [
+        "source_audit",
+        "mapping_preparation",
         "mapping_validation"
       ],
       "inputs": [
@@ -176,6 +178,7 @@
       "executor": "local",
       "depends_on": [
         "source_audit",
+        "mapping_preparation",
         "mapping_validation",
         "g1_review_packet"
       ],
@@ -238,6 +241,7 @@
       "stage_id": "exploratory_discovery",
       "executor": "local",
       "depends_on": [
+        "canonical_build",
         "canonical_bundle_validation"
       ],
       "inputs": [
@@ -328,6 +332,7 @@
       "executor": "local",
       "depends_on": [
         "canonical_build",
+        "research_scope_selection",
         "g2_review_packet"
       ],
       "required_gate": "G2",
@@ -359,7 +364,8 @@
       "stage_id": "baseline_model_fit",
       "executor": "local",
       "depends_on": [
-        "cohort_build"
+        "cohort_build",
+        "research_scope_selection"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -396,7 +402,8 @@
       "stage_id": "nested_reproducibility_evaluation",
       "executor": "local",
       "depends_on": [
-        "cohort_build"
+        "cohort_build",
+        "research_scope_selection"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -433,7 +440,8 @@
       "stage_id": "interaction_discovery",
       "executor": "local",
       "depends_on": [
-        "cohort_build"
+        "cohort_build",
+        "research_scope_selection"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -466,7 +474,8 @@
       "stage_id": "interaction_robustness",
       "executor": "local",
       "depends_on": [
-        "cohort_build"
+        "cohort_build",
+        "research_scope_selection"
       ],
       "required_gate": "G2",
       "inputs": [
