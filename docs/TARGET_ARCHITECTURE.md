@@ -348,7 +348,7 @@ Build that only after the real pilot identifies expensive repeatable operations 
 | Tabular file descriptions | Explicit CSV artifacts | Frictionless Data Package / Table Schema |
 | Model experiment tracking | DOR task and evaluation contracts | Optional MLflow mirror if justified |
 | Large-data versioning | Protected source identity and manifests | Optional DataLad if justified |
-| Portable execution workflow | Explicit Run Plan (planning only today) | Optional CWL export/execution integration later |
+| Portable execution workflow | Explicit Run Plan + `RUN_PLAN_EXECUTION_BINDINGS.md`; Skill dispatches the declared stage actions while Run Manager records exact attempts/artifacts and computes safe resume decisions | Optional standards-based workflow export only when a concrete portability need exists |
 
 See [Standards Alignment](STANDARDS_ALIGNMENT.md) for versioned references and adopt/defer decisions.
 
@@ -356,7 +356,7 @@ See [Standards Alignment](STANDARDS_ALIGNMENT.md) for versioned references and a
 
 | Target responsibility | Current module(s) | Near-term stance |
 |---|---|---|
-| Source inspection and import | `audit.py`, `inventory.py`, `structure.py`, `chem_literacy.py` | Reuse; validate against one real paper/SI |
+| Source inspection and import | `audit.py`, `inventory.py`, `adapters.py`, `adapter_handoff.py` | Keep source readers and domain-specific retrieval outside DoR; validate package provenance before import |
 | Canonical graph and construction | `canonical.py`, `mapping.py`, `builder.py` | Preserve; do not rewrite before source audit |
 | Review/reconciliation | `reconciliation.py`, `gates.py`, `acceptance.py`, `acceptance_ledger.py`, `stage_contracts.py` | Clarify lifecycle and reduce duplicate state, not add more ledgers |
 | Run execution provenance | `run_manager.py` | Keep as plan/record/resume layer; do not overstate it as an execution engine |
