@@ -75,6 +75,17 @@ A standalone report can be generated with:
 
     dor diagnose-bundle --input canonical_bundle.json --out relationship_diagnostics.json
 
+## Standalone Build Spec validation
+
+Before G1, validate the mapping and Build Spec together without building a Canonical Bundle:
+
+    dor validate-mapping --plan mapping_plan.json --inventory source_inventory.json --out mapping_validation.json
+    dor validate-build-spec --plan mapping_plan.json --inventory source_inventory.json --spec canonical_build_spec.json --out build_spec_validation.json
+
+The Build Spec validator recomputes mapping eligibility, binds to the exact plan and inventory hashes, checks that each entity source file/format exists in the source inventory, validates record selectors and grouping keys, checks mapping-rule compatibility, and checks every declared relationship. It does not read source data, execute transformations, or create entities.
+
+G1 must bind both deterministic validation reports. When the gate is recorded, DoR recomputes them against the exact mapping plan, source inventory, and Build Spec and rejects stale or modified reports.
+
 ## Output and failure behavior
 
 Run:
