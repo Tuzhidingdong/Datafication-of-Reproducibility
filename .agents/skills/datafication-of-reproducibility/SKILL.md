@@ -75,6 +75,17 @@ Use an independently maintained adapter to read source-system files and prepare 
 - If an adapter supplies a Canonical Bundle, validate it and preserve its exact source/adapter provenance before using it for discovery or formal analysis.
 - Never silently merge conflicting source values, remove repeated records, or convert missing information into reported facts.
 
+### Select the formal Run Plan by adapter route
+
+- Use `templates/run_plan.example.json` for a STRUCTURED_DATASET handoff. The formal Run performs source audit, G0/G1 review, canonical construction, then Discovery and the downstream workflow.
+- Use `templates/run_plan.canonical_adapter.example.json` for a CANONICAL_BUNDLE handoff only when the package declares exactly one artifact for each generic role: `source_inventory`, `mapping_plan`, `build_spec`, and `canonical_bundle`. The latter three provenance hashes in the bundle must agree with the supplied mapping plan, inventory, and build specification.
+- In the canonical-adapter template's adapter validation stage, run `dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <run_root>/00_adapter/adapter_handoff.json --dataset-manifest-out <run_root>/00_adapter/dataset_manifest.json`.
+- In its materialization stage, run `dor materialize-adapter-artifacts --adapter-handoff <adapter_handoff.json> --role source_inventory --role mapping_plan --role build_spec --role canonical_bundle --out-dir <run_root>/00_adapter/materialized`. The role selector must resolve to exactly one declared artifact per role. Materialization copies verified files and does not rewrite their contents.
+- Present the package snapshot, exact source inventory, handoff, and materialization manifest for G0. Do not infer approval from a valid package or valid Canonical Bundle.
+- After explicit G0 approval, run `dor validate-mapping` against the materialized mapping plan and source inventory. Present the supplied build specification and validation report for G1. The G1 gate must bind those exact files and recompute the deterministic mapping validation.
+- Only after explicit G1 approval, validate the supplied Canonical Bundle. Do not rebuild it or bypass G1. Continue with reconciliation, Discovery, user research-scope selection, and G2 exactly as in the standard route.
+- If any required artifact or provenance link is missing or inconsistent, do not use the canonical-adapter template. Return to the structured-data route or ask the external adapter owner to produce a complete, traceable package.
+
 ### Stage 1 — Data audit
 
 Read `../../../references/data-model.md` and `../../../references/guided-workflow.md`.
