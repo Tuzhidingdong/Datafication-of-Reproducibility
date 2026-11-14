@@ -83,7 +83,6 @@
         "source_inventory",
         "data_audit_report",
         "mapping_review_queue",
-        "adapter_validation_report",
         "adapter_handoff"
       ],
       "outputs": [
