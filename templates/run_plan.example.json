@@ -8,24 +8,8 @@
   "workflow_ledger_path": "D:/Research/Project/run_control/workflow_gate_ledger.jsonl",
   "source_artifacts": [
     {
-      "artifact_id": "source_csv",
-      "path": "D:/Research/Project/raw_sources/source_records.csv"
-    },
-    {
-      "artifact_id": "source_json",
-      "path": "D:/Research/Project/raw_sources/source_records.json"
-    },
-    {
       "artifact_id": "adapter_package_manifest",
       "path": "D:/Research/Project/raw_sources/adapter_package/adapter_manifest.json"
-    },
-    {
-      "artifact_id": "adapter_standardized_csv",
-      "path": "D:/Research/Project/raw_sources/adapter_package/standardized_data.csv"
-    },
-    {
-      "artifact_id": "adapter_standardized_json",
-      "path": "D:/Research/Project/raw_sources/adapter_package/structured_data.json"
     },
     {
       "artifact_id": "virtual_query_input",
@@ -42,16 +26,12 @@
       "executor": "local",
       "depends_on": [],
       "inputs": [
-        "adapter_package_manifest",
-        "source_csv",
-        "source_json",
-        "adapter_standardized_csv",
-        "adapter_standardized_json"
+        "adapter_package_manifest"
       ],
       "outputs": [
         {
-          "artifact_id": "adapter_validation_report",
-          "path": "00_adapter/adapter_validation_report.json"
+          "artifact_id": "adapter_handoff",
+          "path": "00_adapter/adapter_handoff.json"
         }
       ]
     },
@@ -62,8 +42,7 @@
         "adapter_package_validation"
       ],
       "inputs": [
-        "adapter_standardized_csv",
-        "adapter_standardized_json"
+        "adapter_handoff"
       ],
       "outputs": [
         {
@@ -104,7 +83,8 @@
         "source_inventory",
         "data_audit_report",
         "mapping_review_queue",
-        "adapter_validation_report"
+        "adapter_validation_report",
+        "adapter_handoff"
       ],
       "outputs": [
         {
