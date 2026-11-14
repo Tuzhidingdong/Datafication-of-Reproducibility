@@ -186,6 +186,7 @@ def build_condition_performance_analysis(
 
     # One link row per observation x dimension x level; source duplicates are collapsed.
     link_rows: list[dict[str, Any]] = []
+    links_by_observation: dict[str, list[dict[str, Any]]] = defaultdict(list)
     grouped_study_values: dict[tuple[str, str, str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for (observation_id, condition_type, dimension, level), source_candidates in sorted(candidates_by_key.items()):
         if (observation_id, condition_type, dimension) in ambiguous_keys:
@@ -215,6 +216,7 @@ def build_condition_performance_analysis(
             "condition_record_match_count": len(source_candidates),
         }
         link_rows.append(link)
+        links_by_observation[observation_id].append(link)
         key = (
             outcome["feature_id"], outcome["outcome_unit"], condition_type,
             dimension, level, outcome["study_group_id"],
@@ -297,6 +299,169 @@ def build_condition_performance_analysis(
             "systems": set(systems),
             "observation_count": len(values),
         }
+
+    # Build joint condition-combination strata from condition pairs recorded on the
+    # same observation. This is joint support and descriptive outcome context, not
+    # an interaction effect or evidence of synergy.
+    combination_study_values: dict[tuple[str, str, str, str, str, str, str], list[float]] = defaultdict(list)
+    combination_study_systems: dict[tuple[str, str, str, str, str, str, str], set[str]] = defaultdict(set)
+    combination_study_observation_counts: dict[tuple[str, str, str, str, str, str, str], int] = defaultdict(int)
+    for observation_id, links in links_by_observation.items():
+        if len(links) < 2:
+            continue
+        outcome = outcome_by_id[observation_id]
+        unique_dimensions = {
+            link["condition_dimension"]: link for link in links
+        }
+        ordered_links = sorted(unique_dimensions.values(), key=lambda item: item["condition_dimension"])
+        for left, right in itertools.combinations(ordered_links, 2):
+            key = (
+                outcome["feature_id"], outcome["outcome_unit"],
+                left["condition_dimension"], left["condition_level"],
+                right["condition_dimension"], right["condition_level"],
+                outcome["study_group_id"],
+            )
+            combination_study_values[key].append(outcome["outcome_value"])
+            combination_study_systems[key].add(outcome["target_system"])
+            combination_study_observation_counts[key] += 1
+
+    combination_by_study_rows: list[dict[str, Any]] = []
+    combination_by_stratum: dict[tuple[str, str, str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    for key, values in sorted(combination_study_values.items()):
+        feature, unit, dimension_a, level_a, dimension_b, level_b, study_id = key
+        row = {
+            "feature_id": feature,
+            "outcome_unit": unit,
+            "condition_dimension_a": dimension_a,
+            "condition_level_a": level_a,
+            "condition_dimension_b": dimension_b,
+            "condition_level_b": level_b,
+            "study_group_id": study_id,
+            "study_observation_count": combination_study_observation_counts[key],
+            "study_outcome_median": _median(values),
+            "target_system_count": len(combination_study_systems[key]),
+        }
+        combination_by_study_rows.append(row)
+        combination_by_stratum[key[:6]].append(row)
+
+    combination_rows: list[dict[str, Any]] = []
+    combination_lookup: dict[tuple[str, str, str, str, str, str], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for key, rows in sorted(combination_by_stratum.items()):
+        feature, unit, dimension_a, level_a, dimension_b, level_b = key
+        medians = [float(row["study_outcome_median"]) for row in rows]
+        systems_count = sum(int(row["target_system_count"]) for row in rows)
+        supported = len(rows) >= minimum_studies
+        row = {
+            "feature_id": feature,
+            "outcome_unit": unit,
+            "condition_dimension_a": dimension_a,
+            "condition_level_a": level_a,
+            "condition_dimension_b": dimension_b,
+            "condition_level_b": level_b,
+            "doi_study_count": len(rows),
+            "observation_count": sum(int(item["study_observation_count"]) for item in rows),
+            "median_of_study_medians": _median(medians),
+            "study_median_mad": _mad(medians),
+            "study_median_q1": _quantile(medians, 0.25),
+            "study_median_q3": _quantile(medians, 0.75),
+            "target_system_count_sum_within_studies": systems_count,
+            "screening_status": "SUPPORTED_JOINT_CONDITION_STRATUM" if supported else "INSUFFICIENT_DOI_STUDIES",
+            "interpretation_status": "JOINT_CONDITION_SUPPORT_NOT_A_STATISTICAL_INTERACTION",
+            "endpoint_semantics_status": "UNMAPPED_FEATURE_SEMANTICS",
+        }
+        combination_rows.append(row)
+        for study_row in rows:
+            combination_lookup[key][study_row["study_group_id"]] = {
+                "median": float(study_row["study_outcome_median"])
+            }
+
+    combo_groups: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in combination_rows:
+        combo_groups[(
+            row["feature_id"], row["outcome_unit"],
+            row["condition_dimension_a"], row["condition_dimension_b"],
+        )].append(row)
+
+    combination_contrast_rows: list[dict[str, Any]] = []
+    combination_hypothesis_rows: list[dict[str, Any]] = []
+    for group_key, rows in sorted(combo_groups.items()):
+        feature, unit, dimension_a, dimension_b = group_key
+        supported_rows = [row for row in rows if row["doi_study_count"] >= minimum_studies]
+        if len(supported_rows) < 2:
+            continue
+        supported_rows.sort(key=lambda row: (
+            row["condition_level_a"], row["condition_level_b"]
+        ))
+        omitted = max(0, len(supported_rows) - _MAX_CONTRAST_LEVELS)
+        selected_rows = supported_rows[:_MAX_CONTRAST_LEVELS]
+        for left, right in itertools.combinations(selected_rows, 2):
+            left_key = (
+                feature, unit, dimension_a, left["condition_level_a"],
+                dimension_b, left["condition_level_b"],
+            )
+            right_key = (
+                feature, unit, dimension_a, right["condition_level_a"],
+                dimension_b, right["condition_level_b"],
+            )
+            left_studies = combination_lookup[left_key]
+            right_studies = combination_lookup[right_key]
+            shared = sorted(set(left_studies) & set(right_studies))
+            differences = [
+                right_studies[study_id]["median"] - left_studies[study_id]["median"]
+                for study_id in shared
+            ]
+            median_a = float(left["median_of_study_medians"])
+            median_b = float(right["median_of_study_medians"])
+            aggregate_difference = median_b - median_a
+            opposite_count = sum(
+                (value < 0 if aggregate_difference > 0 else value > 0)
+                for value in differences
+            )
+            combination_contrast_rows.append({
+                "combination_contrast_id": f"CCPA-{len(combination_contrast_rows) + 1:05d}",
+                "feature_id": feature,
+                "outcome_unit": unit,
+                "condition_dimension_a": dimension_a,
+                "condition_level_a_left": left["condition_level_a"],
+                "condition_dimension_b": dimension_b,
+                "condition_level_b_left": left["condition_level_b"],
+                "condition_level_a_right": right["condition_level_a"],
+                "condition_level_b_right": right["condition_level_b"],
+                "doi_study_count_left": left["doi_study_count"],
+                "doi_study_count_right": right["doi_study_count"],
+                "median_outcome_left": median_a,
+                "median_outcome_right": median_b,
+                "median_difference_right_minus_left": aggregate_difference,
+                "shared_doi_study_count": len(shared),
+                "shared_doi_median_difference": _median(differences),
+                "shared_doi_opposite_direction_count": opposite_count,
+                "omitted_supported_combinations_from_pairwise_cap": omitted,
+                "interpretation_status": "DESCRIPTIVE_JOINT_CONDITION_ASSOCIATION_NOT_INTERACTION_EFFECT",
+                "endpoint_semantics_status": "UNMAPPED_FEATURE_SEMANTICS",
+            })
+        lowest = min(supported_rows, key=lambda row: float(row["median_of_study_medians"]))
+        highest = max(supported_rows, key=lambda row: float(row["median_of_study_medians"]))
+        combination_hypothesis_rows.append({
+            "combination_hypothesis_id": f"HCCPA-{len(combination_hypothesis_rows) + 1:05d}",
+            "feature_id": feature,
+            "outcome_unit": unit,
+            "condition_dimension_a": dimension_a,
+            "condition_dimension_b": dimension_b,
+            "supported_combination_count": len(supported_rows),
+            "total_doi_study_support_across_combinations": sum(int(row["doi_study_count"]) for row in supported_rows),
+            "lowest_outcome_combination": f"{lowest['condition_level_a']} × {lowest['condition_level_b']}",
+            "lowest_combination_median_outcome": lowest["median_of_study_medians"],
+            "highest_outcome_combination": f"{highest['condition_level_a']} × {highest['condition_level_b']}",
+            "highest_combination_median_outcome": highest["median_of_study_medians"],
+            "observed_combination_median_spread": float(highest["median_of_study_medians"]) - float(lowest["median_of_study_medians"]),
+            "candidate_question": (
+                f"Within {feature} ({unit}), do observed {dimension_a} × {dimension_b} "
+                "combinations show different Study-level outcomes after semantic, system, "
+                "protocol, and study-level confounder review?"
+            ),
+            "candidate_status": "REQUIRES_FEATURE_MAPPING_AND_JOINT_CONDITION_REVIEW",
+            "claim_boundary": "JOINT_SUPPORT_AND_DESCRIPTIVE_ASSOCIATION_ONLY_NOT_STATISTICAL_INTERACTION_OR_SYNERGY",
+        })
 
     # Collapse Study-level medians to condition strata. Do not treat observations
     # within a paper as independent replicates for between-group support.
@@ -444,6 +609,37 @@ def build_condition_performance_analysis(
             "claim_boundary": "EXPLORATORY_ASSOCIATION_ONLY_NO_CAUSAL_OR_SIGNIFICANCE_CLAIM",
         })
 
+    _write_csv(output_dir / "condition_combination_performance_study_strata.csv", [
+        "feature_id", "outcome_unit", "condition_dimension_a", "condition_level_a",
+        "condition_dimension_b", "condition_level_b", "study_group_id",
+        "study_observation_count", "study_outcome_median", "target_system_count",
+    ], combination_by_study_rows)
+    _write_csv(output_dir / "condition_combination_performance.csv", [
+        "feature_id", "outcome_unit", "condition_dimension_a", "condition_level_a",
+        "condition_dimension_b", "condition_level_b", "doi_study_count", "observation_count",
+        "median_of_study_medians", "study_median_mad", "study_median_q1", "study_median_q3",
+        "target_system_count_sum_within_studies", "screening_status", "interpretation_status",
+        "endpoint_semantics_status",
+    ], combination_rows)
+    _write_csv(output_dir / "condition_combination_contrasts.csv", [
+        "combination_contrast_id", "feature_id", "outcome_unit",
+        "condition_dimension_a", "condition_level_a_left", "condition_dimension_b",
+        "condition_level_b_left", "condition_level_a_right", "condition_level_b_right",
+        "doi_study_count_left", "doi_study_count_right", "median_outcome_left",
+        "median_outcome_right", "median_difference_right_minus_left",
+        "shared_doi_study_count", "shared_doi_median_difference",
+        "shared_doi_opposite_direction_count", "omitted_supported_combinations_from_pairwise_cap",
+        "interpretation_status", "endpoint_semantics_status",
+    ], combination_contrast_rows)
+    _write_csv(output_dir / "condition_combination_hypothesis_candidates.csv", [
+        "combination_hypothesis_id", "feature_id", "outcome_unit",
+        "condition_dimension_a", "condition_dimension_b", "supported_combination_count",
+        "total_doi_study_support_across_combinations", "lowest_outcome_combination",
+        "lowest_combination_median_outcome", "highest_outcome_combination",
+        "highest_combination_median_outcome", "observed_combination_median_spread",
+        "candidate_question", "candidate_status", "claim_boundary",
+    ], combination_hypothesis_rows)
+
     _write_csv(output_dir / "condition_performance_feature_coverage.csv", [
         "feature_id", "outcome_unit", "eligible_numeric_outcome_observation_count",
         "condition_linked_observation_count", "condition_linkage_coverage_fraction",
@@ -513,6 +709,16 @@ def build_condition_performance_analysis(
         "screenable_condition_dimension_count": len(hypothesis_rows),
         "descriptive_contrast_count": len(contrast_rows),
         "hypothesis_candidate_count": len(hypothesis_rows),
+        "joint_condition_observation_count": len(links_by_observation),
+        "joint_condition_combination_study_strata_count": len(combination_by_study_rows),
+        "joint_condition_combination_strata_count": len(combination_rows),
+        "supported_joint_condition_combination_count": sum(
+            row["screening_status"] == "SUPPORTED_JOINT_CONDITION_STRATUM"
+            for row in combination_rows
+        ),
+        "joint_condition_combination_contrast_count": len(combination_contrast_rows),
+        "joint_condition_hypothesis_candidate_count": len(combination_hypothesis_rows),
+        "joint_condition_hypothesis_preview": combination_hypothesis_rows[:25],
         "ambiguous_observation_dimension_count": len(ambiguous_keys),
         "excluded_condition_candidate_count": excluded_candidate_count,
         "unsupported_condition_candidate_count": unsupported_candidate_count,
@@ -534,6 +740,10 @@ def build_condition_performance_analysis(
             for row in hypothesis_rows[:25]
         ],
         "files": [
+            "condition_combination_performance_study_strata.csv",
+            "condition_combination_performance.csv",
+            "condition_combination_contrasts.csv",
+            "condition_combination_hypothesis_candidates.csv",
             "condition_performance_feature_coverage.csv",
             "condition_outcome_links.csv",
             "condition_performance_study_strata.csv",
@@ -551,6 +761,7 @@ def build_condition_performance_analysis(
             "Feature identifiers remain semantically unmapped; do not label an endpoint or interpret the direction as better/worse until domain mapping is reviewed.",
             "Contrasts are descriptive differences of Study-level medians, not p-values, confidence intervals, causal effects, or mechanisms.",
             "No dose-response trend is fitted and percentage bases are never inferred.",
+            "Joint condition combination files describe co-recorded condition support and outcomes; they do not estimate statistical interaction terms, synergistic effects, or causal modification.",
         ],
     }
     (output_dir / "condition_performance_analysis_summary.json").write_text(
