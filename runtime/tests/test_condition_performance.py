@@ -44,6 +44,7 @@ def condition(
     review_status: str = "CANDIDATE_NOT_HUMAN_ACCEPTED",
 ) -> dict:
     return {
+        "condition_record_id": f"COND_TEST_{observation_id}_{condition_type}",
         "observation_id": observation_id,
         "condition_type": condition_type,
         "normalized_value": normalized_value,
@@ -140,6 +141,7 @@ class ConditionPerformanceTests(unittest.TestCase):
             observations.append(observation(oid, doi, 10 + index * 3))
             conditions.append(condition(oid, "ZnSO4|2 M", numeric_value=2.0))
             conditions.append({
+                "condition_record_id": f"COND_TEST_{oid}_percentage_modifier",
                 "observation_id": oid,
                 "condition_type": "percentage_modifier",
                 "normalized_value": additive,
