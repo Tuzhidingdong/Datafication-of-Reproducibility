@@ -244,7 +244,7 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         {key: value for key, value in signal.items() if key != "supporting_studies"}
         for signal in summary["signals"]
     ]
-    report = {"schema_version":"1.0",
+    report = {"schema_version":"1.1",
         "discovery_status":"EXPLORATORY_SIGNALS_ONLY_NOT_ACCEPTED_SCIENTIFIC_FINDINGS",
         "research_opportunity_synthesis":"REQUIRES_AGENT_SCIENTIFIC_REVIEW",
         "novelty_assessment":"REQUIRES_TARGETED_LITERATURE_REVIEW",
