@@ -372,7 +372,15 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "observation_count":len(eligible_records),"input_observation_count":len(records),
         "excluded_test_observation_count":excluded_test_observation_count,
         "excluded_test_batch_ids":sorted(EXCLUDED_TEST_BATCH_IDS),"minimum_studies":minimum_studies,
-        "maximum_feature_pairs":maximum_feature_pairs,"outputs":output_hashes,
+        "maximum_feature_pairs":maximum_feature_pairs,
+        "code_files_sha256": {
+            "discovery.py": sha256_file(Path(__file__)),
+            "chem_literacy.py": sha256_file(Path(__file__).with_name("chem_literacy.py")),
+            "conditions.py": sha256_file(Path(__file__).with_name("conditions.py")),
+            "condition_performance.py": sha256_file(Path(__file__).with_name("condition_performance.py")),
+            "feature_semantics.py": sha256_file(Path(__file__).with_name("feature_semantics.py")),
+        },
+        "outputs":output_hashes,
         "source_files_modified":False,"raw_observations_in_agent_brief":False}
     (output_dir / "discovery_manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
