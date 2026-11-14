@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from dor.chem_literacy import _load_json_observations
 from dor.conditions import (
     CONDITION_RULE_VERSION,
     EXCLUDED_TEST_BATCH_IDS,
@@ -57,7 +58,8 @@ class ConditionExtractionTests(unittest.TestCase):
         ))
         values = {(x["condition_type"], x["normalized_value"]) for x in rows}
         self.assertIn(("cell_configuration_class", "FULL_CELL"), values)
-        self.assertIn(("electrode_or_substrate_material", "bare Zn"), values)
+        self.assertIn(("cell_chemistry", "Zn-MnO2"), values)
+        self.assertIn(("electrode_or_substrate_material", "bare Zn anode"), values)
 
     def test_dft_context_is_not_classified_as_battery_cell(self):
         rows = extract_observation_conditions(observation(target_system="1% TAC-Zn2+ (DFT)"))
@@ -171,6 +173,43 @@ class ConditionExtractionTests(unittest.TestCase):
             self.assertFalse(manifest["source_files_modified"])
             summary_json = json.loads((root / "condition_extraction_summary.json").read_text(encoding="utf-8"))
             self.assertEqual(summary_json["eligible_observation_count"], 1)
+
+
+    def test_json_loader_preserves_table_headers_for_condition_extraction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "db.json"
+            source.write_text(json.dumps({
+                "metadata": {},
+                "papers": [{
+                    "paper_id": "P_TABLE",
+                    "doi": "10.1/table",
+                    "observations": [{
+                        "reconciliation_id": "R_TABLE",
+                        "feature_id": "FEAT_CE",
+                        "target_system": "Zn||Zn",
+                        "worker_a_evidence": {
+                            "file_path": "supporting_information.md",
+                            "section_or_page": "Table S4",
+                            "table_id": "Table S4",
+                            "row_header": "Current density",
+                            "col_header": "Zn||Zn",
+                            "cell_value": "1 mA cm-2",
+                            "verbatim_quote": "Current density of 1 mA cm-2.",
+                        },
+                    }],
+                }],
+            }), encoding="utf-8")
+            _metadata, normalized = _load_json_observations(source)
+            evidence = normalized[0]["worker_a_evidence"]
+            self.assertEqual(evidence["row_header"], "Current density")
+            self.assertEqual(evidence["col_header"], "Zn||Zn")
+            self.assertEqual(evidence["cell_value"], "1 mA cm-2")
+            extracted = extract_observation_conditions(normalized[0])
+            table_record = next(x for x in extracted if x["extraction_method"] == "RULE_TABLE_HEADER_VALUE")
+            self.assertEqual(table_record["source_file"], "supporting_information.md")
+            self.assertEqual(table_record["row_header"], "Current density")
+            self.assertEqual(table_record["normalized_value"], "1 mA cm-2")
 
 
 if __name__ == "__main__":
