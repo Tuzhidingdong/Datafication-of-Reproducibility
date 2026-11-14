@@ -54,7 +54,7 @@ flowchart TD
   subgraph SRC["1. Source and evidence layer"]
     A["Papers, SI, tables, figures"]
     B["Raw experimental and calculation files"]
-    C["Existing structured data / Chem-Literacy"]
+    C["Data supplied by any external adapter"]
   end
   subgraph INGEST["2. Ingestion and evidence adapters"]
     D["Read-only inventory and hashing"]
@@ -152,10 +152,10 @@ An adapter should have a stable contract:
 
 The adapter boundary should support different implementations for different evidence types:
 - CSV/JSON structural inspection;
-- Chem-Literacy observation/reconciliation import;
+- External adapter package validation and handoff;
 - PDF text/table extraction;
 - figure-panel and image extraction;
-- raw electrochemical time-series import (for example BDF);
+- structured time-series import through independently maintained adapters;
 - simulation and calculation output adapters.
 
 Adapters must not silently promote extracted values to reviewed scientific facts. Their outputs are candidates with exact provenance.
@@ -265,7 +265,7 @@ The external interoperability layer should additionally export:
 - PROV-O-compatible provenance links;
 - Workflow Run RO-Crate records for the runs that match the selected profile;
 - Frictionless descriptors for tabular resources where appropriate;
-- ISA/EMMO/BattINFO/UCUM/QUDT mappings where semantically justified.
+- project-owned vocabulary and unit mappings where semantically justified.
 
 The exporter should describe the exact selected package contents; it must not crawl a workspace and guess which files belong to a study.
 
@@ -342,9 +342,9 @@ Build that only after the real pilot identifies expensive repeatable operations 
 
 | Concern | DOR internal authority | External alignment |
 |---|---|---|
-| Scientific entity grain and evidence linkage | DOR canonical model | ISA, EMMO/BattINFO mappings |
-| Battery domain vocabulary | Versioned domain profile | EMMO domain-battery / BattINFO |
-| Raw battery cycler series | Source adapter + canonical links | BDF 1.0 |
+| Scientific entity grain and evidence linkage | DoR canonical model | Project-owned semantic mappings and standards as needed |
+| Project vocabulary | External versioned profile | User-selected domain vocabulary |
+| External structured time-series inputs | Source adapter + canonical links | Declared interchange contract |
 | Units/quantity semantics | Explicit raw and normalized values | UCUM codes + QUDT quantity/unit semantics |
 | Computational execution history | Run Manager | PROV-O + Workflow Run RO-Crate |
 | Research package exchange | Explicit publication package manifest | RO-Crate 1.3 |
@@ -384,7 +384,7 @@ This mapping does not call for a module rewrite or a new dependency.
 
 ## 10. Explicit non-goals for the current phase
 
-- Replacing the DOR canonical data model with ISA or a battery ontology.
+- Replacing the DoR canonical data model with a project-specific ontology.
 - Migrating all internal files to JSON-LD/RDF.
 - Building a general-purpose LLM literature-extraction or OCR platform.
 - Implementing automatic Worker Manager dispatch inside the Runtime.
