@@ -25,7 +25,9 @@ def _text(value: Any) -> str:
 def _clip(value: str, limit: int) -> tuple[str, bool]:
     if len(value) <= limit:
         return value, False
-    return value[:limit].rstrip() + " …[TRUNCATED]", True
+    suffix = " …[TRUNCATED]"
+    prefix_limit = max(0, limit - len(suffix))
+    return value[:prefix_limit].rstrip() + suffix, True
 
 
 def _evidence(record: dict[str, Any], side: str, max_quote_chars: int) -> dict[str, Any]:
