@@ -223,6 +223,19 @@ class ConditionPerformanceTests(unittest.TestCase):
         self.assertEqual(summary["condition_stratum_row_count"], 2)
         self.assertEqual(summary["descriptive_contrast_count"], 0)
 
+    def test_derived_cell_configuration_class_is_not_counted_as_an_independent_pair(self):
+        observations = [observation("O1", "10.1/a", 10)]
+        conditions = [
+            condition("O1", "Zn||Zn", numeric_value=None, numeric_unit="", condition_type="cell_configuration"),
+            condition("O1", "SYMMETRIC_CELL", numeric_value=None, numeric_unit="", condition_type="cell_configuration_class"),
+        ]
+        out, summary = self.run_analysis(observations, conditions)
+        self.assertEqual(summary["condition_outcome_link_row_count"], 2)
+        self.assertEqual(summary["joint_condition_combination_strata_count"], 0)
+        self.assertEqual(summary["redundant_joint_condition_pairs_skipped"], 1)
+        with (out / "condition_combination_performance.csv").open(encoding="utf-8", newline="") as handle:
+            self.assertEqual(list(csv.DictReader(handle)), [])
+
     def test_mixed_electrolyte_components_are_not_treated_as_exclusive_levels(self):
         observations = [
             observation("O1", "10.1/a", 10),
