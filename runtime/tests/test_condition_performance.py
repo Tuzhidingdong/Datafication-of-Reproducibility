@@ -242,11 +242,13 @@ class ConditionPerformanceTests(unittest.TestCase):
             observation("O1", "10.1/a", 10),
             observation("O2", "10.1/b", 20, batch_id="BATCH_20261106_LIMITS_PROBE"),
             observation("O3", "", 30),
+            observation("O4", "10.1/d", 40, requires_human_review=True),
         ]
         conditions = [
             condition("O1", "ZnSO4|1 M", numeric_value=1),
             condition("O2", "ZnSO4|2 M", numeric_value=2),
             condition("O3", "ZnSO4|3 M", numeric_value=3),
+            condition("O4", "ZnSO4|4 M", numeric_value=4),
         ]
         _out, summary = self.run_analysis(observations, conditions)
         self.assertEqual(summary["numeric_outcome_observation_count"], 1)
