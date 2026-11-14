@@ -334,6 +334,7 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "excluded_test_observation_count":excluded_test_observation_count,
         "condition_record_count":condition_summary["condition_record_count_eligible"],
         "condition_summary":str(output_dir / "condition_extraction_summary.json"),
+        "condition_performance_analysis":condition_summary["condition_performance_analysis"],
         "paper_count":summary["profile"]["unique_paper_count"],
         "verified_doi_study_count":summary["profile"]["verified_doi_study_count"],
         "feature_count":summary["profile"]["feature_count"],"signal_count":len(summary["signals"]),
