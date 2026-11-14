@@ -3,31 +3,96 @@
   "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/worker_result.schema.json",
   "title": "Worker Result Packet",
   "type": "object",
-  "required": ["schema_version", "task_id", "status", "summary", "artifacts", "warnings", "unresolved_questions"],
+  "required": [
+    "schema_version",
+    "task_id",
+    "status",
+    "summary",
+    "artifacts",
+    "warnings",
+    "unresolved_questions"
+  ],
   "properties": {
-    "schema_version": {"type": "string", "const": "1.0"},
-    "task_id": {"type": "string"},
-    "status": {"enum": ["completed", "partial", "blocked", "failed"]},
-    "summary": {"type": "string"},
-    "findings": {"type": "array", "items": {"type": "object"}},
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "partial",
+        "blocked",
+        "failed"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "finding_id"
+        ],
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
     "artifacts": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["path", "artifact_type"],
+        "required": [
+          "path",
+          "artifact_type"
+        ],
         "properties": {
-          "path": {"type": "string"},
-          "artifact_type": {"type": "string"},
-          "sha256": {"type": "string"},
-          "description": {"type": "string"},
-          "source_record_ids": {"type": "array", "items": {"type": "string"}}
+          "path": {
+            "type": "string"
+          },
+          "artifact_type": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "source_record_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         },
         "additionalProperties": false
       }
     },
-    "warnings": {"type": "array", "items": {"type": "string"}},
-    "unresolved_questions": {"type": "array", "items": {"type": "string"}},
-    "recommended_next_action": {"type": "string"}
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unresolved_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommended_next_action": {
+      "type": "string"
+    }
   },
   "additionalProperties": false
 }
