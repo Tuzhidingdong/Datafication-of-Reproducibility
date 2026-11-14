@@ -18,7 +18,9 @@ from pathlib import Path
 from typing import Any
 
 _EXCLUDED_ORIGINS = {"RECONCILIATION_CSV_ONLY", "RECONCILIATION_CSV_AMBIGUOUS"}
-_EXCLUDED_CONDITION_TYPES = {"system_domain", "chemical_formula_component"}
+_EXCLUDED_CONDITION_TYPES = {
+    "system_domain", "chemical_formula_component", "electrolyte_component",
+}
 _MIN_CONFIDENCE = {"HIGH", "MEDIUM"}
 _MAX_CONTRAST_LEVELS = 25
 
@@ -544,6 +546,7 @@ def build_condition_performance_analysis(
             "Each DOI contributes one median per feature/unit/condition-level stratum; observations within a DOI are not counted as independent Studies.",
             "Condition values are deterministic candidates, not human-accepted facts; low-confidence and context-review table candidates are excluded.",
             "Multiple candidate levels for the same condition dimension within one observation are marked ambiguous and excluded from that dimension's comparison.",
+            "Electrolyte-component presence is not treated as a mutually exclusive condition level because mixtures may contain multiple salts; salt-specific concentration candidates are screened separately.",
             "Different condition levels may be confounded by target system, cell design, protocol, laboratory, or other unrecorded variables.",
             "Feature identifiers remain semantically unmapped; do not label an endpoint or interpret the direction as better/worse until domain mapping is reviewed.",
             "Contrasts are descriptive differences of Study-level medians, not p-values, confidence intervals, causal effects, or mechanisms.",
