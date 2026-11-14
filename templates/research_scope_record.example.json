@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "scope_id": "<stable scope identifier>",
+  "discovery_report_sha256": "<SHA-256 of the exact discovery_report.json>",
+  "task_id": "<exact modeling task ID>",
+  "target_id": "<exact target ID from the modeling task>",
+  "scope_statement": "<bounded statement of the selected analysis scope>",
+  "selected_signal_ids": [
+    "<signal_id from the exact Discovery report>"
+  ],
+  "not_selected_signal_ids": [],
+  "selection_rationale": "<why the selected signals define the scope and why the remaining signals were not selected>",
+  "reviewed_by": "<reviewer or responsible role>",
+  "reviewed_at": "<ISO-8601 timestamp with timezone>",
+  "limitations": [
+    "<known scope limitation>"
+  ]
+}
