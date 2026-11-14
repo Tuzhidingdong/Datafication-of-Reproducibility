@@ -16,6 +16,12 @@ The runtime provides:
 
 The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The mapping plan schema is in ../schemas/mapping_plan.schema.json. The build specification schema is in ../schemas/canonical_build_spec.schema.json. Reconciliation report and human decision schemas are in ../schemas/reconciliation_report.schema.json and ../schemas/reconciliation_decisions.schema.json. See ../docs/CANONICAL_DATA_MODEL.md, ../docs/MAPPING_CONTRACT.md, ../docs/CANONICAL_BUILDER.md, and ../docs/RECONCILIATION.md.
 
+The human-selected analysis scope is captured in `schemas/research_scope_record.schema.json` and `templates/research_scope_record.example.json`. Validate it before requesting G2:
+
+    dor validate-research-scope --scope path/to/run/05_scope/research_scope_record.json --discovery-report path/to/run/04_discovery/discovery_report.json --task path/to/run/05_scope/modeling_task.json
+
+The G2 Gate re-runs the same validation against the exact bound files. The record must classify each Discovery signal exactly once and bind the exact task/target identity; it does not replace scientific review.
+
 ## External adapter packages
 
 DoR consumes packages prepared by independently maintained adapters. The package contract is in ../schemas/adapter_package.schema.json and ../docs/ADAPTER_CONTRACT.md.
@@ -254,7 +260,7 @@ Cohort reports include non-destructive Observation/Condition grain diagnostics. 
 
 ## V0.8 cross-artifact approval checks
 
-Approval events now verify the relationships between the bound files, not only their individual hashes. G1 re-runs mapping validation and verifies mapping-plan/inventory/build-spec hash links. G2 verifies that reconciliation refers to the exact canonical bundle and that canonical build provenance matches G1. G3 binds interaction and repeated-seed robustness reports plus manifests, then verifies both derive from the G2-approved task and the same cohort/split artifacts. The selection record uses schema version 1.1 and binds both report hashes.
+Approval events verify the relationships between bound files, not only their individual hashes. G1 re-runs mapping validation and Build Spec validation and verifies mapping-plan/inventory/build-spec hash links. G2 verifies canonical build provenance against G1, revalidates reconciliation decisions against the exact report and Canonical Bundle, and validates the Scope Record's complete signal partition against the exact Discovery report and modeling task. The Scope Record and Discovery report are themselves hash-bound in G2. G3 binds interaction and repeated-seed robustness reports plus manifests, then verifies both derive from the G2-approved task and the same cohort/split artifacts. The selection record uses schema version 1.1 and binds both report hashes.
 
 The full synthetic CLI acceptance path now records G0–G4 and invokes gated commands with the real ledger; it does not use \`--allow-untracked-legacy\`. See ../docs/V0.8_APPROVED_WORKFLOW_ACCEPTANCE.md.
 
