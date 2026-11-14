@@ -181,25 +181,27 @@ def prepare_adapter_handoff_files(
             "NO_EXTRACTION_QUALITY_OR_SCIENTIFIC_SEMANTICS_APPROVED"
         ),
     }
-    if output_path is not None:
-        output = output_path.expanduser().resolve()
-        protected_files = {manifest_path, *(Path(item["path"]).resolve() for item in sources + artifacts)}
-        if output in protected_files or output.is_relative_to(root):
-            raise ValueError("Adapter handoff output must be outside the protected package and all declared files.")
-        if output.exists():
-            raise FileExistsError(f"Refusing to overwrite an existing adapter handoff: {output}")
+    protected_files = {manifest_path, *(Path(item["path"]).resolve() for item in sources + artifacts)}
+    output = output_path.expanduser().resolve() if output_path is not None else None
+    dataset_output = dataset_manifest_path.expanduser().resolve() if dataset_manifest_path is not None else None
+
+    for candidate, label in (
+        (output, "Adapter handoff"),
+        (dataset_output, "Dataset manifest"),
+    ):
+        if candidate is None:
+            continue
+        if candidate in protected_files or candidate.is_relative_to(root):
+            raise ValueError(f"{label} output must be outside the protected package and all declared files.")
+        if candidate.exists():
+            raise FileExistsError(f"Refusing to overwrite an existing {label.lower()}: {candidate}")
+    if output is not None and dataset_output is not None and output == dataset_output:
+        raise ValueError("Handoff and dataset manifest outputs must be different files.")
+
+    if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    if dataset_manifest_path is not None:
-        dataset_output = dataset_manifest_path.expanduser().resolve()
-        protected_files = {manifest_path, *(Path(item["path"]).resolve() for item in sources + artifacts)}
-        if dataset_output in protected_files or dataset_output.is_relative_to(root):
-            raise ValueError("Dataset manifest output must be outside the protected package and all declared files.")
-        if output_path is not None and dataset_output == output_path.expanduser().resolve():
-            raise ValueError("Handoff and dataset manifest outputs must be different files.")
-        if dataset_output.exists():
-            raise FileExistsError(f"Refusing to overwrite an existing dataset manifest: {dataset_output}")
-        dataset_output.parent.mkdir(parents=True, exist_ok=True)
+    if dataset_output is not None:
         dataset_manifest = {
             "schema_version": "1.0",
             "dataset_manifest_type": "EXTERNAL_ADAPTER_PACKAGE_SNAPSHOT",
@@ -214,6 +216,7 @@ def prepare_adapter_handoff_files(
             "artifacts": artifacts,
             "semantic_mapping_status": "NOT_PERFORMED",
         }
+        dataset_output.parent.mkdir(parents=True, exist_ok=True)
         dataset_output.write_text(
             json.dumps(dataset_manifest, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
