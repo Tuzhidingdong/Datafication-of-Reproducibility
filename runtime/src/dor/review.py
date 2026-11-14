@@ -132,6 +132,13 @@ def _binding_issues(
         issues.append({"code": prefix + "_HASH_MISMATCH", "message": "SHA-256 differs from the current artifact: " + artifact_id})
     if row.get("status") != "CURRENT":
         issues.append({"code": prefix + "_STALE_ARTIFACT", "message": "Run artifact is not current: " + artifact_id})
+    current_path = Path(str(row.get("path", ""))).expanduser()
+    try:
+        current_hash = _sha256(current_path) if current_path.is_file() else None
+    except OSError:
+        current_hash = None
+    if current_hash != digest:
+        issues.append({"code": prefix + "_FILE_CHANGED_DURING_VALIDATION", "message": "Artifact file content no longer matches the bound SHA-256: " + artifact_id})
     return issues
 
 
@@ -142,7 +149,7 @@ def validate_run_review_packet_files(
     packet_file = packet_path.expanduser()
     packet = _read_json(packet_file, "Run review packet")
     stage_id = packet.get("stage_id")
-    if stage_id not in _REVIEW_STAGES:
+    if not isinstance(stage_id, str) or stage_id not in _REVIEW_STAGES:
         raise ValueError("Review packet stage_id must be g0_review_packet, g1_review_packet, or g2_review_packet.")
     stage = stages.get(stage_id)
     if stage is None or stage.get("executor") != "manual":
@@ -226,7 +233,9 @@ def validate_run_review_packet_files(
     if len(item_ids) != len(set(item_ids)):
         issues.append({"code": "DUPLICATE_REVIEW_ITEM_ID", "message": "review_items contains duplicate item IDs."})
     for name in ("unresolved_questions", "preparation_notes"):
-        if name in packet and (
+        if name == "unresolved_questions" and name not in packet:
+            issues.append({"code": "MISSING_UNRESOLVED_QUESTIONS", "message": "unresolved_questions is required by the review packet contract."})
+        elif name in packet and (
             not isinstance(packet[name], list)
             or any(not isinstance(value, str) for value in packet[name])
         ):
@@ -257,7 +266,7 @@ def _validate_worker_result(
         raise ValueError("Worker result schema_version must be 1.0.")
     if not isinstance(result.get("task_id"), str) or not result["task_id"].strip():
         raise ValueError("Worker result task_id must be non-empty.")
-    if result.get("status") not in {"completed", "partial", "blocked", "failed"}:
+    if not isinstance(result.get("status"), str) or result["status"] not in {"completed", "partial", "blocked", "failed"}:
         raise ValueError("Worker result status is invalid.")
     if not isinstance(result.get("summary"), str):
         raise ValueError("Worker result summary must be a string.")
@@ -466,7 +475,7 @@ def validate_reviewed_findings_files(
             continue
         by_id[finding_id] = item
         disposition = item.get("disposition")
-        if disposition not in _DISPOSITIONS:
+        if not isinstance(disposition, str) or disposition not in _DISPOSITIONS:
             issues.append({"code": "INVALID_DISPOSITION", "message": "Unsupported disposition for " + finding_id})
         if not isinstance(item.get("reviewer_rationale"), str) or not item["reviewer_rationale"].strip():
             issues.append({"code": "MISSING_FINDING_RATIONALE", "message": "Reviewer rationale is required for " + finding_id})
@@ -503,9 +512,9 @@ def validate_reviewed_findings_files(
     ]
     expected_decision = _promotion_decision(dispositions)
     supplied_decision = record.get("promotion_decision")
-    if supplied_decision not in _DECISIONS or supplied_decision != expected_decision:
+    if not isinstance(supplied_decision, str) or supplied_decision not in _DECISIONS or supplied_decision != expected_decision:
         issues.append({"code": "PROMOTION_DECISION_MISMATCH", "message": "promotion_decision must equal " + expected_decision + "."})
-    if worker_result.get("status") in {"blocked", "failed"} and any(
+    if isinstance(worker_result.get("status"), str) and worker_result["status"] in {"blocked", "failed"} and any(
         item.get("disposition") in {"ACCEPT_AS_IS", "ACCEPT_WITH_CHANGES"}
         for item in human_findings if isinstance(item, dict)
     ):

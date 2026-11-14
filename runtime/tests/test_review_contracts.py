@@ -31,6 +31,10 @@ class ReviewContractTests(unittest.TestCase):
             "unresolved_questions": [],
         }
         self.assertIn("F-001", _validate_worker_result(result, {"model_report"}))
+        invalid_status = dict(result)
+        invalid_status["status"] = {"unexpected": "object"}
+        with self.assertRaisesRegex(ValueError, "status is invalid"):
+            _validate_worker_result(invalid_status, {"model_report"})
         with self.assertRaisesRegex(ValueError, "not supplied to the Worker"):
             _validate_worker_result(result, {"interaction_report"})
         duplicate = dict(result)

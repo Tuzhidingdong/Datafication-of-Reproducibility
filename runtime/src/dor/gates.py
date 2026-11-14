@@ -433,10 +433,12 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
         raise ValueError("G4 worker_review_output schema_version must be 1.0.")
     if not isinstance(worker_result.get("task_id"), str) or not worker_result["task_id"].strip():
         raise ValueError("G4 worker_review_output requires a non-empty task_id.")
-    if worker_result.get("status") not in {"completed", "partial", "blocked", "failed"}:
+    if not isinstance(worker_result.get("status"), str) or worker_result["status"] not in {"completed", "partial", "blocked", "failed"}:
         raise ValueError("G4 worker_review_output status is invalid.")
     if not isinstance(worker_result.get("summary"), str) or not worker_result["summary"].strip():
         raise ValueError("G4 worker_review_output summary must be non-empty.")
+    if "recommended_next_action" in worker_result and not isinstance(worker_result["recommended_next_action"], str):
+        raise ValueError("G4 worker_review_output recommended_next_action must be a string.")
     for field in ("artifacts", "warnings", "unresolved_questions"):
         if not isinstance(worker_result.get(field), list):
             raise ValueError(f"G4 worker_review_output {field} must be an array.")
@@ -490,6 +492,13 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
             raise ValueError(f"G4 Worker finding {finding_id} limitations must be an array of strings.")
         worker_findings[finding_id] = dict(item)
 
+    reviewed_required = {
+        "schema_version", "run_id", "project_id", "reviewer", "reviewed_at",
+        "worker_output", "reviewed_artifacts", "findings", "promotion_decision",
+        "overall_rationale",
+    }
+    if reviewed_required - set(reviewed) or set(reviewed) - reviewed_required:
+        raise ValueError("G4 reviewed_findings has missing or unknown top-level properties.")
     if reviewed.get("schema_version") != "1.0":
         raise ValueError("G4 reviewed_findings schema_version must be 1.0.")
     for key in ("run_id", "project_id", "reviewer"):
