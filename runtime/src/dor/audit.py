@@ -266,7 +266,7 @@ def run_audit_from_adapter_handoff(handoff_path: Path, output_dir: Path) -> dict
         specs.append({
             "source_id": item["artifact_id"],
             "artifact_id": item["artifact_id"],
-            "source_file": item["package_path"].replace("\\\\", "/"),
+            "source_file": item["package_path"].replace("\\", "/"),
             "path": item["path"],
             "format": item["format"],
             "role": item["role"],
