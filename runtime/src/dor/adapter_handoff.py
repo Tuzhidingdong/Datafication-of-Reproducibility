@@ -285,6 +285,8 @@ def materialize_adapter_artifacts_files(
         if before != artifact["sha256"]:
             raise ValueError(f"Adapter artifact changed before materialization: {artifact_id}")
         suffix = Path(artifact["package_path"]).suffix
+        if use_roles and selection_key in {"source_inventory", "mapping_plan", "build_spec", "canonical_bundle"}:
+            suffix = ".json"
         destination_name = (artifact_id if use_ids else selection_key) + suffix
         destination = output_dir / destination_name
         if destination.exists():
