@@ -101,6 +101,10 @@ class ConditionPerformanceTests(unittest.TestCase):
         self.assertEqual(len(coverage), 1)
         self.assertEqual(coverage[0]["eligible_numeric_outcome_observation_count"], "12")
         self.assertEqual(coverage[0]["condition_linked_observation_count"], "12")
+        with (out / "condition_outcome_links.csv").open(encoding="utf-8", newline="") as handle:
+            links = list(csv.DictReader(handle))
+        self.assertTrue(links[0]["condition_record_ids"])
+        self.assertIn("COND_", links[0]["condition_record_ids"])
 
     def test_repeated_observations_within_one_doi_count_as_one_study(self):
         observations = [
