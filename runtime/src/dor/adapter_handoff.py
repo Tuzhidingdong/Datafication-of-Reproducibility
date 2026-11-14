@@ -409,6 +409,7 @@ def materialize_adapter_artifacts_files(
         "materialization_manifest": str(manifest_path),
         "artifacts": copied,
         "artifact_count": len(copied),
+        "source_inventory_validation": inventory_validation,
         "source_files_modified": False,
     }
 
