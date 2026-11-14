@@ -115,6 +115,8 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
             with (output/"observations_normalized.csv").open(encoding="utf-8",newline="") as handle:
                 row=next(csv.DictReader(handle))
             self.assertEqual(row["resolved_value"],"99.1")
+            self.assertEqual(row["requires_human_review"],"True")
+            self.assertIn("JSON_CSV_FIELD_DISAGREEMENT",row["review_reason"])
 
     def test_missing_condition_is_not_promoted_to_not_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
