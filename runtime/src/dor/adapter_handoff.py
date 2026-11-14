@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +80,7 @@ def prepare_adapter_handoff_files(
     manifest_path: Path,
     package_root: Path | None = None,
     output_path: Path | None = None,
+    dataset_manifest_path: Path | None = None,
 ) -> dict[str, Any]:
     """Validate a package and create one deterministic route description for DoR.
 
@@ -188,7 +190,115 @@ def prepare_adapter_handoff_files(
             raise FileExistsError(f"Refusing to overwrite an existing adapter handoff: {output}")
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    if dataset_manifest_path is not None:
+        dataset_output = dataset_manifest_path.expanduser().resolve()
+        protected_files = {manifest_path, *(Path(item["path"]).resolve() for item in sources + artifacts)}
+        if dataset_output in protected_files or dataset_output.is_relative_to(root):
+            raise ValueError("Dataset manifest output must be outside the protected package and all declared files.")
+        if output_path is not None and dataset_output == output_path.expanduser().resolve():
+            raise ValueError("Handoff and dataset manifest outputs must be different files.")
+        if dataset_output.exists():
+            raise FileExistsError(f"Refusing to overwrite an existing dataset manifest: {dataset_output}")
+        dataset_output.parent.mkdir(parents=True, exist_ok=True)
+        dataset_manifest = {
+            "schema_version": "1.0",
+            "dataset_manifest_type": "EXTERNAL_ADAPTER_PACKAGE_SNAPSHOT",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "package_id": payload["package_id"],
+            "adapter": payload["adapter"],
+            "adapter_manifest_path": str(manifest_path),
+            "adapter_manifest_sha256": manifest_hash,
+            "source_count": len(sources),
+            "artifact_count": len(artifacts),
+            "sources": sources,
+            "artifacts": artifacts,
+            "semantic_mapping_status": "NOT_PERFORMED",
+        }
+        dataset_output.write_text(
+            json.dumps(dataset_manifest, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
     return report
+
+
+def materialize_adapter_artifacts_files(
+    handoff_path: Path,
+    artifact_ids: list[str],
+    output_dir: Path,
+) -> dict[str, Any]:
+    """Copy selected, hash-verified adapter artifacts into a new derived Run directory."""
+    handoff = load_validated_adapter_handoff(handoff_path)
+    if not isinstance(artifact_ids, list) or not artifact_ids:
+        raise ValueError("At least one adapter artifact ID must be selected.")
+    if len(set(artifact_ids)) != len(artifact_ids):
+        raise ValueError("Adapter artifact IDs must be unique.")
+    if "materialization_manifest" in artifact_ids:
+        raise ValueError("The artifact ID 'materialization_manifest' is reserved by DoR.")
+
+    package_root = Path(handoff["package_root"]).resolve()
+    output_dir = output_dir.expanduser().resolve()
+    if output_dir == package_root or output_dir.is_relative_to(package_root):
+        raise ValueError("Materialized artifacts must be written outside the protected adapter package.")
+    if output_dir.exists():
+        if not output_dir.is_dir():
+            raise NotADirectoryError(f"Materialization output path is not a directory: {output_dir}")
+        if any(output_dir.iterdir()):
+            raise FileExistsError(f"Refusing to overwrite a non-empty materialization directory: {output_dir}")
+
+    by_id = {item["artifact_id"]: item for item in handoff["artifacts"]}
+    missing = set(artifact_ids) - set(by_id)
+    if missing:
+        raise ValueError("Adapter package does not declare requested artifact IDs: " + ", ".join(sorted(missing)))
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    copied: list[dict[str, Any]] = []
+    for artifact_id in artifact_ids:
+        artifact = by_id[artifact_id]
+        source = Path(artifact["path"])
+        before = _sha256(source)
+        if before != artifact["sha256"]:
+            raise ValueError(f"Adapter artifact changed before materialization: {artifact_id}")
+        suffix = Path(artifact["package_path"]).suffix
+        destination_name = artifact_id + suffix
+        destination = output_dir / destination_name
+        if destination.exists():
+            raise FileExistsError(f"Materialization destination already exists: {destination}")
+        shutil.copyfile(source, destination)
+        copied_hash = _sha256(destination)
+        if copied_hash != artifact["sha256"] or _sha256(source) != before:
+            raise RuntimeError(f"Materialized artifact integrity check failed: {artifact_id}")
+        copied.append({
+            "artifact_id": artifact_id,
+            "role": artifact["role"],
+            "source_path": artifact["path"],
+            "source_package_path": artifact["package_path"],
+            "materialized_path": destination_name,
+            "format": artifact["format"],
+            "sha256": copied_hash,
+        })
+
+    manifest = {
+        "schema_version": "1.0",
+        "materialization_type": "READ_ONLY_ADAPTER_ARTIFACT_COPY",
+        "package_id": handoff["package_id"],
+        "adapter": handoff["adapter"],
+        "adapter_manifest_sha256": handoff["manifest_sha256"],
+        "adapter_handoff_path": str(Path(handoff_path).expanduser().resolve()),
+        "artifacts": copied,
+        "source_files_modified": False,
+    }
+    manifest_path = output_dir / "materialization_manifest.json"
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "output_dir": str(output_dir),
+        "materialization_manifest": str(manifest_path),
+        "artifacts": copied,
+        "artifact_count": len(copied),
+        "source_files_modified": False,
+    }
 
 
 def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
