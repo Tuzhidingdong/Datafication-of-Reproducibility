@@ -247,7 +247,10 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "research_opportunity_synthesis":"REQUIRES_AGENT_SCIENTIFIC_REVIEW",
         "novelty_assessment":"REQUIRES_TARGETED_LITERATURE_REVIEW",
         "profile":summary["profile"],"signals":compact_signals,
-        "condition_extraction_summary":condition_summary,
+        "condition_extraction_summary":{
+            key:value for key,value in condition_summary.items()
+            if key != "condition_performance_analysis"
+        },
         "condition_performance_analysis":condition_summary["condition_performance_analysis"],
         "source_merge_issue_count":len(merge_issues),"source_merge_issue_counts":merge_issue_counts,
         "limitations":summary["limitations"],"agent_brief_file":"agent_research_brief.md"}
@@ -322,7 +325,10 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "4. Propose testable questions with Study support, confounders, counterexamples, and validation needs.",
         "5. Assess novelty only after targeted literature review.",
         "6. Recommend a direction based on scientific value and identifiability, not record count alone.",
-        "7. Treat condition_records.csv values as deterministic candidates, not human-accepted facts; follow the evidence locator and confidence.", "",
+        "7. Treat condition_records.csv values as deterministic candidates, not human-accepted facts; follow the evidence locator and confidence.",
+        "8. Use condition_outcome_links.csv to trace each association back to observation IDs and condition_records.csv.",
+        "9. Prioritize contrasts with within-DOI paired support, inspect paired direction/counterexample counts, and do not infer causal effects.",
+        "10. Do not interpret percentage modifiers as dose levels unless the percentage basis is explicitly verified.", "",
         "## Limitations", ""])
     brief.extend("- " + item for item in summary["limitations"])
     (output_dir / "agent_research_brief.md").write_text("\n".join(brief) + "\n", encoding="utf-8")
