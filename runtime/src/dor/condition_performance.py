@@ -203,6 +203,7 @@ def build_condition_performance_analysis(
             "condition_type": condition_type,
             "condition_dimension": dimension,
             "condition_level": level,
+            "condition_normalized_value": _text(preferred.get("normalized_value")) or _text(preferred.get("raw_value")),
             "condition_numeric_value": preferred.get("numeric_value"),
             "condition_numeric_unit": _text(preferred.get("numeric_unit")),
             "condition_unit_basis": _text(preferred.get("unit_basis")),
@@ -223,6 +224,36 @@ def build_condition_performance_analysis(
             "condition_numeric_value": _number(preferred.get("numeric_value")),
             "condition_numeric_unit": _text(preferred.get("numeric_unit")),
             "source_fields": source_fields,
+        })
+
+    # Feature-level denominators show where condition extraction can support a
+    # comparison; a high linkage rate is coverage, not evidence of an effect.
+    feature_outcome_ids: dict[tuple[str, str], set[str]] = defaultdict(set)
+    feature_linked_ids: dict[tuple[str, str], set[str]] = defaultdict(set)
+    feature_studies: dict[tuple[str, str], set[str]] = defaultdict(set)
+    feature_linked_studies: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for observation_id, outcome in outcome_by_id.items():
+        key = (outcome["feature_id"], outcome["outcome_unit"])
+        feature_outcome_ids[key].add(observation_id)
+        feature_studies[key].add(outcome["study_group_id"])
+    for link in link_rows:
+        key = (link["feature_id"], link["outcome_unit"])
+        feature_linked_ids[key].add(link["observation_id"])
+        feature_linked_studies[key].add(link["study_group_id"])
+    feature_coverage_rows: list[dict[str, Any]] = []
+    for key in sorted(feature_outcome_ids):
+        feature, unit = key
+        outcome_count = len(feature_outcome_ids[key])
+        linked_count = len(feature_linked_ids[key])
+        feature_coverage_rows.append({
+            "feature_id": feature,
+            "outcome_unit": unit,
+            "eligible_numeric_outcome_observation_count": outcome_count,
+            "condition_linked_observation_count": linked_count,
+            "condition_linkage_coverage_fraction": linked_count / outcome_count if outcome_count else 0.0,
+            "doi_study_count": len(feature_studies[key]),
+            "condition_linked_doi_study_count": len(feature_linked_studies[key]),
+            "endpoint_semantics_status": "UNMAPPED_FEATURE_SEMANTICS",
         })
 
     # Aggregate technical observations within each DOI first; DOI is the independent
@@ -398,10 +429,15 @@ def build_condition_performance_analysis(
             "claim_boundary": "EXPLORATORY_ASSOCIATION_ONLY_NO_CAUSAL_OR_SIGNIFICANCE_CLAIM",
         })
 
+    _write_csv(output_dir / "condition_performance_feature_coverage.csv", [
+        "feature_id", "outcome_unit", "eligible_numeric_outcome_observation_count",
+        "condition_linked_observation_count", "condition_linkage_coverage_fraction",
+        "doi_study_count", "condition_linked_doi_study_count", "endpoint_semantics_status",
+    ], feature_coverage_rows)
     _write_csv(output_dir / "condition_outcome_links.csv", [
         "observation_id", "paper_id", "doi", "study_group_id", "feature_id",
         "outcome_value", "outcome_unit", "target_system", "condition_type",
-        "condition_dimension", "condition_level", "condition_numeric_value",
+        "condition_dimension", "condition_level", "condition_normalized_value", "condition_numeric_value",
         "condition_numeric_unit", "condition_unit_basis", "condition_source_fields",
         "condition_extraction_methods", "condition_confidence", "condition_record_match_count",
     ], link_rows)
@@ -451,6 +487,8 @@ def build_condition_performance_analysis(
         "condition_outcome_link_row_count": len(link_rows),
         "study_level_stratum_row_count": len(study_strata_rows),
         "condition_stratum_row_count": len(stratum_rows),
+        "feature_coverage_row_count": len(feature_coverage_rows),
+        "feature_coverage_preview": feature_coverage_rows[:25],
         "supported_condition_stratum_count": sum(
             row["screening_status"] == "SUPPORTED_DESCRIPTIVE_STRATUM" for row in stratum_rows
         ),
@@ -479,6 +517,7 @@ def build_condition_performance_analysis(
             for row in hypothesis_rows[:25]
         ],
         "files": [
+            "condition_performance_feature_coverage.csv",
             "condition_outcome_links.csv",
             "condition_performance_study_strata.csv",
             "condition_performance_strata.csv",
