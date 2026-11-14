@@ -35,6 +35,8 @@ jobs:
         run: python -m unittest discover -s runtime/tests -p 'test_cohort.py' -v
       - name: Run generic external adapter package tests
         run: python -m unittest discover -s runtime/tests -p 'test_adapters.py' -v
+      - name: Run generic adapter handoff routing tests
+        run: python -m unittest discover -s runtime/tests -p 'test_adapter_handoff.py' -v
       - name: Run canonical-bundle discovery tests
         run: python -m unittest discover -s runtime/tests -p 'test_canonical_discovery.py' -v
       - name: Run unit tests
