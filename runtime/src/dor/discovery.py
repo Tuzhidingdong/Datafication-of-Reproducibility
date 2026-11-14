@@ -76,7 +76,7 @@ def summarize_observations(records: list[dict[str, Any]], minimum_studies: int =
                 if value not in (None, "", [], {}): by_condition[(feature, _text(name))].append(record)
 
     feature_rows, study_rows, condition_rows, signals = [], [], [], []
-    study_medians: dict[tuple[str, str], list[tuple[str, float, int]]] = defaultdict(list)
+    study_medians: dict[tuple[str, str, str], list[tuple[str, float, int]]] = defaultdict(list)
     for (feature, unit), items in sorted(by_feature.items()):
         nums = [n for item in items if (n := _number(item.get("resolved_value"))) is not None]
         eligible = [item for item in items

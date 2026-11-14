@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from dor.discovery import summarize_observations, run_discovery_scan
+from dor.cli import build_parser
 
 def record(paper, doi, feature, value, unit="mAh g-1", status="AGREED_MATCH"):
     return {"paper_id":paper,"doi":doi,"feature_id":feature,"resolved_value":value,
@@ -13,6 +14,12 @@ def record(paper, doi, feature, value, unit="mAh g-1", status="AGREED_MATCH"):
         "measurement_conditions":{"current_density":1.0}}
 
 class DiscoveryTests(unittest.TestCase):
+    def test_cli_exposes_discovery_entry_point(self):
+        args=build_parser().parse_args([
+            "discover-opportunities","--database-json","corpus.json","--out-dir","discovery-output"])
+        self.assertEqual(args.command,"discover-opportunities")
+        self.assertEqual(args.minimum_studies,3)
+
     def test_between_study_summary_uses_doi_medians(self):
         rows=[]
         for i, doi in enumerate(("10.1/a","10.1/b","10.1/c"),1):
