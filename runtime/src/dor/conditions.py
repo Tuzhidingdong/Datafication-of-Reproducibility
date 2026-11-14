@@ -170,10 +170,20 @@ def _parse_target_system(observation: dict[str, Any]) -> list[dict[str, Any]]:
         add("percentage_modifier", match.group(0), f"{value:g}% {name}",
             "RULE_PERCENT_MODIFIER", numeric=value, unit="%", basis="UNSPECIFIED_PERCENT_BASIS")
 
-    for pattern in _MATERIAL_PATTERNS:
-        for match in pattern.finditer(raw):
-            material = re.sub(r"\s+", " ", match.group(0)).strip()
-            add("electrode_or_substrate_material", material, material, "RULE_MATERIAL_TOKEN", "MEDIUM")
+    material_matches = [
+        (match.start(), match.end(), re.sub(r"\s+", " ", match.group(0)).strip())
+        for pattern in _MATERIAL_PATTERNS
+        for match in pattern.finditer(raw)
+    ]
+    selected_material_matches: list[tuple[int, int, str]] = []
+    for start, end, material in sorted(material_matches, key=lambda item: (item[0], -(item[1] - item[0]))):
+        # Prefer the longest literal material span; do not separately emit
+        # "Zn anode" when it is already contained in "bare Zn anode".
+        if any(left <= start and end <= right for left, right, _ in selected_material_matches):
+            continue
+        selected_material_matches.append((start, end, material))
+    for _start, _end, material in selected_material_matches:
+        add("electrode_or_substrate_material", material, material, "RULE_MATERIAL_TOKEN", "MEDIUM")
 
     if re.search(r"\b(DFT|DFTB|AIMD|ab\s+initio|molecular\s+dynamics)\b", raw, re.IGNORECASE):
         add("system_domain", raw, "COMPUTATIONAL_MODEL", "RULE_COMPUTATIONAL_CONTEXT", "MEDIUM")
