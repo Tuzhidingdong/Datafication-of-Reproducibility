@@ -212,7 +212,7 @@ def build_feature_semantics_review_queue(
         "excluded_without_feature_id_count": excluded_no_feature,
         "excluded_without_evidence_quote_or_cell_count": excluded_no_evidence,
         "feature_unit_summary": feature_unit_summary,
-        "files": ["feature_semantics_review_queue.csv"],
+        "files": ["feature_semantics_review_queue.csv", "feature_semantics_review_summary.json"],
         "interpretation_limits": [
             "The queue contains at most the configured number of DOI-distinct examples per feature/unit.",
             "Evidence excerpts are clipped and are not complete paper context.",
