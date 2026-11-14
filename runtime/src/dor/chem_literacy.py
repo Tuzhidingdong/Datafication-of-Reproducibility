@@ -181,6 +181,7 @@ def _as_bool(value: Any, default: bool = False) -> bool:
 
 
 def _evidence(record: dict[str, Any], side: str) -> dict[str, Any]:
+    """Preserve evidence locators and table context for downstream condition extraction."""
     nested = record.get("worker_" + side.lower() + "_evidence")
     if isinstance(nested, dict):
         return {
@@ -188,12 +189,22 @@ def _evidence(record: dict[str, Any], side: str) -> dict[str, Any]:
             "location": _first(nested, "section_or_page", "location", "page"),
             "quote": _first(nested, "verbatim_quote", "quote"),
             "table_reference": _first(nested, "table_id", "table_reference"),
+            "row_header": _first(nested, "row_header"),
+            "col_header": _first(nested, "col_header"),
+            "cell_value": _first(nested, "cell_value"),
+            "footnote": _first(nested, "footnote"),
+            "file_id": _first(nested, "file_id"),
         }
     return {
         "file": _first(record, "evidence_file_" + side.lower()),
         "location": _first(record, "location_" + side.lower()),
         "quote": _first(record, "verbatim_quote_" + side.lower()),
         "table_reference": _first(record, "table_reference_" + side.lower()),
+        "row_header": _first(record, "row_header_" + side.lower()),
+        "col_header": _first(record, "col_header_" + side.lower()),
+        "cell_value": _first(record, "cell_value_" + side.lower()),
+        "footnote": _first(record, "footnote_" + side.lower()),
+        "file_id": _first(record, "file_id_" + side.lower()),
     }
 
 
