@@ -812,9 +812,22 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                 elif not _required_gate_is_current(stage, gate_snapshot):
                     action = "BLOCKED_GATE"
                     reasons.append(f"Required gate {stage.get('required_gate')} is not currently approved.")
-                elif current_event is None or current_event.get("status") == "SKIPPED":
+                elif current_event is None:
                     action = "READY_TO_RUN"
-                    if current_event and current_event.get("status") == "SKIPPED":
+                elif current_event.get("status") == "SKIPPED":
+                    existing_outputs = [
+                        str(_artifact_path(root, output))
+                        for output in stage["outputs"]
+                        if _artifact_path(root, output).exists()
+                    ]
+                    if existing_outputs:
+                        action = "REBUILD_REQUIRED"
+                        reasons.append(
+                            "The activation condition is now true, but outputs from an earlier attempt remain; "
+                            "archive them before rebuilding: " + ", ".join(existing_outputs)
+                        )
+                    else:
+                        action = "READY_TO_RUN"
                         reasons.append("The activation condition is now true; start a new stage attempt.")
                 elif current_event["status"] == "FAILED":
                     action = "RETRY_REQUIRED"
