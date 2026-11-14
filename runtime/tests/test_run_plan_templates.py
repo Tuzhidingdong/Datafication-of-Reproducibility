@@ -128,6 +128,23 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     if producer is not None:
                         self.assertIn(producer, g2["depends_on"])
 
+    def test_g2_binds_discovery_report_and_selected_scope_record(self):
+        for path in (
+            "templates/run_plan.example.json",
+            "templates/run_plan.canonical_adapter.example.json",
+        ):
+            plan = self._load_plan(path)
+            stages = {item["stage_id"]: item for item in plan["stages"]}
+            g2 = stages["g2_review_packet"]
+            with self.subTest(path=path):
+                self.assertIn("discovery_report", g2["inputs"])
+                self.assertIn("research_scope_record", g2["inputs"])
+                self.assertIn("exploratory_discovery", g2["depends_on"])
+                self.assertIn("research_scope_selection", g2["depends_on"])
+                self.assertIn(
+                    {"artifact_id": "research_scope_record", "path": "05_scope/research_scope_record.json"},
+                    stages["research_scope_selection"]["outputs"],
+                )
     def test_canonical_route_uses_materialized_bundle_as_the_bundle_producer(self):
         plan = self._load_plan("templates/run_plan.canonical_adapter.example.json")
         stages = {item["stage_id"]: item for item in plan["stages"]}
