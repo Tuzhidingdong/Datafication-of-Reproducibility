@@ -72,6 +72,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "modeling_cohort_manifest": "evidence/modeling_cohort_manifest.json",
             "modeling_cohort_csv": "evidence/modeling_cohort.csv",
             "model_report": "evidence/model_report.json",
+            "interaction_selection": "evidence/interaction_selection.json",
+            "worker_review_output": "evidence/worker_review_output.json",
+            "reviewed_findings": "evidence/reviewed_findings.json",
+            "publication_plan": "evidence/publication_plan.json",
             "model_artifact": "evidence/model_artifact.json",
             "modeling_run_manifest": "evidence/modeling_run_manifest.json",
             "reproducibility_evaluation": "evidence/reproducibility_evaluation.json",
@@ -359,6 +363,38 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "test_observation_count": 1,
         }
         model_report_hash = self._write_json(paths["model_report"], model_report)
+        self._write_json(paths["interaction_selection"], {
+            "schema_version": "1.0", "selected_interaction_ids": [],
+            "reviewer": "synthetic-reviewer", "reviewed_at": "2026-11-14T00:00:00Z",
+            "rationale": "No optional interaction was selected in this generic acceptance fixture.",
+        })
+        worker_result = {
+            "schema_version": "1.0", "task_id": "WORKER_TASK_ACCEPTANCE",
+            "status": "completed", "summary": "Synthetic independent review.",
+            "findings": [{"finding_id": "WF_ACCEPTANCE_001", "summary": "Synthetic finding."}],
+            "artifacts": [], "warnings": [], "unresolved_questions": [],
+        }
+        self._write_json(paths["worker_review_output"], worker_result)
+        self._write_json(paths["reviewed_findings"], {
+            "schema_version": "1.0", "run_id": self.run_id, "project_id": "PROJECT_1",
+            "reviewer": "synthetic-reviewer", "reviewed_at": "2026-11-14T00:00:00Z",
+            "worker_output": {
+                "artifact_id": "worker_review_output", "path": str(paths["worker_review_output"]),
+                "sha256": self.sha(paths["worker_review_output"]),
+            },
+            "reviewed_artifacts": [{
+                "artifact_id": "model_report", "path": str(paths["model_report"]),
+                "sha256": model_report_hash,
+            }],
+            "findings": [{
+                "worker_finding_id": "WF_ACCEPTANCE_001", "disposition": "ACCEPT_AS_IS",
+                "reviewer_rationale": "The synthetic finding is supported by the declared report.",
+                "supporting_artifact_ids": ["model_report"],
+            }],
+            "promotion_decision": "PROMOTE_ACCEPTED_ONLY",
+            "overall_rationale": "The single synthetic finding is accepted.",
+        })
+        self._write_json(paths["publication_plan"], {"schema_version": "1.0", "artifacts": []})
         model_artifact = {
             "schema_version": "1.0", "engine_version": "synthetic", "task_id": "TASK_1",
             "model_type": "ridge_regression", "target_id": "TARGET_01",
@@ -499,11 +535,15 @@ class AcceptanceValidatorTests(unittest.TestCase):
                                    ("modeling_cohort_manifest", "modeling_cohort_manifest"),
                                    ("modeling_cohort_csv", "modeling_cohort_csv")],
             "modeling_validation": [("model_report", "model_report"),
+                                    ("interaction_selection", "interaction_selection"),
+                                    ("worker_review_output", "worker_review_output"),
+                                    ("reviewed_findings", "reviewed_findings"),
                                     ("model_artifact", "model_artifact"),
                                     ("modeling_run_manifest", "modeling_run_manifest"),
                                     ("reproducibility_evaluation", "reproducibility_evaluation"),
                                     ("reproducibility_evaluation_manifest", "reproducibility_evaluation_manifest")],
-            "publication_handoff": [("publication_package_manifest", "publication_manifest"),
+            "publication_handoff": [("publication_plan", "publication_plan"),
+                                    ("publication_package_manifest", "publication_manifest"),
                                     ("publication_integrity_report", "publication_integrity")],
         }
         self.stage_evidence = {}
@@ -525,7 +565,9 @@ class AcceptanceValidatorTests(unittest.TestCase):
                         "modeling_task": "modeling_task", "cohort_report": "cohort_report",
                         "split_manifest": "split_manifest", "modeling_cohort_manifest": "modeling_cohort_manifest",
                         "modeling_cohort_csv": "modeling_cohort_csv",
-                        "model_report": "model_report", "model_artifact": "model_artifact",
+                        "model_report": "model_report", "interaction_selection": "interaction_selection",
+                        "worker_review_output": "worker_review_output", "reviewed_findings": "reviewed_findings",
+                        "publication_plan": "publication_plan", "model_artifact": "model_artifact",
                         "modeling_run_manifest": "modeling_run_manifest",
                         "reproducibility_evaluation": "reproducibility_evaluation",
                         "reproducibility_evaluation_manifest": "reproducibility_evaluation_manifest",
@@ -645,7 +687,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "G1": ["mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"],
             "G2": ["canonical_bundle", "reconciliation_report", "reconciliation_decisions", "modeling_task"],
             "G3": ["cohort_report", "split_manifest", "modeling_cohort_manifest"],
-            "G4": ["model_report"],
+            "G4": ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"],
         }
         events = {}
         gate_artifacts = {}
