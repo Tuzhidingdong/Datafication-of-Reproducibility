@@ -32,7 +32,8 @@
     },
     "reviewed_at": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "minLength": 1
     },
     "worker_output": {
       "type": "object",
@@ -81,7 +82,8 @@
           }
         },
         "additionalProperties": false
-      }
+      },
+      "uniqueItems": true
     },
     "findings": {
       "type": "array",
@@ -120,7 +122,8 @@
             "items": {
               "type": "string",
               "minLength": 1
-            }
+            },
+            "minItems": 0
           }
         },
         "additionalProperties": false,
@@ -154,7 +157,8 @@
       ]
     },
     "overall_rationale": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     }
   },
   "additionalProperties": false
