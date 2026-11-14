@@ -170,6 +170,42 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
         self.assertIn("hard architectural boundary", adapter_contract)
         self.assertIn("independently maintained external adapters", adapter_contract)
 
+    def test_manual_review_outputs_have_formal_schemas_and_examples(self):
+        review_schema = json.loads(
+            (ROOT / "schemas" / "run_review_packet.schema.json").read_text(encoding="utf-8")
+        )
+        findings_schema = json.loads(
+            (ROOT / "schemas" / "reviewed_findings.schema.json").read_text(encoding="utf-8")
+        )
+        review_example = json.loads(
+            (ROOT / "templates" / "run_review_packet.example.json").read_text(encoding="utf-8")
+        )
+        findings_example = json.loads(
+            (ROOT / "templates" / "reviewed_findings.example.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(review_example["packet_status"], "AWAITING_HUMAN_REVIEW")
+        self.assertIn("g2_review_packet", review_schema["properties"]["stage_id"]["enum"])
+        self.assertEqual(
+            findings_example["worker_output"]["artifact_id"], "worker_review_output"
+        )
+        self.assertIn(
+            "ACCEPT_WITH_CHANGES",
+            findings_schema["properties"]["findings"]["items"]["properties"]["disposition"]["enum"],
+        )
+        for relative_path in (
+            "templates/run_plan.example.json",
+            "templates/run_plan.canonical_adapter.example.json",
+        ):
+            plan = self._load_plan(relative_path)
+            stages = {item["stage_id"]: item for item in plan["stages"]}
+            for stage_id in ("g0_review_packet", "g1_review_packet", "g2_review_packet"):
+                self.assertEqual(stages[stage_id]["executor"], "manual")
+                self.assertEqual(stages[stage_id]["outputs"][0]["artifact_id"], stage_id)
+            self.assertEqual(
+                stages["human_review_and_promotion"]["outputs"][0]["artifact_id"],
+                "reviewed_findings",
+            )
+
     def test_run_plan_schema_declares_activation_operators(self):
         schema = json.loads(
             (ROOT / "schemas" / "run_plan.schema.json").read_text(encoding="utf-8")
