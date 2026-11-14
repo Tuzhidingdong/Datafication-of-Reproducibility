@@ -96,6 +96,11 @@ class ConditionPerformanceTests(unittest.TestCase):
         self.assertAlmostEqual(float(contrast["median_difference_b_minus_a"]), 4.0)
         self.assertEqual(summary["hypothesis_candidate_count"], 1)
         self.assertEqual(summary["endpoint_semantics_status"], "UNMAPPED_FEATURE_SEMANTICS")
+        with (out / "condition_performance_feature_coverage.csv").open(encoding="utf-8", newline="") as handle:
+            coverage = list(csv.DictReader(handle))
+        self.assertEqual(len(coverage), 1)
+        self.assertEqual(coverage[0]["eligible_numeric_outcome_observation_count"], "12")
+        self.assertEqual(coverage[0]["condition_linked_observation_count"], "12")
 
     def test_repeated_observations_within_one_doi_count_as_one_study(self):
         observations = [
