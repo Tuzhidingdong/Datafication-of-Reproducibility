@@ -1,19 +1,19 @@
 {
   "schema_version": "1.0",
   "task_id": "TASK_001",
-  "target_id": "TARGET_RETENTION",
-  "endpoint_definition": "cycling retention after 100 cycles",
+  "target_id": "TARGET_01",
+  "endpoint_definition": "The declared target outcome under the specified input configuration.",
   "features": {
-    "temperature": {
-      "value": 25.0,
-      "unit": "degC"
+    "feature_01": {
+      "value": 25,
+      "unit": "unit_01"
     },
-    "current_density": {
-      "value": 1.0,
-      "unit": "A g-1"
+    "feature_02": {
+      "value": 1,
+      "unit": "unit_02"
     },
-    "additive_identity": {
-      "value": "example_additive",
+    "feature_03": {
+      "value": "example_category",
       "unit": null
     }
   }
