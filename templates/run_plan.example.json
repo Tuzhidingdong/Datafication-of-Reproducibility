@@ -753,11 +753,12 @@
         "virtual_prediction"
       ],
       "worker_task": {
-        "objective": "Independently audit the declared model, reproducibility, interaction, robustness, selection, and virtual-prediction reports for leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks.",
+        "objective": "Independently audit the declared model, reproducibility, interaction, robustness, selection, and virtual-prediction reports for leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks. Every finding must include a stable, unique finding_id; use the same ID throughout the review packet and do not merge distinct findings.",
         "permitted_actions": [
           "Read only the six declared compact JSON/report inputs",
           "Write one structured review JSON to the exact permitted staging path",
-          "Cite exact artifact IDs and JSON paths for each finding"
+          "Cite exact artifact IDs and JSON paths for each finding",
+          "Give every finding a stable unique finding_id and cite only declared artifact IDs and JSON paths"
         ],
         "forbidden_actions": [
           "Modify source data or analysis artifacts",
