@@ -184,8 +184,6 @@ def prepare_adapter_handoff_files(
             raise ValueError("Adapter handoff output must be outside the protected package root.")
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        report["handoff_path"] = str(output)
-        report["handoff_sha256"] = _sha256(output)
     return report
 
 
