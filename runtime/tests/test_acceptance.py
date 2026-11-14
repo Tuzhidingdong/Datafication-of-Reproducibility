@@ -30,7 +30,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.table = self.source_root / "paired.csv"
         self.paper.write_bytes(b"synthetic paper bytes")
         self.si.write_bytes(b"synthetic SI bytes")
-        self.table.write_text("feature,value\nconcentration,1.0\n", encoding="utf-8")
+        self.table.write_text("feature,value\nfeature_01,1.0\n", encoding="utf-8")
         self._create_run(["STUDY_1"])
 
     def tearDown(self):
@@ -176,9 +176,9 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 "mapping_rule_id": "MAP_1",
                 "source_item_id": "INV_1",
                 "target_entity": "conditions",
-                "target_field_id": "concentration",
+                "target_field_id": "feature_01",
                 "status": "APPROVED",
-                "transformation": {"type": "IDENTITY", "parameters": {"unit": "mol/L"}},
+                "transformation": {"type": "IDENTITY", "parameters": {"unit": "unit_feature"}},
                 "review": {
                     "reviewer": "synthetic reviewer",
                     "reviewed_at": "2026-01-01T00:00:00Z",
@@ -232,8 +232,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
             systems.append({"system_id": system_id, "study_ids": [study_id], "system_type": "synthetic_system"})
             conditions.append({
                 "condition_id": condition_id, "system_ids": [system_id],
-                "condition_type": "concentration", "value_state": "REPORTED",
-                "raw_value": 1.0 + index, "raw_unit": "mol/L",
+                "condition_type": "feature_01", "value_state": "REPORTED",
+                "raw_value": 1.0 + index, "raw_unit": "unit_feature",
             })
             experiments.append({
                 "experiment_id": experiment_id, "study_id": study_id,
@@ -242,7 +242,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             observations.append({
                 "observation_id": observation_id, "experiment_id": experiment_id,
                 "target_id": "CAPACITY", "value_state": "REPORTED",
-                "raw_value": 100.0 + index, "raw_unit": "mAh/g",
+                "raw_value": 100.0 + index, "raw_unit": "unit_outcome",
                 "endpoint_definition": "specific discharge capacity",
                 "evidence_ids": [evidence_id],
             })
@@ -286,10 +286,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "schema_version": "1.0", "task_id": "TASK_1",
             "target_id": "CAPACITY", "endpoint_definition": "specific discharge capacity",
             "outcome_type": "NUMERIC", "outcome_value_field": "raw_value",
-            "outcome_unit": "mAh/g",
+            "outcome_unit": "unit_outcome",
             "feature_bindings": [{
-                "feature_id": "concentration", "condition_type": "concentration",
-                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+                "feature_id": "feature_01", "condition_type": "feature_01",
+                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "unit_feature",
             }],
             "split": {
                 "strategy": "EXPLICIT_STUDIES",
@@ -350,7 +350,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         model_report = {
             "schema_version": "1.0", "task_id": "TASK_1", "target_id": "CAPACITY",
             "endpoint_definition": "specific discharge capacity", "outcome_type": "NUMERIC",
-            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "outcome_value_field": "raw_value", "outcome_unit": "unit_outcome",
             "selected_model": "ridge_regression", "selected_candidate_id": "ridge_1",
             "primary_selection_metric": "validation_mae", "validation_comparison": [{"candidate_id": "ridge_1"}],
             "test_evaluation": {"n": 1, "mae": 0.1},
@@ -363,10 +363,10 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "schema_version": "1.0", "engine_version": "synthetic", "task_id": "TASK_1",
             "model_type": "ridge_regression", "target_id": "CAPACITY",
             "endpoint_definition": "specific discharge capacity",
-            "outcome_value_field": "raw_value", "outcome_unit": "mAh/g",
+            "outcome_value_field": "raw_value", "outcome_unit": "unit_outcome",
             "feature_bindings": [{
-                "feature_id": "concentration", "condition_type": "concentration",
-                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "mol/L",
+                "feature_id": "feature_01", "condition_type": "feature_01",
+                "value_field": "raw_value", "value_type": "NUMERIC", "expected_unit": "unit_feature",
             }], "selected_candidate_id": "ridge_1",
             "selection_metric": "validation_mae",
             "training_observation_ids": [f"OBS_{sid.replace('-', '_')}" for sid in training_study_ids],
