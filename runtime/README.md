@@ -40,6 +40,41 @@ For a Canonical Bundle supplied inside an external adapter package, use the hash
 
 The scan validates canonical structure and references, hashes the input before and after processing, writes aggregate-only profiles and a bounded Agent brief, and refuses to overwrite a non-empty output directory. It does not create a formal Run or cross G0-G4 approval gates.
 
+## Run Manager and conditional stage execution
+
+Declare the complete Run DAG in a Run Plan and initialize a new isolated workspace:
+
+    dor run-init --plan run_plan.json --run-root path/to/new/run
+    dor run-verify --manifest path/to/new/run/run_manifest.json
+
+The Run Manager binds the immutable plan and protected source hashes to an append-only, hash-chained `run_events.jsonl`. Use `dor run-stage-record` to record each declared stage as RUNNING, SUCCEEDED, FAILED, or—only for a conditional stage whose activation evaluates false—SKIPPED. Successful stage records bind exact input and output hashes. A skipped stage has no outputs and does not satisfy artifact dependencies or create an approval.
+
+A stage may declare a generic activation condition:
+
+    "activation": {
+      "artifact_id": "review_decision",
+      "json_pointer": "/selected_ids",
+      "operator": "array_non_empty"
+    }
+
+The activation artifact must also appear in that stage's declared inputs and must already have a currently reusable producer. Supported operators are `exists`, `not_exists`, `array_non_empty`, `array_empty`, `boolean_true`, `boolean_false`, `equals`, and `not_equals`. JSON Pointer lookup and the observed activation-value digest are recorded. Run Manager does not create or edit the condition input.
+
+On resume, use:
+
+    dor run-status --manifest path/to/run/run_manifest.json
+    dor run-resume-plan --manifest path/to/run/run_manifest.json
+    dor run-artifacts --manifest path/to/run/run_manifest.json --out path/to/run/artifact_manifest.json
+
+The resume plan distinguishes waiting for activation input, SKIP_REQUIRED, SKIPPED, gate-blocked, ready, reusable, and rebuild states. Record SKIPPED only when the calculated action is SKIP_REQUIRED:
+
+    dor run-stage-record --manifest path/to/run/run_manifest.json --stage optional_stage --status SKIPPED --producer-kind local --reason "Declared activation condition evaluated false."
+
+For manual conditional stages, use `--producer-kind manual`. A SKIPPED event remains terminal only while the activation input hash and false condition remain unchanged. If the condition becomes true later, the resume plan makes the stage READY_TO_RUN after its dependencies and required gate are satisfied.
+
+Worker stages still require a separate explicit `dor run-worker-authorize` action and write only into their declared `worker_staging/<stage_id>/` paths. Run Manager records execution provenance; it does not start Workers, execute arbitrary commands, or create G0-G4 decisions.
+
+The two formal adapter templates include the conditional post-selection stages. An empty candidate-selection array skips them; a non-empty array activates preparation and, after explicit G3 approval, the declared follow-on analysis stages. See ../docs/RUN_PLAN_EXECUTION_BINDINGS.md for the exact stage-to-command contract.
+
 ## Setup
 
 From the repository root:
