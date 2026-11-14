@@ -60,6 +60,9 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "source_inventory": "evidence/source_inventory.json",
             "extraction_review": "evidence/extraction_review_record.json",
             "mapping_plan": "evidence/mapping_plan.json",
+            "mapping_validation": "evidence/mapping_validation.json",
+            "build_spec": "evidence/build_spec.json",
+            "build_spec_validation": "evidence/build_spec_validation.json",
             "canonical_bundle": "evidence/canonical_bundle.json",
             "reconciliation_report": "evidence/reconciliation_report.json",
             "reconciliation_decisions": "evidence/reconciliation_decisions.json",
@@ -183,7 +186,34 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 },
             }],
         }
+        mapping["rules"][0]["transformation"] = {"type": "NUMERIC_PARSE", "parameters": {}}
         self._write_json(paths["mapping_plan"], mapping)
+
+        from dor.mapping import validate_mapping_plan
+        mapping_validation = validate_mapping_plan(mapping, inventory, inventory_hash)
+        self._write_json(paths["mapping_validation"], mapping_validation)
+        build_spec = {
+            "schema_version": "1.0",
+            "project_id": "PROJECT_1",
+            "mapping_version": mapping["mapping_version"],
+            "mapping_plan_sha256": self.sha(paths["mapping_plan"]),
+            "source_inventory_sha256": inventory_hash,
+            "entity_definitions": [{
+                "definition_id": "D_CONDITION",
+                "entity_type": "conditions",
+                "source_file": self.table.name,
+                "source_format": "csv",
+                "grouping": {"mode": "SOURCE_ROW", "source_item_ids": []},
+                "field_rule_ids": ["MAP_1"],
+            }],
+            "links": [],
+        }
+        self._write_json(paths["build_spec"], build_spec)
+        from dor.builder import validate_build_spec_files
+        build_spec_validation = validate_build_spec_files(
+            paths["mapping_plan"], paths["source_inventory"], paths["build_spec"]
+        )
+        self._write_json(paths["build_spec_validation"], build_spec_validation)
 
         studies = []
         systems = []
@@ -231,6 +261,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "build_provenance": {
                 "mapping_plan_sha256": self.sha(paths["mapping_plan"]),
                 "source_inventory_sha256": inventory_hash,
+                "build_spec_sha256": self.sha(paths["build_spec"]),
             },
             "studies": studies, "systems": systems, "conditions": conditions,
             "experiments": experiments, "observations": observations,
@@ -453,7 +484,12 @@ class AcceptanceValidatorTests(unittest.TestCase):
                                  ("source_inventory", "source_inventory")],
             "source_integrity": [("run_manifest", None)],
             "extraction_review": [("extraction_review_record", "extraction_review")],
-            "semantic_mapping": [("mapping_plan", "mapping_plan")],
+            "semantic_mapping": [
+                ("mapping_plan", "mapping_plan"),
+                ("mapping_validation", "mapping_validation"),
+                ("build_spec", "build_spec"),
+                ("build_spec_validation", "build_spec_validation"),
+            ],
             "canonical_reconciliation": [("canonical_bundle", "canonical_bundle"),
                                          ("reconciliation_report", "reconciliation_report"),
                                          ("reconciliation_decisions", "reconciliation_decisions")],
@@ -482,6 +518,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
                     artifact_id = {
                         "selection_manifest": "selection_manifest", "source_inventory": "source_inventory",
                         "extraction_review": "extraction_review", "mapping_plan": "mapping_plan",
+                        "mapping_validation": "mapping_validation", "build_spec": "build_spec",
+                        "build_spec_validation": "build_spec_validation",
                         "canonical_bundle": "canonical_bundle", "reconciliation_report": "reconciliation_report",
                         "reconciliation_decisions": "reconciliation_decisions",
                         "modeling_task": "modeling_task", "cohort_report": "cohort_report",
@@ -604,7 +642,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         }
         gate_artifact_ids = {
             "G0": ["source_inventory"],
-            "G1": ["mapping_plan", "source_inventory"],
+            "G1": ["mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"],
             "G2": ["canonical_bundle", "reconciliation_report", "modeling_task"],
             "G3": ["cohort_report", "split_manifest", "modeling_cohort_manifest"],
             "G4": ["model_report"],
