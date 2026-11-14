@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from dor.builder import validate_build_spec_files
 from dor.gates import (
     inspect_gate_ledger,
     record_gate_decision,
@@ -49,9 +50,19 @@ class WorkflowGateTests(unittest.TestCase):
             "mapping_version": mapping_plan["mapping_version"],
             "mapping_plan_sha256": sha256_file(self.files["mapping_plan"]),
             "source_inventory_sha256": inventory_hash,
-            "entity_definitions": [],
+            "entity_definitions": [{
+                "definition_id": "D_STUDY",
+                "entity_type": "studies",
+                "source_file": "records.csv",
+                "source_format": "csv",
+                "grouping": {"mode": "SOURCE_ROW", "source_item_ids": []},
+                "field_rule_ids": [],
+            }],
             "links": [],
         })
+        make_file("build_spec_validation", validate_build_spec_files(
+            self.files["mapping_plan"], self.files["source_inventory"], self.files["build_spec"]
+        ))
         make_file("canonical_bundle", {
             "schema_version": "1.0",
             "build_provenance": {
@@ -158,7 +169,7 @@ class WorkflowGateTests(unittest.TestCase):
 
     def _record_g1(self):
         return self._record(
-            "G1", ["mapping_plan", "mapping_validation", "source_inventory", "build_spec"]
+            "G1", ["mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"]
         )
 
     def _record_g2(self):
