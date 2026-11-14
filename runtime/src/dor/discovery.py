@@ -294,10 +294,16 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         f"- Supported condition strata (minimum {minimum_studies} DOI Studies): {performance['supported_condition_stratum_count']}",
         f"- Descriptive contrasts: {performance['descriptive_contrast_count']}",
         f"- Hypothesis candidates requiring domain review: {performance['hypothesis_candidate_count']}",
+        f"- Supported two-condition combinations: {performance['supported_joint_condition_combination_count']}",
+        f"- Two-condition combination contrasts: {performance['joint_condition_combination_contrast_count']}",
+        f"- Two-condition hypothesis candidates requiring review: {performance['joint_condition_hypothesis_candidate_count']}",
         "- Endpoint semantics: UNMAPPED_FEATURE_SEMANTICS; FEAT identifiers are not interpreted.",
         "- Contrasts are differences between Study-level medians, not p-values, causal effects, or evidence of mechanism.",
         "", "Files: condition_outcome_links.csv, condition_performance_study_strata.csv, "
         "condition_performance_strata.csv, condition_performance_contrasts.csv, and condition_hypothesis_candidates.csv.",
+        "Joint condition files: condition_combination_performance.csv, condition_combination_contrasts.csv, "
+        "and condition_combination_hypothesis_candidates.csv.",
+        "- Two-condition combinations are only linked when both candidates appear on the same observation; do not describe them as synergy or fitted interactions.",
         "", "| Feature ID | Unit | Condition dimension | Supported levels | Study support | Median spread |",
         "|---|---|---|---:|---:|---:|"])
     for candidate in performance["hypothesis_candidates_preview"]:
