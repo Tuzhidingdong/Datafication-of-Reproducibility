@@ -568,7 +568,7 @@ class RunManagerTests(unittest.TestCase):
         dataset_manifest = self.run_root / "01_audit/dataset_manifest.json"
         dataset_manifest.write_text('{"selected_ids":[]}\n', encoding="utf-8")
         # The unfinished process must be reconciled before a SKIPPED event can be appended.
-        with self.assertRaisesRegex(ValueError, "cannot be recorded as SKIPPED"):
+        with self.assertRaisesRegex(ValueError, "cannot be skipped now"):
             record_stage_status(
                 self.manifest_path, "optional_analysis", "SKIPPED", "local",
                 reason="Condition became false.",
