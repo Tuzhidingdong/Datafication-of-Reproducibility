@@ -297,7 +297,7 @@ def build_parser() -> argparse.ArgumentParser:
     stage_record = subparsers.add_parser("run-stage-record", help="Append RUNNING/SUCCEEDED/FAILED metadata for one explicitly declared stage")
     stage_record.add_argument("--manifest", type=Path, required=True)
     stage_record.add_argument("--stage", dest="stage_id", required=True)
-    stage_record.add_argument("--status", choices=["RUNNING", "SUCCEEDED", "FAILED"], required=True)
+    stage_record.add_argument("--status", choices=["RUNNING", "SUCCEEDED", "FAILED", "SKIPPED"], required=True)
     stage_record.add_argument("--producer-kind", choices=["local", "worker", "manual"], required=True)
     stage_record.add_argument("--command", dest="producer_command", default=None)
     stage_record.add_argument("--role", default=None)
