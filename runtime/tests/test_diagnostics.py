@@ -7,13 +7,13 @@ def sample_bundle():
     return {
       "schema_version":"1.0","project_id":"P","mapping_version":"M",
       "studies":[{"study_id":"ST1","doi":"10.1000/a","source_locators":[]}],
-      "systems":[{"system_id":"SY1","study_ids":["ST1"],"system_type":"cell"}],
+      "systems":[{"system_id":"SY1","study_ids":["ST1"],"system_type":"generic_system"}],
       "conditions":[
-        {"condition_id":"CO1","system_ids":["SY1"],"condition_type":"temperature","value_state":"REPORTED","raw_value":25},
-        {"condition_id":"CO2","system_ids":["SY1"],"condition_type":"pressure","value_state":"REPORTED","raw_value":1}
+        {"condition_id":"CO1","system_ids":["SY1"],"condition_type":"feature_01","value_state":"REPORTED","raw_value":25},
+        {"condition_id":"CO2","system_ids":["SY1"],"condition_type":"feature_02","value_state":"REPORTED","raw_value":1}
       ],
       "experiments":[{"experiment_id":"EX1","study_id":"ST1","system_id":"SY1","condition_ids":["CO1"]}],
-      "observations":[{"observation_id":"OB1","experiment_id":"EX1","target_id":"capacity","value_state":"REPORTED","raw_value":100,"evidence_ids":["EV1"]}],
+      "observations":[{"observation_id":"OB1","experiment_id":"EX1","target_id":"TARGET_01","value_state":"REPORTED","raw_value":100,"evidence_ids":["EV1"]}],
       "comparisons":[],
       "evidence":[
         {"evidence_id":"EV1","study_id":"ST1","source_locator":{"source_file":"a.pdf","locator":"p.1"},"evidence_type":"table_value","quoted_text":"100"},
