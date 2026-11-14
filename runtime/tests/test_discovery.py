@@ -128,6 +128,9 @@ class DiscoveryTests(unittest.TestCase):
             self.assertFalse(manifest["source_files_modified"])
             self.assertFalse(manifest["raw_observations_in_agent_brief"])
             self.assertEqual(manifest["excluded_test_observation_count"],1)
+            self.assertIn("feature_semantics.py", manifest["code_files_sha256"])
+            self.assertIn("condition_performance.py", manifest["code_files_sha256"])
+            self.assertIn("feature_semantics_review_summary.json", manifest["outputs"])
 
     def test_nonempty_output_is_not_overwritten(self):
         with tempfile.TemporaryDirectory() as temp:
