@@ -118,6 +118,20 @@ Use the exact Run-relative file paths below. These commands bind the approval to
 
 For G2, the Gate validator recomputes the reconciliation-decision validation directly from the exact bound decision file, report, and Canonical Bundle. The Run Plan's separate `reconciliation_decision_validation` stage remains a human-readable, hash-recorded output for the review packet; the G2 event need not trust or bind a self-reported `valid=true` result. Every report issue requires exactly one decision. A `CRITICAL` or `REVIEW_REQUIRED` issue marked `REMAINS_UNRESOLVED` blocks G2; pause the Run and obtain additional source evidence or record a justified explicit scope exclusion rather than approving around it. The research scope record must classify every signal in the exact Discovery report, select at least one signal, and bind the exact task and target IDs; the G2 Gate recomputes this relationship from the bound report, scope record, and task. The G3 `mechanism_plan` artifact is required by the G3 validator only when the selection contains one candidate; omit it for an empty selection.
 
+## Host Worker Manager dispatch contract
+
+Worker execution is deliberately delegated to the host Skill environment. Run Manager issues a bounded, hash-bound authorization packet; it does not spawn a process or choose a provider/model. The Skill must use the host's configured Worker Manager and follow this sequence:
+
+1. Inspect the host Worker Manager and its currently available providers/models. Do not assume a provider, model, or session is available from a prior conversation.
+2. Before starting, show the user the exact stage ID, role, provider, model, active project root, declared input artifact IDs, permitted output paths, task objective, forbidden actions, and token/output limits. Do not silently start a Worker or silently substitute another model. Obtain explicit authorization for that exact role/model/project.
+3. Record authorization with `dor run-worker-authorize --manifest <run_root>/run_manifest.json --stage <stage_id> --role <role> --provider <provider> --model <model> --project-root <project_root> --authorized-by <reviewer> --rationale "<approved task and model>"`. Dispatch only the returned task packet through the host Worker Manager.
+4. Once the host confirms the job has started, record RUNNING with the exact provider/model/project identity and any returned job/session/task identifiers:
+   `dor run-stage-record --manifest <run_root>/run_manifest.json --stage <stage_id> --status RUNNING --producer-kind worker --role <role> --provider <provider> --model <model> --project-root <project_root> [--job-id <job_id>] [--session-id <session_id>] [--task-id <task_id>]`.
+5. Monitor the host job until it reaches a terminal state. Do not infer completion from a submitted request. Retrieve only the declared output; place it at the exact `worker_staging` path in the Run workspace, then verify its format and content contract. Record SUCCEEDED with the actual returned identifiers and usage fields. Record FAILED with a non-empty reason if the Worker fails or the result cannot be validated.
+6. If the host job is still active after a reconnect, continue monitoring that same job. If its state is unknown or abandoned, inspect it before using `--confirm-abandoned`; a replacement attempt requires a fresh authorization packet. Never duplicate a potentially active job.
+
+If the configured Worker Manager is unavailable, keep the stage blocked and report the missing host capability. Do not perform an invisible local substitute. The provider/model execution adapter belongs to the host environment; no provider-specific model catalogue or research-domain logic is embedded in DoR core.
+
 ## Stage status and artifact recording
 
 Run Manager execution records are separate from the G0-G4 approval ledger. They do not create scientific approvals.
