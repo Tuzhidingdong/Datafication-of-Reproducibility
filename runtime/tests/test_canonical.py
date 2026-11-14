@@ -7,12 +7,12 @@ def valid_bundle():
     return {
         "schema_version":"1.0","project_id":"P1","mapping_version":"map-v1",
         "studies":[{"study_id":"ST1","doi":"10.1000/example","source_locators":[]}],
-        "systems":[{"system_id":"SY1","study_ids":["ST1"],"system_type":"battery_cell"}],
-        "conditions":[{"condition_id":"CO1","system_ids":["SY1"],"condition_type":"temperature",
-            "raw_value":25,"raw_unit":"degC","value_state":"REPORTED"}],
+        "systems":[{"system_id":"SY1","study_ids":["ST1"],"system_type":"generic_system"}],
+        "conditions":[{"condition_id":"CO1","system_ids":["SY1"],"condition_type":"feature_01",
+            "raw_value":25,"raw_unit":"unit_01","value_state":"REPORTED"}],
         "experiments":[{"experiment_id":"EX1","study_id":"ST1","system_id":"SY1","condition_ids":["CO1"]}],
-        "observations":[{"observation_id":"OB1","experiment_id":"EX1","target_id":"TARGET_CAPACITY",
-            "raw_value":120,"raw_unit":"mAh g-1","value_state":"REPORTED","evidence_ids":["EV1"]}],
+        "observations":[{"observation_id":"OB1","experiment_id":"EX1","target_id":"TARGET_01",
+            "raw_value":120,"raw_unit":"unit_02","value_state":"REPORTED","evidence_ids":["EV1"]}],
         "comparisons":[],
         "evidence":[{"evidence_id":"EV1","study_id":"ST1","source_locator":{
             "source_file":"paper.pdf","source_sha256":"a"*64,"locator_type":"pdf_page","locator":"p.4"},
