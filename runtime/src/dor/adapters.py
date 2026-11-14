@@ -72,15 +72,29 @@ def validate_adapter_package_files(
     if not isinstance(payload, dict):
         raise ValueError("Adapter manifest must be a JSON object.")
 
+    allowed_top_level = {"schema_version", "package_id", "created_at", "adapter", "sources", "artifacts", "metadata"}
+    unknown_top_level = set(payload) - allowed_top_level
+    if unknown_top_level:
+        errors.append({"code": "UNKNOWN_TOP_LEVEL_FIELDS", "message": "Unsupported manifest fields: " + ", ".join(sorted(unknown_top_level))})
+    for field in ("schema_version", "package_id", "adapter", "sources", "artifacts"):
+        if field not in payload:
+            errors.append({"code": "REQUIRED_FIELD_MISSING", "message": f"Required manifest field is missing: {field}."})
     if payload.get("schema_version") != "1.0":
         errors.append({"code": "SCHEMA_VERSION", "message": "Expected schema_version 1.0."})
     if not isinstance(payload.get("package_id"), str) or not payload["package_id"].strip():
         errors.append({"code": "PACKAGE_ID", "message": "package_id must be a non-empty string."})
+    if "created_at" in payload and (not isinstance(payload["created_at"], str) or not payload["created_at"].strip()):
+        errors.append({"code": "CREATED_AT", "message": "created_at must be a non-empty string when provided."})
+    if "metadata" in payload and not isinstance(payload["metadata"], dict):
+        errors.append({"code": "METADATA", "message": "metadata must be an object when provided."})
 
     adapter = payload.get("adapter")
     if not isinstance(adapter, dict):
         errors.append({"code": "ADAPTER_DESCRIPTOR", "message": "adapter must be an object."})
     else:
+        unknown_adapter = set(adapter) - {"adapter_id", "adapter_version", "adapter_digest"}
+        if unknown_adapter:
+            errors.append({"code": "ADAPTER_UNKNOWN_FIELDS", "message": "Unsupported adapter fields: " + ", ".join(sorted(unknown_adapter))})
         for field in ("adapter_id", "adapter_version"):
             if not isinstance(adapter.get(field), str) or not adapter[field].strip():
                 errors.append({"code": "ADAPTER_DESCRIPTOR", "message": f"adapter.{field} must be a non-empty string."})
@@ -110,6 +124,11 @@ def validate_adapter_package_files(
             errors.append({"code": "SOURCE_ID", "message": f"{location}.source_id is invalid or duplicated."})
         else:
             source_ids.add(source_id)
+        unknown_source = set(item) - {"source_id", "path", "sha256", "format", "role"}
+        if unknown_source:
+            errors.append({"code": "SOURCE_UNKNOWN_FIELDS", "message": f"{location} has unsupported fields: " + ", ".join(sorted(unknown_source))})
+        if "role" in item and (not isinstance(item["role"], str) or not item["role"].strip()):
+            errors.append({"code": "SOURCE_ROLE", "message": f"{location}.role must be a non-empty string when provided."})
         if not isinstance(item.get("format"), str) or item["format"] not in _FORMATS:
             errors.append({"code": "SOURCE_FORMAT", "message": f"{location}.format is unsupported."})
         if not isinstance(raw_path, str) or not raw_path.strip() or not isinstance(expected, str) or not _SHA256.fullmatch(expected):
@@ -137,8 +156,13 @@ def validate_adapter_package_files(
             errors.append({"code": "ARTIFACT_ID", "message": f"{location}.artifact_id is invalid or duplicated."})
         else:
             artifact_ids.add(artifact_id)
+        unknown_artifact = set(item) - {"artifact_id", "role", "path", "sha256", "format", "media_type"}
+        if unknown_artifact:
+            errors.append({"code": "ARTIFACT_UNKNOWN_FIELDS", "message": f"{location} has unsupported fields: " + ", ".join(sorted(unknown_artifact))})
         if role not in _ARTIFACT_ROLES:
             errors.append({"code": "ARTIFACT_ROLE", "message": f"{location}.role is unsupported."})
+        if "media_type" in item and (not isinstance(item["media_type"], str) or not item["media_type"].strip()):
+            errors.append({"code": "ARTIFACT_MEDIA_TYPE", "message": f"{location}.media_type must be a non-empty string when provided."})
         if not isinstance(item.get("format"), str) or item["format"] not in _FORMATS:
             errors.append({"code": "ARTIFACT_FORMAT", "message": f"{location}.format is unsupported."})
         if not isinstance(raw_path, str) or not raw_path.strip() or not isinstance(expected, str) or not _SHA256.fullmatch(expected):
