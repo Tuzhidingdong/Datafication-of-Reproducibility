@@ -62,6 +62,7 @@ Before executing any Run Plan, read [the command-level stage bindings](../../../
 - Record source file names, sizes, and SHA-256 hashes.
 - Confirm that output paths do not overwrite or reside inside protected source files.
 - Create a new run directory; never overwrite an earlier run by default.
+- For adapter-backed projects, first create a route-preflight handoff outside the protected package using `dor prepare-adapter-handoff`. Use its route to select the appropriate Run Plan template. Initialize the formal Run with `dor run-init --plan <selected_run_plan.json> --run-root <new_run_root>`, then verify it with `dor run-verify --manifest <run_root>/run_manifest.json`. The formal adapter validation stage must regenerate the handoff inside the Run workspace; the preflight file is not a Run artifact.
 
 ### External adapter handoff
 
