@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "reconciliation_report_sha256": "<SHA-256 of the exact reconciliation_report.json>",
+  "decisions": [
+    {
+      "issue_id": "<exact issue_id from reconciliation_report.json>",
+      "decision": "REMAINS_UNRESOLVED",
+      "reviewer": "<reviewer or responsible role>",
+      "reviewed_at": "<ISO-8601 timestamp with timezone>",
+      "rationale": "<what was reviewed and why this disposition was selected>",
+      "evidence_refs": []
+    }
+  ]
+}
