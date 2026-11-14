@@ -7,7 +7,7 @@
   "outcome_value_field":"normalized_value",
   "outcome_unit":"unit copied from canonical normalized_unit",
   "feature_bindings":[
-    {"feature_id":"feature_temperature","condition_type":"temperature","value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"degC"}
+    {"feature_id":"feature_01","condition_type":"condition_type_01","value_field":"normalized_value","value_type":"NUMERIC","expected_unit":"unit_01"}
   ],
   "split":{"strategy":"GROUPED_HOLDOUT","seed":42,"fractions":{"train":0.7,"validation":0.15,"test":0.15}},
   "modeling":{
