@@ -96,13 +96,15 @@
       "stage_id": "g0_review_packet",
       "executor": "manual",
       "depends_on": [
-        "source_audit"
+        "source_audit",
+        "adapter_package_validation"
       ],
       "inputs": [
         "dataset_manifest",
         "source_inventory",
         "data_audit_report",
-        "mapping_review_queue"
+        "mapping_review_queue",
+        "adapter_validation_report"
       ],
       "outputs": [
         {
