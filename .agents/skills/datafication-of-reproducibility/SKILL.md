@@ -35,21 +35,20 @@ You are operating a guided scientific research workflow. The purpose is not mere
 
 DoR never assumes a particular source system or research domain. When a project has an external adapter that can provide a validated Canonical Bundle, use the same bundle for exploratory profiling and the subsequent formal workflow.
 
-### Stage -1 — Exploratory discovery (no G0-G4 approval)
+### Stage -1 — Exploratory discovery when a Canonical Bundle already exists
 
 - Read the external adapter package contract at ../../../docs/ADAPTER_CONTRACT.md.
 - Create a DoR handoff with dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <adapter_handoff.json>. The output is a hash-bound routing record; it does not approve scientific semantics.
-- Inspect the handoff route. When it is CANONICAL_BUNDLE, run dor discover-opportunities --adapter-handoff <adapter_handoff.json> --out-dir <new_discovery_directory>.
-- When it is STRUCTURED_DATASET, run dor audit --adapter-handoff <adapter_handoff.json> --out <new_audit_directory>, then continue through reviewed mapping and canonical construction. Run discovery on the resulting canonical bundle.
+- This pre-Run stage is available only when the handoff route is CANONICAL_BUNDLE. Run dor discover-opportunities --adapter-handoff <adapter_handoff.json> --out-dir <new_discovery_directory>.
 - Read agent_research_brief.md and discovery_report.json. Use aggregate CSV outputs only when a specific signal needs inspection.
 - Do not load complete source datasets or large evidence collections into an LLM context. Use deterministic local processing and pass only bounded summaries or task-specific evidence packets to Agents.
 - Treat every signal as exploratory. Do not infer domain meanings from identifiers, filenames, or unreviewed labels.
 - Synthesize a small set of testable research opportunities. Each must cite supporting signal IDs, independent Study support, data limitations, identifiability, confounding risks, counterexamples, proposed validation, and novelty-review status.
 - The user selects or revises a research direction before a formal analysis task and Run are initialized.
 
-If the adapter does not supply a Canonical Bundle, continue through source audit, reviewed mapping, and canonical construction first. The resulting bundle becomes the shared input to exploratory discovery and the formal analysis workflow.
+If the handoff route is STRUCTURED_DATASET, do not run this stage outside the formal workflow. Initialize the guided Run, validate the handoff, audit all declared supported datasets, complete G0/G1 review and canonical construction, then use the Run Plan's exploratory_discovery stage on the resulting canonical bundle before G2. This avoids bypassing source and mapping approvals.
 
-This exploratory stage does not create a formal Run, approve mappings, initialize acceptance, record G0-G4, or launch modelling. Exploratory results never replace the approval-gated workflow.
+A pre-Run Canonical Bundle scan does not create a formal Run, approve mappings, initialize acceptance, record G0-G4, or launch modelling. If the same external bundle is later used for formal analysis, its matching source_inventory, mapping_plan, and build_spec must be supplied and pass the existing G1/G2 provenance checks. Exploratory results never replace the approval-gated workflow.
 
 ## Progressive workflow
 
@@ -66,11 +65,11 @@ This exploratory stage does not create a formal Run, approve mappings, initializ
 
 Use an independently maintained adapter to read source-system files and prepare an adapter package conforming to schemas/adapter_package.schema.json. Adapter code and domain-specific retrieval or vocabulary rules must remain outside the DoR core repository.
 
-- Register the adapter manifest, exact source files, and output artifacts in the Run Plan.
-- Run dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <adapter_handoff.json> before consuming adapter outputs. This command validates the adapter package and chooses a route using only declared artifact roles and formats.
+- Register the adapter manifest and its protected package root in the Run Plan. The generic Run Plan template declares the manifest once; its adapter_package_validation stage creates the run-bound adapter_handoff artifact.
+- In that stage, run dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <run_root>/00_adapter/adapter_handoff.json. Do not write the handoff inside the source package.
 - Treat a valid handoff as an integrity and routing result only. It does not approve extraction quality, semantic mappings, entity grain, unit compatibility, or scientific suitability.
-- For a STRUCTURED_DATASET route, run dor audit --adapter-handoff <adapter_handoff.json> --out <new_audit_directory>. This audits every supported standardized_dataset CSV/JSON artifact declared in the package and preserves its package-relative path and artifact identity in the source inventory.
-- For a CANONICAL_BUNDLE route, the handoff command also runs DoR's structural/reference validator. Run discovery through --adapter-handoff so the manifest, sources, and canonical artifact hashes are rechecked before use.
+- For a STRUCTURED_DATASET route, the next source_audit stage runs dor audit --adapter-handoff <adapter_handoff.json> --out <run_root>/01_audit. This audits every supported standardized_dataset CSV/JSON artifact declared in the package and preserves its package-relative path and artifact identity in the source inventory.
+- For a CANONICAL_BUNDLE route, the handoff command also runs DoR's structural/reference validator. Use discovery through --adapter-handoff so the manifest, sources, and canonical artifact hashes are rechecked before use. A direct pre-Run discovery scan is not a replacement for G0/G1/G2 approval.
 - Review the source inventory before defining mappings. Use the adapter package's declared source_inventory, mapping_plan, and build_spec as review candidates only; they must be bound to the exact package hashes and pass the usual mapping/G1 checks before formal analysis.
 - Use project-owned domain profiles and human-reviewed mapping/build specifications. Do not infer scientific meanings from identifiers or filenames.
 - If an adapter supplies a Canonical Bundle, validate it and preserve its exact source/adapter provenance before using it for discovery or formal analysis.
