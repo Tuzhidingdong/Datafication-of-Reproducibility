@@ -31,6 +31,26 @@ You are operating a guided scientific research workflow. The purpose is not mere
 12. Generate Methods/Results text from recorded facts and outputs, never from memory of source code or chat history.
 13. A downstream Writing Skill must be able to use the publication package without reading this Skill's source code or recovering prior conversations.
 
+## Discovery-first research entry
+
+For a new research programme using an existing structured corpus, begin with the Scientific Discovery Engine before asking the user to choose a modelling endpoint.
+
+### Stage -1 — Scientific Discovery Scan (exploratory; no G0-G4 approval)
+
+For the Chem-Literacy zinc-battery corpus:
+
+- Run `dor discover-opportunities --database-json <aggregate-json> --reconciliation-csv <optional-ledger-csv> --out-dir <separate-discovery-directory>` using the user's actual source paths.
+- The command is deterministic and local. It may process the complete structured corpus, but the Agent must not load complete JSON/CSV records into context.
+- Read `agent_research_brief.md`, `discovery_report.json`, and the zinc-battery domain profile. Read aggregate CSV tables only when a specific signal needs inspection.
+- Treat outputs as exploratory signals, not accepted scientific findings.
+- Do not call paper/SI readers or Workers merely to regenerate information already present in the structured corpus.
+- Do not infer FEAT meanings from identifiers. Check `domain_profiles/zinc_battery/feature_mapping.yaml`; unmapped features remain semantically unresolved.
+- Synthesize a small set of testable research opportunities. Each must cite supporting signal IDs, independent Study support, data limitations, confounding risks, counterexamples, proposed validation, and novelty-review status.
+- Novelty requires targeted literature review of the candidate question; do not claim novelty from the database alone.
+- Recommend one main direction with an explicit rationale. The user chooses or revises the research direction.
+
+This stage does not create a formal Run, initialize an acceptance ledger, record G0-G4, approve mappings, or launch modelling. It is deliberately non-blocking for exploratory full-corpus profiling. After the user approves a research scope, continue to Stage 0 and the existing guided G0-G4 workflow.
+
 ## Progressive workflow
 
 ### Stage 0 — Initialize

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/discovery_report.schema.json",
+  "title": "Scientific Discovery Scan Report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "discovery_status",
+    "research_opportunity_synthesis",
+    "novelty_assessment",
+    "profile",
+    "signals",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "discovery_status": {
+      "const": "EXPLORATORY_SIGNALS_ONLY_NOT_ACCEPTED_SCIENTIFIC_FINDINGS"
+    },
+    "research_opportunity_synthesis": {
+      "const": "REQUIRES_AGENT_SCIENTIFIC_REVIEW"
+    },
+    "novelty_assessment": {
+      "const": "REQUIRES_TARGETED_LITERATURE_REVIEW"
+    },
+    "profile": {
+      "type": "object"
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "source_merge_issue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_merge_issue_sample": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "maxItems": 100
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "agent_brief_file": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

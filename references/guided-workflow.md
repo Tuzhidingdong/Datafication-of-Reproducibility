@@ -1,5 +1,10 @@
 # Guided workflow and approval gates
 
+## Discovery-first entry point
+
+Before initializing a formal Run for a new research programme, perform an exploratory full-corpus discovery scan where structured data are available. Python computes aggregate profiles and bounded signals; the Agent receives only the compact brief, not the raw corpus. The user selects a research direction before formal analysis planning. This scan is not a scientific approval and does not replace G0-G4.
+
+
 ## Operating mode
 
 The workflow is guided. Deterministic actions inside an approved phase can run automatically, but the Supervisor must not cross a scientific decision gate without user approval.

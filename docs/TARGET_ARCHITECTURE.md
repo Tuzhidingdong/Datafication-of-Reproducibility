@@ -33,6 +33,20 @@ For every consequential value or claim, DOR should make it possible to answer:
 
 DOR must preserve uncertainty and missing information rather than create an appearance of completeness.
 
+## 1A. Discovery-first research entry
+
+The Scientific Discovery Engine is the default entry point for a new research programme when an existing structured corpus is available. It runs before a formal G0-G4 project Run and does not replace scientific approvals.
+
+Its initial deterministic scan:
+- profiles the complete structured corpus locally;
+- computes feature/unit support, DOI-verified Study coverage, structured condition coverage, descriptive per-Study summaries, and explicitly qualified co-occurrence opportunities;
+- emits aggregate tables, a machine-readable report, source/output hashes, and a bounded Agent research brief;
+- keeps raw records and paper bodies out of Agent context.
+
+The Agent uses the brief and domain profile to propose testable research opportunities. Semantic mappings, endpoint comparability, experiment-level linkage, confounding, novelty, and physical interpretation remain explicit review requirements. Only after the user selects a research direction does the workflow enter formal scope definition and G0-G4 analysis.
+
+The exploratory scan is not a scientific finding and does not authorize canonical mapping, value reconciliation, model fitting, or mechanism claims. Its purpose is to discover what is worth studying in the corpus before committing to a formal analysis plan.
+
 ## 2. Target architecture at a glance
 
 ```mermaid

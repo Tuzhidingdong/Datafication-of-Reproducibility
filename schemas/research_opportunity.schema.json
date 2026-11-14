@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/research_opportunity.schema.json",
+  "title": "Research Opportunity",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "scientific_question",
+    "hypothesis",
+    "supporting_signals",
+    "data_feasibility",
+    "identifiability",
+    "confounding_risks",
+    "proposed_methods",
+    "novelty_status",
+    "expected_scientific_contribution",
+    "limitations",
+    "recommendation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scientific_question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hypothesis": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scientific_significance": {
+      "type": "string"
+    },
+    "novelty_status": {
+      "enum": [
+        "not_assessed",
+        "targeted_literature_review_pending",
+        "potentially_novel_after_review",
+        "not_novel_or_incremental",
+        "uncertain"
+      ]
+    },
+    "supporting_signals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "supporting_studies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data_feasibility": {
+      "type": "string"
+    },
+    "identifiability": {
+      "type": "string"
+    },
+    "robustness_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "confounding_risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "counterexamples": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "proposed_methods": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "expected_scientific_contribution": {
+      "type": "string"
+    },
+    "experimental_validation_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommendation": {
+      "enum": [
+        "priority_1",
+        "priority_2",
+        "priority_3",
+        "reserve",
+        "reject_pending_data"
+      ]
+    },
+    "recommendation_rationale": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

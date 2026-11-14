@@ -2,7 +2,7 @@ name: Python runtime tests
 
 on:
   push:
-    branches: [main, v0.1-foundation]
+    branches: [main, v0.1-foundation, feat/scientific-discovery-engine]
   pull_request:
     branches: [main]
   workflow_dispatch:

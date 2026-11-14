@@ -56,8 +56,14 @@ The Runtime provides explicit project run workspaces, a hash-chained run event l
 
 ## V1.0 controlled acceptance
 
-The first real-data pilot is limited to one user-selected primary paper and its SI. The fixed eight-stage protocol, machine-readable record, and deterministic `dor validate-acceptance` integrity/decision validator are defined in `docs/V1.0_CONTROLLED_ACCEPTANCE.md`, `schemas/v1_acceptance_record.schema.json`, and `templates/v1_acceptance_record.example.json`. A one-Study pilot may validate ingestion, provenance, mapping, canonical construction, and reconciliation, but cannot validate cross-Study modelling. Do not process the full corpus until separately authorized.
+The first formal V1.0 scientific acceptance remains limited to one user-selected primary paper and its SI. This acceptance protocol is distinct from the read-only exploratory full-corpus scan provided by Scientific Discovery Engine. The fixed eight-stage protocol, machine-readable record, and deterministic `dor validate-acceptance` validator are defined in `docs/V1.0_CONTROLLED_ACCEPTANCE.md`, `schemas/v1_acceptance_record.schema.json`, and `templates/v1_acceptance_record.example.json`. A one-Study pilot may validate ingestion, provenance, mapping, canonical construction, and reconciliation, but cannot validate cross-Study modelling.
 
+
+## Scientific Discovery Engine
+
+The discovery-first entry point is `dor discover-opportunities`. It performs a read-only full-corpus exploratory scan using the Chem-Literacy aggregate JSON as the primary input and an optional reconciliation CSV. It writes aggregate-only evidence tables and an Agent research brief; it does not generate accepted scientific findings, automatically establish novelty, or launch formal modelling. See [Scientific Discovery Engine](docs/SCIENTIFIC_DISCOVERY_ENGINE.md).
+
+The formal V1.0 controlled acceptance remains a one-paper/SI scientific validation protocol. It does not block an earlier read-only exploratory scan of the structured corpus.
 
 ## Chem-Literacy integration
 

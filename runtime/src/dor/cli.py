@@ -4,6 +4,7 @@ import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit
 from dor.chem_literacy import ingest_chem_literacy_files, validate_condition_recovery_files, validate_condition_decisions_files
+from dor.discovery import run_discovery_scan
 from dor.cohort import build_modeling_cohort_files
 from dor.builder import build_canonical_files
 from dor.canonical import validate_canonical_bundle
@@ -70,6 +71,12 @@ def _parse_artifact_bindings(values: list[str]) -> list[tuple[str, Path]]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dor", description="Datafication of Reproducibility runtime")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    discovery = subparsers.add_parser("discover-opportunities", help="Run a read-only full-corpus exploratory scientific discovery scan")
+    discovery.add_argument("--database-json", type=Path, required=True, help="Primary Chem-Literacy aggregate JSON")
+    discovery.add_argument("--reconciliation-csv", type=Path, default=None, help="Optional auxiliary ledger CSV joined by paper_id + reconciliation_id")
+    discovery.add_argument("--out-dir", type=Path, required=True, help="New or empty derived discovery output directory")
+    discovery.add_argument("--minimum-studies", type=int, default=3, help="Minimum DOI-verified Study groups for cross-Study signals")
+    discovery.add_argument("--maximum-feature-pairs", type=int, default=250, help="Maximum co-occurring feature pairs to catalogue")
     chem_import = subparsers.add_parser("ingest-chem-literacy", help="Import Chem-Literacy observations/reconciliation and prepare condition-recovery tasks")
     source_group = chem_import.add_mutually_exclusive_group(required=True)
     source_group.add_argument("--database-json", type=Path, help="Aggregate JSON with metadata and papers[].observations[]")
@@ -376,6 +383,13 @@ def main() -> int:
         if args.command == "gate-status":
             report=inspect_gate_ledger(args.workflow_ledger)
             print(_write_json(None,report),end="")
+            return 0
+        if args.command == "discover-opportunities":
+            result = run_discovery_scan(
+                args.database_json, args.reconciliation_csv, args.out_dir,
+                args.minimum_studies, args.maximum_feature_pairs,
+            )
+            print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
         if args.command == "ingest-chem-literacy":
             result = ingest_chem_literacy_files(

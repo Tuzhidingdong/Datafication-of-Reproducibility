@@ -16,6 +16,14 @@ The runtime provides:
 
 The canonical bundle schema is in ../schemas/canonical_bundle.schema.json. The mapping plan schema is in ../schemas/mapping_plan.schema.json. The build specification schema is in ../schemas/canonical_build_spec.schema.json. Reconciliation report and human decision schemas are in ../schemas/reconciliation_report.schema.json and ../schemas/reconciliation_decisions.schema.json. See ../docs/CANONICAL_DATA_MODEL.md, ../docs/MAPPING_CONTRACT.md, ../docs/CANONICAL_BUILDER.md, and ../docs/RECONCILIATION.md.
 
+## Scientific Discovery scan
+
+Use the aggregate Chem-Literacy JSON as the primary input. The reconciliation CSV is optional and is joined only through the existing paper_id + reconciliation_id adapter contract.
+
+    dor discover-opportunities --database-json path/to/consolidated_zinc_battery_database.json --reconciliation-csv path/to/consolidated_zinc_battery_database.csv --out-dir path/to/dor_discovery
+
+The command creates a new or empty output directory and refuses to overwrite non-empty output. It hashes inputs before and after processing. The Agent should read agent_research_brief.md and discovery_report.json, not the original corpus or all generated observation-level data. The scan is exploratory; it does not create a formal Run or cross G0-G4 approval gates.
+
 ## Setup
 
 From the repository root:
