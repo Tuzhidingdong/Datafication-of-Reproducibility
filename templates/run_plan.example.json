@@ -356,7 +356,8 @@
         "canonical_reconciliation",
         "research_scope_selection",
         "reconciliation_decision_validation",
-        "reconciliation_decision_review"
+        "reconciliation_decision_review",
+        "exploratory_discovery"
       ],
       "inputs": [
         "canonical_bundle",
@@ -366,7 +367,8 @@
         "research_scope_record",
         "modeling_task",
         "reconciliation_decisions",
-        "reconciliation_decision_validation"
+        "reconciliation_decision_validation",
+        "discovery_report"
       ],
       "outputs": [
         {
