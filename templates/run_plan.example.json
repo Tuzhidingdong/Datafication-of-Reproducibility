@@ -133,7 +133,8 @@
           "artifact_id": "build_spec",
           "path": "02_mapping/canonical_build_spec.json"
         }
-      ]
+      ],
+      "required_gate": "G0"
     },
     {
       "stage_id": "mapping_validation",
