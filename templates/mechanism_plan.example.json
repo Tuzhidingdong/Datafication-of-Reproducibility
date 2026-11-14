@@ -18,7 +18,7 @@
         "coordination alters interfacial hydration",
         "the altered hydration changes the measured endpoint"
       ],
-      "scope_statement": "Only within the exact material family, electrolyte, endpoint, and condition ranges represented by the linked evidence.",
+      "scope_statement": "Only within the exact system scope, endpoint, and input ranges represented by the linked evidence.",
       "predicted_observations": [
         "a measurable coordination change across the first condition",
         "a corresponding change in interfacial hydration"
