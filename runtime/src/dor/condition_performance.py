@@ -74,10 +74,25 @@ def _condition_dimension(candidate: dict[str, Any]) -> tuple[str, str]:
     condition_type = _text(candidate.get("condition_type"))
     normalized = _text(candidate.get("normalized_value")) or _text(candidate.get("raw_value"))
     numeric_unit = _text(candidate.get("numeric_unit"))
-    unit_suffix = f"[{numeric_unit}]" if numeric_unit else ""
+    level = normalized
     if condition_type == "salt_concentration" and "|" in normalized:
         salt, level = normalized.split("|", 1)
         salt = salt.strip()
+    else:
+        salt = ""
+
+    # A unit embedded literally in the value remains a comparison boundary even
+    # when a structured source omitted its separate numeric_unit field.
+    if not numeric_unit:
+        percent_match = re.match(r"^\s*[+-]?\d+(?:\.\d+)?\s*%", level)
+        explicit_unit_match = re.match(r"^\s*[+-]?\d+(?:\.\d+)?\s+(.+?)\s*$", level)
+        if percent_match:
+            numeric_unit = "%"
+        elif explicit_unit_match:
+            numeric_unit = explicit_unit_match.group(1).strip()
+    unit_suffix = f"[{numeric_unit}]" if numeric_unit else ""
+
+    if condition_type == "salt_concentration":
         return f"salt_concentration[{salt}]{unit_suffix}", level.strip()
     if condition_type == "percentage_modifier":
         match = re.match(r"\s*([0-9]+(?:\.[0-9]+)?\s*%)\s*(.*?)\s*$", normalized)
