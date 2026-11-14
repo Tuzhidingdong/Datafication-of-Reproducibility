@@ -473,6 +473,10 @@ def build_condition_performance_analysis(
     for key, row in zip(sorted(grouped_study_values), study_strata_rows):
         by_stratum[key[:5]].append(row)
 
+    exact_target_systems_by_stratum: dict[tuple[str, str, str, str, str], set[str]] = defaultdict(set)
+    for study_key, study_values in study_lookup.items():
+        exact_target_systems_by_stratum[study_key[:5]].update(study_values["systems"])
+
     stratum_rows: list[dict[str, Any]] = []
     summaries: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
     for key, rows in sorted(by_stratum.items()):
@@ -482,9 +486,7 @@ def build_condition_performance_analysis(
             value for row in rows for value in row["condition_numeric_values"]
         })
         numeric_units = sorted({value for row in rows for value in row["condition_numeric_units"]})
-        target_system_count = len({
-            system for row in rows for system in row["target_system_examples"]
-        })
+        target_system_count = len(exact_target_systems_by_stratum[key])
         supported = len(rows) >= minimum_studies
         row = {
             "feature_id": feature,
