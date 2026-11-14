@@ -338,6 +338,11 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "## Limitations", ""])
     brief.extend("- " + item for item in summary["limitations"])
     (output_dir / "agent_research_brief.md").write_text("\n".join(brief) + "\n", encoding="utf-8")
+    # Recheck only after every analysis/output operation: protect the read-only
+    # claim against source changes that occur while the condition screen is running.
+    for path, expected in source_hashes.items():
+        if sha256_file(Path(path)) != expected:
+            raise RuntimeError("Protected input changed during discovery analysis: " + path)
     output_hashes = {p.name: sha256_file(p) for p in sorted(output_dir.iterdir()) if p.is_file()}
     manifest = {"schema_version":"1.0","operation":"dor discover-opportunities",
         "scope":"READ_ONLY_FULL_CORPUS_EXPLORATORY_SCAN",
