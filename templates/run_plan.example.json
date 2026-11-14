@@ -3,6 +3,7 @@
   "project_id": "PROJECT_REPLACE_ME",
   "source_roots": [
     "D:/Research/Project/raw_sources",
+    "D:/Research/Project/raw_sources/adapter_package",
     "D:/Research/Project/configuration"
   ],
   "workflow_ledger_path": "D:/Research/Project/run_control/workflow_gate_ledger.jsonl",
@@ -12,20 +13,20 @@
       "path": "D:/Research/Project/raw_sources/source_records.csv"
     },
     {
-      "artifact_id": "literature_extractions",
-      "path": "D:/Research/Project/raw_sources/literature_extractions.json"
+      "artifact_id": "source_json",
+      "path": "D:/Research/Project/raw_sources/source_records.json"
     },
     {
-      "artifact_id": "mapping_plan_input",
-      "path": "D:/Research/Project/configuration/mapping_plan.json"
+      "artifact_id": "adapter_package_manifest",
+      "path": "D:/Research/Project/raw_sources/adapter_package/adapter_manifest.json"
     },
     {
-      "artifact_id": "build_spec_input",
-      "path": "D:/Research/Project/configuration/canonical_build_spec.json"
+      "artifact_id": "adapter_standardized_csv",
+      "path": "D:/Research/Project/raw_sources/adapter_package/standardized_data.csv"
     },
     {
-      "artifact_id": "modeling_task_input",
-      "path": "D:/Research/Project/configuration/modeling_task.json"
+      "artifact_id": "adapter_standardized_json",
+      "path": "D:/Research/Project/raw_sources/adapter_package/structured_data.json"
     },
     {
       "artifact_id": "virtual_query_input",
@@ -38,12 +39,32 @@
   ],
   "stages": [
     {
-      "stage_id": "source_audit",
+      "stage_id": "adapter_package_validation",
       "executor": "local",
       "depends_on": [],
       "inputs": [
+        "adapter_package_manifest",
         "source_csv",
-        "literature_extractions"
+        "source_json",
+        "adapter_standardized_csv",
+        "adapter_standardized_json"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "adapter_validation_report",
+          "path": "00_adapter/adapter_validation_report.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "source_audit",
+      "executor": "local",
+      "depends_on": [
+        "adapter_package_validation"
+      ],
+      "inputs": [
+        "adapter_standardized_csv",
+        "adapter_standardized_json"
       ],
       "outputs": [
         {
@@ -73,16 +94,56 @@
       ]
     },
     {
-      "stage_id": "mapping_validation",
-      "executor": "local",
+      "stage_id": "g0_review_packet",
+      "executor": "manual",
       "depends_on": [
         "source_audit"
       ],
-      "required_gate": "G0",
+      "inputs": [
+        "dataset_manifest",
+        "source_inventory",
+        "data_audit_report",
+        "mapping_review_queue"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "g0_review_packet",
+          "path": "01_audit/g0_review_packet.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "mapping_preparation",
+      "executor": "manual",
+      "depends_on": [
+        "g0_review_packet"
+      ],
       "inputs": [
         "source_inventory",
-        "mapping_plan_input",
-        "build_spec_input"
+        "g0_review_packet"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "mapping_plan",
+          "path": "02_mapping/mapping_plan.json"
+        },
+        {
+          "artifact_id": "build_spec",
+          "path": "02_mapping/canonical_build_spec.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "mapping_validation",
+      "executor": "local",
+      "depends_on": [
+        "source_audit",
+        "mapping_preparation"
+      ],
+      "inputs": [
+        "source_inventory",
+        "mapping_plan",
+        "build_spec"
       ],
       "outputs": [
         {
@@ -92,18 +153,39 @@
       ]
     },
     {
+      "stage_id": "g1_review_packet",
+      "executor": "manual",
+      "depends_on": [
+        "mapping_validation"
+      ],
+      "inputs": [
+        "source_inventory",
+        "mapping_plan",
+        "build_spec",
+        "mapping_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "g1_review_packet",
+          "path": "02_mapping/g1_review_packet.json"
+        }
+      ]
+    },
+    {
       "stage_id": "canonical_build",
       "executor": "local",
       "depends_on": [
         "source_audit",
-        "mapping_validation"
+        "mapping_validation",
+        "g1_review_packet"
       ],
       "required_gate": "G1",
       "inputs": [
         "source_inventory",
-        "mapping_plan_input",
-        "build_spec_input",
-        "mapping_validation"
+        "mapping_plan",
+        "build_spec",
+        "mapping_validation",
+        "g1_review_packet"
       ],
       "outputs": [
         {
@@ -153,19 +235,86 @@
       ]
     },
     {
+      "stage_id": "exploratory_discovery",
+      "executor": "local",
+      "depends_on": [
+        "canonical_bundle_validation"
+      ],
+      "inputs": [
+        "canonical_bundle"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "discovery_manifest",
+          "path": "04_discovery/discovery_manifest.json"
+        },
+        {
+          "artifact_id": "discovery_report",
+          "path": "04_discovery/discovery_report.json"
+        },
+        {
+          "artifact_id": "discovery_brief",
+          "path": "04_discovery/agent_research_brief.md"
+        },
+        {
+          "artifact_id": "target_support",
+          "path": "04_discovery/target_support.csv"
+        },
+        {
+          "artifact_id": "study_coverage",
+          "path": "04_discovery/study_coverage.csv"
+        },
+        {
+          "artifact_id": "condition_support",
+          "path": "04_discovery/condition_support.csv"
+        },
+        {
+          "artifact_id": "joint_support",
+          "path": "04_discovery/joint_support.csv"
+        }
+      ]
+    },
+    {
+      "stage_id": "research_scope_selection",
+      "executor": "manual",
+      "depends_on": [
+        "exploratory_discovery"
+      ],
+      "inputs": [
+        "discovery_report",
+        "discovery_brief",
+        "target_support",
+        "study_coverage",
+        "condition_support",
+        "joint_support"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "research_scope_record",
+          "path": "05_scope/research_scope_record.json"
+        },
+        {
+          "artifact_id": "modeling_task",
+          "path": "05_scope/modeling_task.json"
+        }
+      ]
+    },
+    {
       "stage_id": "g2_review_packet",
       "executor": "manual",
       "depends_on": [
         "canonical_build",
         "canonical_bundle_validation",
-        "canonical_reconciliation"
+        "canonical_reconciliation",
+        "research_scope_selection"
       ],
       "inputs": [
         "canonical_bundle",
         "canonical_validation_report",
         "reconciliation_report",
         "reconciliation_review_queue",
-        "modeling_task_input"
+        "research_scope_record",
+        "modeling_task"
       ],
       "outputs": [
         {
@@ -184,7 +333,7 @@
       "required_gate": "G2",
       "inputs": [
         "canonical_bundle",
-        "modeling_task_input",
+        "modeling_task",
         "g2_review_packet"
       ],
       "outputs": [
@@ -218,7 +367,7 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task_input"
+        "modeling_task"
       ],
       "outputs": [
         {
@@ -255,7 +404,7 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task_input"
+        "modeling_task"
       ],
       "outputs": [
         {
@@ -292,7 +441,7 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task_input"
+        "modeling_task"
       ],
       "outputs": [
         {
@@ -325,7 +474,7 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task_input"
+        "modeling_task"
       ],
       "outputs": [
         {
