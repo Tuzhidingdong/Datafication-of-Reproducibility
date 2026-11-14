@@ -65,6 +65,12 @@ Before executing any Run Plan, read [the command-level stage bindings](../../../
 - Create a new run directory; never overwrite an earlier run by default.
 - For adapter-backed projects, first create a route-preflight handoff outside the protected package using `dor prepare-adapter-handoff`. Use its route to select the appropriate Run Plan template. Initialize the formal Run with `dor run-init --plan <selected_run_plan.json> --run-root <new_run_root>`, then verify it with `dor run-verify --manifest <run_root>/run_manifest.json`. The formal adapter validation stage must regenerate the handoff inside the Run workspace; the preflight file is not a Run artifact.
 
+### Human review artifact contracts
+
+For each manual G0, G1, or G2 review-packet stage, copy `templates/run_review_packet.example.json`, set the exact stage ID, replace placeholders with the active Run ID/project ID/time, and bind every declared stage input to its Run-relative path and current SHA-256. Review questions may reference only artifact IDs present in the packet. Validate against `schemas/run_review_packet.schema.json` and write the exact stage output path from the Run Plan. Keep `packet_status=AWAITING_HUMAN_REVIEW`; never place an APPROVE decision inside the packet. The approval itself belongs only in the append-only G0-G4 Gate Ledger.
+
+For `human_review_and_promotion`, inspect every Worker finding. The Worker result must follow `schemas/worker_result.schema.json`; use `templates/reviewed_findings.example.json` and `schemas/reviewed_findings.schema.json` for the human disposition. Bind the exact Worker result hash and all reviewed-artifact hashes, and record exactly one disposition for every Worker finding. Only `ACCEPT_AS_IS` and `ACCEPT_WITH_CHANGES` findings may be promoted when supported by the reviewer's rationale. REJECT and DEFER items remain unpromoted. The overall `promotion_decision` must agree with the individual dispositions.
+
 ### Run Manager execution loop
 
 The Run Manager is the execution ledger and safety controller for the immutable Run Plan; it does not automatically execute arbitrary commands or launch Workers. The Skill is responsible for dispatching the exact stage action after consulting the current Run state.
