@@ -138,6 +138,8 @@
       "stage_id": "build_spec_validation",
       "executor": "local",
       "depends_on": [
+        "source_audit",
+        "mapping_preparation",
         "mapping_validation"
       ],
       "inputs": [
