@@ -8,7 +8,7 @@ from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle
     materialize_adapter_artifacts_files)
 from dor.canonical_discovery import run_canonical_discovery_scan
 from dor.cohort import build_modeling_cohort_files
-from dor.builder import build_canonical_files
+from dor.builder import build_canonical_files, validate_build_spec_files
 from dor.canonical import validate_canonical_bundle
 from dor.diagnostics import diagnose_canonical_bundle
 from dor.mapping import validate_mapping_files
@@ -142,6 +142,14 @@ def build_parser() -> argparse.ArgumentParser:
     mapping.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
     mapping.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
     mapping.add_argument("--out", type=Path, help="Optional path for a validation report JSON")
+    build_spec_validation = subparsers.add_parser(
+        "validate-build-spec",
+        help="Validate explicit entity grouping and relationship rules without building a canonical bundle",
+    )
+    build_spec_validation.add_argument("--plan", type=Path, required=True, help="Exact mapping plan JSON")
+    build_spec_validation.add_argument("--inventory", type=Path, required=True, help="Exact source inventory JSON")
+    build_spec_validation.add_argument("--spec", type=Path, required=True, help="Canonical build specification JSON")
+    build_spec_validation.add_argument("--out", type=Path, help="Optional validation report path")
     build = subparsers.add_parser("build-canonical", help="Build canonical entities from approved mappings and explicit grouping/link rules")
     build.add_argument("--plan", type=Path, required=True, help="Mapping plan JSON")
     build.add_argument("--inventory", type=Path, required=True, help="Exact source_inventory.json used by the plan")
@@ -465,6 +473,10 @@ def main() -> int:
             return 0 if report["valid"] else 2
         if args.command == "validate-mapping":
             report=validate_mapping_files(args.plan,args.inventory)
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
+        if args.command == "validate-build-spec":
+            report=validate_build_spec_files(args.plan,args.inventory,args.spec)
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
         if args.command == "discover-interactions":
