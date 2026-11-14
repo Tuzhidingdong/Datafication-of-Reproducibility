@@ -4,6 +4,24 @@ This document is the command-level contract between the DoR Skill, the two gener
 
 All paths below are relative to the active Run workspace unless explicitly labelled as protected package or configuration paths. Resolve them from the current project configuration. Never substitute a hard-coded project path.
 
+## Route preflight and Run initialization
+
+Before choosing the formal Run Plan, determine the adapter route without auditing or modifying any source data:
+
+    dor prepare-adapter-handoff --manifest <package_root>/adapter_manifest.json --package-root <package_root> --out <project_root>/run_control/adapter_route_preflight.json
+
+Keep this preflight file outside the protected adapter package and outside all declared source/artifact files. A preflight result is only a package-integrity and route-selection result. For a STRUCTURED_DATASET route, do not run source audit before formal Run initialization. For a CANONICAL_BUNDLE route, the optional pre-Run Discovery scan is permitted but remains exploratory and does not approve G0-G2.
+
+Select the matching Run Plan template, set its source roots, source artifact paths, workflow ledger path, and project/configuration paths from the active project configuration, then initialize a new isolated Run:
+
+    dor run-init --plan <selected_run_plan.json> --run-root <new_run_root>
+
+Run Manager validates the declared source roots/artifacts and dependency graph, creates the Run workspace and `run_manifest.json`, and snapshots the exact plan/source inputs. Do not reuse an old Run root for a new plan. Verify initialization before stage execution:
+
+    dor run-verify --manifest <run_root>/run_manifest.json
+
+The first formal stage regenerates the handoff into the Run workspace. Do not use the preflight handoff as a Run output or copy it into the protected adapter package.
+
 ## Route selection
 
 Select exactly one template from the validated adapter handoff:
