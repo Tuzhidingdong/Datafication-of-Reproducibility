@@ -10,8 +10,10 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
         fields = ["paper_id","doi","title","batch_id","reconciliation_id","feature_id","target_system",
             "status","resolved_value","resolved_unit","worker_a_value","worker_a_unit","worker_b_value",
             "worker_b_unit","relative_difference","requires_human_review","review_reason","evidence_file_a",
-            "location_a","verbatim_quote_a","table_reference_a","grounding_type_a","evidence_file_b",
-            "location_b","verbatim_quote_b","table_reference_b","grounding_type_b"]
+            "location_a","verbatim_quote_a","table_reference_a","row_header_a","col_header_a",
+            "cell_value_a","footnote_a","file_id_a","grounding_type_a","evidence_file_b",
+            "location_b","verbatim_quote_b","table_reference_b","row_header_b","col_header_b",
+            "cell_value_b","footnote_b","file_id_b","grounding_type_b"]
         with path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=fields)
             writer.writeheader()
@@ -69,6 +71,34 @@ class ChemLiteracyAdapterTests(unittest.TestCase):
             self.assertEqual(row["study_group_id"],"paper-A")
             self.assertEqual(row["study_group_id_source"],"PAPER_ID_FALLBACK_NOT_VERIFIED_DOI")
             self.assertEqual(json.loads(row["worker_a_evidence"])["quote"],"CE reached 99.9%.")
+
+    def test_json_csv_merge_preserves_table_headers_cells_and_footnotes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); database=root/"db.json"
+            database.write_text(json.dumps({"papers":[{"paper_id":"p1","doi":"10.1/p1","observations":[{
+                "reconciliation_id":"R1","feature_id":"FEAT_CE","status":"AGREED_MATCH",
+                "resolved_value":99.5,"resolved_unit":"%","worker_a_evidence":{
+                    "file_path":"main_analysis.md","section_or_page":"Table 2"
+                }
+            }]}]}),encoding="utf-8")
+            ledger=root/"ledger.csv"
+            self._csv(ledger,[{
+                "paper_id":"p1","doi":"10.1/p1","reconciliation_id":"R1","feature_id":"FEAT_CE",
+                "status":"AGREED_MATCH","resolved_value":"99.5","resolved_unit":"%",
+                "row_header_a":"Electrolyte","col_header_a":"Concentration",
+                "cell_value_a":"2 M ZnSO4","footnote_a":"Prepared in aqueous solution.",
+                "file_id_a":"FILE_TABLE_2"
+            }])
+            output=root/"out"; ingest_chem_literacy_files(database,None,ledger,None,output)
+            with (output/"observations_normalized.csv").open(encoding="utf-8",newline="") as handle:
+                row=next(csv.DictReader(handle))
+            evidence=json.loads(row["worker_a_evidence"])
+            self.assertEqual(evidence["file"],"main_analysis.md")
+            self.assertEqual(evidence["row_header"],"Electrolyte")
+            self.assertEqual(evidence["col_header"],"Concentration")
+            self.assertEqual(evidence["cell_value"],"2 M ZnSO4")
+            self.assertEqual(evidence["footnote"],"Prepared in aqueous solution.")
+            self.assertEqual(evidence["file_id"],"FILE_TABLE_2")
 
     def test_json_csv_disagreement_is_flagged_and_json_value_is_not_overwritten(self):
         with tempfile.TemporaryDirectory() as tmp:
