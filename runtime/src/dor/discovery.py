@@ -223,12 +223,21 @@ def run_discovery_scan(database_json: Path, reconciliation_csv: Path | None, out
         "supporting_observation_count","supporting_study_count","study_median_min","study_median_median",
         "study_median_max","between_study_median_mad","paper_system_batch_scope_count",
         "screening_status","supporting_studies"], summary["signals"])
+    merge_issue_counts = dict(sorted(Counter(
+        _text(item.get("issue_code"), "UNKNOWN_ISSUE") for item in merge_issues
+    ).items()))
+    # The machine report stays aggregate-only: do not expose per-record JSON/CSV values
+    # or thousands of Study identifiers to the Agent context.
+    compact_signals = [
+        {key: value for key, value in signal.items() if key != "supporting_studies"}
+        for signal in summary["signals"]
+    ]
     report = {"schema_version":"1.0",
         "discovery_status":"EXPLORATORY_SIGNALS_ONLY_NOT_ACCEPTED_SCIENTIFIC_FINDINGS",
         "research_opportunity_synthesis":"REQUIRES_AGENT_SCIENTIFIC_REVIEW",
         "novelty_assessment":"REQUIRES_TARGETED_LITERATURE_REVIEW",
-        "profile":summary["profile"],"signals":summary["signals"],
-        "source_merge_issue_count":len(merge_issues),"source_merge_issue_sample":merge_issues[:100],
+        "profile":summary["profile"],"signals":compact_signals,
+        "source_merge_issue_count":len(merge_issues),"source_merge_issue_counts":merge_issue_counts,
         "limitations":summary["limitations"],"agent_brief_file":"agent_research_brief.md"}
     (output_dir / "discovery_report.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")

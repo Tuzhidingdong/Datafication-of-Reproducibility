@@ -38,13 +38,6 @@
       "type": "integer",
       "minimum": 0
     },
-    "source_merge_issue_sample": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      },
-      "maxItems": 100
-    },
     "limitations": {
       "type": "array",
       "items": {
@@ -53,6 +46,13 @@
     },
     "agent_brief_file": {
       "type": "string"
+    },
+    "source_merge_issue_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
     }
   },
   "additionalProperties": false
