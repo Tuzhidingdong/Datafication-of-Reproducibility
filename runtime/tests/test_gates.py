@@ -107,6 +107,27 @@ class WorkflowGateTests(unittest.TestCase):
             "target_id": "TARGET_GATE",
             "endpoint_definition": "test endpoint definition",
         })
+        make_file("discovery_report", {
+            "schema_version": "1.0",
+            "signals": [
+                {"signal_id": "SIG_01", "signal_type": "TYPE_A"},
+                {"signal_id": "SIG_02", "signal_type": "TYPE_B"},
+            ],
+        })
+        make_file("research_scope_record", {
+            "schema_version": "1.0",
+            "scope_id": "SCOPE_GATE",
+            "discovery_report_sha256": sha256_file(self.files["discovery_report"]),
+            "task_id": "TASK_GATE",
+            "target_id": "TARGET_GATE",
+            "scope_statement": "Synthetic bounded analysis scope.",
+            "selected_signal_ids": ["SIG_01"],
+            "not_selected_signal_ids": ["SIG_02"],
+            "selection_rationale": "Selected one synthetic signal and explicitly excluded the other.",
+            "reviewed_by": "human-reviewer",
+            "reviewed_at": "2026-11-14T00:00:00Z",
+            "limitations": ["Synthetic gate fixture."],
+        })
         make_file("publication_plan", {"schema_version": "1.0", "artifacts": []})
         make_file("model_report", {"task_id": "TASK_GATE", "selected_model": "TEST_MODEL"})
         make_file("mechanism_plan", {
@@ -200,7 +221,8 @@ class WorkflowGateTests(unittest.TestCase):
         return self._record(
             "G2", [
                 "canonical_bundle", "canonical_validation_report",
-                "reconciliation_report", "reconciliation_decisions", "modeling_task",
+                "reconciliation_report", "reconciliation_decisions",
+                "discovery_report", "research_scope_record", "modeling_task",
             ]
         )
 
@@ -225,6 +247,15 @@ class WorkflowGateTests(unittest.TestCase):
         report["issue_count"] = 1
         self._write("reconciliation_report", report)
         with self.assertRaisesRegex(ValueError, "reconciliation decisions"):
+            self._record_g2()
+
+    def test_g2_rejects_scope_record_bound_to_a_different_discovery_report(self):
+        self._record_g0()
+        self._record_g1()
+        scope = json.loads(self.files["research_scope_record"].read_text(encoding="utf-8"))
+        scope["discovery_report_sha256"] = "f" * 64
+        self._write("research_scope_record", scope)
+        with self.assertRaisesRegex(ValueError, "research_scope_record"):
             self._record_g2()
 
     def test_complete_gate_chain_and_exact_artifact_binding(self):
