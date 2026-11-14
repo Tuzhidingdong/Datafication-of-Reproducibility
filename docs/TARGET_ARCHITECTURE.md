@@ -119,12 +119,10 @@ The diagram describes the desired flow and responsibility boundaries. It does no
 **Purpose:** preserve the research material as the authority for what was actually reported or measured.
 
 Inputs may include:
-- primary papers and supplementary information;
-- structured literature extractions;
-- CSV/JSON datasets;
-- raw electrochemical cycler data;
-- microscopy, spectroscopy, diffraction, and other instrument files;
-- DFT/AIMD/MD input, trajectory, and result files;
+- source documents and supplementary records;
+- structured records and tabular datasets;
+- binary media, images, and instrument-generated files;
+- computational or simulation inputs and outputs;
 - externally generated derived datasets with their own manifests.
 
 Rules:
@@ -150,17 +148,16 @@ An adapter should have a stable contract:
 - errors, omissions, unsupported content, and unresolved references;
 - output artifact hashes.
 
-The adapter boundary should support different implementations for different evidence types:
-- CSV/JSON structural inspection;
-- External adapter package validation and handoff;
-- PDF text/table extraction;
-- figure-panel and image extraction;
-- structured time-series import through independently maintained adapters;
-- simulation and calculation output adapters.
+The adapter boundary should support different implementations for different source types:
+- structured-data inspection and normalization;
+- document and record extraction;
+- image and media extraction;
+- time-series and instrument-file conversion;
+- computational output conversion.
 
 Adapters must not silently promote extracted values to reviewed scientific facts. Their outputs are candidates with exact provenance.
 
-**Worker role:** Agents/Workers can interpret selected text, tables, figures, and domain context, but must return bounded, source-grounded proposals. The host Supervisor shows role/provider/model/project/inputs/staging outputs before dispatch and waits for explicit authorization. Worker output remains in staging until reviewed and promoted.
+**Worker role:** Agents/Workers can interpret selected source records and project context, but must return bounded, source-grounded proposals. The host Supervisor shows role/provider/model/project/inputs/staging outputs before dispatch and waits for explicit authorization. Worker output remains in staging until reviewed and promoted.
 
 ### Layer 3 — Canonical scientific representation
 
