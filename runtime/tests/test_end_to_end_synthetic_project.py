@@ -506,10 +506,18 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         decision_rows = [
             {
                 "issue_id": issue["issue_id"],
-                "decision": "REMAINS_UNRESOLVED",
+                "decision": (
+                    "EXCLUDE_FROM_ANALYSIS"
+                    if issue.get("severity") in {"CRITICAL", "REVIEW_REQUIRED"}
+                    else "REMAINS_UNRESOLVED"
+                ),
                 "reviewer": "synthetic-reviewer",
                 "reviewed_at": "2026-11-14T00:00:00Z",
-                "rationale": "Retained unresolved in the synthetic workflow fixture; canonical data is not modified.",
+                "rationale": (
+                    "Synthetic fixture explicitly excludes this blocking diagnostic item from the test scope."
+                    if issue.get("severity") in {"CRITICAL", "REVIEW_REQUIRED"}
+                    else "Retained non-blocking synthetic issue as unresolved; canonical data is not modified."
+                ),
                 "evidence_refs": [],
             }
             for issue in reconciliation_report.get("issues", [])
