@@ -39,6 +39,7 @@ _SALT_WITHOUT_CONCENTRATION = re.compile(rf"(?<![A-Za-z0-9])(?P<salt>{_SALT_PATT
 _PERCENT_MODIFIER = re.compile(
     r"(?P<value>\d+(?:\.\d+)?)\s*%\s*(?P<name>[A-Za-z][A-Za-z0-9_+]{0,20})"
 )
+_CELL_CHEMISTRY = re.compile(r"\bZn\s*[-–]\s*MnO2\b", re.IGNORECASE)
 _CELL_PAIR = re.compile(
     r"(?<![A-Za-z0-9])(?P<left>Zn|Cu|Ti|MnO2|I2|V2O5|S|C)\s*(?P<separator>\|\||//)\s*"
     r"(?P<right>Zn|Cu|Ti|MnO2|I2|V2O5|S|C)(?![A-Za-z0-9])",
@@ -104,6 +105,7 @@ def _record(
         "col_header": _clean(evidence.get("col_header")),
         "verbatim_quote": _clean(evidence.get("quote")),
         "footnote": _clean(evidence.get("footnote")),
+        "source_file_id": _clean(evidence.get("file_id")),
         "extraction_method": extraction_method,
         "rule_version": CONDITION_RULE_VERSION,
         "confidence": confidence,
@@ -125,6 +127,10 @@ def _parse_target_system(observation: dict[str, Any]) -> list[dict[str, Any]]:
             observation, condition_type, raw_value, normalized, "target_system",
             method, confidence, numeric_value=numeric, numeric_unit=unit, unit_basis=basis,
         ))
+
+    chemistry_match = _CELL_CHEMISTRY.search(raw)
+    if chemistry_match:
+        add("cell_chemistry", chemistry_match.group(0), "Zn-MnO2", "RULE_CELL_CHEMISTRY", "MEDIUM")
 
     for match in _CELL_PAIR.finditer(raw):
         left, separator, right = match.group("left", "separator", "right")
@@ -248,6 +254,7 @@ def _evidence_candidates(observation: dict[str, Any]) -> list[dict[str, Any]]:
             "row_header": evidence.get("row_header"),
             "col_header": evidence.get("col_header"),
             "footnote": evidence.get("footnote"),
+            "file_id": evidence.get("file_id"),
         }
         cell_value = _clean(evidence.get("cell_value"))
         header = " ".join(filter(None, (_clean(evidence.get("row_header")), _clean(evidence.get("col_header")))))
@@ -309,6 +316,7 @@ def _evidence_candidates(observation: dict[str, Any]) -> list[dict[str, Any]]:
                         "col_header": _clean(source_meta.get("col_header")),
                         "verbatim_quote": quote,
                         "footnote": _clean(source_meta.get("footnote")),
+                        "file_id": _clean(source_meta.get("file_id")),
                     })
                     output.append(candidate)
     return output
@@ -354,10 +362,25 @@ def write_condition_outputs(
     review_queue_total = 0
     by_coverage: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
 
+    target_system_present_count = 0
+    target_system_unparsed_count = 0
+    target_system_extracted_observation_ids: set[str] = set()
+    target_system_missing_count = 0
     for observation in observations:
-        candidates = extract_observation_conditions(observation)
+        target_value = _clean(observation.get("target_system"))
+        target_is_reported = bool(target_value) and target_value.casefold() not in _MISSING
+        if target_is_reported:
+            target_system_present_count += 1
+        else:
+            target_system_missing_count += 1
+        target_candidates = _parse_target_system(observation)
+        if target_candidates:
+            target_system_extracted_observation_ids.add(_clean(observation.get("observation_id")))
+        elif target_is_reported:
+            target_system_unparsed_count += 1
+        candidates = _structured_conditions(observation) + target_candidates + _evidence_candidates(observation)
         excluded = is_excluded_test_record(observation)
-        if not candidates and _clean(observation.get("target_system")):
+        if target_is_reported and not target_candidates:
             review_queue_total += 1
             if len(review_queue) < MAX_REVIEW_QUEUE_ROWS:
                 review_queue.append({
@@ -410,6 +433,10 @@ def write_condition_outputs(
         "excluded_test_observation_count": excluded_observations,
         "eligible_paper_count": len(eligible_papers),
         "eligible_doi_study_count": len(doi_studies),
+        "target_system_reported_observation_count": target_system_present_count,
+        "target_system_missing_or_not_reported_observation_count": target_system_missing_count,
+        "target_system_parsed_observation_count": len(target_system_extracted_observation_ids),
+        "target_system_unparsed_reported_observation_count": target_system_unparsed_count,
         "condition_record_count_including_excluded": len(all_records),
         "condition_record_count_eligible": sum(x["data_eligibility"] != "EXCLUDED_TEST_DATA" for x in all_records),
         "condition_type_counts_eligible": dict(sorted(type_counts.items())),
@@ -433,7 +460,7 @@ def write_condition_outputs(
         "observation_id", "paper_id", "doi", "reconciliation_id", "feature_id", "batch_id",
         "data_eligibility", "condition_type", "raw_value", "normalized_value", "numeric_value",
         "numeric_unit", "unit_basis", "source_field", "source_file", "source_location",
-        "table_id", "row_header", "col_header", "verbatim_quote", "footnote",
+        "table_id", "row_header", "col_header", "verbatim_quote", "footnote", "source_file_id",
         "extraction_method", "rule_version", "confidence", "review_status",
     ]
     coverage_fields = [
