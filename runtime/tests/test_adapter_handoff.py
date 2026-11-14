@@ -331,6 +331,12 @@ class AdapterHandoffTests(unittest.TestCase):
             "audit", "--adapter-handoff", "adapter_handoff.json", "--out", "audit",
         ])
         self.assertEqual(audit_args.adapter_handoff, Path("adapter_handoff.json"))
+        build_spec_args = build_parser().parse_args([
+            "validate-build-spec", "--plan", "mapping_plan.json",
+            "--inventory", "source_inventory.json", "--spec", "build_spec.json",
+            "--out", "build_spec_validation.json",
+        ])
+        self.assertEqual(build_spec_args.command, "validate-build-spec")
 
 
 if __name__ == "__main__":
