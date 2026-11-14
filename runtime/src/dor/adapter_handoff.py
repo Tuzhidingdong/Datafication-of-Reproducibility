@@ -201,6 +201,9 @@ def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
     if not manifest_path.is_file() or _sha256(manifest_path) != handoff.get("manifest_sha256"):
         raise ValueError("Adapter manifest is missing or differs from the handoff SHA-256.")
     package_root = Path(handoff.get("package_root", "")).resolve()
+    validation = validate_adapter_package_files(manifest_path, package_root)
+    if not validation.get("valid"):
+        raise ValueError("Adapter package no longer passes package validation.")
     payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
     expected_sources, expected_artifacts = _resolve_package_records(payload, package_root)
 
@@ -240,6 +243,12 @@ def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
             item.get("artifact_id") for item in supplied_datasets if isinstance(item, dict)
         } != {item["artifact_id"] for item in standardized_expected}:
             raise ValueError("Adapter handoff standardized datasets do not match the package manifest.")
+        expected_by_id = {item["artifact_id"]: item for item in standardized_expected}
+        for item in supplied_datasets:
+            expected = expected_by_id[item["artifact_id"]]
+            for field in ("path", "package_path", "format", "sha256", "role"):
+                if item.get(field) != expected.get(field):
+                    raise ValueError(f"Adapter handoff standardized dataset {item['artifact_id']!r} has a modified {field}.")
     elif handoff.get("route") == "CANONICAL_BUNDLE":
         canonical_expected = [item for item in expected_artifacts if item["role"] == "canonical_bundle"]
         if len(canonical_expected) != 1:
@@ -251,10 +260,13 @@ def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
         for field in ("artifact_id", "path", "package_path", "format", "sha256"):
             if supplied.get(field) != expected.get(field):
                 raise ValueError(f"Canonical bundle descriptor has a modified {field}.")
-        bundle = json.loads(Path(expected["path"]).read_text(encoding="utf-8-sig"))
+        bundle_path = Path(expected["path"])
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8-sig"))
         validation = validate_canonical_bundle(bundle)
         if not validation.get("valid"):
             raise ValueError("Canonical bundle no longer passes structural/reference validation.")
+        if _sha256(bundle_path) != expected["sha256"]:
+            raise ValueError("Canonical bundle changed after adapter handoff creation.")
     else:
         raise ValueError(f"Unsupported adapter handoff route: {handoff.get('route')!r}.")
     return handoff
