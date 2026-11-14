@@ -31,7 +31,7 @@ def build_source_inventory(sources: list[dict[str, Any]]) -> list[dict[str, Any]
                 locator_type, locator = "json_path", node["path"]
                 items.append({
                     "inventory_id": _stable_id(source["sha256"], locator_type, locator),
-                    "source_role": source["role"], "source_file": source["file_name"],
+                    "source_role": source["role"], "source_file": source_file,
                     "source_sha256": source["sha256"], "source_format": "json",\n                    "source_id": source_id, "artifact_id": artifact_id,
                     "locator_type": locator_type, "locator": locator,
                     "observed_types": sorted(node["value_types"]),
