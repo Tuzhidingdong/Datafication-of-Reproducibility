@@ -34,6 +34,7 @@ The dor discover-opportunities command:
 - condition_performance_strata.csv — cross-Study descriptive summaries for each condition level (Study count, median of Study medians, MAD, and IQR).
 - condition_performance_contrasts.csv — pairwise descriptive differences between supported condition levels, including any within-DOI paired comparisons and system-overlap counts.
 - condition_hypothesis_candidates.csv — bounded candidate questions that require feature mapping, domain review, and confounder assessment.
+- condition_performance_analysis_summary.json — aggregate counts, thresholds, mapping state, and interpretation boundaries for the association screen.
 - joint_support.csv — cross-feature co-occurrence support and explicit linkage warning.
 - signal_catalogue.csv — qualified descriptive signals for follow-up.
 - discovery_report.json — machine-readable aggregate report and limitations.
