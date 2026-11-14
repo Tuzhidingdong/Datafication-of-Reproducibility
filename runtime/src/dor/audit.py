@@ -254,6 +254,10 @@ def run_audit_from_adapter_handoff(handoff_path: Path, output_dir: Path) -> dict
     from dor.adapter_handoff import load_validated_adapter_handoff
 
     handoff = load_validated_adapter_handoff(handoff_path)
+    resolved_output = output_dir.expanduser().resolve()
+    package_root = Path(handoff["package_root"]).resolve()
+    if resolved_output == package_root or resolved_output.is_relative_to(package_root):
+        raise ValueError("Audit output must remain outside the protected adapter package root.")
     if handoff["route"] != "STRUCTURED_DATASET":
         raise ValueError("This adapter handoff contains a Canonical Bundle; use it for discovery instead of source audit.")
     datasets = handoff.get("standardized_datasets")
