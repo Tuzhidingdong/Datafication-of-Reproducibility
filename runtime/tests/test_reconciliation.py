@@ -106,6 +106,24 @@ class ReconciliationTests(unittest.TestCase):
         self.assertFalse(stale["valid"])
         self.assertIn("STALE_CANONICAL_BUNDLE",[x["code"] for x in stale["errors"]])
 
+    def test_every_reported_issue_requires_an_explicit_human_decision(self):
+        data=bundle()
+        report=reconcile_canonical_bundle(data,"a"*64)
+        report["issues"]=[
+            {"issue_id":"REC_ISSUE_1","entity_refs":[],"evidence_refs":[]},
+            {"issue_id":"REC_ISSUE_2","entity_refs":[],"evidence_refs":[]},
+        ]
+        decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,
+          "decisions":[{"issue_id":"REC_ISSUE_1","decision":"REMAINS_UNRESOLVED",
+            "reviewer":"reviewer","reviewed_at":"2026-11-08T00:00:00Z",
+            "rationale":"Reviewed; retain as unresolved.","evidence_refs":[]}]}
+        result=validate_reconciliation_decisions(decisions,report,data,"b"*64,"a"*64)
+        self.assertFalse(result["valid"])
+        self.assertEqual(
+            [item["code"] for item in result["errors"]],
+            ["RECONCILIATION_ISSUE_NOT_REVIEWED"],
+        )
+
     def test_malformed_report_is_rejected_without_exception(self):
         decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,"decisions":[]}
         result=validate_reconciliation_decisions(decisions,[],bundle(),"b"*64,"a"*64)
