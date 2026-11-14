@@ -92,7 +92,9 @@ The materialization command copies files only. It does not parse, repair, re-map
 
 ## Exact G0-G4 approval artifact bindings
 
-Use the exact Run-relative file paths below. These commands bind the approval to the same artifacts produced by the active Run. Do not use project-global or preflight copies.\n\nAt execution time, every stage with `required_gate` must consume the same file instances that the Gate approved for any artifact IDs shared by the stage input list and Gate event. Run Manager checks both resolved paths and SHA-256 values; same artifact ID with a different path is not accepted even if the bytes happen to match. This is reported as `BLOCKED_GATE` in the resume plan and rechecked before RUNNING or Worker authorization.
+Use the exact Run-relative file paths below. These commands bind the approval to the same artifacts produced by the active Run. Do not use project-global or preflight copies.
+
+At execution time, every stage with `required_gate` must consume the same file instances that the Gate approved for any artifact IDs shared by the stage input list and Gate event. Run Manager checks both resolved paths and SHA-256 values; same artifact ID with a different path is not accepted even if the bytes happen to match. This is reported as `BLOCKED_GATE` in the resume plan and rechecked before RUNNING or Worker authorization.
 
 G0, G1, and G2 approval events must bind the corresponding review packet and its Run Manager validation report. The Gate independently rechecks that the packet covers exactly every other artifact bound in that event, that each packet path/hash matches the Gate-bound file, and that review items collectively cover every input. Route-specific G0 inputs and the shared reconciliation/scope G2 inputs are explicit in the command sets below. A `valid=true` report alone is not trusted.
 
