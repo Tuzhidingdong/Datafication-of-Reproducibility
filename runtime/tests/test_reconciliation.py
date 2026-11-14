@@ -96,6 +96,7 @@ class ReconciliationTests(unittest.TestCase):
             "issue_id":"REC_0123456789ABCDEF0123",
             "category":"TEST","entity_refs":["OB1"],"evidence_refs":["EV1"]
         }]
+        report["issue_count"] = 1
         decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,
           "decisions":[{"issue_id":"REC_0123456789ABCDEF0123","decision":"RESOLVED_WITH_EVIDENCE",
             "reviewer":"reviewer","reviewed_at":"2026-11-08T00:00:00Z","rationale":"Checked against source table.",
@@ -115,6 +116,7 @@ class ReconciliationTests(unittest.TestCase):
             "entity_refs":[],
             "evidence_refs":[],
         }]
+        report["issue_count"] = 1
         decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,
           "decisions":[{"issue_id":"REC_CRITICAL","decision":"REMAINS_UNRESOLVED",
             "reviewer":"reviewer","reviewed_at":"2026-11-08T00:00:00Z",
