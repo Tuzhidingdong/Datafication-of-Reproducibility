@@ -160,10 +160,14 @@ def _parse_target_system(observation: dict[str, Any]) -> list[dict[str, Any]]:
     # concentration. The context is retained so downstream users can distinguish it.
     for match in _SALT_WITHOUT_CONCENTRATION.finditer(raw):
         salt = match.group("salt")
-        if any(item["condition_type"] == "electrolyte_component"
+        if any(item["condition_type"] in {"electrolyte_component", "chemical_formula_component"}
                and item["normalized_value"].casefold() == salt.casefold() for item in found):
             continue
-        add("electrolyte_component", salt, salt, "RULE_KNOWN_SALT_NO_CONCENTRATION", "MEDIUM")
+        has_electrolyte_context = bool(re.search(
+            r"\b(electrolyte|aqueous\s+solution|solution)\b", raw, re.IGNORECASE
+        ))
+        component_type = "electrolyte_component" if has_electrolyte_context else "chemical_formula_component"
+        add(component_type, salt, salt, "RULE_KNOWN_SALT_NO_CONCENTRATION", "MEDIUM")
 
     for match in _PERCENT_MODIFIER.finditer(raw):
         value = float(match.group("value"))
