@@ -106,6 +106,7 @@ class DiscoveryTests(unittest.TestCase):
             self.assertEqual(performance["condition_outcome_link_row_count"],3)
             self.assertEqual(performance["endpoint_semantics_status"],"UNMAPPED_FEATURE_SEMANTICS")
             for filename in (
+                "condition_performance_feature_coverage.csv",
                 "condition_outcome_links.csv",
                 "condition_performance_study_strata.csv",
                 "condition_performance_strata.csv",
