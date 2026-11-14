@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -327,6 +328,12 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
     if not isinstance(decisions, dict):
         return {"valid": False, "errors": [{"code":"DECISIONS_NOT_OBJECT","path":"$","message":"Decision file must be an object."}],
                 "validated_decision_ids": [], "decision_policy":"DECISIONS_ARE_REVIEW_METADATA_ONLY"}
+    if decisions.get("schema_version") != "1.0":
+        errors.append({
+            "code": "UNSUPPORTED_DECISIONS_SCHEMA_VERSION",
+            "path": "schema_version",
+            "message": "Decision file schema_version must be 1.0.",
+        })
     report_is_object = isinstance(report, dict)
     if not report_is_object or decisions.get("reconciliation_report_sha256") != report_sha256:
         errors.append({"code":"STALE_RECONCILIATION_REPORT","path":"reconciliation_report_sha256","message":"Decisions must bind to the exact reconciliation report file hash."})
@@ -335,7 +342,30 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
     elif bundle_sha256 is None or report.get("bundle_sha256") != bundle_sha256:
         errors.append({"code":"STALE_CANONICAL_BUNDLE","path":"bundle_sha256","message":"The canonical bundle must match the exact bundle hash used by the reconciliation report."})
     issues = report.get("issues", []) if isinstance(report, dict) else []
-    issue_by_id = {item.get("issue_id"): item for item in issues if isinstance(item, dict)}
+    if not isinstance(issues, list):
+        errors.append({
+            "code": "REPORT_ISSUES_NOT_ARRAY",
+            "path": "issues",
+            "message": "The reconciliation report issues field must be an array.",
+        })
+        issues = []
+    issue_by_id: dict[str, dict[str, Any]] = {}
+    for index, item in enumerate(issues):
+        issue_id = item.get("issue_id") if isinstance(item, dict) else None
+        if not isinstance(issue_id, str) or not issue_id.strip():
+            errors.append({
+                "code": "INVALID_RECONCILIATION_ISSUE_ID",
+                "path": f"issues[{index}].issue_id",
+                "message": "Every reconciliation report issue requires a non-empty issue_id.",
+            })
+        elif issue_id in issue_by_id:
+            errors.append({
+                "code": "DUPLICATE_RECONCILIATION_ISSUE_ID",
+                "path": f"issues[{index}].issue_id",
+                "message": "The reconciliation report contains a duplicate issue_id.",
+            })
+        else:
+            issue_by_id[issue_id] = item
     evidence_ids = set(_records(bundle, "evidence", "evidence_id")) if isinstance(bundle, dict) else set()
     decision_rows = decisions.get("decisions")
     if not isinstance(decision_rows, list):
@@ -362,9 +392,23 @@ def validate_reconciliation_decisions(decisions: Any, report: Any, bundle: Any,
         for field in ("reviewer", "reviewed_at", "rationale"):
             if not isinstance(decision.get(field), str) or not decision[field].strip():
                 errors.append({"code":"DECISION_METADATA_REQUIRED","path":f"{path}.{field}","message":f"{field} must be a non-empty string."})
+        reviewed_at = decision.get("reviewed_at")
+        if isinstance(reviewed_at, str) and reviewed_at.strip():
+            try:
+                timestamp = datetime.fromisoformat(reviewed_at.replace("Z", "+00:00"))
+                if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                    raise ValueError("timezone offset is required")
+            except ValueError:
+                errors.append({
+                    "code": "INVALID_DECISION_TIMESTAMP",
+                    "path": f"{path}.reviewed_at",
+                    "message": "reviewed_at must be an ISO-8601 timestamp with an explicit timezone.",
+                })
         refs = decision.get("evidence_refs", [])
-        if not isinstance(refs, list) or any(not isinstance(ref, str) or ref not in evidence_ids for ref in refs):
-            errors.append({"code":"INVALID_DECISION_EVIDENCE","path":f"{path}.evidence_refs","message":"evidence_refs must contain only evidence IDs present in the canonical bundle."})
+        if (not isinstance(refs, list)
+                or any(not isinstance(ref, str) or ref not in evidence_ids for ref in refs)
+                or len(refs) != len(set(refs))):
+            errors.append({"code":"INVALID_DECISION_EVIDENCE","path":f"{path}.evidence_refs","message":"evidence_refs must contain unique evidence IDs present in the canonical bundle."})
         if decision.get("decision") == "RESOLVED_WITH_EVIDENCE" and not refs:
             errors.append({"code":"RESOLUTION_EVIDENCE_REQUIRED","path":f"{path}.evidence_refs","message":"RESOLVED_WITH_EVIDENCE requires at least one canonical evidence ID."})
         valid_ids.append(issue_id)
