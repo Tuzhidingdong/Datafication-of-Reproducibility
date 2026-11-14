@@ -30,7 +30,7 @@ The dor discover-opportunities command:
 - condition_extraction_summary.json — extraction coverage, confidence, and explicit test-data exclusion counts.
 - condition_manifest.json — rule/code versions plus input/output SHA256 hashes, including the condition-performance outputs.
 - condition_performance_feature_coverage.csv — eligible numeric outcome denominators and condition-linkage coverage by feature/unit.
-- condition_outcome_links.csv — observation-level links between eligible numeric outcomes and condition candidates, with stable observation IDs and extraction provenance fields.
+- condition_outcome_links.csv — observation-level links between eligible numeric outcomes and condition candidates, with stable observation IDs, deterministic condition_record_ids, and extraction provenance fields; each condition_record_id joins exactly to condition_records.csv.
 - condition_performance_study_strata.csv — within-DOI aggregation (one median per feature/unit/condition level/Study), with observation counts and target-system context.
 - condition_performance_strata.csv — cross-Study descriptive summaries for each condition level (Study count, median of Study medians, MAD, and IQR).
 - condition_performance_contrasts.csv — pairwise descriptive differences between supported condition levels, including within-DOI paired medians, direction consistency/counterexample counts, and same-system overlap.
@@ -65,7 +65,7 @@ The review queue is capped at 2,000 rows and contains only target_system values 
 - Descriptive per-Study medians are not inferential heterogeneity tests.
 - Co-occurrence within paper/system/batch is not proof of shared experiment, sample, or replicate.
 - Condition-field coverage alone does not estimate a condition effect. The added association screen links eligible numeric observations to deterministic condition candidates, aggregates observations within DOI, and compares exact feature-ID/unit strata across condition levels.
-- Condition-performance contrasts are descriptive differences of Study-level medians. They are not inferential tests, p-values, confidence intervals, causal effects, or mechanism evidence.
+- Condition-performance contrasts are descriptive differences of Study-level medians. They are not inferential tests, p-values, confidence intervals, causal effects, or mechanism evidence. Same-DOI direction summaries mean both condition levels were represented in that DOI; they do not establish matched experiments, specimens, or replicates.
 - Only DOI-identified, AGREED_MATCH numeric outcomes with exact non-empty feature IDs and unit strings enter the association screen. Paper-ID fallbacks, unresolved values, and test batches do not contribute.
 - Conflicting candidate values for the same condition dimension on one observation are excluded from that dimension; unit-incompatible condition variables are kept separate. Table values requiring context review are not promoted into comparisons. Multi-component electrolyte presence is not treated as mutually exclusive; salt-specific concentration records are screened separately.
 - The current zinc-battery feature_mapping.yaml remains empty/PENDING_INSPECTION. All association rows therefore carry UNMAPPED_FEATURE_SEMANTICS; no FEAT identifier is interpreted and no endpoint is labelled as capacity, lifetime, efficiency, etc.
