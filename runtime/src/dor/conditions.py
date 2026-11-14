@@ -316,7 +316,7 @@ def _evidence_candidates(observation: dict[str, Any]) -> list[dict[str, Any]]:
                         "col_header": _clean(source_meta.get("col_header")),
                         "verbatim_quote": quote,
                         "footnote": _clean(source_meta.get("footnote")),
-                        "file_id": _clean(source_meta.get("file_id")),
+                        "source_file_id": _clean(source_meta.get("file_id")),
                     })
                     output.append(candidate)
     return output
@@ -369,18 +369,19 @@ def write_condition_outputs(
     for observation in observations:
         target_value = _clean(observation.get("target_system"))
         target_is_reported = bool(target_value) and target_value.casefold() not in _MISSING
-        if target_is_reported:
-            target_system_present_count += 1
-        else:
-            target_system_missing_count += 1
-        target_candidates = _parse_target_system(observation)
-        if target_candidates:
-            target_system_extracted_observation_ids.add(_clean(observation.get("observation_id")))
-        elif target_is_reported:
-            target_system_unparsed_count += 1
-        candidates = _structured_conditions(observation) + target_candidates + _evidence_candidates(observation)
         excluded = is_excluded_test_record(observation)
-        if target_is_reported and not target_candidates:
+        if not excluded:
+            if target_is_reported:
+                target_system_present_count += 1
+            else:
+                target_system_missing_count += 1
+        target_candidates = _parse_target_system(observation)
+        if target_candidates and not excluded:
+            target_system_extracted_observation_ids.add(_clean(observation.get("observation_id")))
+        elif target_is_reported and not excluded:
+            target_system_unparsed_count += 1
+        candidates = extract_observation_conditions(observation)
+        if target_is_reported and not target_candidates and not excluded:
             review_queue_total += 1
             if len(review_queue) < MAX_REVIEW_QUEUE_ROWS:
                 review_queue.append({
