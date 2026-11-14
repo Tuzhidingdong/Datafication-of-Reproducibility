@@ -478,11 +478,12 @@ class WorkflowGateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "inconsistent with the individual human finding dispositions"):
             self._record("G4", self._g4_artifact_ids())
 
-    def test_g4_requires_gate_bindings_for_every_human_reviewed_artifact(self):
+    def test_g4_rejects_gate_event_missing_one_required_review_artifact(self):
         self._complete_to_g2()
         self._record_g3()
-        with self.assertRaisesRegex(ValueError, "Gate event must bind reviewed artifact"):
-            self._record("G4", self._g4_artifact_ids())
+        incomplete = [item for item in self._g4_artifact_ids() if item != "robustness_report"]
+        with self.assertRaisesRegex(ValueError, "requires artifact IDs"):
+            self._record("G4", incomplete)
 
     def test_changed_artifact_invalidates_its_gate_and_all_downstream_gates(self):
         self._complete_to_g2()
