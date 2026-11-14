@@ -200,6 +200,98 @@ class AdapterHandoffTests(unittest.TestCase):
                 set(source_hashes),
             )
 
+    def test_materialization_checks_inventory_sources_against_manifest_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            dataset_path = package / "tables" / "records.csv"
+            inventory_path = package / "source_inventory.json"
+            dataset_path.parent.mkdir(parents=True)
+            dataset_path.write_text("record_id,value\\nA,1\\n", encoding="utf-8")
+            write_json(inventory_path, {
+                "schema_version": "1.0",
+                "items": [{
+                    "inventory_id": "SRC_RECORDS",
+                    "source_file": "tables/records.csv",
+                    "source_sha256": digest(dataset_path),
+                    "source_format": "csv",
+                    "locator_type": "csv_column",
+                    "locator": "value",
+                    "observed_types": ["numeric"],
+                    "coverage": 1.0,
+                }],
+            })
+            manifest = self._write_manifest(package, [
+                {
+                    "artifact_id": "records",
+                    "role": "standardized_dataset",
+                    "path": "tables/records.csv",
+                    "sha256": digest(dataset_path),
+                    "format": "csv",
+                },
+                {
+                    "artifact_id": "external-inventory",
+                    "role": "source_inventory",
+                    "path": "source_inventory.json",
+                    "sha256": digest(inventory_path),
+                    "format": "json",
+                },
+            ])
+            handoff = root / "adapter_handoff.json"
+            prepare_adapter_handoff_files(manifest, package, handoff)
+            output_dir = root / "run" / "materialized"
+            result = materialize_adapter_artifacts_files(
+                handoff, output_dir, roles=["source_inventory"],
+            )
+            self.assertEqual(result["source_inventory_validation"]["matched_source_item_count"], 1)
+            self.assertTrue((output_dir / "source_inventory.json").is_file())
+
+    def test_materialization_rejects_inventory_source_hash_not_in_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            dataset_path = package / "records.csv"
+            inventory_path = package / "source_inventory.json"
+            package.mkdir()
+            dataset_path.write_text("record_id,value\\nA,1\\n", encoding="utf-8")
+            write_json(inventory_path, {
+                "schema_version": "1.0",
+                "items": [{
+                    "inventory_id": "SRC_RECORDS",
+                    "source_file": "records.csv",
+                    "source_sha256": "f" * 64,
+                    "source_format": "csv",
+                    "locator_type": "csv_column",
+                    "locator": "value",
+                    "observed_types": ["numeric"],
+                    "coverage": 1.0,
+                }],
+            })
+            manifest = self._write_manifest(package, [
+                {
+                    "artifact_id": "records",
+                    "role": "standardized_dataset",
+                    "path": "records.csv",
+                    "sha256": digest(dataset_path),
+                    "format": "csv",
+                },
+                {
+                    "artifact_id": "external-inventory",
+                    "role": "source_inventory",
+                    "path": "source_inventory.json",
+                    "sha256": digest(inventory_path),
+                    "format": "json",
+                },
+            ])
+            handoff = root / "adapter_handoff.json"
+            prepare_adapter_handoff_files(manifest, package, handoff)
+            output_dir = root / "run" / "materialized"
+            with self.assertRaisesRegex(ValueError, "SHA-256 does not match"):
+                materialize_adapter_artifacts_files(
+                    handoff, output_dir, roles=["source_inventory"],
+                )
+            self.assertFalse(output_dir.exists())
+
     def test_role_materialization_uses_runplan_json_filename(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
