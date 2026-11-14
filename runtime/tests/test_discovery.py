@@ -4,7 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from dor.discovery import summarize_observations, run_discovery_scan
+from dor.discovery import summarize_observations, run_discovery_scan, _select_brief_signals
 from dor.cli import build_parser
 
 def record(paper, doi, feature, value, unit="mAh g-1", status="AGREED_MATCH"):
@@ -66,6 +66,35 @@ class DiscoveryTests(unittest.TestCase):
         result=summarize_observations([record(f"P{i}",f"10.1/{i}","FEAT_X",i) for i in range(1,4)])
         self.assertEqual(result["condition_rows"][0]["condition_type"],"current_density")
         self.assertTrue(any(x["signal_type"]=="CONDITION_COVERAGE_OPPORTUNITY" for x in result["signals"]))
+
+    def test_brief_signal_selection_preserves_each_scientific_category(self):
+        signals = []
+        for i in range(1, 4):
+            signals.append({"signal_id": f"HET-{i}", "signal_type":"CROSS_STUDY_DESCRIPTIVE_HETEROGENEITY",
+                "supporting_study_count": 10-i})
+        for i in range(1, 3):
+            signals.append({"signal_id": f"COND-{i}", "signal_type":"CONDITION_COVERAGE_OPPORTUNITY",
+                "supporting_study_count": 5-i})
+        for i in range(1, 41):
+            signals.append({"signal_id": f"PAIR-{i}", "signal_type":"CO_OBSERVED_FEATURE_PAIR_OPPORTUNITY",
+                "supporting_study_count": 100-i})
+        groups = _select_brief_signals(signals)
+        self.assertEqual(groups["CROSS_STUDY_DESCRIPTIVE_HETEROGENEITY"]["available"], 3)
+        self.assertEqual(len(groups["CROSS_STUDY_DESCRIPTIVE_HETEROGENEITY"]["included"]), 3)
+        self.assertEqual(groups["CONDITION_COVERAGE_OPPORTUNITY"]["available"], 2)
+        self.assertEqual(len(groups["CONDITION_COVERAGE_OPPORTUNITY"]["included"]), 2)
+        self.assertEqual(groups["CO_OBSERVED_FEATURE_PAIR_OPPORTUNITY"]["available"], 40)
+        self.assertEqual(len(groups["CO_OBSERVED_FEATURE_PAIR_OPPORTUNITY"]["included"]), 25)
+        self.assertEqual(groups["CO_OBSERVED_FEATURE_PAIR_OPPORTUNITY"]["omitted"], 15)
+
+    def test_profile_distinguishes_structured_conditions_from_raw_context(self):
+        rows = [record(f"P{i}", f"10.1/{i}", "FEAT_X", i) for i in range(1, 4)]
+        rows[0]["experimental_context_raw"] = "Current density: 1 mA cm-2; capacity: 1 mAh cm-2"
+        rows[1]["measurement_conditions"] = {}
+        result = summarize_observations(rows)
+        self.assertEqual(result["profile"]["observations_with_structured_conditions"], 2)
+        self.assertEqual(result["profile"]["observations_with_raw_experimental_context"], 1)
+        self.assertEqual(result["profile"]["structured_condition_field_count"], 1)
 
     def test_real_scan_preserves_source_and_emits_aggregate_brief(self):
         with tempfile.TemporaryDirectory() as temp:
