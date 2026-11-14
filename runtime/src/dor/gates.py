@@ -21,7 +21,7 @@ PREVIOUS_GATE = {GATE_ORDER[i]: GATE_ORDER[i - 1] for i in range(1, len(GATE_ORD
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory"},
     "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"},
-    "G2": {"canonical_bundle", "canonical_validation_report", "reconciliation_report", "modeling_task"},
+    "G2": {"canonical_bundle", "canonical_validation_report", "reconciliation_report", "reconciliation_decisions", "reconciliation_decision_validation", "modeling_task"},
     "G3": {
         "interaction_report", "interaction_manifest",
         "robustness_report", "robustness_manifest", "interaction_selection",
@@ -242,17 +242,35 @@ def _validate_g2_artifacts(
     bundle_binding = by_id["canonical_bundle"]
     validation_binding = by_id["canonical_validation_report"]
     reconciliation_binding = by_id["reconciliation_report"]
+    decisions_binding = by_id["reconciliation_decisions"]
+    decisions_validation_binding = by_id["reconciliation_decision_validation"]
     task_binding = by_id["modeling_task"]
     prior = _binding_map(previous_gate_event["artifacts"])
     bundle = _read_json_binding(bundle_binding, "G2 canonical_bundle")
     validation = _read_json_binding(validation_binding, "G2 canonical_validation_report")
     reconciliation = _read_json_binding(reconciliation_binding, "G2 reconciliation_report")
+    decisions_validation = _read_json_binding(
+        decisions_validation_binding, "G2 reconciliation_decision_validation"
+    )
     task = _read_json_binding(task_binding, "G2 modeling_task")
 
     if validation.get("valid") is not True:
         raise ValueError("G2 canonical_validation_report must have valid=true.")
     if reconciliation.get("bundle_sha256") != bundle_binding["sha256"]:
         raise ValueError("G2 reconciliation_report does not reference the exact approved canonical_bundle hash.")
+    if decisions_validation.get("valid") is not True:
+        raise ValueError("G2 reconciliation_decision_validation must have valid=true.")
+    from dor.reconciliation import validate_reconciliation_decisions_files
+    recomputed_decisions = validate_reconciliation_decisions_files(
+        Path(decisions_binding["path"]),
+        Path(reconciliation_binding["path"]),
+        Path(bundle_binding["path"]),
+    )
+    if recomputed_decisions != decisions_validation:
+        raise ValueError(
+            "G2 reconciliation_decision_validation is not the deterministic result "
+            "for the exact bound decisions, reconciliation report, and Canonical Bundle."
+        )
     provenance = bundle.get("build_provenance")
     if not isinstance(provenance, dict):
         raise ValueError("G2 canonical_bundle has no build_provenance object.")
