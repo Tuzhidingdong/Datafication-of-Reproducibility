@@ -127,10 +127,41 @@ class ReconciliationTests(unittest.TestCase):
             [item["code"] for item in result["errors"]],
         )
 
+    def test_reconciliation_decisions_reject_missing_issue_array_or_count_mismatch(self):
+        data = bundle()
+        report = reconcile_canonical_bundle(data, "a" * 64)
+        decisions = {
+            "schema_version": "1.0",
+            "reconciliation_report_sha256": "b" * 64,
+            "decisions": [],
+        }
+        missing_issues = dict(report)
+        missing_issues.pop("issues")
+        missing = validate_reconciliation_decisions(
+            decisions, missing_issues, data, "b" * 64, "a" * 64
+        )
+        self.assertFalse(missing["valid"])
+        self.assertIn(
+            "RECONCILIATION_REPORT_FIELD_MISSING",
+            [item["code"] for item in missing["errors"]],
+        )
+
+        inconsistent = dict(report)
+        inconsistent["issue_count"] = 1
+        count_result = validate_reconciliation_decisions(
+            decisions, inconsistent, data, "b" * 64, "a" * 64
+        )
+        self.assertFalse(count_result["valid"])
+        self.assertIn(
+            "RECONCILIATION_ISSUE_COUNT_MISMATCH",
+            [item["code"] for item in count_result["errors"]],
+        )
+
     def test_reconciliation_decision_timestamp_requires_explicit_timezone(self):
         data=bundle()
         report=reconcile_canonical_bundle(data,"a"*64)
         report["issues"]=[{"issue_id":"REC_ISSUE_1","entity_refs":[],"evidence_refs":[]}]
+        report["issue_count"] = 1
         decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,
           "decisions":[{"issue_id":"REC_ISSUE_1","decision":"REMAINS_UNRESOLVED",
             "reviewer":"reviewer","reviewed_at":"2026-11-08T00:00:00",
@@ -146,6 +177,7 @@ class ReconciliationTests(unittest.TestCase):
             {"issue_id":"REC_ISSUE_1","entity_refs":[],"evidence_refs":[]},
             {"issue_id":"REC_ISSUE_2","entity_refs":[],"evidence_refs":[]},
         ]
+        report["issue_count"] = 2
         decisions={"schema_version":"1.0","reconciliation_report_sha256":"b"*64,
           "decisions":[{"issue_id":"REC_ISSUE_1","decision":"REMAINS_UNRESOLVED",
             "reviewer":"reviewer","reviewed_at":"2026-11-08T00:00:00Z",
