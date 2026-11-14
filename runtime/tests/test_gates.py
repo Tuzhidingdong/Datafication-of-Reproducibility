@@ -296,7 +296,7 @@ class WorkflowGateTests(unittest.TestCase):
     def test_complete_gate_chain_and_exact_artifact_binding(self):
         self._complete_to_g2()
         self._record_g3()
-        self._record("G4", ["publication_plan", "model_report"])
+        self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
         snapshot = inspect_gate_ledger(self.ledger)
         self.assertTrue(snapshot["valid_ledger"])
         self.assertEqual(snapshot["workflow_status"], "READY_FOR_FINALIZATION")
@@ -366,7 +366,7 @@ class WorkflowGateTests(unittest.TestCase):
     def test_changed_artifact_invalidates_its_gate_and_all_downstream_gates(self):
         self._complete_to_g2()
         self._record_g3()
-        self._record("G4", ["publication_plan", "model_report"])
+        self._record("G4", ["publication_plan", "model_report", "worker_review_output", "reviewed_findings"])
         self.files["canonical_bundle"].write_text('{"changed": true}', encoding="utf-8")
         snapshot = inspect_gate_ledger(self.ledger)
         self.assertEqual(snapshot["gates"]["G2"]["status"], "STALE_ARTIFACT")
