@@ -27,13 +27,18 @@ DoR does not claim to parse arbitrary binary documents, images, instrument files
 
 ## Validation
 
-Run:
+Prepare the DoR routing handoff:
 
-    dor validate-adapter-package --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/reports/adapter_validation.json
+    dor prepare-adapter-handoff --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/derived/adapter_handoff.json
 
-The validator checks manifest structure, duplicate identifiers, path containment for package artifacts, file availability, and exact source/artifact SHA-256 values. Validation is read-only. It rejects artifact paths that escape the package root.
+The command validates manifest structure, duplicate identifiers, package-relative artifact paths, file availability, and exact source/artifact SHA-256 values. It also selects one of two generic routes:
 
-A passing report confirms delivery integrity only. It does not approve the adapter's extraction, entity grain, scientific semantics, unit compatibility, mappings, or suitability for any analysis.
+- STRUCTURED_DATASET: one or more `standardized_dataset` artifacts in CSV or JSON format. DoR's structural audit processes all declared supported datasets and preserves each artifact ID and package-relative path.
+- CANONICAL_BUNDLE: exactly one JSON `canonical_bundle` artifact. DoR runs its canonical structural/reference validator and Discovery can consume the bundle directly through `--adapter-handoff`.
+
+The handoff is read-only and does not parse unsupported source formats. An external adapter must convert other source formats into an explicit CSV/JSON handoff or a valid Canonical Bundle. DoR rechecks the manifest and all declared source/artifact hashes whenever it consumes a handoff.
+
+A passing handoff confirms delivery integrity and, for a Canonical Bundle, structural/reference validity only. It does not approve extraction quality, entity grain, scientific semantics, mappings, unit compatibility, or suitability for any analysis.
 
 ## Handoff to existing DoR stages
 
