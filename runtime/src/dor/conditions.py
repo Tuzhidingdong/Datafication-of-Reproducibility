@@ -534,6 +534,11 @@ def write_condition_outputs(
         "scope": "READ_ONLY_DETERMINISTIC_CONDITION_EXTRACTION",
         "inputs": [{"path": path, "sha256": digest} for path, digest in sorted(input_hashes.items())],
         "code_sha256": sha256_file(Path(__file__)),
+        "code_files_sha256": {
+            "conditions.py": sha256_file(Path(__file__)),
+            "condition_performance.py": sha256_file(Path(__file__).with_name("condition_performance.py")),
+            "chem_literacy.py": sha256_file(Path(__file__).with_name("chem_literacy.py")),
+        },
         "input_observation_count": len(observations),
         "excluded_test_batch_ids": sorted(EXCLUDED_TEST_BATCH_IDS),
         "outputs": outputs,
