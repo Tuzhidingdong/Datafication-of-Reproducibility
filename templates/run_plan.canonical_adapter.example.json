@@ -482,6 +482,146 @@
       ]
     },
     {
+      "stage_id": "mechanism_plan_preparation",
+      "executor": "manual",
+      "depends_on": [
+        "g3_selection_packet",
+        "research_scope_selection",
+        "adapter_artifact_materialization",
+        "interaction_discovery",
+        "interaction_robustness"
+      ],
+      "inputs": [
+        "interaction_selection",
+        "modeling_task",
+        "canonical_bundle",
+        "interaction_report",
+        "robustness_report"
+      ],
+      "activation": {
+        "artifact_id": "interaction_selection",
+        "json_pointer": "/selected_interaction_ids",
+        "operator": "array_non_empty"
+      },
+      "outputs": [
+        {
+          "artifact_id": "mechanism_plan",
+          "path": "07_review/mechanism_plan.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "response_surface_generation",
+      "executor": "local",
+      "depends_on": [
+        "g3_selection_packet",
+        "cohort_build",
+        "research_scope_selection",
+        "interaction_discovery",
+        "interaction_robustness"
+      ],
+      "required_gate": "G3",
+      "inputs": [
+        "interaction_selection",
+        "modeling_task",
+        "modeling_cohort",
+        "cohort_report",
+        "split_manifest",
+        "cohort_manifest",
+        "interaction_report",
+        "interaction_catalogue",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_catalogue",
+        "robustness_manifest"
+      ],
+      "activation": {
+        "artifact_id": "interaction_selection",
+        "json_pointer": "/selected_interaction_ids",
+        "operator": "array_non_empty"
+      },
+      "outputs": [
+        {
+          "artifact_id": "interaction_response_surface_report",
+          "path": "07_response_surface/interaction_response_surface_report.json"
+        },
+        {
+          "artifact_id": "interaction_response_surface",
+          "path": "07_response_surface/interaction_response_surface.csv"
+        },
+        {
+          "artifact_id": "interaction_observed_support",
+          "path": "07_response_surface/interaction_observed_support.csv"
+        },
+        {
+          "artifact_id": "interaction_marginal_effects",
+          "path": "07_response_surface/interaction_marginal_effects.csv"
+        },
+        {
+          "artifact_id": "interaction_response_surface_manifest",
+          "path": "07_response_surface/interaction_response_surface_manifest.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "mechanism_evidence_bridge",
+      "executor": "local",
+      "depends_on": [
+        "g3_selection_packet",
+        "research_scope_selection",
+        "adapter_artifact_materialization",
+        "cohort_build",
+        "interaction_discovery",
+        "interaction_robustness",
+        "mechanism_plan_preparation",
+        "response_surface_generation"
+      ],
+      "required_gate": "G3",
+      "inputs": [
+        "interaction_selection",
+        "modeling_task",
+        "canonical_bundle",
+        "mechanism_plan",
+        "modeling_cohort",
+        "cohort_report",
+        "split_manifest",
+        "cohort_manifest",
+        "interaction_report",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_manifest",
+        "interaction_response_surface_report",
+        "interaction_response_surface_manifest"
+      ],
+      "activation": {
+        "artifact_id": "interaction_selection",
+        "json_pointer": "/selected_interaction_ids",
+        "operator": "array_non_empty"
+      },
+      "outputs": [
+        {
+          "artifact_id": "mechanism_evidence_bridge_report",
+          "path": "07_mechanism_bridge/mechanism_evidence_bridge_report.json"
+        },
+        {
+          "artifact_id": "mechanism_findings",
+          "path": "07_mechanism_bridge/mechanism_findings.json"
+        },
+        {
+          "artifact_id": "mechanism_evidence_ledger",
+          "path": "07_mechanism_bridge/mechanism_evidence_ledger.csv"
+        },
+        {
+          "artifact_id": "mechanism_review_queue",
+          "path": "07_mechanism_bridge/mechanism_review_queue.csv"
+        },
+        {
+          "artifact_id": "mechanism_evidence_bridge_manifest",
+          "path": "07_mechanism_bridge/mechanism_evidence_bridge_manifest.json"
+        }
+      ]
+    },
+    {
       "stage_id": "virtual_condition_prediction",
       "executor": "local",
       "depends_on": [
