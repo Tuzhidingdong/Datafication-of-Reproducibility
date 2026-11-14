@@ -52,6 +52,8 @@ A pre-Run Canonical Bundle scan does not create a formal Run, approve mappings, 
 
 ## Progressive workflow
 
+Before executing any Run Plan, read [the command-level stage bindings](../../../docs/RUN_PLAN_EXECUTION_BINDINGS.md). Treat that file as the single source of truth for Run Plan stage-to-CLI mapping. If a stage has no declared command or action, do not invent one; report it as an integration gap.
+
 ### Stage 0 — Initialize
 
 - Read the project configuration.
