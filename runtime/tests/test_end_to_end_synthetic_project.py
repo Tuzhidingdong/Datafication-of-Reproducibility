@@ -212,7 +212,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 z_value = 0.0
             for condition_type, value, unit in (
                 ("condition_01", x_value, "arb-x"),
-                ("pressure", z_value, "arb-z"),
+                ("condition_02", z_value, "arb-z"),
             ):
                 conditions.append({
                     "experiment_ref": experiment_key,
@@ -547,7 +547,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                     "expected_unit": "arb-x",
                 },
                 {
-                    "feature_id": "pressure", "condition_type": "pressure",
+                    "feature_id": "condition_02", "condition_type": "condition_02",
                     "value_field": "normalized_value", "value_type": "NUMERIC",
                     "expected_unit": "arb-z",
                 },
@@ -768,7 +768,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "endpoint_definition": cls.task["endpoint_definition"],
             "features": {
                 "condition_01": {"value": 0.25, "unit": "arb-x"},
-                "pressure": {"value": -0.5, "unit": "arb-z"},
+                "condition_02": {"value": -0.5, "unit": "arb-z"},
             },
         })
         cls._run_cli(
