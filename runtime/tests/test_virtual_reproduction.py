@@ -30,15 +30,15 @@ class VirtualReproductionTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def write_query(self, temperature=24.0, electrolyte="salt-A", unit="degC"):
+    def write_query(self, numeric_value=24.0, category="category-A", unit="unit-x"):
         query = {
             "schema_version": "1.0",
             "task_id": "TASK_MODEL",
             "target_id": "TARGET_Y",
             "endpoint_definition": "exact endpoint A",
             "features": {
-                "temperature": {"value": temperature, "unit": unit},
-                "electrolyte": {"value": electrolyte, "unit": None}
+                "NUMERIC_INPUT": {"value": numeric_value, "unit": unit},
+                "FEATURE_CATEGORY": {"value": category, "unit": None}
             }
         }
         self.query.write_text(json.dumps(query), encoding="utf-8")
@@ -50,28 +50,28 @@ class VirtualReproductionTests(unittest.TestCase):
         self.assertTrue(result["valid"])
         self.assertIsInstance(report["prediction"], (int, float))
         self.assertEqual(report["uncertainty_status"], "NOT_CALIBRATED")
-        self.assertEqual(report["support_assessment"]["per_feature"][0]["training_range"], [20.0, 25.0])
+        self.assertEqual(report["support_assessment"]["per_feature"][0]["training_range"], [20.0, 27.0])
         self.assertFalse(report["provenance"]["test_set_used_for_fit_or_selection"])
         self.assertTrue(any("NOT_A_PHYSICAL_REPRODUCTION" in item for item in report["warnings"]))
         self.assertTrue(self.output.is_file())
 
     def test_out_of_range_and_unknown_category_are_not_silent(self):
-        self.write_query(temperature=100.0, electrolyte="salt-Z")
+        self.write_query(numeric_value=1000.0, category="category-Z")
         report = predict_virtual_condition_files(self.model_dir, self.query, self.output)["report"]
         statuses = {item["feature_id"]: item["status"] for item in report["support_assessment"]["per_feature"]}
-        self.assertEqual(statuses["temperature"], "OUTSIDE_TRAINING_RANGE")
-        self.assertEqual(statuses["electrolyte"], "UNKNOWN_CATEGORY")
+        self.assertEqual(statuses["NUMERIC_INPUT"], "OUTSIDE_TRAINING_RANGE")
+        self.assertEqual(statuses["FEATURE_CATEGORY"], "UNKNOWN_CATEGORY")
         self.assertEqual(report["prediction_status"], "EXTRAPOLATIVE_OR_UNKNOWN_CATEGORY_SCENARIO")
 
     def test_exact_units_are_required(self):
-        self.write_query(unit="K")
+        self.write_query(unit="unit-y")
         with self.assertRaisesRegex(ValueError, "exactly match"):
             predict_virtual_condition_files(self.model_dir, self.query, self.output)
 
     def test_missing_and_extra_feature_ids_fail_closed(self):
         self.write_query()
         query = json.loads(self.query.read_text(encoding="utf-8"))
-        query["features"].pop("electrolyte")
+        query["features"].pop("FEATURE_CATEGORY")
         self.query.write_text(json.dumps(query), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "must match exactly"):
             predict_virtual_condition_files(self.model_dir, self.query, self.output)
@@ -111,8 +111,8 @@ class VirtualReproductionTests(unittest.TestCase):
             "schema_version": "1.0", "task_id": "TASK_MODEL", "target_id": "TARGET_Y",
             "endpoint_definition": "exact endpoint A",
             "features": {
-                "temperature": {"value": 24.0, "unit": "degC"},
-                "electrolyte": {"value": "salt-A", "unit": None}
+                "NUMERIC_INPUT": {"value": 24.0, "unit": "unit-x"},
+                "FEATURE_CATEGORY": {"value": "category-A", "unit": None}
             }
         }
         query_path = self.root / "categorical_query.json"
@@ -122,7 +122,7 @@ class VirtualReproductionTests(unittest.TestCase):
         self.assertIn(report["prediction"], ["A", "B"])
         self.assertEqual(report["uncertainty_status"], "NOT_CALIBRATED")
         domain = {item["feature_id"]: item["status"] for item in report["support_assessment"]["per_feature"]}
-        self.assertEqual(domain["electrolyte"], "KNOWN_CATEGORY")
+        self.assertEqual(domain["FEATURE_CATEGORY"], "KNOWN_CATEGORY")
 
 
 if __name__ == "__main__":
