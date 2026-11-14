@@ -222,7 +222,7 @@ class AdapterHandoffTests(unittest.TestCase):
             self.assertEqual(snapshot["adapter_manifest_sha256"], digest(manifest))
             self.assertEqual(snapshot["artifact_count"], 1)
             self.assertFalse(handoff_path.is_relative_to(package))
-            self.assertFalse(dataset_manifest_path.is_relative_to(package)
+            self.assertFalse(dataset_manifest_path.is_relative_to(package))
 
     def test_materialization_rejects_missing_artifacts_and_protected_output(self):
         with tempfile.TemporaryDirectory() as tmp:
