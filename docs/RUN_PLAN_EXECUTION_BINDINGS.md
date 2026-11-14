@@ -100,7 +100,7 @@ Run Manager execution records are separate from the G0-G4 approval ledger. They 
 ## Execution and approval rules
 
 1. The Skill resolves paths from the active project and Run configuration; it does not copy paths from this document literally.
-2. Before each stage, confirm that declared inputs exist, hash-match the Run artifact manifest, and all direct dependencies have succeeded.
+2. Before an active stage runs, confirm that all declared inputs exist, hash-match the Run artifact manifest, all direct dependencies are reusable, and its required gate is currently approved. A condition-false stage may be recorded as SKIPPED once its activation input is current; it does not need unrelated active-stage inputs or outputs.
 3. Execute only the command bound to that stage. Do not substitute a different command because two outputs have similar names.
 4. After command success, verify every declared output exists and record its exact hash and stage status with Run Manager.
 5. Manual stages remain manual. A completed command, valid package, valid bundle, or generated review packet is not an approval.
