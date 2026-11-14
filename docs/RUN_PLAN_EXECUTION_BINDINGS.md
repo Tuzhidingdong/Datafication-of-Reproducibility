@@ -96,8 +96,6 @@ Run Manager execution records are separate from the G0-G4 approval ledger. They 
 - For a Worker stage, include the exact role/provider/model and returned job/session/task identifiers plus available usage fields in the RUNNING/SUCCEEDED records. For a manual stage, use `--producer-kind manual` and record the reviewer context in the rationale/command metadata.
 - Run `dor run-verify --manifest <run_root>/run_manifest.json` after a stage boundary that changes artifact lineage. Use `dor run-resume-plan --manifest <run_root>/run_manifest.json` after interruption; do not rerun successful unaffected stages.
 - Conditional activation is declared on a stage as `activation: {artifact_id, json_pointer, operator, value?}`. The activation artifact must also be an explicit stage input. Supported operators are `exists`, `not_exists`, `array_non_empty`, `array_empty`, `boolean_true`, `boolean_false`, `equals`, and `not_equals`. JSON Pointer evaluation occurs only after the activation artifact's producer is currently reusable. The scheduler does not infer or rewrite activation data.
-| `publication_package_assembly` | `dor build-publication-package --plan <configuration_root>/publication_package_plan.json --workspace-root <run_root> --out-dir <run_root>/10_publication/package --workflow-ledger <workflow_gate_ledger.jsonl>` |
-| `publication_package_audit` | `dor audit-publication-package --package-dir <run_root>/10_publication/package --out <run_root>/10_publication/package_integrity_report.json` |
 
 ## Execution and approval rules
 
