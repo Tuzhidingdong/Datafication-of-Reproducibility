@@ -478,6 +478,30 @@ def _validate_event_semantics(
             authorization_by_stage_attempt[key] = event
             continue
         status = event["status"]
+        if status == "SKIPPED":
+            if stage.get("activation") is None:
+                raise ValueError(f"Unconditional stage {stage_id} cannot be recorded as SKIPPED at line {line_number}.")
+            if event.get("attempt") != expected_attempt:
+                raise ValueError(f"Skipped stage attempt number mismatch at line {line_number}.")
+            producer = event.get("producer")
+            if not isinstance(producer, dict) or producer.get("kind") != stage["executor"]:
+                raise ValueError(f"Skipped stage producer does not match its plan at line {line_number}.")
+            validate_snapshots(event.get("input_artifacts"), stage["inputs"], "Skipped stage inputs", line_number)
+            if event.get("output_artifacts") != [] or event.get("gate_approval") is not None:
+                raise ValueError(f"SKIPPED event cannot claim outputs or a gate approval at line {line_number}.")
+            if not isinstance(event.get("reason"), str) or not event["reason"].strip():
+                raise ValueError(f"SKIPPED stage event lacks a non-empty reason at line {line_number}.")
+            evaluation = event.get("activation_evaluation")
+            activation = stage["activation"]
+            if (not isinstance(evaluation, dict)
+                    or any(evaluation.get(key) != activation.get(key)
+                           for key in ("artifact_id", "json_pointer", "operator"))
+                    or evaluation.get("matched") is not False
+                    or not isinstance(evaluation.get("observed_value_sha256"), str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", evaluation["observed_value_sha256"])):
+                raise ValueError(f"SKIPPED event activation evidence is invalid at line {line_number}.")
+            latest_status[stage_id] = event
+            continue
         if status == "RUNNING":
             if event.get("attempt") != expected_attempt:
                 raise ValueError(f"Stage attempt number mismatch at line {line_number}.")
@@ -1171,7 +1195,7 @@ def record_stage_status(
     confirm_abandoned: bool = False,
 ) -> dict[str, Any]:
     if status not in _STAGE_STATUSES:
-        raise ValueError("Stage status must be RUNNING, SUCCEEDED, or FAILED.")
+        raise ValueError("Stage status must be RUNNING, SUCCEEDED, FAILED, or SKIPPED.")
     if producer_kind not in _PRODUCER_KINDS:
         raise ValueError("producer_kind must be local, worker, or manual.")
     for value, label in ((input_tokens, "input_tokens"), (output_tokens, "output_tokens"),
@@ -1195,7 +1219,33 @@ def record_stage_status(
             "cache_read_tokens": cache_read_tokens, "cache_write_tokens": cache_write_tokens,
         }.items() if value is not None
     }
-    if status == "RUNNING":
+    if status == "SKIPPED":
+        if stage.get("activation") is None:
+            raise ValueError(f"Stage {stage_id} has no activation condition and cannot be skipped.")
+        resume = _resume_plan(root, manifest, plan, events)
+        state = next(item for item in resume["stages"] if item["stage_id"] == stage_id)
+        if state["action"] != "SKIP_REQUIRED":
+            raise ValueError(f"Stage cannot be skipped now (action={state['action']}).")
+        activation_result = _evaluate_activation(root, plan, stage)
+        if activation_result.get("state") != "INACTIVE":
+            raise ValueError("Stage activation condition is not false; refusing to record SKIPPED.")
+        input_snapshots = _stage_input_snapshots(root, manifest, plan, stage)
+        attempt = (latest.get("attempt", 0) if latest else 0) + 1
+        event_payload = {
+            "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "SKIPPED",
+            "attempt": attempt, "producer": producer,
+            "input_artifacts": input_snapshots, "output_artifacts": [],
+            "gate_approval": None,
+            "reason": (reason or "Declared activation condition evaluated false.").strip(),
+            "activation_evaluation": {
+                "artifact_id": activation_result["artifact_id"],
+                "json_pointer": activation_result["json_pointer"],
+                "operator": activation_result["operator"],
+                "matched": False,
+                "observed_value_sha256": activation_result["observed_value_sha256"],
+            },
+        }
+    elif status == "RUNNING":
         resume = _resume_plan(root, manifest, plan, events)
         state = next(item for item in resume["stages"] if item["stage_id"] == stage_id)
         allowed = {"READY_TO_RUN", "RETRY_REQUIRED", "REBUILD_REQUIRED"}
