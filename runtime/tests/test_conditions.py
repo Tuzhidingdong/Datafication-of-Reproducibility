@@ -60,6 +60,8 @@ class ConditionExtractionTests(unittest.TestCase):
         self.assertIn(("cell_configuration_class", "FULL_CELL"), values)
         self.assertIn(("cell_chemistry", "Zn-MnO2"), values)
         self.assertIn(("electrode_or_substrate_material", "bare Zn anode"), values)
+        materials = [x["normalized_value"] for x in rows if x["condition_type"] == "electrode_or_substrate_material"]
+        self.assertEqual(materials, ["bare Zn anode"])
 
     def test_dft_context_is_not_classified_as_battery_cell(self):
         rows = extract_observation_conditions(observation(target_system="1% TAC-Zn2+ (DFT)"))
@@ -164,6 +166,8 @@ class ConditionExtractionTests(unittest.TestCase):
             self.assertEqual(summary["input_observation_count"], 2)
             self.assertEqual(summary["eligible_observation_count"], 1)
             self.assertEqual(summary["excluded_test_observation_count"], 1)
+            self.assertEqual(summary["target_system_reported_observation_count"], 1)
+            self.assertEqual(summary["target_system_parsed_observation_count"], 1)
             with (root / "condition_records.csv").open(encoding="utf-8", newline="") as handle:
                 output_rows = list(csv.DictReader(handle))
             self.assertTrue(any(row["data_eligibility"] == "EXCLUDED_TEST_DATA" for row in output_rows))
