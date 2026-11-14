@@ -722,9 +722,7 @@
         "permitted_actions": [
           "Read only the six declared compact JSON/report inputs",
           "Write one structured review JSON to the exact permitted staging path",
-          "Follow schemas/worker_result.schema.json. Assign a stable finding_id to each finding and cite supporting_artifact_ids with exact evidence locators (artifact_id plus JSON path, line, or equivalent location).",
-          "Cite exact artifact IDs and JSON paths for each finding",
-          "Give every finding a stable unique finding_id and cite only declared artifact IDs and JSON paths"
+          "Follow schemas/worker_result.schema.json. Assign a stable finding_id to each finding and cite supporting_artifact_ids with exact evidence locators (artifact_id plus JSON path, line, or equivalent location)."
         ],
         "forbidden_actions": [
           "Modify source data or analysis artifacts",

@@ -422,21 +422,73 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
         if not bound_path.is_file() or sha256_file(bound_path) != binding["sha256"]:
             raise ValueError(f"G4 {label} changed after the Gate artifact hash was recorded.")
 
+    worker_required = {
+        "schema_version", "task_id", "status", "summary", "findings",
+        "artifacts", "warnings", "unresolved_questions",
+    }
+    worker_allowed = worker_required | {"recommended_next_action"}
+    if worker_required - set(worker_result) or set(worker_result) - worker_allowed:
+        raise ValueError("G4 worker_review_output has missing or unknown top-level properties.")
     if worker_result.get("schema_version") != "1.0":
         raise ValueError("G4 worker_review_output schema_version must be 1.0.")
     if not isinstance(worker_result.get("task_id"), str) or not worker_result["task_id"].strip():
         raise ValueError("G4 worker_review_output requires a non-empty task_id.")
-    raw_findings = worker_result.get("findings", [])
+    if worker_result.get("status") not in {"completed", "partial", "blocked", "failed"}:
+        raise ValueError("G4 worker_review_output status is invalid.")
+    if not isinstance(worker_result.get("summary"), str) or not worker_result["summary"].strip():
+        raise ValueError("G4 worker_review_output summary must be non-empty.")
+    for field in ("artifacts", "warnings", "unresolved_questions"):
+        if not isinstance(worker_result.get(field), list):
+            raise ValueError(f"G4 worker_review_output {field} must be an array.")
+    for field in ("warnings", "unresolved_questions"):
+        if any(not isinstance(item, str) for item in worker_result[field]):
+            raise ValueError(f"G4 worker_review_output {field} must contain strings.")
+
+    raw_findings = worker_result["findings"]
     if not isinstance(raw_findings, list):
         raise ValueError("G4 worker_review_output findings must be an array.")
-    worker_ids: list[str] = []
+    worker_findings: dict[str, dict[str, Any]] = {}
     for index, item in enumerate(raw_findings):
-        finding_id = item.get("finding_id") if isinstance(item, dict) else None
-        if not isinstance(finding_id, str) or not finding_id.strip():
-            raise ValueError(f"G4 Worker finding at index {index} requires a stable non-empty finding_id.")
-        worker_ids.append(finding_id)
-    if len(worker_ids) != len(set(worker_ids)):
-        raise ValueError("G4 worker_review_output contains duplicate finding_id values.")
+        required = {"finding_id", "summary", "supporting_artifact_ids", "evidence"}
+        allowed = required | {"limitations"}
+        if not isinstance(item, dict) or not required.issubset(item) or set(item) - allowed:
+            raise ValueError(
+                f"G4 Worker finding at index {index} requires finding_id, summary, "
+                "supporting_artifact_ids, and evidence, with no unknown properties."
+            )
+        finding_id = item.get("finding_id")
+        if not isinstance(finding_id, str) or not finding_id.strip() or finding_id in worker_findings:
+            raise ValueError("G4 Worker finding IDs must be non-empty and unique.")
+        if not isinstance(item.get("summary"), str) or not item["summary"].strip():
+            raise ValueError(f"G4 Worker finding {finding_id} requires a non-empty summary.")
+        supporting = item.get("supporting_artifact_ids")
+        if (not isinstance(supporting, list) or not supporting
+                or any(not isinstance(ref, str) or not ref.strip() for ref in supporting)
+                or len(supporting) != len(set(supporting))):
+            raise ValueError(f"G4 Worker finding {finding_id} requires unique non-empty supporting_artifact_ids.")
+        evidence = item.get("evidence")
+        if not isinstance(evidence, list) or not evidence:
+            raise ValueError(f"G4 Worker finding {finding_id} requires exact evidence locators.")
+        evidence_ids: set[str] = set()
+        for locator in evidence:
+            if (not isinstance(locator, dict)
+                    or not {"artifact_id", "locator"}.issubset(locator)
+                    or set(locator) - {"artifact_id", "locator", "description"}):
+                raise ValueError(f"G4 Worker finding {finding_id} contains an invalid evidence locator.")
+            artifact_id = locator.get("artifact_id")
+            if not isinstance(artifact_id, str) or artifact_id not in set(supporting):
+                raise ValueError(f"G4 Worker finding {finding_id} evidence must point to one of its supporting artifacts.")
+            if not isinstance(locator.get("locator"), str) or not locator["locator"].strip():
+                raise ValueError(f"G4 Worker finding {finding_id} evidence locator must be non-empty.")
+            if "description" in locator and not isinstance(locator["description"], str):
+                raise ValueError(f"G4 Worker finding {finding_id} evidence description must be a string.")
+            evidence_ids.add(artifact_id)
+        if evidence_ids != set(supporting):
+            raise ValueError(f"G4 Worker finding {finding_id} must provide a locator for every supporting artifact.")
+        limitations = item.get("limitations", [])
+        if not isinstance(limitations, list) or any(not isinstance(value, str) for value in limitations):
+            raise ValueError(f"G4 Worker finding {finding_id} limitations must be an array of strings.")
+        worker_findings[finding_id] = dict(item)
 
     if reviewed.get("schema_version") != "1.0":
         raise ValueError("G4 reviewed_findings schema_version must be 1.0.")
@@ -452,6 +504,9 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
             raise ValueError("timezone offset is required")
     except ValueError as exc:
         raise ValueError("G4 reviewed_findings reviewed_at must be an ISO-8601 timestamp with timezone.") from exc
+    rationale = reviewed.get("overall_rationale")
+    if not isinstance(rationale, str) or not rationale.strip():
+        raise ValueError("G4 reviewed_findings requires an overall_rationale.")
 
     worker_ref = reviewed.get("worker_output")
     if not isinstance(worker_ref, dict):
@@ -466,8 +521,8 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
         raise ValueError("G4 reviewed_findings requires at least one reviewed_artifact.")
     reviewed_ids: set[str] = set()
     for index, item in enumerate(reviewed_artifacts):
-        if not isinstance(item, dict):
-            raise ValueError(f"G4 reviewed_artifacts[{index}] must be an object.")
+        if not isinstance(item, dict) or set(item) != {"artifact_id", "path", "sha256"}:
+            raise ValueError(f"G4 reviewed_artifacts[{index}] must contain exactly artifact_id, path, and sha256.")
         artifact_id = item.get("artifact_id")
         if not isinstance(artifact_id, str) or not artifact_id.strip() or artifact_id in reviewed_ids:
             raise ValueError("G4 reviewed_findings reviewed_artifacts must have unique non-empty artifact IDs.")
@@ -481,23 +536,28 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
         if not path.is_file() or sha256_file(path) != binding["sha256"]:
             raise ValueError(f"G4 reviewed artifact {artifact_id} changed after human review.")
     if not (G4_REVIEWABLE_ARTIFACTS & reviewed_ids):
-        raise ValueError("G4 reviewed_findings must include at least one reviewable scientific result artifact.")
+        raise ValueError("G4 reviewed_findings must include at least one reviewable result artifact.")
+    for finding_id, finding in worker_findings.items():
+        if not set(finding["supporting_artifact_ids"]).issubset(reviewed_ids):
+            raise ValueError(f"G4 Worker finding {finding_id} cites an artifact outside the human-reviewed artifact set.")
 
     records = reviewed.get("findings")
     if not isinstance(records, list):
         raise ValueError("G4 reviewed_findings findings must be an array.")
     human_ids: list[str] = []
     dispositions: list[str] = []
-    allowed = {"ACCEPT_AS_IS", "ACCEPT_WITH_CHANGES", "REJECT", "DEFER"}
+    allowed_dispositions = {"ACCEPT_AS_IS", "ACCEPT_WITH_CHANGES", "REJECT", "DEFER"}
     for index, item in enumerate(records):
-        if not isinstance(item, dict):
-            raise ValueError(f"G4 reviewed_findings item {index} must be an object.")
+        required = {"worker_finding_id", "disposition", "reviewer_rationale", "supporting_artifact_ids"}
+        allowed = required | {"revised_finding_summary"}
+        if not isinstance(item, dict) or not required.issubset(item) or set(item) - allowed:
+            raise ValueError(f"G4 reviewed_findings item {index} has missing or unknown properties.")
         finding_id = item.get("worker_finding_id")
         disposition = item.get("disposition")
         rationale = item.get("reviewer_rationale")
         if not isinstance(finding_id, str) or not finding_id.strip():
             raise ValueError(f"G4 reviewed_findings item {index} requires worker_finding_id.")
-        if not isinstance(disposition, str) or disposition not in allowed:
+        if not isinstance(disposition, str) or disposition not in allowed_dispositions:
             raise ValueError(f"G4 reviewed_findings item {finding_id} has an unsupported disposition.")
         if not isinstance(rationale, str) or not rationale.strip():
             raise ValueError(f"G4 reviewed_findings item {finding_id} requires reviewer_rationale.")
@@ -505,18 +565,32 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
             revised = item.get("revised_finding_summary")
             if not isinstance(revised, str) or not revised.strip():
                 raise ValueError(f"G4 finding {finding_id} requires revised_finding_summary for ACCEPT_WITH_CHANGES.")
-        supporting = item.get("supporting_artifact_ids", [])
+        elif "revised_finding_summary" in item:
+            raise ValueError(f"G4 finding {finding_id} may include revised_finding_summary only for ACCEPT_WITH_CHANGES.")
+        supporting = item.get("supporting_artifact_ids")
         if (not isinstance(supporting, list)
-                or any(not isinstance(ref, str) for ref in supporting)
+                or any(not isinstance(ref, str) or not ref.strip() for ref in supporting)
                 or len(supporting) != len(set(supporting))
                 or any(ref not in reviewed_ids for ref in supporting)):
             raise ValueError(f"G4 finding {finding_id} references artifacts outside the reviewed artifact set.")
+        if disposition in {"ACCEPT_AS_IS", "ACCEPT_WITH_CHANGES"} and not supporting:
+            raise ValueError(f"G4 accepted finding {finding_id} must cite at least one reviewed artifact.")
+        if disposition == "ACCEPT_AS_IS":
+            original = worker_findings.get(finding_id)
+            if original and set(supporting) != set(original["supporting_artifact_ids"]):
+                raise ValueError(f"G4 ACCEPT_AS_IS finding {finding_id} must preserve the Worker supporting artifact IDs.")
         human_ids.append(finding_id)
         dispositions.append(disposition)
+
     if len(human_ids) != len(set(human_ids)):
         raise ValueError("G4 reviewed_findings contains duplicate worker_finding_id values.")
-    if set(human_ids) != set(worker_ids) or len(human_ids) != len(worker_ids):
+    if set(human_ids) != set(worker_findings) or len(human_ids) != len(worker_findings):
         raise ValueError("G4 human dispositions must cover every Worker finding exactly once, with no unknown finding IDs.")
+
+    if worker_result.get("status") in {"blocked", "failed"} and any(
+        value in {"ACCEPT_AS_IS", "ACCEPT_WITH_CHANGES"} for value in dispositions
+    ):
+        raise ValueError("G4 cannot promote findings from a blocked or failed Worker result.")
 
     accepted = sum(value in {"ACCEPT_AS_IS", "ACCEPT_WITH_CHANGES"} for value in dispositions)
     changed = dispositions.count("ACCEPT_WITH_CHANGES")
@@ -530,10 +604,6 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
     )
     if not consistent:
         raise ValueError("G4 promotion_decision is inconsistent with the individual human finding dispositions.")
-    rationale = reviewed.get("overall_rationale")
-    if not isinstance(rationale, str) or not rationale.strip():
-        raise ValueError("G4 reviewed_findings requires an overall_rationale.")
-
 
 def _validate_approval_artifacts(
     gate_id: str,

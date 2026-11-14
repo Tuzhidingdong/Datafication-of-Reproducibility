@@ -19,7 +19,8 @@
       "const": "1.0"
     },
     "task_id": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "status": {
       "enum": [
@@ -106,13 +107,16 @@
         ],
         "properties": {
           "path": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "artifact_type": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "sha256": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           },
           "description": {
             "type": "string"

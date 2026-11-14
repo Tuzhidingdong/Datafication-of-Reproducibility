@@ -346,6 +346,21 @@ class WorkflowGateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "G4 requires at least one reviewed result"):
             self._record("G4", ["publication_plan", "worker_review_output", "reviewed_findings"])
 
+    def test_g4_rejects_worker_findings_without_traceable_evidence(self):
+        self._complete_to_g2()
+        self._record_g3()
+        worker = json.loads(self.files["worker_review_output"].read_text(encoding="utf-8"))
+        worker["findings"][0]["evidence"] = []
+        self._write("worker_review_output", worker)
+        reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
+        reviewed["worker_output"]["sha256"] = sha256_file(self.files["worker_review_output"])
+        self._write("reviewed_findings", reviewed)
+        with self.assertRaisesRegex(ValueError, "requires exact evidence locators"):
+            self._record("G4", [
+                "publication_plan", "model_report", "interaction_selection",
+                "worker_review_output", "reviewed_findings",
+            ])
+
     def test_g4_requires_every_worker_finding_to_have_one_human_disposition(self):
         self._complete_to_g2()
         self._record_g3()
