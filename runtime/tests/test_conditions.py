@@ -38,6 +38,7 @@ class ConditionExtractionTests(unittest.TestCase):
         rows = extract_observation_conditions(observation())
         values = {(x["condition_type"], x["normalized_value"]) for x in rows}
         self.assertIn(("cell_configuration", "Zn||Zn"), values)
+        self.assertNotIn("system_domain", {x["condition_type"] for x in rows})
         self.assertIn(("salt_concentration", "ZnSO4|2 M"), values)
         self.assertIn(("salt_concentration", "MnSO4|0.1 M"), values)
 
