@@ -386,7 +386,8 @@
           "artifact_id": "single_study_applicability_validation",
           "path": "05_scope/single_study_applicability_validation.json"
         }
-      ]
+      ],
+      "required_gate": "G2"
     },
     {
       "stage_id": "single_study_na_artifacts",
