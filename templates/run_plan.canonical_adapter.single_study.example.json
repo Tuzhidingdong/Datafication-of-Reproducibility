@@ -434,6 +434,8 @@
       "inputs": [
         "single_study_applicability_record",
         "single_study_applicability_validation",
+        "canonical_bundle",
+        "modeling_task",
         "model_report",
         "reproducibility_evaluation",
         "interaction_report",
