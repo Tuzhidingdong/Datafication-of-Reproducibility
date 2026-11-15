@@ -331,6 +331,55 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             }.issubset(set(publication["inputs"])))
             self.assertIn("independent_result_review", publication["depends_on"])
 
+    def test_both_run_plans_require_cohort_review_before_modelling(self):
+        consumer_ids = {
+            "baseline_model_fit", "nested_reproducibility_evaluation",
+            "interaction_discovery", "interaction_robustness",
+            "response_surface_generation", "mechanism_evidence_bridge",
+            "independent_result_review", "human_review_and_promotion",
+            "publication_package_assembly",
+        }
+        for path in (
+            "templates/run_plan.example.json",
+            "templates/run_plan.canonical_adapter.example.json",
+        ):
+            plan = self._load_plan(path)
+            stages = {item["stage_id"]: item for item in plan["stages"]}
+            producers = {
+                output["artifact_id"]: stage["stage_id"]
+                for stage in plan["stages"]
+                for output in stage["outputs"]
+            }
+            with self.subTest(path=path):
+                review = stages["cohort_review"]
+                self.assertEqual(review["executor"], "manual")
+                self.assertIsNone(review["required_gate"])
+                self.assertIn("cohort_build", review["depends_on"])
+                self.assertEqual(
+                    {item["artifact_id"] for item in review["outputs"]},
+                    {"cohort_review_record", "cohort_review_validation"},
+                )
+                for stage_id in consumer_ids:
+                    stage = stages[stage_id]
+                    self.assertIn("cohort_review", stage["depends_on"])
+                    self.assertIn("cohort_review_record", stage["inputs"])
+                    self.assertIn("cohort_review_validation", stage["inputs"])
+                for stage in plan["stages"]:
+                    for artifact_id in stage["inputs"]:
+                        producer = producers.get(artifact_id)
+                        if producer is not None:
+                            self.assertIn(producer, stage["depends_on"])
+
+        review_schema = json.loads(
+            (ROOT / "schemas" / "cohort_review_record.schema.json").read_text(encoding="utf-8")
+        )
+        review_example = json.loads(
+            (ROOT / "templates" / "cohort_review_record.example.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("artifact_sha256", review_schema["required"])
+        self.assertEqual(review_example["schema_version"], "1.0")
+        self.assertEqual(review_example["decision"], "REVISE")
+
     def test_run_plan_schema_declares_activation_operators(self):
         schema = json.loads(
             (ROOT / "schemas" / "run_plan.schema.json").read_text(encoding="utf-8")
