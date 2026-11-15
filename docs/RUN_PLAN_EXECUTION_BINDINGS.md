@@ -117,6 +117,13 @@ Set `execution_profile=CONTROLLED_SINGLE_STUDY` exactly as supplied. Do not remo
 | `independent_result_review` | Authorize and dispatch the configured Host Worker only after showing role/provider/model/project/inputs/outputs/limits and receiving the user's explicit authorization. The task reviews provenance, reconciliation, applicability, and all N/A limitations; it must not run or fabricate analyses. | Worker findings with exact artifact/evidence locators, or a valid explicit no-findings result |
 | `human_review_and_promotion` | Review every Worker finding and validate the human disposition record as for the full-analysis profile. | Exact one-to-one human dispositions; no automatic promotion |
 | `publication_package_assembly` | G4 approval must bind the publication plan, Worker output, reviewed findings, applicability record/validation, exact Bundle/reconciliation/scope/task, and all N/A reports/manifests/selection. Include those records in the publication plan's source file list. | Writing Skill package explicitly states limited one-Study scope and that cross-Study/model/interaction results were not generated |
+
+For this profile, configure the route-matching publication plan before Run initialization:
+- Structured route: `templates/publication_package_plan.single_study.example.json`.
+- Canonical Bundle route: `templates/publication_package_plan.canonical_adapter.single_study.example.json`.
+
+Set its exact Run/Project IDs, package version, and `source_hashes` from the selected source inventory. Keep the applicability record at `requires_review` so the package visibly carries the limited-scope review item. Include the N/A JSON files as copied, hash-bound records (status `complete`, with descriptions stating that no model/prediction/interaction result was generated); do not mark them as generated scientific results. Keep optional figures and data dictionaries `not_generated` until actual reviewed outputs exist. The writing guide must describe the one-Study boundary before offering any Results or Discussion text.
+
 | `publication_package_audit` | Run the declared package auditor. | Hash-verified, complete/partial Publication Package and integrity report |
 
 The G3/G4 validators use a distinct single-Study evidence set and reject missing/stale hashes, a different Run/Project/Study, non-empty interaction selection, or model-like metrics/folds/predictions in N/A reports. They do not weaken the normal multi-Study gate contracts.
