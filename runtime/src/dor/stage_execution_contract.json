@@ -85,7 +85,8 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": []
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -106,7 +107,8 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": []
         }
       ]
     },
@@ -154,7 +156,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_package_validation"
+          ]
         }
       ]
     },
@@ -186,7 +191,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "source_audit",
+            "adapter_package_validation"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -210,7 +219,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_package_validation",
+            "adapter_artifact_materialization"
+          ]
         }
       ]
     },
@@ -238,7 +251,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "source_audit",
+            "g0_review_packet"
+          ]
         }
       ]
     },
@@ -263,7 +280,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "source_audit",
+            "mapping_preparation"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -280,7 +301,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_artifact_materialization",
+            "g0_review_packet"
+          ]
         }
       ]
     },
@@ -306,7 +331,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "source_audit",
+            "mapping_preparation",
+            "mapping_validation"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -325,7 +355,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_artifact_materialization",
+            "mapping_validation"
+          ]
         }
       ]
     },
@@ -357,7 +391,13 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "source_audit",
+            "mapping_preparation",
+            "mapping_validation",
+            "build_spec_validation"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -382,7 +422,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_artifact_materialization",
+            "mapping_validation",
+            "build_spec_validation"
+          ]
         }
       ]
     },
@@ -414,7 +459,13 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "source_audit",
+            "mapping_preparation",
+            "mapping_validation",
+            "g1_review_packet"
+          ]
         }
       ]
     },
@@ -437,7 +488,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_build"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -453,7 +507,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_artifact_materialization",
+            "g1_review_packet"
+          ]
         }
       ]
     },
@@ -481,7 +539,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_build"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -502,7 +563,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_artifact_materialization",
+            "canonical_bundle_validation"
+          ]
         }
       ]
     },
@@ -526,7 +591,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_reconciliation",
+            "canonical_build"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -544,7 +613,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_reconciliation",
+            "adapter_artifact_materialization"
+          ]
         }
       ]
     },
@@ -569,7 +642,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_reconciliation",
+            "canonical_build",
+            "reconciliation_decision_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -587,7 +665,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_reconciliation",
+            "adapter_artifact_materialization",
+            "reconciliation_decision_review"
+          ]
         }
       ]
     },
@@ -640,7 +723,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_build",
+            "canonical_bundle_validation"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -686,7 +773,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_artifact_materialization",
+            "canonical_bundle_validation"
+          ]
         }
       ]
     },
@@ -719,7 +810,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "exploratory_discovery"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -745,7 +839,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "exploratory_discovery"
+          ]
         }
       ]
     },
@@ -781,7 +878,16 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_build",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "research_scope_selection",
+            "reconciliation_decision_validation",
+            "reconciliation_decision_review",
+            "exploratory_discovery"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -810,7 +916,16 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_artifact_materialization",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "research_scope_selection",
+            "reconciliation_decision_validation",
+            "reconciliation_decision_review",
+            "exploratory_discovery"
+          ]
         }
       ]
     },
@@ -850,7 +965,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_build",
+            "research_scope_selection",
+            "g2_review_packet"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -883,7 +1003,13 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "canonical_bundle_validation",
+            "research_scope_selection",
+            "g2_review_packet",
+            "adapter_artifact_materialization"
+          ]
         }
       ]
     },
@@ -915,7 +1041,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -940,7 +1070,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection"
+          ]
         }
       ]
     },
@@ -989,7 +1123,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1031,7 +1170,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1080,7 +1224,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1122,7 +1271,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1166,7 +1320,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1203,7 +1362,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1242,7 +1406,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1274,7 +1443,12 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "cohort_build",
+            "research_scope_selection",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1301,7 +1475,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "interaction_discovery",
+            "interaction_robustness"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1322,7 +1500,11 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "interaction_discovery",
+            "interaction_robustness"
+          ]
         }
       ]
     },
@@ -1352,7 +1534,14 @@
             "artifact_id": "interaction_selection",
             "json_pointer": "/selected_interaction_ids",
             "operator": "array_non_empty"
-          }
+          },
+          "depends_on": [
+            "g3_selection_packet",
+            "research_scope_selection",
+            "canonical_build",
+            "interaction_discovery",
+            "interaction_robustness"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1376,7 +1565,14 @@
             "artifact_id": "interaction_selection",
             "json_pointer": "/selected_interaction_ids",
             "operator": "array_non_empty"
-          }
+          },
+          "depends_on": [
+            "g3_selection_packet",
+            "research_scope_selection",
+            "adapter_artifact_materialization",
+            "interaction_discovery",
+            "interaction_robustness"
+          ]
         }
       ]
     },
@@ -1436,7 +1632,15 @@
             "artifact_id": "interaction_selection",
             "json_pointer": "/selected_interaction_ids",
             "operator": "array_non_empty"
-          }
+          },
+          "depends_on": [
+            "g3_selection_packet",
+            "cohort_build",
+            "research_scope_selection",
+            "interaction_discovery",
+            "interaction_robustness",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1489,7 +1693,15 @@
             "artifact_id": "interaction_selection",
             "json_pointer": "/selected_interaction_ids",
             "operator": "array_non_empty"
-          }
+          },
+          "depends_on": [
+            "g3_selection_packet",
+            "cohort_build",
+            "research_scope_selection",
+            "interaction_discovery",
+            "interaction_robustness",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1551,7 +1763,18 @@
             "artifact_id": "interaction_selection",
             "json_pointer": "/selected_interaction_ids",
             "operator": "array_non_empty"
-          }
+          },
+          "depends_on": [
+            "g3_selection_packet",
+            "research_scope_selection",
+            "canonical_build",
+            "cohort_build",
+            "interaction_discovery",
+            "interaction_robustness",
+            "mechanism_plan_preparation",
+            "response_surface_generation",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1606,7 +1829,18 @@
             "artifact_id": "interaction_selection",
             "json_pointer": "/selected_interaction_ids",
             "operator": "array_non_empty"
-          }
+          },
+          "depends_on": [
+            "g3_selection_packet",
+            "research_scope_selection",
+            "adapter_artifact_materialization",
+            "cohort_build",
+            "interaction_discovery",
+            "interaction_robustness",
+            "mechanism_plan_preparation",
+            "response_surface_generation",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1631,7 +1865,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "baseline_model_fit"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1649,7 +1886,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "baseline_model_fit"
+          ]
         }
       ]
     },
@@ -1680,7 +1920,16 @@
               "kind": "worker_staging"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "baseline_model_fit",
+            "nested_reproducibility_evaluation",
+            "interaction_discovery",
+            "interaction_robustness",
+            "g3_selection_packet",
+            "virtual_condition_prediction",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1703,7 +1952,16 @@
               "kind": "worker_staging"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "baseline_model_fit",
+            "nested_reproducibility_evaluation",
+            "interaction_discovery",
+            "interaction_robustness",
+            "g3_selection_packet",
+            "virtual_condition_prediction",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1739,7 +1997,17 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "independent_result_review",
+            "g3_selection_packet",
+            "baseline_model_fit",
+            "nested_reproducibility_evaluation",
+            "interaction_discovery",
+            "interaction_robustness",
+            "virtual_condition_prediction",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1768,7 +2036,17 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "independent_result_review",
+            "g3_selection_packet",
+            "baseline_model_fit",
+            "nested_reproducibility_evaluation",
+            "interaction_discovery",
+            "interaction_robustness",
+            "virtual_condition_prediction",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1807,7 +2085,18 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "baseline_model_fit",
+            "nested_reproducibility_evaluation",
+            "interaction_discovery",
+            "interaction_robustness",
+            "g3_selection_packet",
+            "virtual_condition_prediction",
+            "human_review_and_promotion",
+            "independent_result_review",
+            "cohort_review"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1839,7 +2128,18 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "baseline_model_fit",
+            "nested_reproducibility_evaluation",
+            "interaction_discovery",
+            "interaction_robustness",
+            "g3_selection_packet",
+            "virtual_condition_prediction",
+            "human_review_and_promotion",
+            "independent_result_review",
+            "cohort_review"
+          ]
         }
       ]
     },
@@ -1863,7 +2163,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "publication_package_assembly"
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -1880,7 +2183,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "publication_package_assembly"
+          ]
         }
       ]
     },
@@ -1923,7 +2229,10 @@
               "kind": "derived"
             }
           ],
-          "activation": null
+          "activation": null,
+          "depends_on": [
+            "adapter_package_validation"
+          ]
         }
       ]
     }
