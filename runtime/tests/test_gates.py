@@ -13,6 +13,7 @@ from dor.gates import (
     require_gate,
     require_selected_interaction_id,
     _require_gate_binding,
+    _validate_single_study_na_bundle,
 )
 from dor.mapping import sha256_file, validate_mapping_plan
 
@@ -375,6 +376,134 @@ class WorkflowGateTests(unittest.TestCase):
         self._record_g0()
         self._record_g1()
         self._record_g2()
+
+    def _single_study_gate_fixture(self):
+        def write(artifact_id, payload):
+            path = self.root / (artifact_id + ".json")
+            path.write_text(json.dumps(payload, indent=2) + "\\n", encoding="utf-8")
+            self.files[artifact_id] = path
+            return {"artifact_id": artifact_id, "path": str(path.resolve()), "sha256": sha256_file(path)}
+
+        bundle = {"schema_version": "1.0", "studies": [{"study_id": "STUDY_1"}]}
+        task = {"schema_version": "1.0", "task_id": "TASK_GATE"}
+        bundle_binding = write("single_bundle", bundle)
+        task_binding = write("single_task", task)
+        record = {
+            "schema_version": "1.0",
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "scope": "CONTROLLED_SINGLE_STUDY",
+            "applicability_status": "NOT_APPLICABLE",
+            "study_ids": ["STUDY_1"],
+            "study_count": 1,
+            "canonical_bundle_sha256": bundle_binding["sha256"],
+            "modeling_task_sha256": task_binding["sha256"],
+            "cohort_feasibility_reason": "Only one independent Study is available.",
+            "modeling_validation_reason": "Cross-Study validation is not applicable.",
+        }
+        record_binding = write("single_study_applicability_record", record)
+        validation = {
+            "schema_version": "1.0",
+            "valid": True,
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "applicability_status": "NOT_APPLICABLE",
+            "study_ids": ["STUDY_1"],
+            "study_count": 1,
+            "eligible_study_count": 1,
+            "applicability_record_sha256": record_binding["sha256"],
+            "canonical_bundle_sha256": bundle_binding["sha256"],
+            "modeling_task_sha256": task_binding["sha256"],
+        }
+        validation_binding = write("single_study_applicability_validation", validation)
+        base = {
+            "schema_version": "1.0",
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "task_id": "TASK_GATE",
+            "applicability_status": "NOT_APPLICABLE",
+            "scope": "CONTROLLED_SINGLE_STUDY",
+            "study_ids": ["STUDY_1"],
+            "study_count": 1,
+            "eligible_study_count": 1,
+            "canonical_bundle_sha256": bundle_binding["sha256"],
+            "modeling_task_sha256": task_binding["sha256"],
+            "applicability_record_sha256": record_binding["sha256"],
+            "reason": "Cross-Study validation is not applicable.",
+        }
+        by_id = {
+            "single_study_applicability_record": record_binding,
+            "single_study_applicability_validation": validation_binding,
+        }
+        for artifact_id, type_name in (
+            ("model_report", "model_report"),
+            ("reproducibility_evaluation", "reproducibility_evaluation"),
+            ("interaction_report", "interaction_report"),
+            ("robustness_report", "robustness_report"),
+            ("virtual_prediction", "virtual_prediction"),
+        ):
+            payload = {**base, "artifact_type": type_name}
+            if type_name in {"interaction_report", "robustness_report"}:
+                payload["interaction_catalogue"] = []
+            by_id[artifact_id] = write(artifact_id, payload)
+
+        for manifest_id, report_id, filename in (
+            ("interaction_manifest", "interaction_report", "interaction_discovery_report.json"),
+            ("robustness_manifest", "robustness_report", "interaction_robustness_report.json"),
+        ):
+            report_binding = by_id[report_id]
+            manifest = {
+                **base,
+                "artifact_type": manifest_id,
+                "input_hashes": {
+                    "task_sha256": task_binding["sha256"],
+                    "canonical_bundle_sha256": bundle_binding["sha256"],
+                    "applicability_record_sha256": record_binding["sha256"],
+                },
+                "output_hashes": {filename: report_binding["sha256"]},
+            }
+            by_id[manifest_id] = write(manifest_id, manifest)
+
+        selection = {
+            "schema_version": "1.1",
+            "task_id": "TASK_GATE",
+            "interaction_report_sha256": by_id["interaction_report"]["sha256"],
+            "robustness_report_sha256": by_id["robustness_report"]["sha256"],
+            "selected_interaction_ids": [],
+            "not_selected_interaction_ids": [],
+            "applicability_status": "NOT_APPLICABLE",
+            "not_applicable_reason": record["modeling_validation_reason"],
+            "reviewer": "human-reviewer",
+            "reviewed_at": "2026-11-15T12:00:00+08:00",
+            "rationale": "No interaction candidates were generated for a one-Study scope.",
+        }
+        by_id["interaction_selection"] = write("interaction_selection", selection)
+        previous = {"artifacts": [bundle_binding, task_binding]}
+        return by_id, previous
+
+    def test_single_study_g3_gate_accepts_only_hash_bound_not_applicable_records(self):
+        by_id, previous = self._single_study_gate_fixture()
+        _validate_single_study_na_bundle(by_id, previous)
+        tampered = json.loads(self.files["model_report"].read_text(encoding="utf-8"))
+        tampered["validation_metrics"] = {"mae": 0.01}
+        self._write("model_report", tampered)
+        by_id["model_report"]["sha256"] = sha256_file(self.files["model_report"])
+        with self.assertRaisesRegex(ValueError, "fabricated scientific result field"):
+            _validate_single_study_na_bundle(by_id, previous)
+
+    def test_single_study_g3_rejects_bundle_with_multiple_studies(self):
+        by_id, previous = self._single_study_gate_fixture()
+        bundle_binding = next(item for item in previous["artifacts"] if item["artifact_id"] == "canonical_bundle")
+        bundle = json.loads(Path(bundle_binding["path"]).read_text(encoding="utf-8"))
+        bundle["studies"].append({"study_id": "STUDY_2"})
+        Path(bundle_binding["path"]).write_text(json.dumps(bundle, indent=2) + "\\n", encoding="utf-8")
+        bundle_binding["sha256"] = sha256_file(Path(bundle_binding["path"]))
+        record = json.loads(self.files["single_study_applicability_record"].read_text(encoding="utf-8"))
+        record["canonical_bundle_sha256"] = bundle_binding["sha256"]
+        self._write("single_study_applicability_record", record)
+        by_id["single_study_applicability_record"]["sha256"] = sha256_file(self.files["single_study_applicability_record"])
+        with self.assertRaisesRegex(ValueError, "exactly one explicit Study"):
+            _validate_single_study_na_bundle(by_id, previous)
 
     def test_missing_gate_binding_reports_stage_and_artifact_instead_of_keyerror(self):
         with self.assertRaisesRegex(
