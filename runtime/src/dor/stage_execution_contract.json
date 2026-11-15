@@ -1533,7 +1533,11 @@
           ],
           "activation": null,
           "depends_on": [
-            "single_study_na_artifacts"
+            "single_study_na_artifacts",
+            "single_study_scope_review",
+            "single_study_scope_validation",
+            "canonical_build",
+            "research_scope_selection"
           ]
         },
         {
@@ -1563,7 +1567,11 @@
           ],
           "activation": null,
           "depends_on": [
-            "single_study_na_artifacts"
+            "single_study_na_artifacts",
+            "single_study_scope_review",
+            "single_study_scope_validation",
+            "adapter_artifact_materialization",
+            "research_scope_selection"
           ]
         }
       ]
@@ -2057,7 +2065,13 @@
           "depends_on": [
             "g3_selection_packet",
             "single_study_na_artifacts",
-            "single_study_scope_validation"
+            "single_study_scope_validation",
+            "single_study_scope_review",
+            "canonical_build",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "reconciliation_decision_review",
+            "research_scope_selection"
           ]
         },
         {
@@ -2094,7 +2108,13 @@
           "depends_on": [
             "g3_selection_packet",
             "single_study_na_artifacts",
-            "single_study_scope_validation"
+            "single_study_scope_validation",
+            "single_study_scope_review",
+            "adapter_artifact_materialization",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "reconciliation_decision_review",
+            "research_scope_selection"
           ]
         }
       ]
@@ -2221,7 +2241,15 @@
           "activation": null,
           "depends_on": [
             "independent_result_review",
-            "g3_selection_packet"
+            "g3_selection_packet",
+            "single_study_scope_review",
+            "single_study_scope_validation",
+            "canonical_build",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "reconciliation_decision_review",
+            "research_scope_selection",
+            "single_study_na_artifacts"
           ]
         },
         {
@@ -2263,7 +2291,15 @@
           "activation": null,
           "depends_on": [
             "independent_result_review",
-            "g3_selection_packet"
+            "g3_selection_packet",
+            "single_study_scope_review",
+            "single_study_scope_validation",
+            "adapter_artifact_materialization",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "reconciliation_decision_review",
+            "research_scope_selection",
+            "single_study_na_artifacts"
           ]
         }
       ]
@@ -2403,7 +2439,14 @@
             "human_review_and_promotion",
             "independent_result_review",
             "g3_selection_packet",
-            "single_study_scope_validation"
+            "single_study_scope_validation",
+            "single_study_scope_review",
+            "canonical_build",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "reconciliation_decision_review",
+            "research_scope_selection",
+            "single_study_na_artifacts"
           ]
         },
         {
@@ -2450,7 +2493,14 @@
             "human_review_and_promotion",
             "independent_result_review",
             "g3_selection_packet",
-            "single_study_scope_validation"
+            "single_study_scope_validation",
+            "single_study_scope_review",
+            "adapter_artifact_materialization",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "reconciliation_decision_review",
+            "research_scope_selection",
+            "single_study_na_artifacts"
           ]
         }
       ]
@@ -2616,7 +2666,12 @@
           ],
           "activation": null,
           "depends_on": [
-            "g2_review_packet"
+            "g2_review_packet",
+            "canonical_build",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "reconciliation_decision_review",
+            "research_scope_selection"
           ]
         },
         {
@@ -2640,7 +2695,12 @@
           ],
           "activation": null,
           "depends_on": [
-            "g2_review_packet"
+            "g2_review_packet",
+            "adapter_artifact_materialization",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "reconciliation_decision_review",
+            "research_scope_selection"
           ]
         }
       ]
@@ -2668,7 +2728,9 @@
           ],
           "activation": null,
           "depends_on": [
-            "single_study_scope_review"
+            "single_study_scope_review",
+            "canonical_build",
+            "research_scope_selection"
           ]
         },
         {
@@ -2689,7 +2751,9 @@
           ],
           "activation": null,
           "depends_on": [
-            "single_study_scope_review"
+            "single_study_scope_review",
+            "adapter_artifact_materialization",
+            "research_scope_selection"
           ]
         }
       ]
@@ -2742,7 +2806,10 @@
           ],
           "activation": null,
           "depends_on": [
-            "single_study_scope_validation"
+            "single_study_scope_validation",
+            "single_study_scope_review",
+            "canonical_build",
+            "research_scope_selection"
           ]
         },
         {
@@ -2788,7 +2855,10 @@
           ],
           "activation": null,
           "depends_on": [
-            "single_study_scope_validation"
+            "single_study_scope_validation",
+            "single_study_scope_review",
+            "adapter_artifact_materialization",
+            "research_scope_selection"
           ]
         }
       ]
