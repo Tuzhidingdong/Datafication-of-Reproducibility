@@ -1,0 +1,25 @@
+# Virtual scenarios and publication hand-off
+
+### Stage 6 — Independent validation and virtual reproduction
+
+- Define the intended use, approved target/endpoint, and applicability domain. Review nested Study-level validation before offering a virtual estimate.
+- Prepare a query from templates/virtual_reproduction_query.example.json. Include every feature_id in the exact modelling task, the exact target_id/endpoint_definition/task_id, and each exact expected_unit. Do not perform unit conversion, fill missing conditions, or infer a feature mapping.
+- Run dor predict-virtual-condition --model-run-dir <run_root>/06_modeling/baseline --query <configuration_root>/virtual_reproduction_query.json --out <run_root>/08_virtual_reproduction/virtual_prediction.json --workflow-ledger <run_root>/workflow_gate_ledger.jsonl.
+- The runtime must use the serialized selected baseline model and verify its hashes; it must not retrain on the query or use held-out test observations for fitting or selection.
+- Inspect each per-feature support state. Values outside the train+validation feature range and unseen categories must be explicitly labelled; a mathematical output may still be returned, but it is not a supported interpolation.
+- V0.5 checks marginal ranges/categories only. It does not calculate nearest-neighbour distance or establish joint multivariable support. Keep NOT_CALIBRATED uncertainty explicit; do not report confidence/prediction intervals or calibrated probabilities.
+- State explicitly that a virtual prediction is a model-based scenario estimate, not a completed physical experiment, atomistic simulation, causal effect, or mechanism validation.
+
+### Stage 7 — Publication package
+
+Read ../../../references/publication-package.md and ../../../docs/V0.5_PUBLICATION_AND_VIRTUAL_REPRODUCTION.md.
+
+- Prepare a run-specific publication_package_plan.json from templates/publication_package_plan.example.json. Declare each source file explicitly; do not let the runtime crawl the workspace or infer scientific roles from file names.
+- Only mark an artifact complete when the actual output exists and has been reviewed. Use partial, requires_review, not_generated, or not_applicable honestly. Never create placeholder result files to satisfy the plan.
+- Include the model report/artifact, task and split records, validation and applicability-domain outputs, interaction and mechanism packages when present, figure source data, table source data, limitations, and virtual prediction reports where applicable. Before package assembly, consult `dor run-resume-plan`: when the selection is non-empty, the mechanism-plan, response-surface, and mechanism-evidence stages must be reusable/completed; when selection is empty, each must have its valid `SKIPPED` record. Leave absent optional package entries `not_generated`. Also include the original `worker_review_output`, `reviewed_findings`, and `reviewed_findings_validation` in the package's review-trail section. The raw Worker result is retained for audit; only the human disposition record defines which findings are eligible for promotion.
+- Review the exact publication plan and at least one scientific result artifact. After the user explicitly approves the finalization scope, record G4 (bind the publication plan and one or more reviewed result artifacts):
+  dor gate-record --workflow-ledger <run_root>/workflow_gate_ledger.jsonl --gate G4 --decision APPROVE --reviewer "..." --rationale "..." --artifact publication_plan=<configuration_root>/publication_package_plan.json --artifact worker_review_output=<run_root>/worker_staging/independent_result_review/review.json --artifact reviewed_findings=<run_root>/09_review/reviewed_findings.json --artifact model_report=<run_root>/06_modeling/baseline/model_report.json --artifact reproducibility_evaluation=<run_root>/06_modeling/reproducibility/reproducibility_evaluation.json --artifact interaction_report=<run_root>/06_modeling/interactions/interaction_discovery_report.json --artifact robustness_report=<run_root>/06_modeling/interaction_robustness/interaction_robustness_report.json --artifact interaction_selection=<run_root>/07_review/interaction_selection.json --artifact virtual_prediction=<run_root>/08_virtual_reproduction/virtual_prediction.json
+- Run dor build-publication-package --plan <configuration_root>/publication_package_plan.json --workspace-root <run_root> --out-dir <run_root>/10_publication/package --workflow-ledger <run_root>/workflow_gate_ledger.jsonl.
+- Run dor audit-publication-package --package-dir <run_root>/10_publication/package --out <run_root>/10_publication/package_integrity_report.json. Keep the audit report outside the package directory.
+- Inspect completeness and all requires_review/partial/not_generated items. A valid hash audit is not scientific approval and does not make the package publication-ready.
+- The Writing Skill must first read README_FOR_WRITING_SKILL.md and package_manifest.json, then retrieve only the files needed for its current writing task. Never invent missing scientific claims, methods, figures, tables, or references.
