@@ -1,10 +1,14 @@
 # Source audit and Canonical data construction
 
+## Structured-data-only execution rule
+
+All stages in this reference operate on the declared CSV/JSON datasets, supplied data dictionaries/domain configuration, structured evidence indexes, and validated Canonical Bundle. Original papers, SI, and other raw research documents are provenance-only assets. Do not open, parse, render, OCR, search, summarize, or send them to an LLM/Worker. Their paths and SHA-256 values may be recorded; page/table/figure locators supplied upstream are opaque references. When structured information is insufficient, create an unresolved issue and request a structured correction from the upstream data-preparation process or user. Never return to the original document to fill the gap.
+
 ### Stage 1 — Data audit
 
 Read `../../../references/data-model.md` and `../../../references/guided-workflow.md`.
 
-- Inspect CSV and JSON structure, row/system semantics, columns, nested keys, identifiers, and evidence references.
+- Inspect only the declared CSV/JSON structure, row/system semantics, columns, nested keys, identifiers, and evidence-reference fields. Do not inspect original-document contents.
 - Measure feature coverage and missingness without silently coercing or imputing values.
 - Identify duplicate records, study-level dependencies, conflicting values, and possible join keys.
 - Produce a data dictionary and an audit report.
@@ -17,7 +21,7 @@ Read `../../../references/data-model.md` and `../../../references/guided-workflo
 After explicit G0 approval:
 
 - Read [the canonical data model](../../../docs/CANONICAL_DATA_MODEL.md), [mapping contract](../../../docs/MAPPING_CONTRACT.md), and [canonical builder contract](../../../docs/CANONICAL_BUILDER.md).
-- Define a mapping plan and a separate canonical build specification. The latter must explicitly declare entity grouping keys and same-source-row relationships; never assume one CSV row is one experiment.
+- Define a mapping plan and a separate canonical build specification using structured fields, supplied data dictionaries, project configuration, and explicit user-provided metadata only. The latter must explicitly declare entity grouping keys and same-source-row relationships; never assume one CSV row is one experiment. Do not use paper/SI contents to infer field meanings, units, groupings, or transformations.
 - Run `dor validate-mapping` and `dor validate-build-spec` and inspect both reports before asking for G1 approval. Build Spec validation checks its exact mapping/inventory hashes, declared entity sources and formats, grouping selectors, mapping-rule compatibility, and relationship declarations without building or changing data. The G1 packet must include the mapping plan, both validation reports, exact source inventory, build specification, entity-grain choices, and unresolved mapping questions.
 - Present the exact Mapping Plan, Mapping Validation, Source Inventory, Build Spec, and Build Spec Validation to the user. Only after explicit G1 approval, record G1 using the route-specific command in `docs/RUN_PLAN_EXECUTION_BINDINGS.md`.
 - After G1 is approved, follow the selected route binding: STRUCTURED_DATASET runs `canonical_build`; CANONICAL_BUNDLE validates and uses the supplied bundle and must not run `build-canonical`.
