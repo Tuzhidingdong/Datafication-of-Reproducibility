@@ -1,5 +1,7 @@
 # Cohort task, baseline models, Study validation, interactions and mechanism
 
+All source evidence used during modelling and interpretation must come from structured evidence records and provenance already supplied in the Canonical Bundle/Run artifacts. Do not open or retrieve original papers, SI, or other raw documents to support an interpretation or resolve a contradiction. If structured evidence is insufficient, retain the limitation or request an upstream structured-data correction.
+
 ### Stage 3 — Baseline modelling and prediction
 
 After G2 approval:
