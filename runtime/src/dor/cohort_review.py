@@ -8,12 +8,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-REQUIRED_INPUTS = (
+COHORT_OUTPUT_ARTIFACTS = (
     "modeling_cohort.csv",
     "cohort_report.json",
     "split_manifest.json",
-    "modeling_cohort_manifest.json",
 )
+REQUIRED_INPUTS = (*COHORT_OUTPUT_ARTIFACTS, "modeling_cohort_manifest.json")
 REVIEWABLE_INPUTS = (*REQUIRED_INPUTS, "modeling_task.json")
 ASSESSMENTS = {
     "record_grain_assessment": {"ACCEPTED", "UNRESOLVED", "REQUIRES_REVISION"},
@@ -196,7 +196,7 @@ def validate_cohort_review_record(
     if not isinstance(declared_cohort_hashes, dict):
         issue("COHORT_MANIFEST_HASHES_MISSING", "Cohort manifest must declare hashes for the CSV, report, and split manifest.")
     else:
-        for name in REQUIRED_INPUTS:
+        for name in COHORT_OUTPUT_ARTIFACTS:
             if name not in expected_hashes or declared_cohort_hashes.get(name) != expected_hashes[name]:
                 issue("COHORT_MANIFEST_ARTIFACT_HASH_MISMATCH", f"Cohort manifest hash does not match the current {name}.")
     if not isinstance(artifact_hashes, dict):
