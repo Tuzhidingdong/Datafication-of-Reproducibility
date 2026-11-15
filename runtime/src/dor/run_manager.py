@@ -1272,7 +1272,9 @@ def build_run_usage_report(manifest_path: Path) -> dict[str, Any]:
         "usage_summary": _usage_aggregate(rows),
         "by_stage": grouped(("stage_id",)),
         "by_producer_kind": grouped(("producer_kind",)),
+        "by_role": grouped(("role",)),
         "by_provider_model": grouped(("provider", "model")),
+        "by_role_provider_model": grouped(("role", "provider", "model")),
         "attempts": rows,
         "accounting_policy": {
             "included_events": "TERMINAL_SUCCEEDED_OR_FAILED_STAGE_ATTEMPTS_ONLY",
