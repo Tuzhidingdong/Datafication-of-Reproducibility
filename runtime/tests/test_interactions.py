@@ -6,6 +6,8 @@ from dor.cohort import build_modeling_cohort_files
 from dor.interactions import discover_interactions_files
 from test_modeling import make_bundle, make_task
 
+INTERACTION_ENDPOINT = "exact endpoint A"
+
 
 def interaction_bundle():
     data=make_bundle()
@@ -33,7 +35,7 @@ def interaction_bundle():
             observations.append({"observation_id":"IO_"+str(i+1)+"_"+str(j+1),
                 "experiment_id":exp_id,"target_id":"TARGET_Y","raw_value":y,"raw_unit":"unit-y",
                 "normalized_value":y,"normalized_unit":"unit-y","value_state":"REPORTED",
-                "endpoint_definition":"synthetic endpoint","evidence_ids":[]})
+                "endpoint_definition":INTERACTION_ENDPOINT,"evidence_ids":[]})
     data["conditions"]=conditions
     data["experiments"]=experiments
     data["observations"]=observations
@@ -42,6 +44,7 @@ def interaction_bundle():
 
 def interaction_task():
     task=make_task()
+    task["endpoint_definition"]=INTERACTION_ENDPOINT
     task["feature_bindings"]=[
         {"feature_id":"feature_01","condition_type":"feature_01","value_field":"normalized_value",
          "value_type":"NUMERIC","expected_unit":"unit_01"},
