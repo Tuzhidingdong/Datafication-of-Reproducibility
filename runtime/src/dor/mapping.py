@@ -142,8 +142,12 @@ def validate_mapping_plan(plan: Any, inventory: Any, inventory_sha256: str) -> d
             unit_source = inventory_by_id.get(unit_source_id) if isinstance(unit_source_id, str) else None
             if unit_source is None:
                 errors.append(_issue("UNKNOWN_UNIT_SOURCE_ITEM", f"{path}.transformation.parameters.unit_source_item_id", "UNIT_CONVERSION requires a unit_source_item_id present in the exact source inventory."))
-            elif source is not None and (unit_source.get("source_file") != source.get("source_file") or unit_source.get("source_format") != source.get("source_format")):
-                errors.append(_issue("INCOMPATIBLE_UNIT_SOURCE_ITEM", f"{path}.transformation.parameters.unit_source_item_id", "The source-unit field must come from the same source file and format as the numeric value."))
+            elif source is not None and (
+                unit_source.get("source_file") != source.get("source_file")
+                or unit_source.get("source_format") != source.get("source_format")
+                or unit_source.get("source_sha256") != source.get("source_sha256")
+            ):
+                errors.append(_issue("INCOMPATIBLE_UNIT_SOURCE_ITEM", f"{path}.transformation.parameters.unit_source_item_id", "The source-unit field must come from the same source file, format, and exact source snapshot as the numeric value."))
         if source is not None and isinstance(target_entity, str) and isinstance(target_field, str):
             locator_check = {
                 "source_file": source.get("source_file"),
