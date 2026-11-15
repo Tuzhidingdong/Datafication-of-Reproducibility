@@ -161,7 +161,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 {"source_id": item["source_id"],
                  "locator_type": "pdf_page" if item["source_id"] != "paired" else "csv_row",
                  "locator": "page 1" if item["source_id"] != "paired" else "row 2",
-                 "review_status": "SPOT_CHECKED"}
+                 "review_status": "STRUCTURED_RECORD_REVIEWED"}
                 for item in self.source_records
             ],
             "human_review": {
