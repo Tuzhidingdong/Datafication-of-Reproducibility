@@ -28,6 +28,7 @@ class CohortReviewTests(unittest.TestCase):
         self.manifest_path.write_text(json.dumps({
             "run_id": "RUN_1", "project_id": "PROJECT_1",
             "workspace_root": str(self.root),
+            "workflow_ledger_path": str(self.root / "workflow_gate_ledger.jsonl"),
         }), encoding="utf-8")
 
         self.csv_path = self.cohort_dir / "modeling_cohort.csv"
@@ -136,12 +137,12 @@ class CohortReviewTests(unittest.TestCase):
         validation_path.write_text(json.dumps(report), encoding="utf-8")
         ledger_path = self.root / "workflow_gate_ledger.jsonl"
         ledger_path.write_text("", encoding="utf-8")
-        enforced = enforce_cohort_review(self.cohort_dir, self.task_path, ledger_path)
+        enforced = enforce_cohort_review(self.cohort_dir, self.task_path, ledger_path, self.manifest_path)
         self.assertTrue(enforced["valid"])
         self.record["rationale"] = "Changed after validation."
         self._write_record()
         with self.assertRaisesRegex(ValueError, "record_sha256"):
-            enforce_cohort_review(self.cohort_dir, self.task_path, ledger_path)
+            enforce_cohort_review(self.cohort_dir, self.task_path, ledger_path, self.manifest_path)
 
     def test_changed_cohort_input_invalidates_review(self):
         with self.csv_path.open("a", encoding="utf-8") as handle:
