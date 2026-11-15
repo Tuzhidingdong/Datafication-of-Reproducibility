@@ -23,6 +23,8 @@ class CohortReviewTests(unittest.TestCase):
 
         self.task = {"schema_version": "1.0", "task_id": "TASK_1"}
         self.task_path.write_text(json.dumps(self.task), encoding="utf-8")
+        self.task_hash = hashlib.sha256(self.task_path.read_bytes()).hexdigest()
+        self.bundle_hash = "b" * 64
         self.manifest_path.write_text(json.dumps({
             "run_id": "RUN_1", "project_id": "PROJECT_1",
             "workspace_root": str(self.root),
@@ -36,31 +38,45 @@ class CohortReviewTests(unittest.TestCase):
             writer.writeheader()
             writer.writerows([
                 {"cohort_row_id": "ROW_1", "observation_id": "OBS_1", "study_id": "STUDY_1", "split": "train"},
-                {"cohort_row_id": "ROW_2", "observation_id": "OBS_2", "study_id": "STUDY_2", "split": "test"},
+                {"cohort_row_id": "ROW_2", "observation_id": "OBS_2", "study_id": "STUDY_2", "split": "validation"},
+                {"cohort_row_id": "ROW_3", "observation_id": "OBS_3", "study_id": "STUDY_3", "split": "test"},
             ])
 
         self.cohort_report = {
             "schema_version": "1.0", "valid": True, "task_id": "TASK_1",
-            "eligible_observation_count": 2, "eligible_study_count": 2,
-            "eligible_study_ids": ["STUDY_1", "STUDY_2"],
+            "task_sha256": self.task_hash, "bundle_sha256": self.bundle_hash,
+            "eligible_observation_count": 3, "eligible_study_count": 3,
+            "eligible_study_ids": ["STUDY_1", "STUDY_2", "STUDY_3"],
             "scientific_data_contract": {
                 "warnings": [{"code": "REPEATED_RECORD_GRAIN_REVIEW"}],
             },
         }
-        (self.cohort_dir / "cohort_report.json").write_text(
-            json.dumps(self.cohort_report), encoding="utf-8",
-        )
+        report_path = self.cohort_dir / "cohort_report.json"
+        report_path.write_text(json.dumps(self.cohort_report), encoding="utf-8")
         self.split_manifest = {
             "schema_version": "1.0", "task_id": "TASK_1",
-            "study_to_split": {"STUDY_1": "train", "STUDY_2": "test"},
+            "study_to_split": {
+                "STUDY_1": "train", "STUDY_2": "validation", "STUDY_3": "test",
+            },
+            "observation_ids_by_split": {
+                "train": ["OBS_1"], "validation": ["OBS_2"], "test": ["OBS_3"],
+            },
             "leakage_check": {"valid": True, "study_overlap_count": 0},
         }
-        (self.cohort_dir / "split_manifest.json").write_text(
-            json.dumps(self.split_manifest), encoding="utf-8",
-        )
+        split_path = self.cohort_dir / "split_manifest.json"
+        split_path.write_text(json.dumps(self.split_manifest), encoding="utf-8")
+        cohort_manifest = {
+            "schema_version": "1.0", "task_id": "TASK_1",
+            "bundle_sha256": self.bundle_hash, "task_sha256": self.task_hash,
+            "eligible_observation_count": 3, "eligible_study_count": 3,
+            "artifact_sha256": {
+                "modeling_cohort.csv": hashlib.sha256(self.csv_path.read_bytes()).hexdigest(),
+                "cohort_report.json": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+                "split_manifest.json": hashlib.sha256(split_path.read_bytes()).hexdigest(),
+            },
+        }
         (self.cohort_dir / "modeling_cohort_manifest.json").write_text(
-            json.dumps({"schema_version": "1.0", "task_id": "TASK_1"}),
-            encoding="utf-8",
+            json.dumps(cohort_manifest), encoding="utf-8",
         )
 
         files = {
@@ -87,8 +103,8 @@ class CohortReviewTests(unittest.TestCase):
             "independence_assessment": "SUPPORTED",
             "split_assessment": "ACCEPTED",
             "reviewed_warning_codes": ["REPEATED_RECORD_GRAIN_REVIEW"],
-            "reviewed_study_count": 2,
-            "reviewed_observation_count": 2,
+            "reviewed_study_count": 3,
+            "reviewed_observation_count": 3,
             "artifact_sha256": hashes,
             "rationale": "The record grain, Study grouping, and split were explicitly reviewed.",
             "limitations": ["The reviewed cohort is limited to the declared task and source snapshot."],
@@ -109,8 +125,8 @@ class CohortReviewTests(unittest.TestCase):
     def test_approved_review_passes_when_all_exact_inputs_are_bound(self):
         report = self._validate()
         self.assertTrue(report["valid"], report)
-        self.assertEqual(report["reviewed_study_count"], 2)
-        self.assertEqual(report["reviewed_observation_count"], 2)
+        self.assertEqual(report["reviewed_study_count"], 3)
+        self.assertEqual(report["reviewed_observation_count"], 3)
 
     def test_changed_cohort_input_invalidates_review(self):
         with self.csv_path.open("a", encoding="utf-8") as handle:
