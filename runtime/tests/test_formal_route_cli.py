@@ -155,7 +155,7 @@ class FormalRunPlanCliTests(unittest.TestCase):
             arguments.extend(["--command", command])
         self.run_cli(*arguments)
 
-    def test_both_formal_routes_execute_adapter_entry_and_first_data_stage(self):
+    def test_both_formal_routes_execute_through_g0_review_gate_boundary(self):
         routes = (
             (
                 "STRUCTURED_DATASET",
@@ -292,7 +292,7 @@ class FormalRunPlanCliTests(unittest.TestCase):
                     packet = {
                         "schema_version": "1.0",
                         "run_id": f"RUN_FORMAL_{index}",
-                        "project_id": json.loads(plan_path.read_text(encoding="utf-8"))["project_id"],
+                        "project_id": json.loads(manifest.read_text(encoding="utf-8"))["project_id"],
                         "stage_id": "g0_review_packet",
                         "prepared_at": "2026-11-15T12:00:00+08:00",
                         "packet_status": "AWAITING_HUMAN_REVIEW",
