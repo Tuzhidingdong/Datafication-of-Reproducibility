@@ -47,13 +47,13 @@ DoR remains discipline-neutral. The core Skill, Runtime, Run Plans, schemas, tem
 - Added \`runtime/src/dor/stage_execution_contract.json\` and its schema. It binds 31 unique Stage IDs to the supported CLI/manual/Worker action and both route variants' exact executor, dependency list, inputs, outputs, Gate, and activation condition.
 - Run Manager validates the supported route's execution contract during Run initialization. Added \`dor validate-execution-contract --plan <run_plan.json>\` as an explicit preflight.
 - The contract is included as Runtime package data.
-- The large Skill file was converted into a compact phase router. Its main file shrank from 61,613 to 5,731 characters (about 91%); the original execution detail was moved into six phase references and is loaded only for the current phase.
+- The large Skill file was converted into a compact phase router. Its main file shrank from 61,613 to 6,074 characters (about 90%); the original execution detail was moved into six phase references and is loaded only for the current phase.
 - Added a discipline-neutral scope clarification: the generic infrastructure is cross-disciplinary, but the current empirical Canonical graph and analysis engine are not a universal ontology or universal method. Unsupported representations must not be forced into the current model.
 - Replaced the specific examples identified in the audit with neutral identifiers/wording. A scan of the affected Skill references, Canonical model document, and affected fixtures found none of the flagged discipline-specific terms.
 
 ### P2 — token accounting and CI duplication
 
-- Added \`dor run-usage --manifest <run_manifest.json>\`. It aggregates terminal successful/failed attempts by Stage, producer kind, and provider/model; reports input, output, reasoning, cache-read, and cache-write separately; and leaves missing metrics null with explicit missing counts.
+- Added \`dor run-usage --manifest <run_manifest.json>\`. It aggregates terminal successful/failed attempts by Stage, producer kind, Worker role, and provider/model; reports input, output, reasoning, cache-read, and cache-write separately; and leaves missing metrics null with explicit missing counts.
 - Input-plus-output is only reported when both counters are present for every included attempt. Reasoning/cache counters are not added again. The report explicitly excludes unrecorded Supervisor/external Agent usage.
 - Direct Run Manager API validation rejects booleans as token counts.
 - CI no longer runs a series of test subsets followed by the entire suite. It preflights both supported Run Plans, executes the complete runtime test suite once, then parses the JSON schemas and packaged contract.
