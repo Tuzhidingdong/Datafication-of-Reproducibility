@@ -208,8 +208,18 @@ def prepare_single_study_not_applicable_artifacts_files(
         artifact_id: _planned_artifact_path(root, plan, artifact_id)
         for artifact_id in declared_ids
     }
-    if any(path.parent != out for path in expected_paths.values()):
-        raise ValueError("All NOT_APPLICABLE output artifacts must share the declared --out-dir.")
+    expected_filenames = {
+        "model_report": "model_report.json",
+        "reproducibility_evaluation": "reproducibility_evaluation.json",
+        "interaction_report": "interaction_discovery_report.json",
+        "interaction_manifest": "interaction_discovery_manifest.json",
+        "robustness_report": "interaction_robustness_report.json",
+        "robustness_manifest": "interaction_robustness_manifest.json",
+        "virtual_prediction": "virtual_prediction.json",
+    }
+    for artifact_id, filename in expected_filenames.items():
+        if expected_paths[artifact_id] != (out / filename).resolve(strict=False):
+            raise ValueError(f"{artifact_id} output path differs from its fixed NOT_APPLICABLE artifact contract.")
     if out.exists() and any(out.iterdir()):
         raise FileExistsError(f"Output directory must be new or empty: {out}")
     out.mkdir(parents=True, exist_ok=True)
