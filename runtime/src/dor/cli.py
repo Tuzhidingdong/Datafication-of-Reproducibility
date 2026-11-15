@@ -479,7 +479,7 @@ def main() -> int:
             return 0 if result["valid"] else 2
         if args.command == "validate-single-study-applicability":
             result = validate_single_study_applicability_files(
-                args.record, args.bundle, args.task, args.manifest,
+                args.record, args.bundle, args.task, args.manifest, args.out,
             )
             print(_write_json(args.out, result), end="")
             return 0 if result["valid"] else 2
