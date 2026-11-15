@@ -243,6 +243,14 @@
           }
         ]
       }
+    },
+    "execution_profile": {
+      "type": "string",
+      "enum": [
+        "FULL_ANALYSIS",
+        "CONTROLLED_SINGLE_STUDY"
+      ],
+      "description": "Optional operating profile. Omission defaults to FULL_ANALYSIS; CONTROLLED_SINGLE_STUDY is permitted only with a matching profile-specific Run Plan stage graph."
     }
   },
   "additionalProperties": false
