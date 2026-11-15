@@ -10,10 +10,10 @@ def bundle():
         "schema_version":"1.0","project_id":"P1","mapping_version":"map-v1",
         "studies":[{"study_id":"ST1","doi":"10.1000/example","source_locators":[]}],
         "systems":[{"system_id":"SY1","study_ids":["ST1"],"system_type":"system_type_01"}],
-        "conditions":[{"condition_id":"CO1","system_ids":["SY1"],"condition_type":"temperature",
-            "raw_value":25,"raw_unit":"degC","value_state":"REPORTED"}],
+        "conditions":[{"condition_id":"CO1","system_ids":["SY1"],"condition_type":"condition_type_01",
+            "raw_value":25,"raw_unit":"unit-01","value_state":"REPORTED"}],
         "experiments":[{"experiment_id":"EX1","study_id":"ST1","system_id":"SY1","condition_ids":["CO1"]}],
-        "observations":[{"observation_id":"OB1","experiment_id":"EX1","target_id":"TARGET_CAPACITY",
+        "observations":[{"observation_id":"OB1","experiment_id":"EX1","target_id":"TARGET_01",
             "raw_value":120,"raw_unit":"unit-x","value_state":"REPORTED",
             "endpoint_definition":"response metric after interval 100",
             "timepoint":"interval 100","evidence_ids":["EV1"]}],
@@ -34,7 +34,7 @@ class ReconciliationTests(unittest.TestCase):
     def test_multiple_endpoint_definitions_are_kept_separate(self):
         data=bundle()
         second=copy.deepcopy(data["observations"][0])
-        second.update({"observation_id":"OB2","endpoint_definition":"capacity retention after storage",
+        second.update({"observation_id":"OB2","endpoint_definition":"response metric under protocol B",
                        "raw_value":95})
         data["observations"].append(second)
         report=reconcile_canonical_bundle(data,"a"*64)
