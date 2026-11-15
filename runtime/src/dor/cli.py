@@ -8,6 +8,7 @@ from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle
     materialize_adapter_artifacts_files)
 from dor.canonical_discovery import run_canonical_discovery_scan
 from dor.cohort import build_modeling_cohort_files
+from dor.cohort_review import validate_cohort_review_record, enforce_cohort_review
 from dor.builder import build_canonical_files, validate_build_spec_files
 from dor.canonical import validate_canonical_bundle
 from dor.diagnostics import diagnose_canonical_bundle
@@ -167,6 +168,12 @@ def build_parser() -> argparse.ArgumentParser:
     cohort.add_argument("--bundle", type=Path, required=True, help="Validated canonical_bundle.json")
     cohort.add_argument("--task", type=Path, required=True, help="Explicit modeling_task.json")
     cohort.add_argument("--out-dir", type=Path, required=True, help="New or empty derived cohort output directory")
+    cohort_review = subparsers.add_parser("validate-cohort-review", help="Validate the human record for cohort grain, independence, and split suitability")
+    cohort_review.add_argument("--record", type=Path, required=True, help="Human-reviewed cohort_review_record.json")
+    cohort_review.add_argument("--cohort-dir", type=Path, required=True, help="Exact output directory created by dor build-cohort")
+    cohort_review.add_argument("--task", type=Path, required=True, help="Exact modeling task used to build the cohort")
+    cohort_review.add_argument("--manifest", type=Path, default=None, help="Active Run manifest; required for a guided Run")
+    cohort_review.add_argument("--out", type=Path, required=True, help="Declared cohort_review_validation.json output")
     models = subparsers.add_parser("fit-baselines", help="Fit deterministic baseline models and evaluate the selected model on held-out studies")
     models.add_argument("--cohort-dir", type=Path, required=True, help="Cohort output directory from dor build-cohort")
     models.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON used to build the cohort")
@@ -337,6 +344,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        cohort_review_required_commands = {
+            "fit-baselines", "evaluate-reproducibility", "discover-interactions",
+            "assess-interaction-robustness", "generate-interaction-surface",
+            "build-mechanism-evidence-bridge",
+        }
+        if args.command in cohort_review_required_commands and args.workflow_ledger is not None:
+            enforce_cohort_review(args.cohort_dir, args.task, args.workflow_ledger)
         if args.command == "validate-adapter-package":
             report = validate_adapter_package_files(args.manifest, args.package_root, args.out)
             print(_write_json(None, report), end="")
@@ -502,6 +516,10 @@ def main() -> int:
             return 0 if report["valid"] else 2
         if args.command == "validate-mapping":
             report=validate_mapping_files(args.plan,args.inventory)
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
+        if args.command == "validate-cohort-review":
+            report=validate_cohort_review_record(args.record,args.cohort_dir,args.task,args.manifest)
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
         if args.command == "validate-build-spec":
