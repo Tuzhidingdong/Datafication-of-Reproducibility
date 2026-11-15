@@ -184,7 +184,6 @@ def stage_action_bindings_for_plan(plan: dict[str, Any]) -> dict[str, dict[str, 
             "executor": variant.get("executor"),
             "runtime_command": binding.get("cli_command"),
             "validator_command": binding.get("validator_command"),
-            "executor": variant.get("executor"),
             "authorization_command": binding.get("authorization_command"),
             "host_action": binding.get("host_action"),
         }
