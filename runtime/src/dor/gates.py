@@ -594,16 +594,30 @@ def _validate_single_study_na_bundle(
     record = _read_json_binding(record_binding, "single-study applicability record")
     validation = _read_json_binding(validation_binding, "single-study applicability validation")
     task = _read_json_binding(task_binding, "G2 modeling task")
+    bundle = _read_json_binding(bundle_binding, "G2 canonical_bundle")
+    bundle_studies = bundle.get("studies")
+    bundle_study_ids = [
+        item.get("study_id") for item in bundle_studies
+        if isinstance(item, dict) and isinstance(item.get("study_id"), str) and item.get("study_id")
+    ] if isinstance(bundle_studies, list) else []
+    if len(bundle_study_ids) != 1 or bundle_study_ids != record.get("study_ids"):
+        raise ValueError("G3 single-study applicability record must match exactly one explicit Study in the G2-approved Canonical Bundle.")
 
     if record.get("schema_version") != "1.0" or record.get("scope") != "CONTROLLED_SINGLE_STUDY":
         raise ValueError("G3 single-study applicability record has an unsupported schema or scope.")
-    if record.get("applicability_status") != "NOT_APPLICABLE" or record.get("study_count") != 1:
+    if (record.get("applicability_status") != "NOT_APPLICABLE"
+            or type(record.get("study_count")) is not int or record.get("study_count") != 1):
         raise ValueError("G3 single-study applicability record must declare one Study and NOT_APPLICABLE.")
     if (record.get("canonical_bundle_sha256") != bundle_binding["sha256"]
             or record.get("modeling_task_sha256") != task_binding["sha256"]):
         raise ValueError("G3 single-study applicability record differs from the exact G2-approved Bundle/task.")
-    if validation.get("valid") is not True or validation.get("applicability_status") != "NOT_APPLICABLE":
-        raise ValueError("G3 requires a valid deterministic single-study applicability report.")
+    if (validation.get("valid") is not True
+            or validation.get("applicability_status") != "NOT_APPLICABLE"
+            or validation.get("run_id") != record.get("run_id")
+            or validation.get("project_id") != record.get("project_id")
+            or validation.get("study_count") != 1
+            or validation.get("eligible_study_count") != 1):
+        raise ValueError("G3 requires a valid deterministic single-study applicability report for the same Run/Project and one eligible Study.")
     if (validation.get("applicability_record_sha256") != record_binding["sha256"]
             or validation.get("canonical_bundle_sha256") != bundle_binding["sha256"]
             or validation.get("modeling_task_sha256") != task_binding["sha256"]):
