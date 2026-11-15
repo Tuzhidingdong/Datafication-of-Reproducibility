@@ -108,6 +108,192 @@ class RunManagerTests(unittest.TestCase):
         self.run_local("audit")
         self.run_local("mapping")
 
+    def test_run_lifecycle_connects_worker_retry_human_review_and_publication_manifest(self):
+        lifecycle_root = self.root / "lifecycle"
+        source_root = lifecycle_root / "sources"
+        source_root.mkdir(parents=True)
+        source = source_root / "structured_input.json"
+        source.write_text(json.dumps({"records": [{"record_id": "SYN_1", "value": 1}]}), encoding="utf-8")
+        project_root = lifecycle_root / "project"
+        project_root.mkdir()
+        run_root = lifecycle_root / "runs" / "RUN_LIFECYCLE"
+        plan_path = lifecycle_root / "lifecycle_run_plan.json"
+        manifest_path = run_root / "run_manifest.json"
+
+        plan = {
+            "schema_version": "1.0",
+            "project_id": "PROJECT_LIFECYCLE",
+            "source_roots": [str(source_root.resolve())],
+            "source_artifacts": [{"artifact_id": "structured_input", "path": str(source.resolve())}],
+            "stages": [
+                {
+                    "stage_id": "intake",
+                    "executor": "local",
+                    "depends_on": [],
+                    "inputs": ["structured_input"],
+                    "outputs": [{"artifact_id": "audit_report", "path": "01_intake/audit_report.json"}],
+                },
+                {
+                    "stage_id": "analysis",
+                    "executor": "local",
+                    "depends_on": ["intake"],
+                    "inputs": ["audit_report"],
+                    "outputs": [{"artifact_id": "analysis_report", "path": "02_analysis/analysis_report.json"}],
+                },
+                {
+                    "stage_id": "independent_review",
+                    "executor": "worker",
+                    "depends_on": ["intake", "analysis"],
+                    "inputs": ["audit_report", "analysis_report"],
+                    "worker_task": {
+                        "objective": "Review the declared synthetic analysis artifacts and report traceable limitations.",
+                        "permitted_actions": ["Read the two declared JSON inputs", "Write a structured review JSON"],
+                        "forbidden_actions": ["Modify source inputs", "Approve any gate", "Write outside the worker staging path"],
+                        "max_context_tokens": 4000,
+                        "max_output_tokens": 1000,
+                    },
+                    "outputs": [{
+                        "artifact_id": "worker_review_output",
+                        "path": "worker_staging/independent_review/review.json",
+                        "kind": "worker_staging",
+                    }],
+                },
+                {
+                    "stage_id": "human_review",
+                    "executor": "manual",
+                    "depends_on": ["independent_review"],
+                    "inputs": ["worker_review_output"],
+                    "outputs": [{"artifact_id": "reviewed_findings", "path": "03_review/reviewed_findings.json"}],
+                },
+                {
+                    "stage_id": "publication_delivery",
+                    "executor": "local",
+                    "depends_on": ["intake", "analysis", "independent_review", "human_review"],
+                    "inputs": ["structured_input", "audit_report", "analysis_report", "worker_review_output", "reviewed_findings"],
+                    "outputs": [{"artifact_id": "publication_manifest", "path": "04_publication/package_manifest.json"}],
+                },
+            ],
+        }
+        plan_path.parent.mkdir(parents=True, exist_ok=True)
+        plan_path.write_text(json.dumps(plan, indent=2) + "\\n", encoding="utf-8")
+        initialize_run(plan_path, run_root, "RUN_LIFECYCLE")
+
+        def record_local(stage_id, artifact_id, payload):
+            record_stage_status(manifest_path, stage_id, "RUNNING", "local", command=f"synthetic {stage_id}")
+            output = next(item for item in next(s for s in plan["stages"] if s["stage_id"] == stage_id)["outputs"]
+                          if item["artifact_id"] == artifact_id)
+            path = run_root / output["path"]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(payload, indent=2) + "\\n", encoding="utf-8")
+            record_stage_status(manifest_path, stage_id, "SUCCEEDED", "local")
+
+        record_local("intake", "audit_report", {
+            "schema_version": "1.0", "input_records": 1, "scope": "SYNTHETIC_ONLY",
+        })
+        record_local("analysis", "analysis_report", {
+            "schema_version": "1.0", "result": "SYNTHETIC_ANALYSIS_COMPLETE",
+            "source_artifact": "structured_input",
+        })
+
+        first_auth = authorize_worker(
+            manifest_path, "independent_review", "independent_reviewer",
+            "synthetic-provider", "synthetic-review-model",
+            project_root, "human-operator", "Authorize the isolated synthetic review attempt.",
+        )
+        self.assertEqual(first_auth["attempt"], 1)
+        self.assertEqual(len(first_auth["task_packet"]["inputs"]), 2)
+        self.assertEqual(len(first_auth["task_packet"]["permitted_outputs"]), 1)
+        worker_kwargs = {
+            "role": "independent_reviewer",
+            "provider": "synthetic-provider",
+            "model": "synthetic-review-model",
+            "project_root": str(project_root.resolve()),
+        }
+        record_stage_status(
+            manifest_path, "independent_review", "RUNNING", "worker",
+            **worker_kwargs,
+        )
+        record_stage_status(
+            manifest_path, "independent_review", "FAILED", "worker",
+            **worker_kwargs, job_id="synthetic-job-failed",
+            input_tokens=80, output_tokens=20, reason="Synthetic first attempt failed before producing output.",
+        )
+        failed_resume = build_resume_plan(manifest_path)
+        failed_state = next(item for item in failed_resume["stages"] if item["stage_id"] == "independent_review")
+        self.assertEqual(failed_state["action"], "RETRY_REQUIRED")
+
+        second_auth = authorize_worker(
+            manifest_path, "independent_review", "independent_reviewer",
+            "synthetic-provider", "synthetic-review-model",
+            project_root, "human-operator", "Authorize a new attempt after the recorded failure.",
+        )
+        self.assertEqual(second_auth["attempt"], 2)
+        record_stage_status(
+            manifest_path, "independent_review", "RUNNING", "worker",
+            **worker_kwargs,
+        )
+        worker_output = run_root / "worker_staging" / "independent_review" / "review.json"
+        worker_output.parent.mkdir(parents=True, exist_ok=True)
+        worker_output.write_text(json.dumps({
+            "schema_version": "1.0",
+            "task_id": "SYNTHETIC_REVIEW_TASK",
+            "status": "completed",
+            "summary": "The synthetic inputs are traceable and contain no unresolved blocker.",
+            "findings": [],
+            "artifacts": [],
+            "warnings": [],
+            "unresolved_questions": [],
+        }, indent=2) + "\\n", encoding="utf-8")
+        record_stage_status(
+            manifest_path, "independent_review", "SUCCEEDED", "worker",
+            **worker_kwargs, job_id="synthetic-job-success",
+            session_id="synthetic-session-success", task_id="synthetic-task-success",
+            input_tokens=200, output_tokens=50, reasoning_tokens=30,
+            cache_read_tokens=40, cache_write_tokens=5,
+        )
+
+        record_stage_status(manifest_path, "human_review", "RUNNING", "manual")
+        disposition = run_root / "03_review" / "reviewed_findings.json"
+        disposition.parent.mkdir(parents=True, exist_ok=True)
+        disposition.write_text(json.dumps({
+            "schema_version": "1.0",
+            "decision": "NO_FINDINGS_TO_PROMOTE",
+            "reviewer": "human-operator",
+            "worker_output_sha256": sha256_file(worker_output),
+        }, indent=2) + "\\n", encoding="utf-8")
+        record_stage_status(manifest_path, "human_review", "SUCCEEDED", "manual")
+
+        record_stage_status(manifest_path, "publication_delivery", "RUNNING", "local",
+                            command="assemble synthetic publication manifest")
+        publication = run_root / "04_publication" / "package_manifest.json"
+        publication.parent.mkdir(parents=True, exist_ok=True)
+        publication.write_text(json.dumps({
+            "schema_version": "1.0",
+            "run_id": "RUN_LIFECYCLE",
+            "artifact_ids": [
+                "audit_report", "analysis_report", "worker_review_output", "reviewed_findings",
+            ],
+        }, indent=2) + "\\n", encoding="utf-8")
+        record_stage_status(manifest_path, "publication_delivery", "SUCCEEDED", "local")
+
+        verified = verify_run(manifest_path)
+        self.assertTrue(verified["valid_manifest_and_event_chain"])
+        self.assertEqual(verified["source_integrity"], "CURRENT")
+        artifacts = build_artifact_manifest(manifest_path)
+        statuses = {item["artifact_id"]: item["status"] for item in artifacts["artifacts"]}
+        self.assertEqual(statuses["publication_manifest"], "CURRENT")
+        self.assertEqual(statuses["worker_review_output"], "CURRENT")
+        usage = build_run_usage_report(manifest_path)
+        self.assertEqual(usage["terminal_attempt_count"], 2)
+        self.assertEqual(usage["usage_summary"]["token_totals"]["input_tokens"]["total"], 280)
+        self.assertEqual(usage["usage_summary"]["token_totals"]["output_tokens"]["total"], 70)
+        self.assertEqual(usage["usage_summary"]["token_totals"]["reasoning_tokens"]["total"], 30)
+        self.assertEqual(usage["usage_summary"]["token_totals"]["cache_read_tokens"]["total"], 40)
+        self.assertEqual(usage["usage_summary"]["token_totals"]["cache_write_tokens"]["total"], 5)
+        final_resume = build_resume_plan(manifest_path)
+        self.assertEqual(final_resume["next_actions"], [])
+        self.assertTrue(all(item["action"] == "REUSE" for item in final_resume["stages"]))
+
     def test_init_declares_stage_graph_and_does_not_touch_sources(self):
         before = self.raw.read_bytes()
         result = verify_run(self.manifest_path)
