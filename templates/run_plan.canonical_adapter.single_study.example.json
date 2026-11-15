@@ -345,7 +345,12 @@
       "stage_id": "single_study_scope_review",
       "executor": "manual",
       "depends_on": [
-        "g2_review_packet"
+        "g2_review_packet",
+        "adapter_artifact_materialization",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection"
       ],
       "inputs": [
         "canonical_bundle",
@@ -367,7 +372,9 @@
       "stage_id": "single_study_scope_validation",
       "executor": "local",
       "depends_on": [
-        "single_study_scope_review"
+        "single_study_scope_review",
+        "adapter_artifact_materialization",
+        "research_scope_selection"
       ],
       "inputs": [
         "single_study_applicability_record",
@@ -385,7 +392,10 @@
       "stage_id": "single_study_na_artifacts",
       "executor": "local",
       "depends_on": [
-        "single_study_scope_validation"
+        "single_study_scope_validation",
+        "single_study_scope_review",
+        "adapter_artifact_materialization",
+        "research_scope_selection"
       ],
       "inputs": [
         "single_study_applicability_record",
@@ -429,7 +439,11 @@
       "stage_id": "g3_selection_packet",
       "executor": "manual",
       "depends_on": [
-        "single_study_na_artifacts"
+        "single_study_na_artifacts",
+        "single_study_scope_review",
+        "single_study_scope_validation",
+        "adapter_artifact_materialization",
+        "research_scope_selection"
       ],
       "inputs": [
         "single_study_applicability_record",
@@ -458,7 +472,13 @@
       "depends_on": [
         "g3_selection_packet",
         "single_study_na_artifacts",
-        "single_study_scope_validation"
+        "single_study_scope_validation",
+        "single_study_scope_review",
+        "adapter_artifact_materialization",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection"
       ],
       "inputs": [
         "single_study_applicability_record",
@@ -511,7 +531,15 @@
       "executor": "manual",
       "depends_on": [
         "independent_result_review",
-        "g3_selection_packet"
+        "g3_selection_packet",
+        "single_study_scope_review",
+        "single_study_scope_validation",
+        "adapter_artifact_materialization",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection",
+        "single_study_na_artifacts"
       ],
       "inputs": [
         "worker_review_output",
@@ -550,7 +578,14 @@
         "human_review_and_promotion",
         "independent_result_review",
         "g3_selection_packet",
-        "single_study_scope_validation"
+        "single_study_scope_validation",
+        "single_study_scope_review",
+        "adapter_artifact_materialization",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection",
+        "single_study_na_artifacts"
       ],
       "inputs": [
         "publication_plan",
