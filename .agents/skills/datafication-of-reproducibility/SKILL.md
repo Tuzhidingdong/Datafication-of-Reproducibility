@@ -53,7 +53,7 @@ A pre-Run Canonical Bundle scan does not create a formal Run, approve mappings, 
 
 ## Progressive workflow
 
-Before executing any Run Plan, read [the command-level stage bindings](../../../docs/RUN_PLAN_EXECUTION_BINDINGS.md). Treat that file as the single source of truth for Run Plan stage-to-CLI mapping. If a stage has no declared command or action, do not invent one; report it as an integration gap.
+Before executing any Run Plan, read [the command-level operator guide](../../../docs/RUN_PLAN_EXECUTION_BINDINGS.md). The machine-checked stage-to-action contract is `runtime/src/dor/stage_execution_contract.json`; `dor run-init` validates it and the two supported route templates before initialization. If a stage has no declared action, do not invent one; report it as an integration gap.
 
 ### Stage 0 — Initialize
 
