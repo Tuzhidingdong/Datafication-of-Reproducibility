@@ -231,6 +231,49 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     stages["publication_package_assembly"]["depends_on"],
                 )
 
+    def test_single_study_publication_plans_include_traceable_na_records_for_each_route(self):
+        cases = (
+            ("templates/publication_package_plan.single_study.example.json",
+             "03_canonical/canonical_bundle.json"),
+            ("templates/publication_package_plan.canonical_adapter.single_study.example.json",
+             "00_adapter/materialized/canonical_bundle.json"),
+        )
+        required = {
+            "SINGLE_STUDY_APPLICABILITY_RECORD",
+            "SINGLE_STUDY_APPLICABILITY_VALIDATION",
+            "MODEL_NOT_APPLICABLE_RECORD",
+            "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",
+            "INTERACTION_NOT_APPLICABLE_RECORD",
+            "INTERACTION_NOT_APPLICABLE_MANIFEST",
+            "ROBUSTNESS_NOT_APPLICABLE_RECORD",
+            "ROBUSTNESS_NOT_APPLICABLE_MANIFEST",
+            "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD",
+            "INTERACTION_SELECTION",
+            "WORKER_REVIEW_RECORD",
+            "HUMAN_DISPOSITION_RECORD",
+            "HUMAN_DISPOSITION_VALIDATION",
+        }
+        for path, expected_bundle in cases:
+            plan = self._load_plan(path)
+            artifacts = {item["artifact_id"]: item for item in plan["artifacts"]}
+            with self.subTest(path=path):
+                self.assertTrue(required.issubset(artifacts))
+                self.assertEqual(artifacts["CANONICAL_BUNDLE"]["source_path"], expected_bundle)
+                self.assertEqual(artifacts["SINGLE_STUDY_APPLICABILITY_RECORD"]["status"], "requires_review")
+                for artifact_id in (
+                    "MODEL_NOT_APPLICABLE_RECORD",
+                    "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",
+                    "INTERACTION_NOT_APPLICABLE_RECORD",
+                    "INTERACTION_NOT_APPLICABLE_MANIFEST",
+                    "ROBUSTNESS_NOT_APPLICABLE_RECORD",
+                    "ROBUSTNESS_NOT_APPLICABLE_MANIFEST",
+                    "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD",
+                ):
+                    self.assertEqual(artifacts[artifact_id]["status"], "complete")
+                    self.assertIsNotNone(artifacts[artifact_id]["source_path"])
+                    self.assertTrue("NOT_APPLICABLE" in artifacts[artifact_id]["description"].upper()
+                                    or "not applicable" in artifacts[artifact_id]["description"].lower())
+
     def test_core_skill_and_adapter_contract_preserve_cross_disciplinary_boundary(self):
         skill = (ROOT / ".agents" / "skills" / "datafication-of-reproducibility" / "SKILL.md").read_text(encoding="utf-8")
         adapter_contract = (ROOT / "docs" / "ADAPTER_CONTRACT.md").read_text(encoding="utf-8")
