@@ -90,14 +90,24 @@ class ReconciliationTests(unittest.TestCase):
         ]
         self.assertTrue(review_issues)
         for issue in review_issues:
-            text = (issue.get("review_question", "") + " " + issue.get("summary", "")).lower()
-            self.assertNotIn("original source", text)
-            self.assertNotIn("open the source", text)
+            question = issue.get("review_question", "").lower()
+            text = (question + " " + issue.get("summary", "")).lower()
+            # A correct prohibition necessarily mentions the original source;
+            # assert the action is forbidden rather than banning the phrase.
             self.assertNotIn("verify this source passage", text)
+            self.assertNotIn("compare the original source locator", text)
+            self.assertNotIn("open the source to verify", text)
             self.assertTrue(
-                "structured" in text or "upstream" in text or "locator" in text,
+                "structured evidence record" in question
+                or "structured evidence records" in question,
                 issue,
             )
+            if issue["category"] == "EVIDENCE_VERIFICATION_REQUIRED":
+                self.assertIn("do not open or retrieve the original source", question)
+                self.assertIn("upstream structured-data correction", question)
+            elif issue["category"] == "EVIDENCE_EXTRACTION_DISAGREEMENT":
+                self.assertIn("do not dereference the locator or reopen the original source", question)
+                self.assertIn("upstream provenance", question)
 
     def test_reconciliation_does_not_mutate_bundle(self):
         data=bundle()
