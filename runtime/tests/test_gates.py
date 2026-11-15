@@ -386,8 +386,8 @@ class WorkflowGateTests(unittest.TestCase):
 
         bundle = {"schema_version": "1.0", "studies": [{"study_id": "STUDY_1"}]}
         task = {"schema_version": "1.0", "task_id": "TASK_GATE"}
-        bundle_binding = write("single_bundle", bundle)
-        task_binding = write("single_task", task)
+        bundle_binding = write("canonical_bundle", bundle)
+        task_binding = write("modeling_task", task)
         record = {
             "schema_version": "1.0",
             "run_id": "RUN_GATE",
