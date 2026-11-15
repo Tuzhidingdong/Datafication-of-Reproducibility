@@ -44,7 +44,7 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
 
        dor prepare-adapter-handoff --manifest <package_root>/adapter_manifest.json --package-root <package_root> --out <project_root>/run_control/adapter_route_preflight.json
 
-   Use the handoff's `route` field. Select `templates/run_plan.example.json` for `STRUCTURED_DATASET`, or `templates/run_plan.canonical_adapter.example.json` for `CANONICAL_BUNDLE`.
+   Use the handoff's `route` field, then select the execution profile. For a multi-Study analysis with sufficient independent Studies, use `templates/run_plan.example.json` (`STRUCTURED_DATASET`) or `templates/run_plan.canonical_adapter.example.json` (`CANONICAL_BUNDLE`). For a controlled one-Study pilot, use `templates/run_plan.single_study.example.json` or `templates/run_plan.canonical_adapter.single_study.example.json`; these preserve G0-G4 and Worker review while recording cross-Study modelling/interaction as explicit `NOT_APPLICABLE`, never as fabricated results.
 4. Configure the selected template from the active project. Set its `source_roots`, `workflow_ledger_path`, and exact absolute paths for `adapter_package_manifest`, `virtual_query_input`, and `publication_plan`. Do not reuse a prior Run workspace.
 5. Preflight and initialize a new Run:
 
