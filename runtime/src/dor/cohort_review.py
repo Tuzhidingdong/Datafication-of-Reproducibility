@@ -204,6 +204,8 @@ def validate_cohort_review_record(
 
     if record.get("decision") not in {"APPROVE_MODELING", "REVISE", "STOP"}:
         issue("DECISION_INVALID", "decision must be APPROVE_MODELING, REVISE, or STOP.")
+    elif record.get("decision") != "APPROVE_MODELING":
+        issue("DECISION_DOES_NOT_APPROVE_MODELLING", "Only APPROVE_MODELING can unlock downstream model execution.")
     if record.get("decision") == "APPROVE_MODELING":
         if record.get("record_grain_assessment") != "ACCEPTED":
             issue("RECORD_GRAIN_NOT_ACCEPTED", "APPROVE_MODELING requires record_grain_assessment=ACCEPTED.")
