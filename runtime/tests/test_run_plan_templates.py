@@ -2,6 +2,8 @@ import json
 import unittest
 from pathlib import Path
 
+from dor.publication import _validate_plan
+
 
 ROOT = Path(__file__).resolve().parents[2]
 OPTIONAL_STAGE_IDS = {
@@ -263,6 +265,49 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 self.assertTrue(required.issubset(artifacts))
                 self.assertEqual(artifacts["CANONICAL_BUNDLE"]["source_path"], expected_bundle)
                 self.assertEqual(artifacts["SINGLE_STUDY_APPLICABILITY_RECORD"]["status"], "requires_review")
+                self.assertEqual(_validate_plan(plan), plan["artifacts"])
+                run_plan_path = (
+                    "templates/run_plan.single_study.example.json"
+                    if "canonical_adapter" not in path
+                    else "templates/run_plan.canonical_adapter.single_study.example.json"
+                )
+                run_plan = self._load_plan(run_plan_path)
+                run_outputs = {
+                    output["artifact_id"]: output["path"]
+                    for stage in run_plan["stages"] for output in stage["outputs"]
+                }
+                for artifact_id, item in artifacts.items():
+                    if item.get("source_path") and artifact_id.lower() in {
+                        "single_study_applicability_record",
+                        "single_study_applicability_validation",
+                        "model_not_applicable_record",
+                        "reproducibility_not_applicable_record",
+                        "interaction_not_applicable_record",
+                        "interaction_not_applicable_manifest",
+                        "robustness_not_applicable_record",
+                        "robustness_not_applicable_manifest",
+                        "virtual_prediction_not_applicable_record",
+                        "interaction_selection",
+                        "worker_review_record",
+                        "human_disposition_record",
+                        "human_disposition_validation",
+                    }:
+                        self.assertEqual(item["source_path"],
+                                         run_outputs[{
+                                             "single_study_applicability_record": "single_study_applicability_record",
+                                             "single_study_applicability_validation": "single_study_applicability_validation",
+                                             "model_not_applicable_record": "model_report",
+                                             "reproducibility_not_applicable_record": "reproducibility_evaluation",
+                                             "interaction_not_applicable_record": "interaction_report",
+                                             "interaction_not_applicable_manifest": "interaction_manifest",
+                                             "robustness_not_applicable_record": "robustness_report",
+                                             "robustness_not_applicable_manifest": "robustness_manifest",
+                                             "virtual_prediction_not_applicable_record": "virtual_prediction",
+                                             "interaction_selection": "interaction_selection",
+                                             "worker_review_record": "worker_review_output",
+                                             "human_disposition_record": "reviewed_findings",
+                                             "human_disposition_validation": "reviewed_findings_validation",
+                                         }[artifact_id.lower()])
                 for artifact_id in (
                     "MODEL_NOT_APPLICABLE_RECORD",
                     "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",
