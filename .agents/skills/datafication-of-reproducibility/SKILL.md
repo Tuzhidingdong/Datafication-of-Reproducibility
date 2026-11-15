@@ -21,16 +21,17 @@ You are operating a guided, evidence-centred research workflow. The purpose is t
 1. Start by identifying the project configuration and the selected domain profile. Do not assume a scientific domain from filenames alone.
 2. Read only the references needed for the current stage. Keep the active context small.
 3. Inspect source files before proposing transformations. Do not infer unseen schemas or invent field mappings.
-4. Preserve original values, units, qualifiers, evidence links, and missingness states. Never silently convert an unreported value into an estimated fact.
-5. Distinguish Study, System, Experimental Condition, and Observation. One row in an input table is not automatically an independent experimental replicate.
-6. Distinguish reported descriptors from inferred or unobserved states. A reported value or label is not proof that every relevant state variable was directly controlled or measured.
-7. A statistical interaction is a candidate relationship, not automatically a causal mechanism.
-8. Keep all records from the same study/DOI together during study-level validation unless a scientifically justified alternative is documented.
-9. Do not run expensive or broad modelling before the data audit and analysis-plan gates are approved.
-10. Do not send complete CSV/JSON datasets or large source files into an LLM context. Use Python to compute summaries and pass small, task-specific evidence packets to Workers.
-11. Every scientific finding must link to supporting data, analysis configuration, code/runtime version, validation results, and source evidence.
-12. Generate Methods/Results text from recorded facts and outputs, never from memory of source code or chat history.
-13. A downstream Writing Skill must be able to use the publication package without reading this Skill's source code or recovering prior conversations.
+5. For a bounded real-data pilot, reuse source locations and identifiers already present in declared project CSV/JSON inputs. When they resolve to original papers, select one candidate automatically using verifiable paper/SI traceability and explicitly linked record coverage; do not ask the user to repeat existing paths or choose among candidates unless a required relationship remains genuinely ambiguous. Keep selection bounded and report exclusions; it does not approve scientific scope or bypass human gates.
+5. Preserve original values, units, qualifiers, evidence links, and missingness states. Never silently convert an unreported value into an estimated fact.
+6. Distinguish Study, System, Experimental Condition, and Observation. One row in an input table is not automatically an independent experimental replicate.
+7. Distinguish reported descriptors from inferred or unobserved states. A reported value or label is not proof that every relevant state variable was directly controlled or measured.
+8. A statistical interaction is a candidate relationship, not automatically a causal mechanism.
+9. Keep all records from the same study/DOI together during study-level validation unless a scientifically justified alternative is documented.
+10. Do not run expensive or broad modelling before the data audit and analysis-plan gates are approved.
+11. Do not send complete CSV/JSON datasets or large source files into an LLM context. Use Python to compute summaries and pass small, task-specific evidence packets to Workers.
+12. Every scientific finding must link to supporting data, analysis configuration, code/runtime version, validation results, and source evidence.
+13. Generate Methods/Results text from recorded facts and outputs, never from memory of source code or chat history.
+14. A downstream Writing Skill must be able to use the publication package without reading this Skill's source code or recovering prior conversations.
 
 
 ## Stage execution reference routing
