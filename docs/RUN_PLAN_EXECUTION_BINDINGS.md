@@ -153,6 +153,8 @@ If the configured Worker Manager is unavailable before the stage is marked RUNNI
 
 Run Manager execution records are separate from the G0-G4 approval ledger. They do not create scientific approvals.
 
+For the two supported adapter routes, `dor run-resume-plan` now returns a `next_actions` array. Each entry identifies the stage, current dispatch state, executor, required Gate, resolved input/output paths, and the corresponding Runtime command, validator command, or Worker authorization/host action. Use this output to select work; the operator commands and required arguments remain specified in the relevant stage table above. It is a plan only and never starts a command, Worker, or approval.
+
 - Before a command starts, record the stage as RUNNING with `dor run-stage-record --manifest <run_root>/run_manifest.json --stage <stage_id> --status RUNNING --producer-kind <local|worker|manual> --command "<exact CLI command>"`.
 - After checking all declared outputs and their hashes, record SUCCEEDED with the same stage ID and producer metadata. Record FAILED when the command or its output validation fails; never record success for a partial output set.
 - For a conditional stage, consult `dor run-resume-plan`. Record `SKIPPED` only when its action is exactly `SKIP_REQUIRED`, using the stage's declared executor as `--producer-kind`. A skipped stage writes no outputs, creates no approval, and is reusable only while its declared activation input remains unchanged and the condition remains false.
