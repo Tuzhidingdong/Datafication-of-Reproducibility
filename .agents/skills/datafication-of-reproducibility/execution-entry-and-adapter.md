@@ -66,7 +66,7 @@ The Run Manager is the execution ledger and safety controller for the immutable 
 
 The adapter handoff packages already structured outputs and provenance. DoR does not run a literature-extraction adapter, invoke PDF/SI parsing, or reconstruct missing values from original documents. Any upstream reading/extraction of original literature must have been completed before the DoR Run and delivered as structured data with its existing locator metadata. The handoff validator verifies declared files and hashes; it does not inspect original-document contents or certify extraction fidelity.
 
-Use an independently maintained adapter to read source-system files and prepare an adapter package conforming to schemas/adapter_package.schema.json. Adapter code and domain-specific retrieval or vocabulary rules must remain outside the DoR core repository.
+Use an independently maintained adapter to consume already structured source-system outputs and supplied metadata, then prepare an adapter package conforming to schemas/adapter_package.schema.json. It must not read original papers, SI, or other raw research documents on behalf of DoR. Adapter code and domain-specific retrieval or vocabulary rules must remain outside the DoR core repository.
 
 - Register the adapter manifest and its protected package root in the Run Plan. The generic Run Plan template declares the manifest once; its adapter_package_validation stage creates the run-bound adapter_handoff artifact.
 - In that stage, run dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <run_root>/00_adapter/adapter_handoff.json. Do not write the handoff inside the source package.
