@@ -108,6 +108,8 @@ def summarize_canonical_bundle(
             reported_numeric += 1
             by_study_target_unit[(target_id, unit, study_id)].append(numeric)
 
+        if not _has_reported_value(observation):
+            continue
         for condition_id in experiment.get("condition_ids", []):
             condition = conditions[condition_id]
             if not _has_reported_value(condition):
