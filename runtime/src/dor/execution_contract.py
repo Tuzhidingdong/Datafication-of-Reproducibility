@@ -111,3 +111,34 @@ def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None
             for key in ("authorization_command", "host_action")
         ):
             raise ValueError(f"Worker Stage {stage_id} has no authorization/dispatch action.")
+
+def inspect_supported_run_plan_execution_contract(plan: dict[str, Any]) -> dict[str, Any]:
+    """Return a compact validation report for a supported Run Plan's action bindings."""
+    validate_supported_run_plan_execution_contract(plan)
+    stage_ids = [item["stage_id"] for item in plan["stages"]]
+    route = "STRUCTURED_DATASET" if "source_audit" in stage_ids else "CANONICAL_BUNDLE"
+    contract = _load_contract()
+    binding_by_id = {item["stage_id"]: item for item in contract["stages"]}
+    action_counts: dict[str, int] = {}
+    actions = []
+    for stage_id in stage_ids:
+        binding = binding_by_id[stage_id]
+        kind = binding["action_type"]
+        action_counts[kind] = action_counts.get(kind, 0) + 1
+        actions.append({
+            "stage_id": stage_id,
+            "action_type": kind,
+            "cli_command": binding.get("cli_command"),
+            "validator_command": binding.get("validator_command"),
+            "authorization_command": binding.get("authorization_command"),
+        })
+    return {
+        "schema_version": "1.0",
+        "valid": True,
+        "route": route,
+        "stage_count": len(stage_ids),
+        "action_counts": action_counts,
+        "stage_actions": actions,
+        "validation_scope": "SUPPORTED_RUN_PLAN_TO_RUNTIME_AND_HOST_ACTION_BINDINGS_ONLY",
+    }
+
