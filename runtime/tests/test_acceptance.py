@@ -675,12 +675,16 @@ class AcceptanceValidatorTests(unittest.TestCase):
             for stage in self.record["stages"] if stage["status"] == "PASS"
             for artifact in stage["evidence"]
         }
+        # Each synthetic Gate event binds at least one artifact that is also
+        # accepted by the corresponding V1.0 stage contract. The Gate ledger
+        # itself remains mocked here; this fixture tests Acceptance cross-binding,
+        # not the production Gate artifact-completeness rules.
         gate_artifact_ids = {
             "G0": ["source_inventory"],
-            "G1": ["mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"],
-            "G2": ["canonical_bundle", "reconciliation_report", "reconciliation_decisions", "modeling_task"],
-            "G3": ["cohort_report", "split_manifest", "modeling_cohort_manifest"],
-            "G4": ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"],
+            "G1": ["mapping_plan"],
+            "G2": ["canonical_bundle"],
+            "G3": ["cohort_report"],
+            "G4": ["model_report"],
         }
         events = {}
         gate_artifacts = {}
