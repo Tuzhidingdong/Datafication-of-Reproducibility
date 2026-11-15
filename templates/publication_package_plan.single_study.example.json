@@ -1,0 +1,409 @@
+{
+  "schema_version": "1.0",
+  "project_id": "REPLACE_WITH_ACTIVE_PROJECT_ID",
+  "run_id": "REPLACE_WITH_ACTIVE_RUN_ID",
+  "package_version": "1.0.0-single-study",
+  "writing_guide_source": null,
+  "source_hashes": {},
+  "artifacts": [
+    {
+      "artifact_id": "ADAPTER_HANDOFF",
+      "path": "provenance/adapter_handoff.json",
+      "type": "adapter_handoff",
+      "description": "Run-bound adapter package integrity and route-selection record.",
+      "status": "complete",
+      "source_path": "00_adapter/adapter_handoff.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "DATASET_MANIFEST",
+      "path": "provenance/dataset_manifest.json",
+      "type": "dataset_manifest",
+      "description": "Exact snapshot of declared Adapter Package artifacts.",
+      "status": "complete",
+      "source_path": "01_audit/dataset_manifest.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "SOURCE_INVENTORY",
+      "path": "provenance/source_inventory.json",
+      "type": "source_inventory",
+      "description": "Source inventory and opaque-source provenance metadata; original papers and SI remain unopened.",
+      "status": "complete",
+      "source_path": "01_audit/source_inventory.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MAPPING_PLAN",
+      "path": "mapping/mapping_plan.json",
+      "type": "mapping_plan",
+      "description": "Human-approved source-to-canonical mapping plan.",
+      "status": "complete",
+      "source_path": "02_mapping/mapping_plan.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MAPPING_VALIDATION",
+      "path": "mapping/mapping_validation.json",
+      "type": "mapping_validation",
+      "description": "Deterministic mapping validation report.",
+      "status": "complete",
+      "source_path": "02_mapping/mapping_validation.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "BUILD_SPEC",
+      "path": "mapping/canonical_build_spec.json",
+      "type": "canonical_build_specification",
+      "description": "Explicit entity grouping and construction declarations.",
+      "status": "complete",
+      "source_path": "02_mapping/canonical_build_spec.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "BUILD_SPEC_VALIDATION",
+      "path": "mapping/build_spec_validation.json",
+      "type": "build_spec_validation",
+      "description": "Deterministic validation of the exact Build Specification and mapping hashes.",
+      "status": "complete",
+      "source_path": "02_mapping/build_spec_validation.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "CANONICAL_BUNDLE",
+      "path": "data/canonical_bundle.json",
+      "type": "canonical_bundle",
+      "description": "Reviewed canonical research representation with explicit Study/System/Condition/Experiment/Observation/Evidence relationships.",
+      "status": "complete",
+      "source_path": "03_canonical/canonical_bundle.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Results",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "CANONICAL_VALIDATION",
+      "path": "validation/canonical_validation_report.json",
+      "type": "canonical_validation_report",
+      "description": "Structural and referential validation of the exact Canonical Bundle.",
+      "status": "complete",
+      "source_path": "03_canonical/canonical_validation_report.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RECONCILIATION_REPORT",
+      "path": "validation/reconciliation_report.json",
+      "type": "reconciliation_report",
+      "description": "Exact conflict, ambiguity, endpoint and provenance review queue generated without silently changing canonical values.",
+      "status": "complete",
+      "source_path": "04_reconciliation/reconciliation_report.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RECONCILIATION_DECISIONS",
+      "path": "reviews/reconciliation_decisions.json",
+      "type": "reconciliation_decisions",
+      "description": "Human decisions for each reconciliation issue, including any explicitly unresolved limitation.",
+      "status": "complete",
+      "source_path": "04_reconciliation/reconciliation_decisions.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RECONCILIATION_VALIDATION",
+      "path": "validation/reconciliation_decision_validation.json",
+      "type": "reconciliation_decision_validation",
+      "description": "Deterministic check that human decisions bind every issue in the exact report and bundle.",
+      "status": "complete",
+      "source_path": "04_reconciliation/reconciliation_decision_validation.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "DISCOVERY_REPORT",
+      "path": "discovery/discovery_report.json",
+      "type": "discovery_report",
+      "description": "Descriptive discovery summary used to define the bounded research scope; not a scientific approval.",
+      "status": "complete",
+      "source_path": "04_discovery/discovery_report.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RESEARCH_SCOPE_RECORD",
+      "path": "reviews/research_scope_record.json",
+      "type": "research_scope_record",
+      "description": "Human selection and exclusion of the exact reported discovery signals.",
+      "status": "complete",
+      "source_path": "05_scope/research_scope_record.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MODELING_TASK",
+      "path": "analysis/modeling_task.json",
+      "type": "modeling_task",
+      "description": "Approved endpoint-specific task definition retained as a contract; no model is fitted in this profile.",
+      "status": "complete",
+      "source_path": "05_scope/modeling_task.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "G2_REVIEW_PACKET",
+      "path": "reviews/g2_review_packet.json",
+      "type": "human_review_packet",
+      "description": "Exact G2 review packet and its input bindings.",
+      "status": "complete",
+      "source_path": "04_reconciliation/g2_review_packet.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "SINGLE_STUDY_APPLICABILITY_RECORD",
+      "path": "scope/single_study_applicability_record.json",
+      "type": "single_study_applicability_record",
+      "description": "Human-reviewed one-Study scope and explicit NOT_APPLICABLE reasons for cross-Study cohort/model validation. Requires careful downstream scope review.",
+      "status": "requires_review",
+      "source_path": "05_scope/single_study_applicability_record.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Limitations",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "SINGLE_STUDY_APPLICABILITY_VALIDATION",
+      "path": "scope/single_study_applicability_validation.json",
+      "type": "single_study_applicability_validation",
+      "description": "Deterministic check that exactly one eligible independent Study is present and the only split failure is inability to form three independent Study partitions.",
+      "status": "complete",
+      "source_path": "05_scope/single_study_applicability_validation.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "MODEL_NOT_APPLICABLE_RECORD",
+      "path": "analysis/model_not_applicable.json",
+      "type": "not_applicable_model_record",
+      "description": "Explicit NOT_APPLICABLE record only. No model artifact, fitted parameters, validation metrics, or held-out predictions were generated.",
+      "status": "complete",
+      "source_path": "06_modeling/not_applicable/model_report.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Limitations",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",
+      "path": "analysis/reproducibility_not_applicable.json",
+      "type": "not_applicable_reproducibility_record",
+      "description": "Explicit NOT_APPLICABLE record only. No nested Study-grouped folds, cross-Study scores, or calibrated uncertainty were generated.",
+      "status": "complete",
+      "source_path": "06_modeling/not_applicable/reproducibility_evaluation.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Limitations",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "INTERACTION_NOT_APPLICABLE_RECORD",
+      "path": "analysis/interaction_not_applicable.json",
+      "type": "not_applicable_interaction_record",
+      "description": "Explicit NOT_APPLICABLE record only. The empty catalogue is not a negative scientific finding; no Interaction discovery was performed.",
+      "status": "complete",
+      "source_path": "06_modeling/not_applicable/interaction_discovery_report.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Limitations",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "INTERACTION_NOT_APPLICABLE_MANIFEST",
+      "path": "analysis/interaction_not_applicable_manifest.json",
+      "type": "not_applicable_provenance_manifest",
+      "description": "Hash manifest binding the exact task, Canonical Bundle, applicability decision and interaction NOT_APPLICABLE record.",
+      "status": "complete",
+      "source_path": "06_modeling/not_applicable/interaction_discovery_manifest.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "ROBUSTNESS_NOT_APPLICABLE_RECORD",
+      "path": "analysis/robustness_not_applicable.json",
+      "type": "not_applicable_robustness_record",
+      "description": "Explicit NOT_APPLICABLE record only. No repeated-seed interaction robustness analysis was performed.",
+      "status": "complete",
+      "source_path": "06_modeling/not_applicable/interaction_robustness_report.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Limitations",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "ROBUSTNESS_NOT_APPLICABLE_MANIFEST",
+      "path": "analysis/robustness_not_applicable_manifest.json",
+      "type": "not_applicable_provenance_manifest",
+      "description": "Hash manifest binding the exact task, Canonical Bundle, applicability decision and robustness NOT_APPLICABLE record.",
+      "status": "complete",
+      "source_path": "06_modeling/not_applicable/interaction_robustness_manifest.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD",
+      "path": "analysis/virtual_prediction_not_applicable.json",
+      "type": "not_applicable_virtual_prediction_record",
+      "description": "Explicit NOT_APPLICABLE record only. No virtual condition prediction or predicted value was generated.",
+      "status": "complete",
+      "source_path": "06_modeling/not_applicable/virtual_prediction.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Limitations",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "INTERACTION_SELECTION",
+      "path": "reviews/interaction_selection.json",
+      "type": "interaction_selection",
+      "description": "Human decision recording that no interactions are applicable to this one-Study scope; not a negative discovery result.",
+      "status": "complete",
+      "source_path": "07_review/interaction_selection.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Limitations",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "WORKER_REVIEW_RECORD",
+      "path": "reviews/worker_review_output.json",
+      "type": "worker_review_record",
+      "description": "Original independent Worker review of provenance, reconciliation, one-Study scope, and NOT_APPLICABLE limitations; no scientific approvals.",
+      "status": "complete",
+      "source_path": "worker_staging/independent_result_review/review.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Limitations",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "HUMAN_DISPOSITION_RECORD",
+      "path": "reviews/reviewed_findings.json",
+      "type": "human_review_record",
+      "description": "Human disposition of every Worker finding, including accepted, rejected, and deferred items.",
+      "status": "complete",
+      "source_path": "09_review/reviewed_findings.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results",
+        "Discussion",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "HUMAN_DISPOSITION_VALIDATION",
+      "path": "reviews/reviewed_findings_validation.json",
+      "type": "validation_report",
+      "description": "Deterministic validation of exact Worker result, reviewed inputs, evidence locators and one-to-one human dispositions.",
+      "status": "complete",
+      "source_path": "09_review/reviewed_findings_validation.json",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods",
+        "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "FIGURE_DATA_SOURCE_001",
+      "path": "figures/figure_data_source_001.csv",
+      "type": "figure_data_source",
+      "description": "No figure data file is supplied by this profile; create a figure only from reviewed Run artifacts and user-selected claims.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Results"
+      ]
+    }
+  ]
+}
