@@ -12,6 +12,7 @@ from dor.gates import (
     record_gate_decision,
     require_gate,
     require_selected_interaction_id,
+    _require_gate_binding,
 )
 from dor.mapping import sha256_file, validate_mapping_plan
 
@@ -379,6 +380,13 @@ class WorkflowGateTests(unittest.TestCase):
         self._record_g0()
         self._record_g1()
         self._record_g2()
+
+    def test_missing_gate_binding_reports_stage_and_artifact_instead_of_keyerror(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "G3 approval is missing required artifact 'interaction_selection'",
+        ):
+            _require_gate_binding({}, "interaction_selection", "G3")
 
     def test_g2_rejects_reconciliation_decisions_bound_to_an_old_report(self):
         self._record_g0()
