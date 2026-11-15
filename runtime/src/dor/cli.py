@@ -46,6 +46,8 @@ def _write_json(path: Path | None, report: dict) -> str:
 def _add_gate_args(command_parser: argparse.ArgumentParser) -> None:
     command_parser.add_argument("--workflow-ledger", type=Path, default=None,
         help="Hash-bound G0-G4 approval ledger; required for guided project execution.")
+    command_parser.add_argument("--run-manifest", type=Path, default=None,
+        help="Exact active run_manifest.json; required for Cohort-review enforcement on modelling commands.")
     command_parser.add_argument("--allow-untracked-legacy", action="store_true",
         help="Explicit legacy-only bypass for archived scripts; never use in a real project.")
 
@@ -365,7 +367,9 @@ def main() -> int:
             "build-mechanism-evidence-bridge",
         }
         if args.command in cohort_review_required_commands and args.workflow_ledger is not None:
-            enforce_cohort_review(args.cohort_dir, args.task, args.workflow_ledger)
+            if args.run_manifest is None:
+                raise ValueError("Modelling commands require --run-manifest so the Cohort approval is bound to the exact active Run.")
+            enforce_cohort_review(args.cohort_dir, args.task, args.workflow_ledger, args.run_manifest)
         if args.command == "validate-adapter-package":
             report = validate_adapter_package_files(args.manifest, args.package_root, args.out)
             print(_write_json(None, report), end="")
