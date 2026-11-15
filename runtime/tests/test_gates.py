@@ -399,8 +399,13 @@ class WorkflowGateTests(unittest.TestCase):
             "study_count": 1,
             "canonical_bundle_sha256": bundle_binding["sha256"],
             "modeling_task_sha256": task_binding["sha256"],
+            "cohort_feasibility_status": "NOT_APPLICABLE",
             "cohort_feasibility_reason": "Only one independent Study is available.",
+            "modeling_validation_status": "NOT_APPLICABLE",
             "modeling_validation_reason": "Cross-Study validation is not applicable.",
+            "reviewer": "human-reviewer",
+            "reviewed_at": "2026-11-15T12:00:00+08:00",
+            "rationale": "One independent Study only; no model or cross-Study result is claimed.",
         }
         record_binding = write("single_study_applicability_record", record)
         validation = {
