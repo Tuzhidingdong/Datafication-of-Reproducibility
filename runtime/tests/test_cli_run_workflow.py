@@ -177,6 +177,22 @@ class CliRunWorkflowTests(unittest.TestCase):
         self.assertTrue(verified["valid_manifest_and_event_chain"])
         self.assertEqual(verified["source_integrity"], "CURRENT")
 
+        artifact_manifest_path = self.root / "artifact_manifest.json"
+        self.run_cli(
+            "run-artifacts",
+            "--manifest", str(self.manifest_path),
+            "--out", str(artifact_manifest_path),
+        )
+        artifact_manifest = json.loads(
+            artifact_manifest_path.read_text(encoding="utf-8")
+        )
+        artifact_states = {
+            item["artifact_id"]: item["status"]
+            for item in artifact_manifest["artifacts"]
+        }
+        self.assertEqual(artifact_states["g0_review_packet"], "CURRENT")
+        self.assertEqual(artifact_states["g0_review_packet_validation"], "CURRENT")
+
         resumed = json.loads(self.run_cli(
             "run-resume-plan", "--manifest", str(self.manifest_path)
         ))
