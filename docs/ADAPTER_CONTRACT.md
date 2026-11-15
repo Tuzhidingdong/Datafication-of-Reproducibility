@@ -10,9 +10,15 @@ Domain-specific retrieval, vocabulary, parsing, normalization, mappings, and pro
 
 DoR is a cross-disciplinary Skill. The Runtime must not contain built-in assumptions about a research subject, discipline, material, protocol, target vocabulary, or source-system field names.
 
-An external adapter is responsible for reading a source system and preparing a handoff package. Adapter code, domain vocabularies, semantic mappings, and discipline-specific retrieval rules remain outside the DoR core repository.
+An external adapter prepares a handoff package from already structured source-system outputs, declared metadata, and project-owned configuration. Adapter code, domain vocabularies, semantic mappings, and discipline-specific retrieval rules remain outside the DoR core repository. Reading and extracting original research literature is an upstream datafication activity, not a DoR stage or a DoR adapter-handoff operation.
 
 DoR validates the package boundary and then uses its existing general-purpose audit, mapping, canonical construction, reconciliation, cohort, modelling, validation, and publication capabilities.
+
+## Structured-data-only boundary
+
+DoR operates on structured datasets (CSV/JSON), supplied data dictionaries/configuration, structured evidence indexes, and validated Canonical Bundles. Original papers, SI, images, and other raw research documents may be listed as immutable provenance sources, but DoR must not open, parse, render, OCR, index, search, summarize, embed, or pass their contents to any LLM/Worker. For such source assets, DoR may check path existence, filesystem metadata, and compute SHA-256 from the byte stream only. A hash check is not a content review or extraction-quality verification. Source locators supplied in structured data are opaque metadata and must not be dereferenced. If required information is absent from the structured handoff, DoR records the gap and requests an upstream structured-data correction; it must not read the original to fill it.
+
+An adapter package may retain original source files or references for provenance, but only its declared structured artifacts are analysis inputs. Literature extraction, OCR, table/figure reading, and semantic extraction must occur outside DoR before the handoff and must be represented in the supplied structured data/evidence metadata. DoR does not independently certify that upstream extraction faithfully matches the source document.
 
 ## Package layout
 
@@ -27,9 +33,9 @@ Supported artifact roles are standardized_dataset, discovery_dataset, source_inv
 
 ## Current format support
 
-The package validator can verify hashes for all declared formats in the manifest. The current structural source audit and canonical builder directly parse CSV and JSON. For other or proprietary formats, an external adapter must create a structured CSV/JSON handoff suitable for the declared mapping and entity-grain review. Preserve each original source file as an immutable package source and retain the exact source hash plus page, record, object, row, cell, or other stable locator in the evidence/provenance records.
+The package validator can verify hashes for all declared formats in the manifest. The current structural source audit and canonical builder directly parse CSV and JSON. For other or proprietary formats, an external adapter must create a structured CSV/JSON handoff suitable for the declared mapping and entity-grain review. Preserve each original source file as an immutable provenance asset and retain the exact source hash plus the upstream-supplied page, record, object, row, cell, or other stable locator in the evidence/provenance records. DoR validates the presence and structural binding of these locator values only; it does not open the original source to verify their content.
 
-DoR does not claim to parse arbitrary binary documents, images, instrument files, or domain-specific formats. Those conversions and their quality checks belong to the external adapter. The adapter must not discard source records or silently infer semantic mappings while converting formats.
+DoR does not parse arbitrary binary documents, images, papers, SI, instrument files, or domain-specific formats. Any required upstream conversion must be completed before the DoR Run and delivered as explicit structured CSV/JSON or a valid Canonical Bundle. DoR must not invoke converters, OCR, PDF/table/figure extraction, or document-reading routines as a Run stage. Upstream preparation must not discard source records or silently infer semantic mappings.
 
 ## Validation
 
@@ -44,7 +50,7 @@ The command validates manifest structure, duplicate identifiers, package-relativ
 
 The handoff is read-only and does not parse unsupported source formats. An external adapter must convert other source formats into an explicit CSV/JSON handoff or a valid Canonical Bundle. DoR rechecks the manifest and all declared source/artifact hashes whenever it consumes a handoff.
 
-A passing handoff confirms delivery integrity and, for a Canonical Bundle, structural/reference validity only. It does not approve extraction quality, entity grain, scientific semantics, mappings, unit compatibility, or suitability for any analysis.
+A passing handoff confirms delivery integrity and, for a Canonical Bundle, structural/reference validity only. It does not approve upstream extraction fidelity, source-content correspondence, entity grain, scientific semantics, mappings, unit compatibility, or suitability for any analysis.
 
 For a formal Run using a prebuilt Canonical Bundle, create the package snapshot alongside the handoff:
 
@@ -64,11 +70,11 @@ The adapter package is a boundary, not a replacement for DoR's scientific workfl
 
 1. Register the adapter manifest and its package root as protected source inputs in the Run Plan.
 2. Run `dor prepare-adapter-handoff` in the adapter validation stage. The generated `adapter_handoff.json` is the single routing artifact consumed by subsequent stages.
-3. For a STRUCTURED_DATASET route, run `dor audit --adapter-handoff <adapter_handoff.json> --out <new_audit_directory>`. This audits all supported standardized CSV/JSON artifacts in one pass. Review the resulting source inventory before defining mappings.
+3. For a STRUCTURED_DATASET route, run `dor audit --adapter-handoff <adapter_handoff.json> --out <new_audit_directory>`. This parses and audits only the declared standardized CSV/JSON artifacts in one pass. Original-document sources are recorded as provenance assets and are not content-audited. Review the resulting structured-data inventory before defining mappings.
 4. For a CANONICAL_BUNDLE route, use `dor discover-opportunities --adapter-handoff <adapter_handoff.json>` for optional pre-Run exploration. This does not authorize formal analysis.
 5. For formal analysis of a prebuilt Canonical Bundle, require the package to provide `source_inventory`, `mapping_plan`, `build_spec`, and `canonical_bundle`; use the canonical-adapter Run Plan template and materialize these artifacts into the Run workspace by generic role.
 6. Follow the existing G0 and G1 approval gates. Revalidate the supplied mapping plan against the exact source inventory, bind the supplied build specification, and verify the Canonical Bundle's provenance before G2. Do not rebuild, merge, or automatically revise the supplied records.
-7. For a STRUCTURED_DATASET route, prepare and review the mapping plan and canonical build specification against the exact source inventory. DoR does not infer scientific meanings from labels or filenames. Build and validate the Canonical Bundle only after G1 approval.
+7. For a STRUCTURED_DATASET route, prepare and review the mapping plan and canonical build specification against the exact source inventory. DoR does not infer scientific meanings from labels or filenames or from original-document contents. Build and validate the Canonical Bundle only after G1 approval.
 8. Reconcile unresolved records without automatic selection, merging, or averaging. Run exploratory profiling on the validated Canonical Bundle, then continue through user scope selection, G2, endpoint-specific cohorts, and the existing approval-gated analysis stages. Exploratory results remain candidates and do not approve a formal task or gate.
 
 An adapter may provide a prebuilt canonical bundle only when its entity identities, relationships, provenance, and mappings are explicitly represented. DoR validates structural/reference integrity and preserves external source and adapter hashes; this validation is not a semantic or scientific approval.
