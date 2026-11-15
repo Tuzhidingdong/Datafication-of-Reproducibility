@@ -2737,7 +2737,7 @@
             },
             {
               "artifact_id": "virtual_prediction",
-              "path": "08_virtual_reproduction/virtual_prediction.json"
+              "path": "06_modeling/not_applicable/virtual_prediction.json"
             }
           ],
           "activation": null,
@@ -2783,7 +2783,7 @@
             },
             {
               "artifact_id": "virtual_prediction",
-              "path": "08_virtual_reproduction/virtual_prediction.json"
+              "path": "06_modeling/not_applicable/virtual_prediction.json"
             }
           ],
           "activation": null,
