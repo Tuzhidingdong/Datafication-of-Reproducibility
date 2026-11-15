@@ -458,10 +458,7 @@ class WorkflowGateTests(unittest.TestCase):
         reviewed["worker_output"]["sha256"] = sha256_file(self.files["worker_review_output"])
         self._write("reviewed_findings", reviewed)
         with self.assertRaisesRegex(ValueError, "requires exact evidence locators"):
-            self._record("G4", [
-                "publication_plan", "model_report", "interaction_selection",
-                "worker_review_output", "reviewed_findings",
-            ])
+            self._record("G4", self._g4_artifact_ids())
 
     def test_g4_requires_every_worker_finding_to_have_one_human_disposition(self):
         self._complete_to_g2()
@@ -504,7 +501,9 @@ class WorkflowGateTests(unittest.TestCase):
         self._complete_to_g2()
         self._record_g3()
         self.files["dataset_manifest"].write_text('{"revised": true}', encoding="utf-8")
-        self._record("G0", ["dataset_manifest", "source_inventory"], decision="APPROVE")
+        # Rebuild the mandatory G0 review packet against the revised inputs before
+        # recording a new approval; a gate event may not bypass packet validation.
+        self._record_g0()
         snapshot = inspect_gate_ledger(self.ledger)
         self.assertEqual(snapshot["gates"]["G0"]["status"], "APPROVED")
         self.assertEqual(snapshot["gates"]["G1"]["status"], "BLOCKED_UPSTREAM")
