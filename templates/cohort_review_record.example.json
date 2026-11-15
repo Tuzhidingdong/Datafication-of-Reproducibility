@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "review_id": "REVIEW_COHORT_001",
+  "run_id": "RUN_FROM_ACTIVE_MANIFEST",
+  "project_id": "PROJECT_FROM_ACTIVE_MANIFEST",
+  "task_id": "TASK_FROM_MODELING_TASK",
+  "reviewer": "REVIEWER_IDENTIFIER",
+  "reviewed_at": "2026-11-15T10:00:00+08:00",
+  "decision": "REVISE",
+  "record_grain_assessment": "UNRESOLVED",
+  "independence_assessment": "NOT_ESTABLISHED",
+  "split_assessment": "ACCEPTED",
+  "reviewed_warning_codes": [],
+  "reviewed_study_count": 0,
+  "reviewed_observation_count": 0,
+  "artifact_sha256": {
+    "modeling_cohort.csv": "REPLACE_WITH_SHA256",
+    "cohort_report.json": "REPLACE_WITH_SHA256",
+    "split_manifest.json": "REPLACE_WITH_SHA256",
+    "modeling_cohort_manifest.json": "REPLACE_WITH_SHA256",
+    "modeling_task.json": "REPLACE_WITH_SHA256"
+  },
+  "rationale": "Complete this review after inspecting all reported grain warnings, eligible rows, Study groups, and the proposed split.",
+  "limitations": []
+}
