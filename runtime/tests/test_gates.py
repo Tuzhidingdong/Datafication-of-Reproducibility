@@ -14,6 +14,7 @@ from dor.gates import (
     require_selected_interaction_id,
     _require_gate_binding,
     _validate_single_study_na_bundle,
+    _validate_g4_reviewed_findings,
 )
 from dor.mapping import sha256_file, validate_mapping_plan
 
@@ -490,6 +491,104 @@ class WorkflowGateTests(unittest.TestCase):
         by_id["model_report"]["sha256"] = sha256_file(self.files["model_report"])
         with self.assertRaisesRegex(ValueError, "fabricated scientific result field"):
             _validate_single_study_na_bundle(by_id, previous)
+
+    def _single_study_g4_fixture(self):
+        by_id, previous = self._single_study_gate_fixture()
+        def bind(artifact_id, payload):
+            path = self.root / (artifact_id + ".json")
+            self._write(artifact_id, payload)
+            return {
+                "artifact_id": artifact_id,
+                "path": str(path.resolve()),
+                "sha256": sha256_file(path),
+            }
+
+        for artifact_id in (
+            "canonical_validation_report",
+            "reconciliation_report",
+            "reconciliation_decisions",
+            "research_scope_record",
+            "publication_plan",
+        ):
+            by_id[artifact_id] = bind(artifact_id, {"schema_version": "1.0", "artifact_id": artifact_id})
+
+        worker = {
+            "schema_version": "1.0",
+            "task_id": "WORKER_SINGLE_STUDY",
+            "status": "completed",
+            "summary": "Reviewed exact provenance and NOT_APPLICABLE scope.",
+            "findings": [],
+            "artifacts": [],
+            "warnings": [],
+            "unresolved_questions": [],
+        }
+        by_id["worker_review_output"] = bind("worker_review_output", worker)
+        reviewable_ids = {
+            "single_study_applicability_record",
+            "single_study_applicability_validation",
+            "canonical_bundle",
+            "canonical_validation_report",
+            "reconciliation_report",
+            "reconciliation_decisions",
+            "research_scope_record",
+            "modeling_task",
+            "model_report",
+            "reproducibility_evaluation",
+            "interaction_report",
+            "robustness_report",
+            "interaction_selection",
+            "virtual_prediction",
+            "interaction_manifest",
+            "robustness_manifest",
+        }
+        reviewed_artifacts = [
+            {
+                "artifact_id": artifact_id,
+                "path": by_id[artifact_id]["path"],
+                "sha256": by_id[artifact_id]["sha256"],
+            }
+            for artifact_id in sorted(reviewable_ids)
+        ]
+        reviewed = {
+            "schema_version": "1.0",
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "reviewer": "human-reviewer",
+            "reviewed_at": "2026-11-15T13:00:00+08:00",
+            "worker_output": {
+                "artifact_id": "worker_review_output",
+                "path": by_id["worker_review_output"]["path"],
+                "sha256": by_id["worker_review_output"]["sha256"],
+            },
+            "reviewed_artifacts": reviewed_artifacts,
+            "findings": [],
+            "promotion_decision": "DO_NOT_PROMOTE",
+            "overall_rationale": "The Worker review returned no findings requiring promotion.",
+        }
+        by_id["reviewed_findings"] = bind("reviewed_findings", reviewed)
+        previous_gate = {
+            "artifacts": [
+                by_id["canonical_bundle"],
+                by_id["modeling_task"],
+            ]
+        }
+        return by_id, previous_gate
+
+    def test_single_study_g4_accepts_exact_worker_review_set_and_na_evidence(self):
+        by_id, previous_gate = self._single_study_g4_fixture()
+        _validate_g4_reviewed_findings(list(by_id.values()), previous_gate)
+
+    def test_single_study_g4_rejects_missing_reviewed_na_artifact(self):
+        by_id, previous_gate = self._single_study_g4_fixture()
+        reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
+        reviewed["reviewed_artifacts"] = [
+            item for item in reviewed["reviewed_artifacts"]
+            if item["artifact_id"] != "single_study_applicability_record"
+        ]
+        self._write("reviewed_findings", reviewed)
+        by_id["reviewed_findings"]["sha256"] = sha256_file(self.files["reviewed_findings"])
+        with self.assertRaisesRegex(ValueError, "bind exactly the artifacts supplied"):
+            _validate_g4_reviewed_findings(list(by_id.values()), previous_gate)
 
     def test_single_study_g3_rejects_bundle_with_multiple_studies(self):
         by_id, previous = self._single_study_gate_fixture()
