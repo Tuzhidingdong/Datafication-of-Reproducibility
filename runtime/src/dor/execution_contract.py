@@ -33,34 +33,71 @@ def _output_signature(outputs: Any) -> list[dict[str, str]]:
     return result
 
 
-def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None:
-    """Fail closed when a supported adapter Run Plan drifts from its action contract.
-
-    Custom Run Plans outside the two published adapter routes remain extensible.
-    """
+def _route_and_profile(plan: dict[str, Any]) -> tuple[str | None, str]:
     stages = plan.get("stages")
     if not isinstance(stages, list):
-        return
-    stage_ids = [item.get("stage_id") for item in stages if isinstance(item, dict)]
+        return None, "FULL_ANALYSIS"
+    stage_ids = {
+        item.get("stage_id") for item in stages if isinstance(item, dict)
+    }
     if "source_audit" in stage_ids:
         route = "STRUCTURED_DATASET"
     elif "adapter_artifact_materialization" in stage_ids:
         route = "CANONICAL_BUNDLE"
     else:
-        return
+        return None, str(plan.get("execution_profile", "FULL_ANALYSIS"))
+    profile = plan.get("execution_profile", "FULL_ANALYSIS")
+    if profile not in {"FULL_ANALYSIS", "CONTROLLED_SINGLE_STUDY"}:
+        raise ValueError(f"Unsupported Run Plan execution_profile: {profile!r}.")
+    return route, profile
 
+
+def _select_route_variant(binding: dict[str, Any], route: str, profile: str) -> dict[str, Any] | None:
+    variants = binding.get("route_variants", [])
+    if not isinstance(variants, list):
+        return None
+    exact = next(
+        (item for item in variants if isinstance(item, dict)
+         and item.get("route") == route and item.get("profile") == profile),
+        None,
+    )
+    if exact is not None:
+        return exact
+    # Existing route variants are the shared upstream implementation. They are
+    # intentionally reused by profile-specific plans unless an explicit variant
+    # overrides the same stage for that profile.
+    return next(
+        (item for item in variants if isinstance(item, dict)
+         and item.get("route") == route and "profile" not in item),
+        None,
+    )
+
+
+def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None:
+    """Fail closed when a supported adapter Run Plan drifts from its action contract.
+
+    The two input routes each support the full-analysis profile and the explicitly
+    bounded controlled-single-study profile. Other custom Run Plans remain extensible.
+    """
+    route, profile = _route_and_profile(plan)
+    if route is None:
+        return
+    stages = plan["stages"]
+    stage_ids = [item.get("stage_id") for item in stages if isinstance(item, dict)]
     contract = _load_contract()
-    routes = contract.get("routes", {})
-    expected_ids = routes.get(route)
+    if profile == "FULL_ANALYSIS":
+        expected_ids = contract.get("routes", {}).get(route)
+    else:
+        expected_ids = contract.get("profiles", {}).get(profile, {}).get(route)
     if not isinstance(expected_ids, list):
-        raise ValueError(f"Stage execution contract does not declare route {route}.")
+        raise ValueError(f"Stage execution contract does not declare {profile} profile for route {route}.")
     actual_ids = set(stage_ids)
     expected_set = set(expected_ids)
-    if actual_ids != expected_set:
+    if actual_ids != expected_set or len(stage_ids) != len(expected_ids):
         missing = sorted(expected_set - actual_ids)
         extra = sorted(actual_ids - expected_set)
         raise ValueError(
-            f"Run Plan stage set differs from the {route} execution contract; "
+            f"Run Plan stage set differs from the {route}/{profile} execution contract; "
             f"missing={missing}, extra={extra}."
         )
 
@@ -80,13 +117,9 @@ def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None
         binding = by_id.get(stage_id)
         if binding is None:
             raise ValueError(f"Stage {stage_id} has no execution action binding.")
-        variant = next(
-            (item for item in binding.get("route_variants", [])
-             if isinstance(item, dict) and item.get("route") == route),
-            None,
-        )
+        variant = _select_route_variant(binding, route, profile)
         if variant is None:
-            raise ValueError(f"Stage {stage_id} has no {route} execution variant.")
+            raise ValueError(f"Stage {stage_id} has no {route}/{profile} execution variant.")
         executor = stage.get("executor", "local")
         if executor != variant.get("executor"):
             raise ValueError(
@@ -147,15 +180,12 @@ def stage_action_bindings_for_plan(plan: dict[str, Any]) -> dict[str, dict[str, 
         binding = by_id.get(stage_id)
         if binding is None:
             raise ValueError(f"Stage {stage_id} has no execution action binding.")
-        variant = next(
-            (item for item in binding.get("route_variants", [])
-             if isinstance(item, dict) and item.get("route") == route),
-            None,
-        )
+        variant = _select_route_variant(binding, route, profile)
         if variant is None:
             raise ValueError(f"Stage {stage_id} has no {route} execution variant.")
         result[stage_id] = {
             "route": route,
+            "execution_profile": profile,
             "action_type": binding.get("action_type"),
             "executor": variant.get("executor"),
             "runtime_command": binding.get("cli_command"),
@@ -190,6 +220,7 @@ def inspect_supported_run_plan_execution_contract(plan: dict[str, Any]) -> dict[
         "schema_version": "1.0",
         "valid": True,
         "route": route,
+        "execution_profile": profile,
         "stage_count": len(stage_ids),
         "action_counts": action_counts,
         "stage_actions": actions,
