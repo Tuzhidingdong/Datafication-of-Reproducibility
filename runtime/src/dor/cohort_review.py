@@ -113,6 +113,17 @@ def validate_cohort_review_record(
         issue("COHORT_TASK_ID_MISMATCH", "Cohort report task_id does not match the exact modeling task.")
     if cohort_manifest.get("task_id") != task.get("task_id"):
         issue("MANIFEST_TASK_ID_MISMATCH", "Cohort manifest task_id does not match the exact modeling task.")
+    task_sha256 = _sha256(task_path)
+    if cohort_report.get("task_sha256") != task_sha256:
+        issue("COHORT_REPORT_TASK_HASH_MISMATCH", "Cohort report was not produced from the exact modeling task file.")
+    if cohort_manifest.get("task_sha256") != task_sha256:
+        issue("COHORT_MANIFEST_TASK_HASH_MISMATCH", "Cohort manifest was not produced from the exact modeling task file.")
+    if cohort_report.get("bundle_sha256") != cohort_manifest.get("bundle_sha256"):
+        issue("COHORT_BUNDLE_HASH_MISMATCH", "Cohort report and manifest do not bind the same Canonical Bundle hash.")
+    if cohort_manifest.get("eligible_observation_count") != cohort_report.get("eligible_observation_count"):
+        issue("COHORT_MANIFEST_COUNT_MISMATCH", "Cohort manifest Observation count differs from the Cohort report.")
+    if cohort_manifest.get("eligible_study_count") != cohort_report.get("eligible_study_count"):
+        issue("COHORT_MANIFEST_STUDY_COUNT_MISMATCH", "Cohort manifest Study count differs from the Cohort report.")
     if cohort_report.get("valid") is not True:
         issue("COHORT_REPORT_NOT_VALID", "Cohort report must declare valid=true before review.")
     if not isinstance(split_manifest.get("leakage_check"), dict) or split_manifest["leakage_check"].get("valid") is not True:
@@ -153,6 +164,17 @@ def validate_cohort_review_record(
         split_assignments = {}
     if set(split_assignments) != study_ids:
         issue("SPLIT_STUDY_SET_MISMATCH", "Study IDs in split_manifest do not match the eligible cohort.")
+    declared_observations = split_manifest.get("observation_ids_by_split")
+    if not isinstance(declared_observations, dict):
+        issue("SPLIT_OBSERVATION_IDS_MISSING", "Split manifest must declare observation_ids_by_split.")
+        declared_observations = {}
+    for split_name in ("train", "validation", "test"):
+        observed_ids = sorted(row["observation_id"] for row in rows if row.get("split") == split_name)
+        declared_ids = declared_observations.get(split_name)
+        if not isinstance(declared_ids, list) or sorted(declared_ids) != observed_ids:
+            issue("SPLIT_OBSERVATION_SET_MISMATCH", f"Cohort CSV Observation IDs for {split_name} do not match split_manifest.")
+    if not {"train", "validation", "test"}.issubset({row.get("split") for row in rows}):
+        issue("COHORT_PARTITION_EMPTY", "Cohort must contain at least one Observation in train, validation, and test.")
     for row in rows:
         if row.get("split") not in {"train", "validation", "test"}:
             issue("COHORT_SPLIT_LABEL_INVALID", f"Observation {row.get('observation_id')} has an invalid split label.")
@@ -164,11 +186,18 @@ def validate_cohort_review_record(
     artifact_hashes = record.get("artifact_sha256")
     expected_hashes: dict[str, str] = {}
     for name in REVIEWABLE_INPUTS:
-        path = task_path if name == "modeling_task.json" else cohort_dir / name
-        if not path.is_file():
+        input_path = task_path if name == "modeling_task.json" else cohort_dir / name
+        if not input_path.is_file():
             issue("REVIEW_INPUT_MISSING", f"Review input is missing: {name}.")
             continue
-        expected_hashes[name] = _sha256(path)
+        expected_hashes[name] = _sha256(input_path)
+    declared_cohort_hashes = cohort_manifest.get("artifact_sha256")
+    if not isinstance(declared_cohort_hashes, dict):
+        issue("COHORT_MANIFEST_HASHES_MISSING", "Cohort manifest must declare hashes for the CSV, report, and split manifest.")
+    else:
+        for name in REQUIRED_INPUTS:
+            if name not in expected_hashes or declared_cohort_hashes.get(name) != expected_hashes[name]:
+                issue("COHORT_MANIFEST_ARTIFACT_HASH_MISMATCH", f"Cohort manifest hash does not match the current {name}.")
     if not isinstance(artifact_hashes, dict):
         issue("ARTIFACT_HASHES_MISSING", "artifact_sha256 must bind every cohort and task input.")
     elif set(artifact_hashes) != set(REVIEWABLE_INPUTS):
