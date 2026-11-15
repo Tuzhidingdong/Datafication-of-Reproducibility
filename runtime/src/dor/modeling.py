@@ -465,10 +465,13 @@ def _run_regression(rows: list[dict[str, Any]], task: dict[str, Any], settings: 
     x_validation = _transform_rows(validation, encoder)
     for alpha in settings["ridge_alphas"]:
         fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
-        predictions = _predict_ridge(x_validation, fitted)
+        validation_metrics = None
+        if fitted["converged"]:
+            predictions = _predict_ridge(x_validation, fitted)
+            validation_metrics = _regression_metrics(y_validation, predictions)
         name = "ridge_alpha_" + format(alpha, ".12g")
         comparisons.append({"candidate_model":"ridge_regression","candidate_id":name,"alpha":alpha,
-                            "validation_metrics":_regression_metrics(y_validation,predictions),
+                            "validation_metrics":validation_metrics,
                             "converged":fitted["converged"],"iterations":fitted["iterations"],
                             "eligible_for_selection":bool(fitted["converged"]),
                             "exclusion_reason":None if fitted["converged"] else "RIDGE_FIT_NOT_CONVERGED"})
