@@ -107,8 +107,8 @@ def _fit_pair_candidate(train: list[dict[str, Any]], validation: list[dict[str, 
     comparisons = []
     for alpha in settings["ridge_alphas"]:
         fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
-        predictions = _predict_ridge(x_validation, fitted)
-        comparisons.append({"alpha": alpha, "validation_metrics": _regression_metrics(y_validation, predictions),
+        validation_metrics = _regression_metrics(y_validation, _predict_ridge(x_validation, fitted)) if fitted["converged"] else None
+        comparisons.append({"alpha": alpha, "validation_metrics": validation_metrics,
                             "converged": fitted["converged"], "iterations": fitted["iterations"],
                             "eligible_for_selection": bool(fitted["converged"])})
     eligible = [item for item in comparisons if item["eligible_for_selection"]]
@@ -127,8 +127,8 @@ def _fit_additive_candidate(train: list[dict[str, Any]], validation: list[dict[s
     comparisons = []
     for alpha in settings["ridge_alphas"]:
         fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
-        predictions = _predict_ridge(x_validation, fitted)
-        comparisons.append({"alpha": alpha, "validation_metrics": _regression_metrics(y_validation, predictions),
+        validation_metrics = _regression_metrics(y_validation, _predict_ridge(x_validation, fitted)) if fitted["converged"] else None
+        comparisons.append({"alpha": alpha, "validation_metrics": validation_metrics,
                             "converged": fitted["converged"], "iterations": fitted["iterations"],
                             "eligible_for_selection": bool(fitted["converged"])})
     eligible = [item for item in comparisons if item["eligible_for_selection"]]
