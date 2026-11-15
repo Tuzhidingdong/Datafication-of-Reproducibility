@@ -42,11 +42,12 @@
     },
     "variant": {
       "type": "object",
-      "required": ["route", "executor", "required_gate", "inputs", "outputs", "activation"],
+      "required": ["route", "executor", "required_gate", "depends_on", "inputs", "outputs", "activation"],
       "properties": {
         "route": {"enum": ["STRUCTURED_DATASET", "CANONICAL_BUNDLE"]},
         "executor": {"enum": ["local", "manual", "worker"]},
         "required_gate": {"type": ["string", "null"], "enum": ["G0", "G1", "G2", "G3", "G4", null]},
+        "depends_on": {"$ref": "#/$defs/stageIds"},
         "inputs": {"$ref": "#/$defs/stageIds"},
         "outputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/output"}},
         "activation": {"type": ["object", "null"]}
