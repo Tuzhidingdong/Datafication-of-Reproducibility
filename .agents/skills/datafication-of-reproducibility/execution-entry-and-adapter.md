@@ -25,7 +25,9 @@ Before executing any Run Plan, read [the command-level operator guide](../../../
 
 ### Stage 0 — Initialize
 
-- Read the project configuration.
+- Read the project configuration and identify the active project's declared source roots and registered Adapter Package.
+- Before asking the user to identify a pilot paper, inspect the already-declared CSV/JSON inputs and their existing source identifiers/locations. If original-paper locations are present, select one pilot candidate automatically using the V1.0 traceability-first rule: prefer a resolvable primary paper plus linked SI, then the greatest number of explicitly linked structured records; break ties deterministically by normalized source identifier and path. Verify the exact paper/SI paths, readability, and hashes. Do not rank by scientific content.
+- Keep this discovery bounded to declared project inputs; do not scan unrelated folders, the full disk, or the complete literature corpus. Partition records into selected-paper-linked and excluded/unresolved groups. Report the candidate and exclusions; ask the user only for a genuinely unresolved required relationship, not for paths/identifiers already present in project data.
 - Resolve source paths and output workspace.
 - Verify that source inputs exist and are readable.
 - Record source file names, sizes, and SHA-256 hashes.
