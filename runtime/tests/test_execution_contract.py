@@ -28,10 +28,13 @@ class StageExecutionContractTests(unittest.TestCase):
                 validate_supported_run_plan_execution_contract(plan)
 
     def test_formal_run_resume_plan_exposes_exact_route_action_and_paths(self):
-        for index, relative_path in enumerate((
-            "templates/run_plan.example.json",
-            "templates/run_plan.canonical_adapter.example.json",
-        )):
+        cases = (
+            ("templates/run_plan.example.json", "STRUCTURED_DATASET", "FULL_ANALYSIS"),
+            ("templates/run_plan.canonical_adapter.example.json", "CANONICAL_BUNDLE", "FULL_ANALYSIS"),
+            ("templates/run_plan.single_study.example.json", "STRUCTURED_DATASET", "CONTROLLED_SINGLE_STUDY"),
+            ("templates/run_plan.canonical_adapter.single_study.example.json", "CANONICAL_BUNDLE", "CONTROLLED_SINGLE_STUDY"),
+        )
+        for index, (relative_path, expected_route, expected_profile) in enumerate(cases):
             with self.subTest(path=relative_path):
                 with tempfile.TemporaryDirectory(prefix="dor-formal-run-plan-") as temporary:
                     root = Path(temporary)
@@ -68,10 +71,8 @@ class StageExecutionContractTests(unittest.TestCase):
                     resume = build_resume_plan(run_root / "run_manifest.json")
                     self.assertEqual(resume["next_actions"][0]["stage_id"], "adapter_package_validation")
                     first_action = resume["next_actions"][0]
-                    self.assertEqual(
-                        first_action["action_binding"]["route"],
-                        "STRUCTURED_DATASET" if index == 0 else "CANONICAL_BUNDLE",
-                    )
+                    self.assertEqual(first_action["action_binding"]["route"], expected_route)
+                    self.assertEqual(first_action["action_binding"]["execution_profile"], expected_profile)
                     self.assertEqual(first_action["action"], "READY_TO_RUN")
                     self.assertEqual(first_action["action_binding"]["runtime_command"], "prepare-adapter-handoff")
                     self.assertEqual(
