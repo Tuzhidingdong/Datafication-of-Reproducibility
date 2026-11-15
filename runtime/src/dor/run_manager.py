@@ -1175,6 +1175,113 @@ def build_artifact_manifest(manifest_path: Path) -> dict[str, Any]:
     root, manifest, plan, events = _manifest_context(manifest_path)
     return _artifact_manifest(root, manifest, plan, events)
 
+def _usage_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    fields = ("input_tokens", "output_tokens", "reasoning_tokens",
+              "cache_read_tokens", "cache_write_tokens")
+    totals: dict[str, Any] = {}
+    for field in fields:
+        values = [row[field] for row in rows if row.get(field) is not None]
+        totals[field] = {
+            "total": sum(values) if values else None,
+            "reported_attempts": len(values),
+            "missing_attempts": len(rows) - len(values),
+        }
+    base_complete = sum(
+        1 for row in rows
+        if row.get("input_tokens") is not None and row.get("output_tokens") is not None
+    )
+    return {
+        "attempt_count": len(rows),
+        "attempts_with_any_usage": sum(
+            1 for row in rows if any(row.get(field) is not None for field in fields)
+        ),
+        "base_input_output_complete_attempts": base_complete,
+        "token_totals": totals,
+        "input_plus_output_tokens": (
+            totals["input_tokens"]["total"] + totals["output_tokens"]["total"]
+            if base_complete == len(rows) and rows else None
+        ),
+        "usage_coverage": (
+            "NO_USAGE_REPORTED" if not any(row.get(field) is not None for row in rows for field in fields)
+            else ("COMPLETE_INPUT_OUTPUT" if rows and base_complete == len(rows) else "PARTIAL")
+        ),
+    }
+
+
+def build_run_usage_report(manifest_path: Path) -> dict[str, Any]:
+    """Summarize token usage actually recorded on terminal Run stage attempts."""
+    root, manifest, plan, events = _manifest_context(manifest_path)
+    token_fields = (
+        "input_tokens", "output_tokens", "reasoning_tokens",
+        "cache_read_tokens", "cache_write_tokens",
+    )
+    terminal = [
+        event for event in events
+        if event.get("event_type") == "STAGE_STATUS"
+        and event.get("status") in {"SUCCEEDED", "FAILED"}
+    ]
+    rows: list[dict[str, Any]] = []
+    for event in terminal:
+        producer = event.get("producer") if isinstance(event.get("producer"), dict) else {}
+        rows.append({
+            "stage_id": event.get("stage_id"),
+            "attempt": event.get("attempt"),
+            "status": event.get("status"),
+            "producer_kind": producer.get("kind", "UNSPECIFIED"),
+            "role": producer.get("role"),
+            "provider": producer.get("provider"),
+            "model": producer.get("model"),
+            "job_id": producer.get("job_id"),
+            "session_id": producer.get("session_id"),
+            "task_id": producer.get("task_id"),
+            **{field: producer.get(field) for field in token_fields},
+            "event_hash": event.get("event_hash"),
+        })
+
+    def grouped(key_fields: tuple[str, ...]) -> list[dict[str, Any]]:
+        groups: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+        for row in rows:
+            key = tuple(str(row.get(field) or "UNSPECIFIED") for field in key_fields)
+            groups.setdefault(key, []).append(row)
+        return [
+            {**dict(zip(key_fields, key)), **_usage_aggregate(group_rows)}
+            for key, group_rows in sorted(groups.items())
+        ]
+
+    running_events = sum(
+        1 for event in events
+        if event.get("event_type") == "STAGE_STATUS" and event.get("status") == "RUNNING"
+    )
+    skipped_events = sum(
+        1 for event in events
+        if event.get("event_type") == "STAGE_STATUS" and event.get("status") == "SKIPPED"
+    )
+    return {
+        "schema_version": RUN_SCHEMA_VERSION,
+        "run_id": manifest["run_id"],
+        "project_id": manifest["project_id"],
+        "workspace_root": str(root),
+        "generated_at": _now(),
+        "terminal_attempt_count": len(rows),
+        "running_event_count": running_events,
+        "skipped_stage_event_count": skipped_events,
+        "usage_summary": _usage_aggregate(rows),
+        "by_stage": grouped(("stage_id",)),
+        "by_producer_kind": grouped(("producer_kind",)),
+        "by_provider_model": grouped(("provider", "model")),
+        "attempts": rows,
+        "accounting_policy": {
+            "included_events": "TERMINAL_SUCCEEDED_OR_FAILED_STAGE_ATTEMPTS_ONLY",
+            "excluded_events": ["RUNNING", "SKIPPED", "WORKER_AUTHORIZED"],
+            "missing_values": "NULL_AND_COUNTED_AS_MISSING_NOT_SILENTLY_COERCED_TO_ZERO",
+            "total_policy": "INPUT_PLUS_OUTPUT_ONLY; REASONING_AND_CACHE COUNTS ARE REPORTED SEPARATELY",
+            "source_scope": "ONLY_TOKEN_USAGE_REPORTED_TO_RUN_MANAGER; DOES_NOT_INCLUDE_UNRECORDED_SUPERVISOR_OR_EXTERNAL_AGENT_USAGE",
+        },
+        "source_of_truth": "HASH_CHAINED_RUN_EVENT_LEDGER",
+    }
+
+
+
 
 def _stage_input_snapshots(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                            stage: dict[str, Any]) -> list[dict[str, str]]:
