@@ -109,8 +109,12 @@ def _fit_pair_candidate(train: list[dict[str, Any]], validation: list[dict[str, 
         fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
         predictions = _predict_ridge(x_validation, fitted)
         comparisons.append({"alpha": alpha, "validation_metrics": _regression_metrics(y_validation, predictions),
-                            "converged": fitted["converged"], "iterations": fitted["iterations"]})
-    chosen = min(comparisons, key=lambda item: (item["validation_metrics"]["rmse"], item["alpha"]))
+                            "converged": fitted["converged"], "iterations": fitted["iterations"],
+                            "eligible_for_selection": bool(fitted["converged"])})
+    eligible = [item for item in comparisons if item["eligible_for_selection"]]
+    if not eligible:
+        raise RuntimeError("NO_CONVERGED_RIDGE_CANDIDATE_FOR_PAIR_INTERACTION")
+    chosen = min(eligible, key=lambda item: (item["validation_metrics"]["rmse"], item["alpha"]))
     return float(chosen["alpha"]), comparisons
 
 
@@ -125,8 +129,12 @@ def _fit_additive_candidate(train: list[dict[str, Any]], validation: list[dict[s
         fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
         predictions = _predict_ridge(x_validation, fitted)
         comparisons.append({"alpha": alpha, "validation_metrics": _regression_metrics(y_validation, predictions),
-                            "converged": fitted["converged"], "iterations": fitted["iterations"]})
-    chosen = min(comparisons, key=lambda item: (item["validation_metrics"]["rmse"], item["alpha"]))
+                            "converged": fitted["converged"], "iterations": fitted["iterations"],
+                            "eligible_for_selection": bool(fitted["converged"])})
+    eligible = [item for item in comparisons if item["eligible_for_selection"]]
+    if not eligible:
+        raise RuntimeError("NO_CONVERGED_RIDGE_CANDIDATE_FOR_ADDITIVE_MODEL")
+    chosen = min(eligible, key=lambda item: (item["validation_metrics"]["rmse"], item["alpha"]))
     return float(chosen["alpha"]), comparisons
 
 
@@ -144,7 +152,9 @@ def _fit_predict_outer(train: list[dict[str, Any]], test: list[dict[str, Any]],
     else:
         x_train, x_test = x_train_base, x_test_base
     fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
-    return _predict_ridge(x_test, fitted), fitted["converged"]
+    if not fitted["converged"]:
+        raise RuntimeError("RIDGE_OUTER_REFIT_NOT_CONVERGED")
+    return _predict_ridge(x_test, fitted), True
 
 
 def _joint_coverage(rows: list[dict[str, Any]], feature_a: str, feature_b: str) -> dict[str, Any]:
@@ -259,6 +269,7 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
     all_results: dict[tuple[str,str], list[dict[str,Any]]] = {pair:[] for pair in candidates}
     all_predictions: dict[tuple[str,str], list[dict[str,Any]]] = {pair:[] for pair in candidates}
     failed_pairs: dict[tuple[str,str], list[int]] = {}
+    failed_pair_reasons: dict[tuple[str,str], str] = {}
     fold_protocol = []
     max_columns = interaction_settings["maximum_interaction_columns"]
     for fold_index, held_studies in enumerate(fold_groups, start=1):
@@ -288,6 +299,11 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
                 pair_predictions,pair_converged = _fit_predict_outer(outer_train,outer_test,bindings,pair_alpha,pair,settings,max_columns)
             except OverflowError:
                 failed_pairs.setdefault(pair, []).append(fold_index)
+                failed_pair_reasons[pair] = "PAIR_INTERACTION_ENCODING_EXCEEDS_LIMIT"
+                continue
+            except RuntimeError as exc:
+                failed_pairs.setdefault(pair, []).append(fold_index)
+                failed_pair_reasons[pair] = str(exc)
                 continue
             pair_metrics = _regression_metrics(y_test,pair_predictions)
             improvement = additive_metrics["rmse"] - pair_metrics["rmse"]
@@ -307,8 +323,9 @@ def discover_interactions_files(cohort_dir: Path, task_path: Path, output_dir: P
                     "interaction_absolute_error":abs(pair_predictions[index]-row["outcome"])
                 })
     for pair, failed_folds in sorted(failed_pairs.items()):
+        reason = failed_pair_reasons.get(pair, "PAIR_INTERACTION_ENCODING_EXCEEDS_LIMIT")
         exclusions.append({"feature_a":pair[0],"feature_b":pair[1],
-            "reason":"PAIR_INTERACTION_ENCODING_EXCEEDS_LIMIT","folds":failed_folds})
+            "reason":reason,"folds":failed_folds})
     catalogue = []
     prediction_rows = []
     for pair in candidates:
