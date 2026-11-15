@@ -339,6 +339,8 @@ def build_parser() -> argparse.ArgumentParser:
     single_study_na.add_argument("--bundle", type=Path, required=True)
     single_study_na.add_argument("--task", type=Path, required=True)
     single_study_na.add_argument("--manifest", type=Path, required=True)
+    single_study_na.add_argument("--workflow-ledger", type=Path, required=True,
+        help="G0-G4 approval ledger; G2 must currently approve the exact Bundle/task.")
     single_study_na.add_argument("--out-dir", type=Path, required=True)
 
     worker_authorize = subparsers.add_parser("run-worker-authorize", help="Record an explicit pre-dispatch Worker authorization and emit its bounded task packet")
@@ -484,6 +486,7 @@ def main() -> int:
             print(_write_json(args.out, result), end="")
             return 0 if result["valid"] else 2
         if args.command == "prepare-single-study-not-applicable-artifacts":
+            _enforce_gate(args, "G2")
             result = prepare_single_study_not_applicable_artifacts_files(
                 args.record, args.validation, args.bundle, args.task,
                 args.manifest, args.out_dir,
