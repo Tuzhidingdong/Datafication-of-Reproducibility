@@ -1,5 +1,9 @@
 # Pre-Run discovery, initialization, review packets, Run Manager loop, external Adapter handoff and route selection
 
+## Mandatory structured-data-only boundary
+
+DoR stages consume only declared structured datasets (CSV/JSON and supplied structured evidence), data dictionaries, project configuration, and validated Canonical Bundles. Original papers, SI, images, and other raw research documents may be registered as provenance assets, but DoR must never open, parse, render, OCR, index, search, summarize, or send their contents to an LLM/Worker. For such assets, permitted handling is limited to path/existence checks, filesystem metadata, and byte-level SHA-256 calculation. Treat source locators as opaque metadata; never dereference them. If a mapping or audit question cannot be answered from the structured handoff, record a blocker and request an upstream structured-data correction instead of reading the original.
+
 ## Discovery-first research entry
 
 DoR never assumes a particular source system or research domain. When a project has an external adapter that can provide a validated Canonical Bundle, use the same bundle for exploratory profiling and the subsequent formal workflow.
@@ -26,11 +30,12 @@ Before executing any Run Plan, read [the command-level operator guide](../../../
 ### Stage 0 — Initialize
 
 - Read the project configuration and identify the active project's declared source roots and registered Adapter Package.
-- Before asking the user to identify a pilot paper, inspect the already-declared CSV/JSON inputs and their existing source identifiers/locations. If original-paper locations are present, select one pilot candidate automatically using the V1.0 traceability-first rule: prefer a resolvable primary paper plus linked SI, then the greatest number of explicitly linked structured records; break ties deterministically by normalized source identifier and path. Verify the exact paper/SI paths, readability, and hashes. Do not rank by scientific content.
+- Before asking the user to identify a pilot paper, inspect only the already-declared CSV/JSON inputs and their source identifiers/location fields/SI association metadata. If these explicitly identify original-paper and SI locations, select one candidate automatically using the V1.0 traceability-first rule: prefer explicit primary-paper/SI association metadata, then the greatest number of explicitly linked structured records; break ties deterministically by normalized source identifier and path. For paper/SI assets, check path existence, filesystem metadata, and byte-level SHA-256 only. Do not open them to test readability or verify their content, and do not rank by scientific content. Mark any path derived from an identifier as derived rather than source-provided.
 - Keep this discovery bounded to declared project inputs; do not scan unrelated folders, the full disk, or the complete literature corpus. Partition records into selected-paper-linked and excluded/unresolved groups. Report the candidate and exclusions; ask the user only for a genuinely unresolved required relationship, not for paths/identifiers already present in project data.
 - Resolve source paths and output workspace.
-- Verify that source inputs exist and are readable.
-- Record source file names, sizes, and SHA-256 hashes.
+- Verify that structured inputs exist and can be parsed by their declared CSV/JSON readers.
+- For original paper/SI or other raw research-document assets, check only path existence, file metadata, and byte-level SHA-256; never parse or test semantic readability.
+- Record source file names, sizes, formats, and SHA-256 hashes.
 - Confirm that output paths do not overwrite or reside inside protected source files.
 - Create a new run directory; never overwrite an earlier run by default.
 - For adapter-backed projects, first create a route-preflight handoff outside the protected package using `dor prepare-adapter-handoff`. Use its route to select the appropriate Run Plan template. Initialize the formal Run with `dor run-init --plan <selected_run_plan.json> --run-root <new_run_root>`, then verify it with `dor run-verify --manifest <run_root>/run_manifest.json`. The formal adapter validation stage must regenerate the handoff inside the Run workspace; the preflight file is not a Run artifact.
@@ -58,6 +63,8 @@ The Run Manager is the execution ledger and safety controller for the immutable 
 - For `REBUILD_REQUIRED`, archive the previous attempt's output files outside their declared output locations before retrying; Run Manager refuses to overwrite existing files. After each stage boundary, use `dor run-verify` and refresh `dor run-artifacts` when artifact lineage changes. On interruption, trust the newly computed resume plan rather than conversational history.
 
 ### External adapter handoff
+
+The adapter handoff packages already structured outputs and provenance. DoR does not run a literature-extraction adapter, invoke PDF/SI parsing, or reconstruct missing values from original documents. Any upstream reading/extraction of original literature must have been completed before the DoR Run and delivered as structured data with its existing locator metadata. The handoff validator verifies declared files and hashes; it does not inspect original-document contents or certify extraction fidelity.
 
 Use an independently maintained adapter to read source-system files and prepare an adapter package conforming to schemas/adapter_package.schema.json. Adapter code and domain-specific retrieval or vocabulary rules must remain outside the DoR core repository.
 
