@@ -140,6 +140,7 @@ def run_audit_sources(source_specs: list[dict[str, Any]], output_dir: Path) -> d
             "A CSV row is not assumed to be an independent experimental replicate.",
             "Short and long CSV rows are counted; extra cell contents are not interpreted.",
             "No missing-value imputation or source-data modification was performed.",
+            "Original research documents and locator targets were not opened or verified; only declared structured inputs and provenance metadata were inspected.",
         ],
     }
     (output_dir / "dataset_manifest.json").write_text(
@@ -191,9 +192,12 @@ def run_audit_sources(source_specs: list[dict[str, Any]], output_dir: Path) -> d
     lines.extend(f"- {warning}" for warning in manifest["warnings"])
     lines.extend([
         "", "## Next step", "",
-        "Review this report and the bounded structural profile, inspect source evidence, "
-        "then define explicit mappings. Do not infer scientific meanings from identifiers, "
-        "filenames, or sampled values alone.", "",
+        "Review this report and the bounded structural profile. Review only supplied structured "
+        "evidence records and opaque locator metadata; never open original papers/SI or dereference "
+        "locators. Define explicit mappings from structured fields only. If required meaning or "
+        "a relationship is absent, keep it unresolved and request upstream structured-data "
+        "correction. Do not infer scientific meanings from identifiers, filenames, or sampled "
+        "values alone.", "",
     ])
     (output_dir / "data_audit_report.md").write_text("\n".join(lines), encoding="utf-8")
 
