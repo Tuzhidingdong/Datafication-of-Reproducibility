@@ -82,6 +82,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "reproducibility_evaluation_manifest": "evidence/reproducibility_evaluation_manifest.json",
             "publication_manifest": "evidence/publication_package/package_manifest.json",
             "publication_integrity": "evidence/publication_integrity_report.json",
+            "single_study_applicability_record": "evidence/single_study_applicability_record.json",
+            "single_study_applicability_validation": "evidence/single_study_applicability_validation.json",
         }
         outputs = [{"artifact_id": artifact_id, "path": relpath}
                    for artifact_id, relpath in artifact_paths.items()]
@@ -512,6 +514,44 @@ class AcceptanceValidatorTests(unittest.TestCase):
         integrity_report = audit_publication_package_files(package_dir)
         self._write_json(paths["publication_integrity"], integrity_report)
 
+        applicability_record = {
+            "schema_version": "1.0",
+            "run_id": self.run_id,
+            "project_id": "PROJECT_1",
+            "scope": "CONTROLLED_SINGLE_STUDY",
+            "applicability_status": "NOT_APPLICABLE",
+            "study_ids": [ids[0]],
+            "study_count": 1,
+            "canonical_bundle_sha256": self.sha(paths["canonical_bundle"]),
+            "modeling_task_sha256": task_hash,
+            "cohort_feasibility_status": "NOT_APPLICABLE",
+            "cohort_feasibility_reason": "One independent Study cannot form independent train/validation/test Study partitions.",
+            "modeling_validation_status": "NOT_APPLICABLE",
+            "modeling_validation_reason": "One independent Study cannot support Study-held-out model or nested reproducibility validation.",
+            "reviewer": "synthetic-reviewer",
+            "reviewed_at": "2026-11-15T12:00:00+08:00",
+            "rationale": "Synthetic fixture only; no model or cross-Study validation is claimed.",
+        }
+        applicability_record_hash = self._write_json(
+            paths["single_study_applicability_record"], applicability_record,
+        )
+        self._write_json(paths["single_study_applicability_validation"], {
+            "schema_version": "1.0",
+            "valid": True,
+            "run_id": self.run_id,
+            "project_id": "PROJECT_1",
+            "scope": "CONTROLLED_SINGLE_STUDY",
+            "applicability_status": "NOT_APPLICABLE",
+            "study_ids": [ids[0]],
+            "study_count": 1,
+            "eligible_study_count": 1,
+            "canonical_bundle_sha256": applicability_record["canonical_bundle_sha256"],
+            "modeling_task_sha256": task_hash,
+            "applicability_record_sha256": applicability_record_hash,
+            "validation_basis": "SYNTHETIC_ACCEPTANCE_FIXTURE_ONLY",
+            "errors": [],
+        })
+
         record_stage_status(self.manifest, "acceptance_evidence", "SUCCEEDED", "local")
 
         self.output_paths = paths
@@ -571,6 +611,23 @@ class AcceptanceValidatorTests(unittest.TestCase):
                     "path": str(path), "sha256": self.sha(path),
                 })
             self.stage_evidence[stage_id] = items
+
+        applicability_evidence = [
+            {
+                "artifact_id": artifact_id,
+                "artifact_type": artifact_type,
+                "path": str(paths[key]),
+                "sha256": self.sha(paths[key]),
+            }
+            for artifact_id, artifact_type, key in (
+                ("single_study_applicability_record", "single_study_applicability_record", "single_study_applicability_record"),
+                ("single_study_applicability_validation", "single_study_applicability_validation", "single_study_applicability_validation"),
+                ("canonical_bundle", "canonical_bundle", "canonical_bundle"),
+                ("modeling_task", "modeling_task", "modeling_task"),
+            )
+        ]
+        self.stage_evidence["cohort_feasibility"] = [dict(item) for item in applicability_evidence]
+        self.stage_evidence["modeling_validation"] = [dict(item) for item in applicability_evidence]
 
         self.record_path = self.root / f"{self.run_id}_acceptance.json"
         self.ledger_path = self.root / f"{self.run_id}_acceptance_events.jsonl"
@@ -922,17 +979,41 @@ class AcceptanceValidatorTests(unittest.TestCase):
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("SINGLE_STUDY_MODEL_VALIDATION_INVALID", codes)
 
-    def test_conditional_pass_allows_na_only_with_reason(self):
+    def test_conditional_pass_requires_hash_bound_single_study_na_evidence(self):
         for stage in STAGE_ORDER:
             if stage in {"cohort_feasibility", "modeling_validation"}:
-                self.set_stage(stage, "NOT_APPLICABLE", evidence=False,
-                    not_applicable_reason="Single Study cannot support Study-held-out validation.")
+                self.set_stage(
+                    stage, "NOT_APPLICABLE",
+                    not_applicable_reason="Single Study cannot support Study-held-out validation.",
+                )
             else:
                 self.set_stage(stage, "PASS")
         self.record["final_assessment"]["decision"] = "CONDITIONAL_PASS"
         self.write_record()
         report = self.validate()
         self.assertTrue(report["valid"], report["issues"])
+
+    def test_single_study_na_evidence_rejects_wrong_task_hash(self):
+        validation_path = self.output_paths["single_study_applicability_validation"]
+        validation = json.loads(validation_path.read_text(encoding="utf-8"))
+        validation["modeling_task_sha256"] = "f" * 64
+        validation_path.write_text(json.dumps(validation, indent=2) + "\\n", encoding="utf-8")
+        for stage in STAGE_ORDER:
+            if stage in {"cohort_feasibility", "modeling_validation"}:
+                self.set_stage(
+                    stage, "NOT_APPLICABLE",
+                    not_applicable_reason="Single Study cannot support Study-held-out validation.",
+                )
+            else:
+                self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "CONDITIONAL_PASS"
+        self.write_record()
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertTrue({
+            "EVIDENCE_RUN_ARTIFACT_NOT_CURRENT",
+            "RUN_ARTIFACT_MANIFEST_ENTRY_INVALID",
+            "SINGLE_STUDY_NA_VALIDATION_BINDING_MISMATCH",
+        }.intersection(codes))
 
     def test_na_without_reason_is_rejected(self):
         self.set_stage("modeling_validation", "NOT_APPLICABLE", evidence=False)
