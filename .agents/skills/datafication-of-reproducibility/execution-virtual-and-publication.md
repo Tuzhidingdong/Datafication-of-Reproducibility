@@ -23,3 +23,8 @@ Read ../../../references/publication-package.md and ../../../docs/V0.5_PUBLICATI
 - Run dor audit-publication-package --package-dir <run_root>/10_publication/package --out <run_root>/10_publication/package_integrity_report.json. Keep the audit report outside the package directory.
 - Inspect completeness and all requires_review/partial/not_generated items. A valid hash audit is not scientific approval and does not make the package publication-ready.
 - The Writing Skill must first read README_FOR_WRITING_SKILL.md and package_manifest.json, then retrieve only the files needed for its current writing task. Never invent missing scientific claims, methods, figures, tables, or references.
+
+
+### Controlled single-Study publication hand-off
+
+Use the matching plan from `templates/publication_package_plan.single_study.example.json` (Structured Dataset) or `templates/publication_package_plan.canonical_adapter.single_study.example.json` (Canonical Bundle). Bind the active Run/Project IDs and the exact selected-source IDs/hashes. Retain the applicability record with a visible review status, and include the N/A report/manifest files as copied evidence records whose descriptions clearly state that no model, cross-Study reproducibility, interaction, or virtual-prediction result was generated. Do not convert N/A entries into zero scores or empty scientific findings. Leave uncreated figures/tables as `not_generated`. The final audit must be run outside the package directory; the downstream Writing Skill must state the limited scope and limitations explicitly.
