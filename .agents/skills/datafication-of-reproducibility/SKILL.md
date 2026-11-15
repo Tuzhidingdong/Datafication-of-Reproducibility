@@ -1,11 +1,11 @@
 ---
 name: datafication-of-reproducibility
-description: Reconstructs reproducible relationships between experimental conditions, interacting processes, and observable outcomes from scientific datasets and literature. Use when auditing research data, planning condition-to-outcome modelling, discovering robust interactions, interpreting mechanisms, validating predictions, or preparing a traceable publication package.
+description: Provides a discipline-neutral workflow for traceable research data, evidence, canonical representation, analysis planning, validation, reproducibility assessment, human review, and publication hand-off. Use for empirical research workflows that can be represented faithfully by the current generic Study/System/Condition/Experiment/Observation model; keep project-specific scientific semantics in external Adapters.
 ---
 
 # Datafication of Reproducibility
 
-You are operating a guided scientific research workflow. The purpose is not merely to maximize predictive accuracy. It is to learn the reproducible structure of experimental phenomena: how reported conditions, incompletely observed physical states, and interacting processes jointly relate to observable outcomes.
+You are operating a guided, evidence-centred research workflow. The purpose is to preserve traceable sources, explicit relationships, reported context, and outcome definitions so that scientific claims can be reviewed and reproduced. Predictive analysis is optional and must only run when the current generic representation and explicit task contract are scientifically appropriate.
 
 ## Non-negotiable project decisions
 
@@ -23,7 +23,7 @@ You are operating a guided scientific research workflow. The purpose is not mere
 3. Inspect source files before proposing transformations. Do not infer unseen schemas or invent field mappings.
 4. Preserve original values, units, qualifiers, evidence links, and missingness states. Never silently convert an unreported value into an estimated fact.
 5. Distinguish Study, System, Experimental Condition, and Observation. One row in an input table is not automatically an independent experimental replicate.
-6. Distinguish reported experimental labels from the complete real physical state. A reported setpoint is not proof that every local state variable was directly controlled or measured.
+6. Distinguish reported descriptors from inferred or unobserved states. A reported value or label is not proof that every relevant state variable was directly controlled or measured.
 7. A statistical interaction is a candidate relationship, not automatically a causal mechanism.
 8. Keep all records from the same study/DOI together during study-level validation unless a scientifically justified alternative is documented.
 9. Do not run expensive or broad modelling before the data audit and analysis-plan gates are approved.
@@ -44,6 +44,6 @@ The core Skill contains the immutable decisions and operating rules. Load only t
 - When recording approvals, dispatching a Worker, dealing with missing information, or deciding whether to stop: read [Approval and governance rules](execution-governance.md).
 - For recovery, final project acceptance, or acceptance-record revisions: read [Run Manager and controlled acceptance](execution-run-manager-and-acceptance.md).
 
-The machine-checked stage-to-action contract is `runtime/src/dor/stage_execution_contract.json`; `dor run-init` validates it before initializing either supported adapter route. For a template preflight, use `dor validate-execution-contract --plan <run_plan.json>`. The operator guide remains at `../../../docs/RUN_PLAN_EXECUTION_BINDINGS.md`.
+The current Canonical and analysis-engine boundaries are described in [Cross-disciplinary scope and Adapter boundary](../../../docs/CROSS_DISCIPLINARY_SCOPE.md); do not force unsupported research structures into the model. The machine-checked stage-to-action contract is `runtime/src/dor/stage_execution_contract.json`; `dor run-init` validates it before initializing either supported adapter route. For a template preflight, use `dor validate-execution-contract --plan <run_plan.json>`. The operator guide remains at `../../../docs/RUN_PLAN_EXECUTION_BINDINGS.md`.
 
 Do not infer a missing stage command, bypass a gate, or substitute an unapproved Worker action simply because a phase reference was not loaded. Read the relevant reference before dispatch.
