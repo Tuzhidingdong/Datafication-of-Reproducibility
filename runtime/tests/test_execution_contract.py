@@ -196,6 +196,8 @@ class StageExecutionContractTests(unittest.TestCase):
         pyproject = (ROOT / "runtime" / "pyproject.toml").read_text(encoding="utf-8")
         self.assertEqual(contract["schema_version"], "1.0")
         self.assertIn("routes", schema["required"])
+        self.assertIn("profiles", schema["required"])
+        self.assertIn("CONTROLLED_SINGLE_STUDY", contract["profiles"])
         self.assertIn("stage_execution_contract.json", pyproject)
 
 
