@@ -8,13 +8,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-CONTRACT_VERSION = "1.0"
+CONTRACT_VERSION = "1.1"
 
 STAGE_CONTRACTS: dict[str, dict[str, Any]] = {
     "source_selection": {
         "required_artifact_types": ["source_selection_manifest", "source_inventory"],
         "checks": ["selected_excluded_partition_exact", "selected_source_set_matches_run_snapshot", "excluded_source_reasons_present", "inventory_references_selected_sources_only"],
-        "scope": "User-selected source inventory and explicit exclusions; filenames are labels, not semantics.",
+        "scope": "Agent-selected source inventory from declared structured-input metadata and explicit exclusions; filenames are labels, not semantics.",
     },
     "source_integrity": {
         "required_artifact_types": ["run_manifest"],
@@ -23,8 +23,8 @@ STAGE_CONTRACTS: dict[str, dict[str, Any]] = {
     },
     "extraction_review": {
         "required_artifact_types": ["extraction_review_record"],
-        "checks": ["source_hash_bindings", "exact_review_locators", "human_review_decision"],
-        "scope": "DOR-owned human spot-check record; no assumption about an upstream parser's private schema.",
+        "checks": ["source_hash_bindings", "exact_structured_record_locators", "human_structured_data_review_decision"],
+        "scope": "Human review of delivered structured records and opaque upstream locator metadata only; original source-document contents are never accessed or verified by DoR.",
     },
     "semantic_mapping": {
         "required_artifact_types": ["mapping_plan"],
@@ -223,8 +223,10 @@ def _validate_extraction_review(payload: Any, source_snapshot: list[dict[str, An
                 continue
             if locator["source_id"] not in expected:
                 errors.append(_error("EXTRACTION_LOCATOR_SOURCE_UNKNOWN", f"reviewed_locators[{index}] references an unselected source_id.", "extraction_review_record"))
-            if locator["review_status"] not in {"SPOT_CHECKED", "REVIEW_REQUIRED", "UNREADABLE", "NOT_APPLICABLE"}:
-                errors.append(_error("EXTRACTION_REVIEW_STATUS_INVALID", f"reviewed_locators[{index}] has an unsupported review_status.", "extraction_review_record"))
+            if locator["review_status"] not in {"STRUCTURED_RECORD_REVIEWED", "UPSTREAM_EXTRACTION_UNVERIFIED", "REVIEW_REQUIRED", "NOT_APPLICABLE"}:
+                errors.append(_error("EXTRACTION_REVIEW_STATUS_INVALID", f"reviewed_locators[{index}] has an unsupported review_status for structured-data-only review.", "extraction_review_record"))
+            elif locator["review_status"] == "REVIEW_REQUIRED":
+                errors.append(_error("EXTRACTION_LOCATOR_REVIEW_REQUIRED", f"reviewed_locators[{index}] remains unresolved and blocks extraction_review PASS.", "extraction_review_record"))
     review = payload.get("human_review")
     if not isinstance(review, dict) or not all(_nonempty(review.get(key)) for key in ("reviewer", "reviewed_at", "decision")):
         errors.append(_error("EXTRACTION_HUMAN_REVIEW_MISSING", "human_review requires reviewer, reviewed_at, and decision.", "extraction_review_record"))
