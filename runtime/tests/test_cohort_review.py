@@ -164,6 +164,27 @@ class CohortReviewTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertIn("GRAIN_WARNING_COVERAGE_MISMATCH", {item["code"] for item in report["errors"]})
 
+    def test_duplicate_study_ids_in_report_are_rejected(self):
+        self.cohort_report["eligible_study_ids"] = ["STUDY_1", "STUDY_1", "STUDY_2"]
+        report_path = self.cohort_dir / "cohort_report.json"
+        report_path.write_text(json.dumps(self.cohort_report), encoding="utf-8")
+        cohort_manifest_path = self.cohort_dir / "modeling_cohort_manifest.json"
+        cohort_manifest = json.loads(cohort_manifest_path.read_text(encoding="utf-8"))
+        cohort_manifest["artifact_sha256"]["cohort_report.json"] = hashlib.sha256(
+            report_path.read_bytes()
+        ).hexdigest()
+        cohort_manifest_path.write_text(json.dumps(cohort_manifest), encoding="utf-8")
+        self.record["artifact_sha256"]["cohort_report.json"] = hashlib.sha256(
+            report_path.read_bytes()
+        ).hexdigest()
+        self.record["artifact_sha256"]["modeling_cohort_manifest.json"] = hashlib.sha256(
+            cohort_manifest_path.read_bytes()
+        ).hexdigest()
+        self._write_record()
+        report = self._validate()
+        self.assertFalse(report["valid"])
+        self.assertIn("ELIGIBLE_STUDY_SET_MISMATCH", {item["code"] for item in report["errors"]})
+
     def test_observation_split_must_match_the_study_split_manifest(self):
         rows = list(csv.DictReader(self.csv_path.open("r", encoding="utf-8", newline="")))
         rows[0]["split"] = "test"
