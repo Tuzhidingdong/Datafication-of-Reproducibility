@@ -2,7 +2,7 @@ name: Python runtime tests
 
 on:
   push:
-    branches: [main, v0.1-foundation, feat/scientific-discovery-engine, feat/discovery-brief-condition-diagnostics-20261114, feat/generic-data-adapter-interface-20261114]
+    branches: [main, v0.1-foundation, feat/scientific-discovery-engine, feat/discovery-brief-condition-diagnostics-20261114, feat/generic-data-adapter-interface-20261114, 'fix/**']
   pull_request:
     branches: [main, feat/scientific-discovery-engine, feat/generic-data-adapter-interface-20261114]
   workflow_dispatch:
