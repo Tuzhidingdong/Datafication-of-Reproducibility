@@ -703,6 +703,7 @@ class RunManagerTests(unittest.TestCase):
         )
         for command in (
             "run-init", "run-status", "run-verify", "run-resume-plan", "run-artifacts",
+            "run-usage", "validate-execution-contract",
             "run-worker-authorize", "run-stage-record",
         ):
             self.assertIn(command, subparsers)
