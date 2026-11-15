@@ -1,0 +1,58 @@
+# Cohort task, baseline models, Study validation, interactions and mechanism
+
+### Stage 3 — Baseline modelling and prediction
+
+After G2 approval:
+
+- Use the exact `modeling_task.json` already approved at G2. Do not edit it after approval; a change makes the G2 decision stale.
+- Build the endpoint-specific cohort with `dor build-cohort --bundle <canonical_bundle_path_from_run_artifact_manifest> --task <run_root>/05_scope/modeling_task.json --out-dir <run_root>/05_modeling/cohort --workflow-ledger <run_root>/workflow_gate_ledger.jsonl`.
+- Inspect `cohort_report.json`, `modeling_cohort.csv`, `split_manifest.json`, and `modeling_cohort_manifest.json`. Confirm exclusion reasons, feature coverage, group assignments, and zero study overlap before fitting any model.
+- A cohort is not a model result. Do not infer performance, causal effects, or scientific validity from cohort construction.
+- Run `dor fit-baselines --cohort-dir <run_root>/05_modeling/cohort --task <run_root>/05_scope/modeling_task.json --out-dir <run_root>/06_modeling/baseline --workflow-ledger <run_root>/workflow_gate_ledger.jsonl` only after reviewing the cohort report and split manifest.
+- The baseline engine selects candidates on validation only, refits the selected model on train plus validation, and uses test only for final evaluation. Never select or retune a model based on test metrics.
+- Inspect `model_report.json`, `model_artifact.json`, `validation_model_comparison.csv`, `test_predictions.csv`, and `modeling_run_manifest.json`. Confirm that input/output hashes and Study/Observation IDs are consistent.
+- Run nested cross-study evaluation with `dor evaluate-reproducibility --cohort-dir <run_root>/05_modeling/cohort --task <run_root>/05_scope/modeling_task.json --out-dir <run_root>/06_modeling/reproducibility --workflow-ledger <run_root>/workflow_gate_ledger.jsonl`. This uses an outer Study-grouped K-fold and an inner Study-level validation split for candidate selection; each Study is held out once.
+- Review pooled out-of-fold and per-Study metrics, fold-specific model selection, between-Study error/bias dispersion, and every applicability-domain warning. Do not summarize only a pooled metric when Study-level performance is heterogeneous.
+- Treat nearest-neighbour support flags as heuristic diagnostics, not physical boundaries or calibrated probabilities. Prediction uncertainty remains explicitly NOT_CALIBRATED in this increment; do not report descriptive error quantiles as prediction intervals.
+- Supported transparent baselines: mean versus Ridge for numeric outcomes; majority class versus mixed Naive Bayes for categorical outcomes. These are reference models, not a universal model-family recommendation or evidence of causal mechanism.
+- Use deterministic Python execution for further preprocessing, fitting, hyperparameter search, validation, and metrics.
+- Select models based on sample size, target type, feature types, study heterogeneity, and extrapolation requirements.
+- Compare against meaningful baselines.
+- Keep study-level groups intact across train/validation/test splits.
+- Record exact feature lists, row IDs, group IDs, data transformations, software versions, seeds, hyperparameters, fitted artifacts, metrics, predictions, and applicability limitations.
+- Do not claim a model is accurate outside its supported data domain.
+
+### Stage 4 — Interaction discovery
+
+- Read the V0.4 interaction discovery contract at ../../../docs/V0.4_INTERACTION_DISCOVERY.md and the interaction methodology at ../../../references/interaction-discovery.md.
+- Define candidate feature pairs from the approved feature bindings. Prefer scientifically justified pairs with adequate joint Observation and Study coverage; do not screen an unbounded Cartesian product.
+- For numeric endpoints, run: dor discover-interactions --cohort-dir <run_root>/05_modeling/cohort --task <run_root>/05_scope/modeling_task.json --out-dir <run_root>/06_modeling/interactions --workflow-ledger <run_root>/workflow_gate_ledger.jsonl after G2 approval.
+- Review the interaction catalogue, fold-level RMSE improvements, per-Study MAE improvements, joint coverage, exclusions, and held-out predictions. Keep pairs that fail to improve as null/negative findings; retain counterexamples where the interaction worsens prediction.
+- Repeat the nested interaction screen across at least three distinct seeds with `dor assess-interaction-robustness --cohort-dir <run_root>/05_modeling/cohort --task <run_root>/05_scope/modeling_task.json --out-dir <run_root>/06_modeling/interaction_robustness --workflow-ledger <run_root>/workflow_gate_ledger.jsonl`. Inspect candidate-run frequency and the range of predictive improvements. Treat this as split-randomness sensitivity only, not proof of external reproducibility or a probability of truth.
+- The initial engine evaluates one encoded feature pair at a time by comparing additive Ridge with Ridge plus that pair's encoded product terms. It is a predictive bilinear screen for numeric endpoints, not a universal test of all nonlinear interactions. Categorical endpoints are not supported by this initial method.
+- Treat a cross-Study predictive interaction label as a statistical/predictive candidate only. It is not a p-value, FDR-controlled discovery, causal estimate, synergy claim, or mechanism.
+- Check whether pair combinations are confounded by Study, protocol, project-defined system subgroups, or data source, and whether joint coverage actually overlaps across Studies.
+- Present the exact interaction report and catalogue to the user, including support, robustness, Study coverage, exclusions, and counterexamples.
+- Prepare an interaction selection record conforming to `schemas/interaction_selection.schema.json`. Its `interaction_report_sha256` and `robustness_report_sha256` must equal the SHA-256 hashes of the exact interaction and repeated-seed robustness reports. Selected and not-selected IDs must be disjoint and together classify every interaction exactly once. The G3 packet also binds the interaction and robustness manifests; both must derive from the exact G2-approved task and the same cohort/split hashes. The mechanism-plan contract supports selecting zero or one candidate per G3 packet.
+- If one candidate is selected, the formal Run Plan's conditional `mechanism_plan_preparation` stage becomes active. Prepare `07_review/mechanism_plan.json` from `templates/mechanism_plan.example.json` and record the manual stage as RUNNING/SUCCEEDED. Its `task_id` and `interaction_id` must match the approved task and selected candidate; every Evidence/Observation reference must be explicit and checked. Present this exact plan with the interaction selection as part of the G3 approval packet.
+- Ask the user to approve the candidate selection at G3. Only after explicit approval, append the G3 decision binding the exact interaction report, discovery manifest, robustness report, robustness manifest, and selection file. When one candidate is selected, also bind the exact Run artifact `mechanism_plan`:
+  `dor gate-record --workflow-ledger <run_root>/workflow_gate_ledger.jsonl --gate G3 --decision APPROVE --reviewer "..." --rationale "..." --artifact interaction_report=<run_root>/06_modeling/interactions/interaction_discovery_report.json --artifact interaction_manifest=<run_root>/06_modeling/interactions/interaction_discovery_manifest.json --artifact robustness_report=<run_root>/06_modeling/interaction_robustness/interaction_robustness_report.json --artifact robustness_manifest=<run_root>/06_modeling/interaction_robustness/interaction_robustness_manifest.json --artifact interaction_selection=<run_root>/07_review/interaction_selection.json --artifact mechanism_plan=<run_root>/07_review/mechanism_plan.json`.
+- After G3 approval, the conditional `response_surface_generation` stage runs with the single ID in `selected_interaction_ids`:
+  `dor generate-interaction-surface --cohort-dir <run_root>/05_modeling/cohort --task <run_root>/05_scope/modeling_task.json --interaction-dir <run_root>/06_modeling/interactions --interaction-id <the_exact_selected_interaction_id> --out-dir <run_root>/07_response_surface --robustness-dir <run_root>/06_modeling/interaction_robustness --workflow-ledger <run_root>/workflow_gate_ledger.jsonl`. The runtime rejects an interaction ID not selected in the exact G3 decision. The full-cohort refit is descriptive only and must not be used as independent validation.
+- Then execute the conditional `mechanism_evidence_bridge` stage:
+  `dor build-mechanism-evidence-bridge --bundle <canonical_bundle_path_from_run_artifact_manifest> --cohort-dir <run_root>/05_modeling/cohort --task <run_root>/05_scope/modeling_task.json --interaction-dir <run_root>/06_modeling/interactions --plan <run_root>/07_review/mechanism_plan.json --out-dir <run_root>/07_mechanism_bridge --robustness-dir <run_root>/06_modeling/interaction_robustness --response-surface-dir <run_root>/07_response_surface --workflow-ledger <run_root>/workflow_gate_ledger.jsonl`.
+- If zero candidates are selected, do not create a mechanism plan and do not invoke either optional analysis command. After G3 selection record, consult `dor run-resume-plan`; for each of the three conditional stages whose action is `SKIP_REQUIRED`, record `SKIPPED` with its declared executor (`manual` for plan preparation, `local` for the two analysis stages). A skip produces no output and never counts as a G3 approval or scientific result. If an upstream selection later changes, use the new resume plan and the hash-bound approval process rather than editing the old Run.
+
+### Stage 5 — Mechanism interpretation
+
+Read `../../../references/mechanism-evidence.md` and `../../../docs/V0.4_MECHANISM_EVIDENCE_BRIDGE.md`.
+
+- Interpret only the single interaction selected in the current approved G3 packet. If no interaction was selected, do not run mechanism interpretation. A predictive interaction is a motivation for a testable hypothesis, not a mechanism claim.
+- Trace each interpretation to source evidence, experimental observations, and relevant theory/calculation.
+- Label statements as statistical observation, cross-study replication, mechanism hypothesis, direct experimental support, theoretical support, or prospective validation.
+- Record contradictory evidence.
+- Use only the exact `mechanism_plan.json` already bound to the current G3 approval. If it needs revision, create a revised plan, obtain the user's renewed G3 decision, and record a new gate event before running the mechanism bridge.
+- Run the bridge only through the declared `mechanism_evidence_bridge` Run Plan stage and pass the exact Run-bound Canonical Bundle, cohort, task, interaction output, approved mechanism plan, robustness output, and response-surface output. The runtime rejects a mechanism plan whose task/interaction was not selected in the exact G3 decision packet. Optional robustness and response-surface packages must match the same task and interaction.
+- Review `mechanism_evidence_bridge_report.json`, `mechanism_evidence_ledger.csv`, `mechanism_review_queue.csv`, and `mechanism_findings.json`. Keep contradictory evidence, unverified extraction, and non-independent prospective evidence visible.
+- The generated Research Finding remains `claim_type = mechanism_hypothesis`, `status = candidate`, and `mechanism_status = hypothesis`. The report remains `PENDING_USER_MECHANISM_REVIEW`; no automated evidence count upgrades a mechanism to established or validated.
+- Never upgrade a hypothesis into an established mechanism merely because it is scientifically plausible.
