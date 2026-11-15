@@ -1223,6 +1223,10 @@ def build_run_usage_report(manifest_path: Path) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     for event in terminal:
         producer = event.get("producer") if isinstance(event.get("producer"), dict) else {}
+        for field in token_fields:
+            value = producer.get(field)
+            if value is not None and (type(value) is not int or value < 0):
+                raise ValueError(f"Run usage event {event.get('event_hash')} has an invalid {field} value.")
         rows.append({
             "stage_id": event.get("stage_id"),
             "attempt": event.get("attempt"),
@@ -1274,7 +1278,7 @@ def build_run_usage_report(manifest_path: Path) -> dict[str, Any]:
             "included_events": "TERMINAL_SUCCEEDED_OR_FAILED_STAGE_ATTEMPTS_ONLY",
             "excluded_events": ["RUNNING", "SKIPPED", "WORKER_AUTHORIZED"],
             "missing_values": "NULL_AND_COUNTED_AS_MISSING_NOT_SILENTLY_COERCED_TO_ZERO",
-            "total_policy": "INPUT_PLUS_OUTPUT_ONLY; REASONING_AND_CACHE COUNTS ARE REPORTED SEPARATELY",
+            "total_policy": "INPUT_PLUS_OUTPUT_ONLY; REASONING_AND_CACHE_COUNTS_REPORTED_SEPARATELY",
             "source_scope": "ONLY_TOKEN_USAGE_REPORTED_TO_RUN_MANAGER; DOES_NOT_INCLUDE_UNRECORDED_SUPERVISOR_OR_EXTERNAL_AGENT_USAGE",
         },
         "source_of_truth": "HASH_CHAINED_RUN_EVENT_LEDGER",
