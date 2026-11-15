@@ -114,6 +114,58 @@ def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None
         ):
             raise ValueError(f"Worker Stage {stage_id} has no authorization/dispatch action.")
 
+
+def stage_action_bindings_for_plan(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Return the machine-declared action binding for each stage in a supported route.
+
+    Custom Run Plans intentionally return an empty mapping. The caller remains
+    responsible for validating supported plans before relying on these bindings.
+    """
+    stages = plan.get("stages")
+    if not isinstance(stages, list):
+        return {}
+    stage_ids = {
+        item.get("stage_id") for item in stages if isinstance(item, dict)
+    }
+    if "source_audit" in stage_ids:
+        route = "STRUCTURED_DATASET"
+    elif "adapter_artifact_materialization" in stage_ids:
+        route = "CANONICAL_BUNDLE"
+    else:
+        return {}
+
+    contract = _load_contract()
+    bindings = contract.get("stages")
+    if not isinstance(bindings, list):
+        raise RuntimeError("Bundled Stage execution contract has no stages array.")
+    by_id = {
+        item["stage_id"]: item for item in bindings
+        if isinstance(item, dict) and isinstance(item.get("stage_id"), str)
+    }
+    result: dict[str, dict[str, Any]] = {}
+    for stage_id in stage_ids:
+        binding = by_id.get(stage_id)
+        if binding is None:
+            raise ValueError(f"Stage {stage_id} has no execution action binding.")
+        variant = next(
+            (item for item in binding.get("route_variants", [])
+             if isinstance(item, dict) and item.get("route") == route),
+            None,
+        )
+        if variant is None:
+            raise ValueError(f"Stage {stage_id} has no {route} execution variant.")
+        result[stage_id] = {
+            "route": route,
+            "action_type": binding.get("action_type"),
+            "executor": variant.get("executor"),
+            "runtime_command": binding.get("cli_command"),
+            "validator_command": binding.get("validator_command"),
+            "authorization_command": binding.get("authorization_command"),
+            "host_action": binding.get("host_action"),
+        }
+    return result
+
+
 def inspect_supported_run_plan_execution_contract(plan: dict[str, Any]) -> dict[str, Any]:
     """Return a compact validation report for a supported Run Plan's action bindings."""
     validate_supported_run_plan_execution_contract(plan)
