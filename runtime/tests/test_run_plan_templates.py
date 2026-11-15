@@ -187,6 +187,9 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     stages["single_study_scope_review"]["required_gate"], "G2"
                 )
                 self.assertEqual(
+                    stages["single_study_scope_validation"]["required_gate"], "G2"
+                )
+                self.assertEqual(
                     stages["single_study_na_artifacts"]["required_gate"], "G2"
                 )
                 self.assertEqual(
