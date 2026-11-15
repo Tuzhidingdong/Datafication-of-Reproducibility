@@ -9,7 +9,7 @@ The canonical model represents relationships needed for reproducibility analysis
 | Entity | Meaning | Important boundary |
 |---|---|---|
 | Study | A publication, report, registered study, or other traceable research source | One study may describe multiple systems and experiments |
-| System | The material, device, specimen, organism, process, or other investigated system | A system may recur across studies; retain all source study links |
+| System | A project-defined entity being investigated or analysed | A system may recur across studies; retain all source study links |
 | Condition | A reported or explicitly unreported condition associated with a system | A reported setpoint is not proof of the local physical state |
 | Experiment | A defined experimental execution or protocol instance | Do not equate a source-table row with an experiment without evidence |
 | Observation | A measured, derived, or reported result for a defined target and endpoint | Keep distinct endpoints, timepoints, and measurement contexts separate |
@@ -31,7 +31,7 @@ Cross-study reuse of a System is allowed, but each Experiment must link to a Stu
 
 ## Observation identity and endpoint separation
 
-An Observation is not identified only by a feature name. Its interpretation may depend on target definition, endpoint, protocol, timepoint, sample/system, and evidence. For example, capacity retention after cycling and retention after storage are different endpoints even if both are reported as percentages. They must not be merged into one target merely because their labels look similar.
+An Observation is not identified only by a feature name. Its interpretation may depend on target definition, endpoint, protocol, timepoint, system, and evidence. Two measurements with similar labels may still represent different endpoints when their operational definitions or measurement contexts differ. They must not be merged merely because their labels or units look similar.
 
 Replicates must be represented only when the source supports replicate identity. Repeated measurements, multiple cells, figure points, or table rows must not automatically be called independent replicates.
 
