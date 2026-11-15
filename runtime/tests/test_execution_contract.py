@@ -41,6 +41,13 @@ class StageExecutionContractTests(unittest.TestCase):
                 if command:
                     self.assertIn(command, commands, f"{binding['stage_id']} references missing CLI command {command}")
 
+    def test_cli_exposes_contract_preflight(self):
+        args = build_parser().parse_args([
+            "validate-execution-contract", "--plan", "run_plan.json",
+        ])
+        self.assertEqual(args.command, "validate-execution-contract")
+        self.assertEqual(args.plan, Path("run_plan.json"))
+
     def test_action_binding_rejects_an_input_artifact_drift(self):
         plan = self._load_plan("templates/run_plan.example.json")
         baseline = next(stage for stage in plan["stages"] if stage["stage_id"] == "baseline_model_fit")
