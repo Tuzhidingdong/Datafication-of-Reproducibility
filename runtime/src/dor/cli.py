@@ -9,6 +9,7 @@ from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle
 from dor.canonical_discovery import run_canonical_discovery_scan
 from dor.cohort import build_modeling_cohort_files
 from dor.cohort_review import validate_cohort_review_record, enforce_cohort_review
+from dor.execution_contract import inspect_supported_run_plan_execution_contract
 from dor.builder import build_canonical_files, validate_build_spec_files
 from dor.canonical import validate_canonical_bundle
 from dor.diagnostics import diagnose_canonical_bundle
@@ -277,6 +278,8 @@ def build_parser() -> argparse.ArgumentParser:
     acceptance_checkpoint_verify.add_argument("--checkpoint", type=Path, required=True)
     acceptance_checkpoint_verify.add_argument("--expected-sha256", required=True, help="Trusted checkpoint digest obtained from an independent channel")
 
+    execution_contract = subparsers.add_parser("validate-execution-contract", help="Check a supported Run Plan against its machine-readable Runtime/Worker action bindings")
+    execution_contract.add_argument("--plan", type=Path, required=True, help="One of the two published generic adapter Run Plan templates, or a configured copy")
     run_init = subparsers.add_parser("run-init", help="Create a new isolated run workspace from an explicit stage/artifact plan")
     run_init.add_argument("--plan", type=Path, required=True)
     run_init.add_argument("--run-root", type=Path, required=True)
@@ -344,6 +347,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        if args.command == "validate-execution-contract":
+            plan = json.loads(args.plan.read_text(encoding="utf-8-sig"))
+            if not isinstance(plan, dict):
+                raise ValueError("Run Plan must be a JSON object.")
+            report = inspect_supported_run_plan_execution_contract(plan)
+            print(_write_json(None, report), end="")
+            return 0
         cohort_review_required_commands = {
             "fit-baselines", "evaluate-reproducibility", "discover-interactions",
             "assess-interaction-robustness", "generate-interaction-surface",
