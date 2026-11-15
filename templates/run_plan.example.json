@@ -423,11 +423,37 @@
       ]
     },
     {
+      "stage_id": "cohort_review",
+      "executor": "manual",
+      "depends_on": [
+        "cohort_build"
+      ],
+      "required_gate": null,
+      "inputs": [
+        "modeling_cohort",
+        "cohort_report",
+        "split_manifest",
+        "cohort_manifest",
+        "modeling_task"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "cohort_review_record",
+          "path": "05_modeling/cohort/cohort_review_record.json"
+        },
+        {
+          "artifact_id": "cohort_review_validation",
+          "path": "05_modeling/cohort/cohort_review_validation.json"
+        }
+      ]
+    },
+    {
       "stage_id": "baseline_model_fit",
       "executor": "local",
       "depends_on": [
         "cohort_build",
-        "research_scope_selection"
+        "research_scope_selection",
+        "cohort_review"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -435,7 +461,9 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task"
+        "modeling_task",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -465,7 +493,8 @@
       "executor": "local",
       "depends_on": [
         "cohort_build",
-        "research_scope_selection"
+        "research_scope_selection",
+        "cohort_review"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -473,7 +502,9 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task"
+        "modeling_task",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -503,7 +534,8 @@
       "executor": "local",
       "depends_on": [
         "cohort_build",
-        "research_scope_selection"
+        "research_scope_selection",
+        "cohort_review"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -511,7 +543,9 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task"
+        "modeling_task",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -537,7 +571,8 @@
       "executor": "local",
       "depends_on": [
         "cohort_build",
-        "research_scope_selection"
+        "research_scope_selection",
+        "cohort_review"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -545,7 +580,9 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task"
+        "modeling_task",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -622,7 +659,8 @@
         "cohort_build",
         "research_scope_selection",
         "interaction_discovery",
-        "interaction_robustness"
+        "interaction_robustness",
+        "cohort_review"
       ],
       "required_gate": "G3",
       "inputs": [
@@ -637,7 +675,9 @@
         "interaction_manifest",
         "robustness_report",
         "robustness_catalogue",
-        "robustness_manifest"
+        "robustness_manifest",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "activation": {
         "artifact_id": "interaction_selection",
@@ -678,7 +718,8 @@
         "interaction_discovery",
         "interaction_robustness",
         "mechanism_plan_preparation",
-        "response_surface_generation"
+        "response_surface_generation",
+        "cohort_review"
       ],
       "required_gate": "G3",
       "inputs": [
@@ -695,7 +736,9 @@
         "robustness_report",
         "robustness_manifest",
         "interaction_response_surface_report",
-        "interaction_response_surface_manifest"
+        "interaction_response_surface_manifest",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "activation": {
         "artifact_id": "interaction_selection",
@@ -753,7 +796,8 @@
         "interaction_discovery",
         "interaction_robustness",
         "g3_selection_packet",
-        "virtual_condition_prediction"
+        "virtual_condition_prediction",
+        "cohort_review"
       ],
       "required_gate": "G3",
       "inputs": [
@@ -762,7 +806,9 @@
         "interaction_report",
         "robustness_report",
         "interaction_selection",
-        "virtual_prediction"
+        "virtual_prediction",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "worker_task": {
         "objective": "Independently audit the declared model, reproducibility, interaction, robustness, selection, and virtual-prediction reports for leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks. Every finding must include a stable, unique finding_id; use the same ID throughout the review packet and do not merge distinct findings.",
@@ -800,7 +846,8 @@
         "nested_reproducibility_evaluation",
         "interaction_discovery",
         "interaction_robustness",
-        "virtual_condition_prediction"
+        "virtual_condition_prediction",
+        "cohort_review"
       ],
       "inputs": [
         "worker_review_output",
@@ -809,7 +856,9 @@
         "reproducibility_evaluation",
         "interaction_report",
         "robustness_report",
-        "virtual_prediction"
+        "virtual_prediction",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -833,7 +882,8 @@
         "g3_selection_packet",
         "virtual_condition_prediction",
         "human_review_and_promotion",
-        "independent_result_review"
+        "independent_result_review",
+        "cohort_review"
       ],
       "required_gate": "G4",
       "inputs": [
@@ -846,7 +896,9 @@
         "virtual_prediction",
         "reviewed_findings",
         "worker_review_output",
-        "reviewed_findings_validation"
+        "reviewed_findings_validation",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
