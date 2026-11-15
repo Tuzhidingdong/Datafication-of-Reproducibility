@@ -95,6 +95,8 @@ def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None
             )
         if binding.get("action_type") != {"local": "CLI", "manual": "MANUAL", "worker": "WORKER"}[executor]:
             raise ValueError(f"Stage {stage_id} action_type does not match executor {executor}.")
+        if list(stage.get("depends_on", [])) != list(variant.get("depends_on", [])):
+            raise ValueError(f"Stage {stage_id} dependencies differ from its execution contract.")
         if list(stage.get("inputs", [])) != list(variant.get("inputs", [])):
             raise ValueError(f"Stage {stage_id} input Artifact IDs differ from its execution contract.")
         if _output_signature(stage.get("outputs")) != variant.get("outputs"):
