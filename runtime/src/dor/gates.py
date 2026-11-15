@@ -625,9 +625,23 @@ def _validate_single_study_na_bundle(
     study_ids = record.get("study_ids")
     if not isinstance(study_ids, list) or len(study_ids) != 1 or not isinstance(study_ids[0], str) or not study_ids[0]:
         raise ValueError("G3 single-study applicability record requires exactly one explicit Study ID.")
-    for field in ("cohort_feasibility_reason", "modeling_validation_reason"):
-        if not isinstance(record.get(field), str) or not record[field].strip():
-            raise ValueError(f"G3 applicability record lacks {field}.")
+    for status_field, reason_field in (
+        ("cohort_feasibility_status", "cohort_feasibility_reason"),
+        ("modeling_validation_status", "modeling_validation_reason"),
+    ):
+        if record.get(status_field) != "NOT_APPLICABLE":
+            raise ValueError(f"G3 applicability record {status_field} must be NOT_APPLICABLE.")
+        if not isinstance(record.get(reason_field), str) or not record[reason_field].strip():
+            raise ValueError(f"G3 applicability record lacks {reason_field}.")
+    if not all(isinstance(record.get(field), str) and record[field].strip()
+               for field in ("reviewer", "rationale")):
+        raise ValueError("G3 applicability record requires reviewer and rationale.")
+    try:
+        reviewed_at = datetime.fromisoformat(record["reviewed_at"].replace("Z", "+00:00"))
+        if reviewed_at.tzinfo is None or reviewed_at.utcoffset() is None:
+            raise ValueError("timezone required")
+    except (KeyError, ValueError) as exc:
+        raise ValueError("G3 applicability record reviewed_at must be timezone-aware.") from exc
 
     run_id = record.get("run_id")
     project_id = record.get("project_id")
