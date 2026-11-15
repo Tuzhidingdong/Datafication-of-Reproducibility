@@ -16,7 +16,10 @@ import uuid
 from typing import Any, Mapping
 
 from dor.gates import inspect_gate_ledger
-from dor.execution_contract import validate_supported_run_plan_execution_contract
+from dor.execution_contract import (
+    stage_action_bindings_for_plan,
+    validate_supported_run_plan_execution_contract,
+)
 from dor.mapping import sha256_file
 
 RUN_SCHEMA_VERSION = "1.0"
@@ -833,6 +836,7 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
     details: dict[str, dict[str, Any]] = {}
     source_hashes = {item["artifact_id"]: item["sha256"] for item in manifest["source_artifacts"]}
     definitions, _ = _artifact_definitions(plan)
+    action_bindings = stage_action_bindings_for_plan(plan)
 
     for stage_id in order:
         stage = stages[stage_id]
@@ -958,6 +962,50 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
             "reasons": reasons,
             "last_event_hash": current_event.get("event_hash") if current_event else None,
         }
+        binding = action_bindings.get(stage_id)
+        if binding is not None:
+            details[stage_id]["action_binding"] = {
+                **binding,
+                "input_artifacts": [
+                    {
+                        "artifact_id": artifact_id,
+                        "path": str(_artifact_path(root, definitions[artifact_id])),
+                        "kind": definitions[artifact_id].get("kind", "derived"),
+                    }
+                    for artifact_id in stage["inputs"]
+                ],
+                "output_artifacts": [
+                    {
+                        "artifact_id": output["artifact_id"],
+                        "path": str(_artifact_path(root, output)),
+                        "kind": output.get("kind", "derived"),
+                    }
+                    for output in stage["outputs"]
+                ],
+                **(
+                    {"worker_task": stage["worker_task"]}
+                    if isinstance(stage.get("worker_task"), dict) else {}
+                ),
+            }
+
+    actionable_states = {
+        "READY_TO_RUN", "RETRY_REQUIRED", "REBUILD_REQUIRED", "SKIP_REQUIRED",
+    }
+    next_actions = [
+        {
+            "stage_id": stage_id,
+            "action": details[stage_id]["action"],
+            "executor": stages[stage_id].get("executor", "local"),
+            "required_gate": stages[stage_id].get("required_gate"),
+            "reasons": details[stage_id]["reasons"],
+            **(
+                {"action_binding": details[stage_id]["action_binding"]}
+                if "action_binding" in details[stage_id] else {}
+            ),
+        }
+        for stage_id in order
+        if details[stage_id]["action"] in actionable_states
+    ]
 
     reusable = sum(1 for value in actions.values() if value == "REUSE")
     ready = sum(1 for value in actions.values() if value == "READY_TO_RUN")
@@ -977,6 +1025,7 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
         "rebuild_or_retry_count": rebuild,
         "source_changed_block_count": blocked_source,
         "stages": [details[stage_id] for stage_id in order],
+        "next_actions": next_actions,
         "execution_policy": "PLAN_ONLY_NO_COMMANDS_OR_WORKERS_ARE_STARTED_AND_NO_GATE_DECISIONS_ARE_CREATED",
     }
 
