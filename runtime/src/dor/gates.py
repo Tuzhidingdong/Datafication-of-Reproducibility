@@ -26,6 +26,37 @@ G4_REQUIRED_REVIEWED_ARTIFACTS = {
     "interaction_selection",
     "virtual_prediction",
 }
+G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS = {
+    "single_study_applicability_record",
+    "single_study_applicability_validation",
+    "canonical_bundle",
+    "canonical_validation_report",
+    "reconciliation_report",
+    "reconciliation_decisions",
+    "research_scope_record",
+    "modeling_task",
+    *G4_REQUIRED_REVIEWED_ARTIFACTS,
+    "interaction_manifest",
+    "robustness_manifest",
+}
+G3_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
+    "single_study_applicability_record",
+    "single_study_applicability_validation",
+    "canonical_bundle",
+    "modeling_task",
+    "model_report",
+    "reproducibility_evaluation",
+    "interaction_report",
+    "interaction_manifest",
+    "robustness_report",
+    "robustness_manifest",
+    "interaction_selection",
+    "virtual_prediction",
+}
+G4_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
+    "publication_plan", "worker_review_output", "reviewed_findings",
+    *G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS,
+}
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory", "g0_review_packet", "g0_review_packet_validation"},
     "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation", "g1_review_packet", "g1_review_packet_validation"},
@@ -195,11 +226,21 @@ def _load_events(ledger_path: Path) -> list[dict[str, Any]]:
                 if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
                     raise ValueError(f"Invalid artifact SHA-256 at line {line_number}.")
             if event["decision"] == "APPROVE":
-                missing = REQUIRED_ARTIFACTS[gate] - artifact_ids
+                single_study_profile = "single_study_applicability_record" in artifact_ids
+                if gate == "G3" and single_study_profile:
+                    required = G3_SINGLE_STUDY_REQUIRED_ARTIFACTS
+                elif gate == "G4" and single_study_profile:
+                    required = G4_SINGLE_STUDY_REQUIRED_ARTIFACTS
+                else:
+                    required = REQUIRED_ARTIFACTS[gate]
+                missing = required - artifact_ids
                 if missing:
                     raise ValueError(f"Gate {gate} event at line {line_number} lacks required artifacts: {', '.join(sorted(missing))}.")
-                if gate == "G4" and not G4_REVIEWABLE_ARTIFACTS.issubset(artifact_ids):
-                    raise ValueError("G4 requires the complete six-artifact input set supplied to independent_result_review.")
+                if gate == "G4":
+                    reviewable = (G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
+                                  if single_study_profile else G4_REVIEWABLE_ARTIFACTS)
+                    if not reviewable.issubset(artifact_ids):
+                        raise ValueError("G4 does not bind the complete declared Worker review input set.")
             prior_gate = PREVIOUS_GATE.get(gate)
             expected_dependency = latest_by_gate.get(prior_gate, {}).get("event_hash") if prior_gate else None
             if event.get("depends_on_event_hash") != expected_dependency:
@@ -540,11 +581,127 @@ def _validate_g2_artifacts(
         raise ValueError("G2 modeling_task requires an exact non-empty endpoint_definition.")
 
 
+def _validate_single_study_na_bundle(
+    by_id: Mapping[str, dict[str, str]],
+    previous_gate_event: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Verify NOT_APPLICABLE records against the exact G2-approved task and Bundle."""
+    previous = _binding_map(previous_gate_event.get("artifacts", []))
+    bundle_binding = _require_gate_binding(previous, "canonical_bundle", "G3")
+    task_binding = _require_gate_binding(previous, "modeling_task", "G3")
+    record_binding = _require_gate_binding(by_id, "single_study_applicability_record", "G3")
+    validation_binding = _require_gate_binding(by_id, "single_study_applicability_validation", "G3")
+    record = _read_json_binding(record_binding, "single-study applicability record")
+    validation = _read_json_binding(validation_binding, "single-study applicability validation")
+    task = _read_json_binding(task_binding, "G2 modeling task")
+
+    if record.get("schema_version") != "1.0" or record.get("scope") != "CONTROLLED_SINGLE_STUDY":
+        raise ValueError("G3 single-study applicability record has an unsupported schema or scope.")
+    if record.get("applicability_status") != "NOT_APPLICABLE" or record.get("study_count") != 1:
+        raise ValueError("G3 single-study applicability record must declare one Study and NOT_APPLICABLE.")
+    if (record.get("canonical_bundle_sha256") != bundle_binding["sha256"]
+            or record.get("modeling_task_sha256") != task_binding["sha256"]):
+        raise ValueError("G3 single-study applicability record differs from the exact G2-approved Bundle/task.")
+    if validation.get("valid") is not True or validation.get("applicability_status") != "NOT_APPLICABLE":
+        raise ValueError("G3 requires a valid deterministic single-study applicability report.")
+    if (validation.get("applicability_record_sha256") != record_binding["sha256"]
+            or validation.get("canonical_bundle_sha256") != bundle_binding["sha256"]
+            or validation.get("modeling_task_sha256") != task_binding["sha256"]):
+        raise ValueError("G3 applicability validation does not bind the exact record, Bundle, and task.")
+    study_ids = record.get("study_ids")
+    if not isinstance(study_ids, list) or len(study_ids) != 1 or not isinstance(study_ids[0], str) or not study_ids[0]:
+        raise ValueError("G3 single-study applicability record requires exactly one explicit Study ID.")
+    for field in ("cohort_feasibility_reason", "modeling_validation_reason"):
+        if not isinstance(record.get(field), str) or not record[field].strip():
+            raise ValueError(f"G3 applicability record lacks {field}.")
+
+    base_fields = {
+        "applicability_status": "NOT_APPLICABLE",
+        "scope": "CONTROLLED_SINGLE_STUDY",
+        "study_ids": study_ids,
+        "study_count": 1,
+        "eligible_study_count": 1,
+        "canonical_bundle_sha256": bundle_binding["sha256"],
+        "modeling_task_sha256": task_binding["sha256"],
+        "applicability_record_sha256": record_binding["sha256"],
+    }
+    report_ids = {
+        "model_report": "model_report",
+        "reproducibility_evaluation": "reproducibility_evaluation",
+        "interaction_report": "interaction_report",
+        "robustness_report": "robustness_report",
+        "virtual_prediction": "virtual_prediction",
+    }
+    for artifact_id, label in report_ids.items():
+        binding = _require_gate_binding(by_id, artifact_id, "G3")
+        report = _read_json_binding(binding, "G3 " + label)
+        if report.get("schema_version") != "1.0" or any(report.get(key) != value for key, value in base_fields.items()):
+            raise ValueError(f"G3 {label} is not a matching NOT_APPLICABLE record.")
+        if report.get("task_id") != task.get("task_id"):
+            raise ValueError(f"G3 {label} task_id differs from the approved task.")
+        if not isinstance(report.get("reason"), str) or not report["reason"].strip():
+            raise ValueError(f"G3 {label} lacks its explicit non-applicability reason.")
+        if artifact_id in {"interaction_report", "robustness_report"} and report.get("interaction_catalogue") != []:
+            raise ValueError(f"G3 {label} must contain an explicitly empty interaction catalogue.")
+        for forbidden in ("model_artifact", "validation_metrics", "test_evaluation",
+                          "folds", "per_study_performance", "prediction", "predicted_value"):
+            if forbidden in report:
+                raise ValueError(f"G3 {label} must not contain fabricated scientific result field {forbidden}.")
+
+    for manifest_id, report_id, filename in (
+        ("interaction_manifest", "interaction_report", "interaction_discovery_report.json"),
+        ("robustness_manifest", "robustness_report", "interaction_robustness_report.json"),
+    ):
+        binding = _require_gate_binding(by_id, manifest_id, "G3")
+        payload = _read_json_binding(binding, "G3 " + manifest_id)
+        if any(payload.get(key) != value for key, value in base_fields.items()):
+            raise ValueError(f"G3 {manifest_id} is not a matching NOT_APPLICABLE manifest.")
+        inputs = payload.get("input_hashes")
+        outputs = payload.get("output_hashes")
+        report_binding = _require_gate_binding(by_id, report_id, "G3")
+        if (not isinstance(inputs, dict)
+                or inputs.get("task_sha256") != task_binding["sha256"]
+                or inputs.get("canonical_bundle_sha256") != bundle_binding["sha256"]
+                or inputs.get("applicability_record_sha256") != record_binding["sha256"]):
+            raise ValueError(f"G3 {manifest_id} does not bind the exact Bundle/task/applicability record.")
+        if not isinstance(outputs, dict) or outputs.get(filename) != report_binding["sha256"]:
+            raise ValueError(f"G3 {manifest_id} does not bind the exact NOT_APPLICABLE report.")
+
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G3")
+    selection = _read_json_binding(selection_binding, "G3 interaction_selection")
+    if selection.get("schema_version") != "1.1":
+        raise ValueError("G3 single-study interaction_selection schema_version must be 1.1.")
+    if selection.get("task_id") != task.get("task_id"):
+        raise ValueError("G3 interaction_selection task_id differs from the approved task.")
+    if (selection.get("interaction_report_sha256") != by_id["interaction_report"]["sha256"]
+            or selection.get("robustness_report_sha256") != by_id["robustness_report"]["sha256"]):
+        raise ValueError("G3 interaction_selection must bind the exact NOT_APPLICABLE reports.")
+    if selection.get("selected_interaction_ids") != [] or selection.get("not_selected_interaction_ids") != []:
+        raise ValueError("A NOT_APPLICABLE single-Study Run cannot select nonexistent interactions.")
+    if selection.get("applicability_status") != "NOT_APPLICABLE":
+        raise ValueError("G3 interaction_selection must explicitly declare NOT_APPLICABLE.")
+    if selection.get("not_applicable_reason") != record["modeling_validation_reason"]:
+        raise ValueError("G3 interaction_selection reason differs from the reviewed applicability record.")
+    if not all(isinstance(selection.get(key), str) and selection[key].strip()
+               for key in ("reviewer", "reviewed_at", "rationale")):
+        raise ValueError("G3 single-study interaction_selection requires reviewer, timestamp, and rationale.")
+    try:
+        parsed = datetime.fromisoformat(selection["reviewed_at"].replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("timezone required")
+    except ValueError as exc:
+        raise ValueError("G3 single-study interaction_selection reviewed_at must be timezone-aware.") from exc
+    return record
+
+
 def _validate_g3_selection(
     bindings: list[dict[str, str]],
     previous_gate_event: Mapping[str, Any],
 ) -> None:
     by_id = _binding_map(bindings)
+    if "single_study_applicability_record" in by_id:
+        _validate_single_study_na_bundle(by_id, previous_gate_event)
+        return
     report_binding = _require_gate_binding(by_id, "interaction_report", "G3")
     interaction_manifest_binding = _require_gate_binding(by_id, "interaction_manifest", "G3")
     robustness_binding = _require_gate_binding(by_id, "robustness_report", "G3")
@@ -645,8 +802,19 @@ def _validate_g3_selection(
             raise ValueError("G3 mechanism_plan interaction_id is not in selected_interaction_ids.")
 
 
-def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
+def _validate_g4_reviewed_findings(
+    bindings: list[dict[str, str]],
+    previous_gate_event: Mapping[str, Any] | None = None,
+) -> None:
     by_id = _binding_map(bindings)
+    single_study_profile = "single_study_applicability_record" in by_id
+    if single_study_profile:
+        if previous_gate_event is None:
+            raise ValueError("G4 single-study review requires the approved G3 event.")
+        _validate_single_study_na_bundle(by_id, previous_gate_event)
+        expected_reviewed_artifacts = G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
+    else:
+        expected_reviewed_artifacts = G4_REQUIRED_REVIEWED_ARTIFACTS
     worker_binding = _require_gate_binding(by_id, "worker_review_output", "G4")
     reviewed_binding = _require_gate_binding(by_id, "reviewed_findings", "G4")
     worker_result = _read_json_binding(worker_binding, "G4 worker_review_output")
@@ -781,11 +949,11 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
         path = Path(binding["path"])
         if not path.is_file() or sha256_file(path) != binding["sha256"]:
             raise ValueError(f"G4 reviewed artifact {artifact_id} changed after human review.")
-    if reviewed_ids != G4_REQUIRED_REVIEWED_ARTIFACTS:
-        missing = sorted(G4_REQUIRED_REVIEWED_ARTIFACTS - reviewed_ids)
-        unexpected = sorted(reviewed_ids - G4_REQUIRED_REVIEWED_ARTIFACTS)
+    if reviewed_ids != expected_reviewed_artifacts:
+        missing = sorted(expected_reviewed_artifacts - reviewed_ids)
+        unexpected = sorted(reviewed_ids - expected_reviewed_artifacts)
         raise ValueError(
-            "G4 reviewed_findings must bind exactly the six artifacts supplied to independent_result_review; "
+            "G4 reviewed_findings must bind exactly the artifacts supplied to the active Worker review stage; "
             + "missing=" + ", ".join(missing) + "; unexpected=" + ", ".join(unexpected) + "."
         )
     for finding_id, finding in worker_findings.items():
@@ -880,7 +1048,7 @@ def _validate_approval_artifacts(
     elif gate_id == "G3":
         _validate_g3_selection(bindings, latest_by_gate["G2"])
     elif gate_id == "G4":
-        _validate_g4_reviewed_findings(bindings)
+        _validate_g4_reviewed_findings(bindings, latest_by_gate.get("G3"))
 
 
 def require_selected_interaction_id(ledger_path: Path, interaction_id: str) -> dict[str, Any]:
