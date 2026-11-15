@@ -180,3 +180,34 @@ Only failures observed in that real workflow should become the next code changes
 - Runtime source modules, test module inventory, schemas, templates and generic templates
 
 This audit records repository state at the commit shown above. It is not a real-data scientific acceptance report.
+
+
+## 8. 2026-11-15 developer priority correction: product workflow execution
+
+This addendum supersedes the earlier recommendation to make a user-selected real-data pilot the immediate DoR software-development milestone. That recommendation describes scientific/product acceptance on a particular corpus; it is not a prerequisite for developing or testing the DoR software itself.
+
+### Primary development objective
+
+The immediate engineering objective is to make DoR usable as an Antigravity-native research workflow: a user can enter through a supported adapter route, initialize a Run, execute each declared local/manual/Worker stage under its contract, inspect and approve the required decisions, recover safely after interruption, and obtain a traceable publication hand-off.
+
+The developer acceptance target is therefore **product capability and workflow operability**, not the scientific adequacy of any user-local dataset.
+
+### P0 — prove and complete the product journey
+
+1. **Supported route entry:** exercise both STRUCTURED_DATASET and CANONICAL_BUNDLE routes from adapter-package validation, through route-specific input preparation, using synthetic fixtures owned by the repository.
+2. **Run lifecycle:** prove that initialization, stage RUNNING/SUCCEEDED/FAILED/SKIPPED events, artifact hashes, dependency scheduling, status inspection, resume/reuse, invalidation, and verification work together through the public CLI.
+3. **Human review and approvals:** execute the actual review-packet validators and Gate CLI boundaries in integration tests. Tests must not fabricate a validation report or treat packet validation as a scientific approval.
+4. **Worker hand-off:** exercise authorization packet creation, forbidden-action/output constraints, in-flight state, failure/retry/reconnect semantics, terminal result validation, and recorded usage. Use a controlled fake host only for tests; real provider dispatch remains a host integration.
+5. **Analysis-to-delivery path:** run the supported deterministic analysis operations on repository-owned synthetic records, including reconciliation, endpoint-specific cohort review, baseline/nested evaluation, interaction robustness, mechanism evidence, virtual prediction, and publication package audit.
+6. **User-operability:** verify the Skill gives one coherent next action for every stage state, explains blockers in actionable language, does not repeat completed work, and presents human decisions separately from automatic computation.
+7. **Regression reliability:** run the complete Runtime suite once on a precisely identified commit and classify failures by root cause. A missing GitHub Actions runner is infrastructure-unavailable, not a test result.
+
+### Separate downstream scientific acceptance
+
+Real-corpus scientific validity, a selected user's source extraction accuracy, project-specific semantic mappings, and final G0-G4 scientific decisions remain project-owner acceptance responsibilities. They must not block routine DoR feature development or be substituted with synthetic results. Product tests should use repository-owned synthetic fixtures and should never require access to a user's local research corpus.
+
+### Explicit non-goals for this milestone
+
+Do not add a native PDF/OCR/document-ingestion subsystem, another ontology, another ledger, a general cross-run cache, or third-party workflow infrastructure merely to demonstrate activity. Implement only the changes necessary to make the existing declared product workflow reliable and easier to operate.
+
+The current development branch should be judged against this product-workflow objective. This addendum changes the software-development priority; it does not weaken DoR's structured-data-only boundary, scientific approval gates, or the project owner's final acceptance authority.
