@@ -576,11 +576,12 @@ class StageEvidenceContractTests(unittest.TestCase):
         ]
         errors = validate_stage_evidence(
             "canonical_reconciliation", evidence, run_id="R1", project_id="P1",
-            study_ids={"S1"}, source_snapshot=[],
+            study_ids=set(), source_snapshot=[],
         )
         codes = {item["code"] for item in errors}
         self.assertIn("RECONCILIATION_ISSUE_ID_INVALID", codes)
-        self.assertIn("RECONCILIATION_DECISIONS_INPUT_INVALID", codes)
+        self.assertIn("RECONCILIATION_DECISIONS_INVALID", codes)
+        self.assertNotIn("RECONCILIATION_DECISIONS_INPUT_INVALID", codes)
 
     def test_unknown_evidence_type_is_rejected(self):
         codes = {item["code"] for item in validate_stage_payload(
