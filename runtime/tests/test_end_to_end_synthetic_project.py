@@ -822,7 +822,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 "scope_statement": "Only the synthetic observations and endpoint in this test fixture.",
                 "predicted_observations": ["A direct process observable changes.", "An independent probe supports the proposed process."],
                 "alternative_explanations": ["A study-level protocol difference."],
-                "unresolved_variables": ["No physical chemistry is represented by the fixture."],
+                "unresolved_variables": ["No discipline-specific physical system is represented by the fixture."],
                 "evidence_assessments": [
                     {
                         "evidence_id": direct["evidence_id"], "relationship": "SUPPORTS",
