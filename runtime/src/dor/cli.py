@@ -486,7 +486,10 @@ def main() -> int:
             print(_write_json(args.out, result), end="")
             return 0 if result["valid"] else 2
         if args.command == "prepare-single-study-not-applicable-artifacts":
-            _enforce_gate(args, "G2")
+            _enforce_gate(args, "G2", {
+                "canonical_bundle": args.bundle,
+                "modeling_task": args.task,
+            })
             result = prepare_single_study_not_applicable_artifacts_files(
                 args.record, args.validation, args.bundle, args.task,
                 args.manifest, args.out_dir,
