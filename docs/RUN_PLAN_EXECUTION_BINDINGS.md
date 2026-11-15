@@ -128,6 +128,8 @@ Set its exact Run/Project IDs, package version, and `source_hashes` from the sel
 
 The G3/G4 validators use a distinct single-Study evidence set and reject missing/stale hashes, a different Run/Project/Study, non-empty interaction selection, or model-like metrics/folds/predictions in N/A reports. They do not weaken the normal multi-Study gate contracts.
 
+The `interaction_selection.single_study.example.json` `not_applicable_reason` must exactly equal the `modeling_validation_reason` in the reviewed `single_study_applicability_record.json`; the G3 validator compares them byte-for-byte.
+
 Record G3 only after the human-reviewed N/A selection file is complete and every named artifact exists:
 
 ```bash
