@@ -48,6 +48,13 @@ class StageExecutionContractTests(unittest.TestCase):
         self.assertEqual(args.command, "validate-execution-contract")
         self.assertEqual(args.plan, Path("run_plan.json"))
 
+    def test_action_binding_rejects_dependency_graph_drift(self):
+        plan = self._load_plan("templates/run_plan.example.json")
+        stage = next(item for item in plan["stages"] if item["stage_id"] == "cohort_review")
+        stage["depends_on"].remove("research_scope_selection")
+        with self.assertRaisesRegex(ValueError, "dependencies differ"):
+            validate_supported_run_plan_execution_contract(plan)
+
     def test_action_binding_rejects_an_input_artifact_drift(self):
         plan = self._load_plan("templates/run_plan.example.json")
         baseline = next(stage for stage in plan["stages"] if stage["stage_id"] == "baseline_model_fit")
