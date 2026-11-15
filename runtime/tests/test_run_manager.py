@@ -158,6 +158,8 @@ class RunManagerTests(unittest.TestCase):
         self.assertEqual(report["usage_summary"]["input_plus_output_tokens"], 155)
         self.assertEqual(report["by_provider_model"][0]["provider"], "test-provider")
         self.assertEqual(report["by_provider_model"][0]["model"], "test-model")
+        self.assertEqual(report["by_role"][0]["role"], "UNSPECIFIED")
+        self.assertEqual(report["by_role_provider_model"][0]["provider"], "test-provider")
         self.assertEqual(report["accounting_policy"]["excluded_events"], ["RUNNING", "SKIPPED", "WORKER_AUTHORIZED"])
 
     def test_run_stage_rejects_boolean_token_counts(self):
