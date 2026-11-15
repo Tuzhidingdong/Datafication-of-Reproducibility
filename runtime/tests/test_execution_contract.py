@@ -43,7 +43,7 @@ class StageExecutionContractTests(unittest.TestCase):
                     virtual_query = config_root / "virtual_reproduction_query.json"
                     publication_plan = config_root / "publication_package_plan.json"
                     for path in (adapter_manifest, virtual_query, publication_plan):
-                        path.write_text("{}\\n", encoding="utf-8")
+                        path.write_text("{}\n", encoding="utf-8")
 
                     plan = self._load_plan(relative_path)
                     plan["source_roots"] = [str(package_root), str(config_root)]
@@ -57,7 +57,7 @@ class StageExecutionContractTests(unittest.TestCase):
                         artifact["path"] = str(source_paths[artifact["artifact_id"]])
                     plan_path = root / "configured_run_plan.json"
                     plan_path.write_text(
-                        json.dumps(plan, indent=2) + "\\n", encoding="utf-8"
+                        json.dumps(plan, indent=2) + "\n", encoding="utf-8"
                     )
                     run_root = root / "runs" / f"RUN_FORMAL_ROUTE_{index}"
                     initialized = initialize_run(
@@ -66,13 +66,12 @@ class StageExecutionContractTests(unittest.TestCase):
                     self.assertEqual(initialized["status"], "initialized")
 
                     resume = build_resume_plan(run_root / "run_manifest.json")
-                    self.assertEqual(resume["route"] if "route" in resume else (
-                        "STRUCTURED_DATASET" if "source_audit" in {
-                            stage["stage_id"] for stage in plan["stages"]
-                        } else "CANONICAL_BUNDLE"
-                    ), "STRUCTURED_DATASET" if index == 0 else "CANONICAL_BUNDLE")
                     self.assertEqual(resume["next_actions"][0]["stage_id"], "adapter_package_validation")
                     first_action = resume["next_actions"][0]
+                    self.assertEqual(
+                        first_action["action_binding"]["route"],
+                        "STRUCTURED_DATASET" if index == 0 else "CANONICAL_BUNDLE",
+                    )
                     self.assertEqual(first_action["action"], "READY_TO_RUN")
                     self.assertEqual(first_action["action_binding"]["runtime_command"], "prepare-adapter-handoff")
                     self.assertEqual(
