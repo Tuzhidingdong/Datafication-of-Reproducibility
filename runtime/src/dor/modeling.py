@@ -642,7 +642,9 @@ def run_baseline_models_files(cohort_dir: Path,task_path: Path,output_dir: Path)
         writer=csv.DictWriter(handle,fieldnames=comparison_fields)
         writer.writeheader()
         for item in comparisons:
-            metrics=item["validation_metrics"]
+            # A non-converged Ridge candidate is deliberately retained in the
+            # comparison report with null metrics; leave its CSV metric cells blank.
+            metrics=item.get("validation_metrics") or {}
             writer.writerow({
                 "candidate_model":item["candidate_model"],"candidate_id":item.get("candidate_id"),
                 "alpha":item.get("alpha"),"smoothing":item.get("smoothing"),
