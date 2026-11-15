@@ -1,6 +1,6 @@
 # Run Plan execution bindings
 
-This document is the command-level contract between the DoR Skill, the two generic adapter Run Plans, and the Runtime CLI. It defines execution wiring only; it does not define discipline-specific mappings, vocabularies, targets, or analysis assumptions.
+This document is the human-facing operator guide for the two generic adapter Run Plans. The machine-readable source of truth for stage-to-action wiring is `runtime/src/dor/stage_execution_contract.json`; it binds each supported stage to its executor/action and exact route-specific inputs, outputs, gates, and activation condition. `dor run-init` validates this contract before creating a Run, and maintainers can preflight a template with `dor validate-execution-contract --plan <run_plan.json>`. Update the registry and its tests whenever a supported Run Plan or action changes. This contract defines execution wiring only; it does not define discipline-specific mappings, vocabularies, targets, or analysis assumptions.
 
 All paths below are relative to the active Run workspace unless explicitly labelled as protected package or configuration paths. Resolve them from the current project configuration. Never substitute a hard-coded project path.
 
