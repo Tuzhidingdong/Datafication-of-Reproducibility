@@ -16,6 +16,7 @@ import uuid
 from typing import Any, Mapping
 
 from dor.gates import inspect_gate_ledger
+from dor.execution_contract import validate_supported_run_plan_execution_contract
 from dor.mapping import sha256_file
 
 RUN_SCHEMA_VERSION = "1.0"
@@ -157,6 +158,7 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
     stages_value = plan.get("stages")
     if not isinstance(stages_value, list) or not stages_value:
         raise ValueError("Run plan requires a non-empty explicit stages array.")
+    validate_supported_run_plan_execution_contract(plan)
     stages: dict[str, dict[str, Any]] = {}
     producer_by_artifact: dict[str, str] = {}
     output_paths: set[str] = set()
