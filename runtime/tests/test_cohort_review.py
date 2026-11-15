@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from dor.cohort_review import validate_cohort_review_record
+from dor.cohort_review import validate_cohort_review_record, enforce_cohort_review
 from dor.cli import build_parser
 
 
@@ -127,6 +127,21 @@ class CohortReviewTests(unittest.TestCase):
         self.assertTrue(report["valid"], report)
         self.assertEqual(report["reviewed_study_count"], 3)
         self.assertEqual(report["reviewed_observation_count"], 3)
+        self.assertEqual(report["record_sha256"], hashlib.sha256(self.record_path.read_bytes()).hexdigest())
+
+    def test_enforcement_detects_review_record_changes_after_validation(self):
+        report = self._validate()
+        self.assertTrue(report["valid"], report)
+        validation_path = self.cohort_dir / "cohort_review_validation.json"
+        validation_path.write_text(json.dumps(report), encoding="utf-8")
+        ledger_path = self.root / "workflow_gate_ledger.jsonl"
+        ledger_path.write_text("", encoding="utf-8")
+        enforced = enforce_cohort_review(self.cohort_dir, self.task_path, ledger_path)
+        self.assertTrue(enforced["valid"])
+        self.record["rationale"] = "Changed after validation."
+        self._write_record()
+        with self.assertRaisesRegex(ValueError, "record_sha256"):
+            enforce_cohort_review(self.cohort_dir, self.task_path, ledger_path)
 
     def test_changed_cohort_input_invalidates_review(self):
         with self.csv_path.open("a", encoding="utf-8") as handle:
