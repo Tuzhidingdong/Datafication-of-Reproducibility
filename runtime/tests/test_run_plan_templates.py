@@ -163,6 +163,74 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             stages["mechanism_evidence_bridge"]["depends_on"],
         )
 
+    def test_controlled_single_study_templates_keep_both_entry_routes_and_all_gates(self):
+        cases = (
+            ("templates/run_plan.single_study.example.json", "STRUCTURED_DATASET"),
+            ("templates/run_plan.canonical_adapter.single_study.example.json", "CANONICAL_BUNDLE"),
+        )
+        for path, route in cases:
+            plan = self._load_plan(path)
+            stages = {item["stage_id"]: item for item in plan["stages"]}
+            outputs = {
+                output["artifact_id"]: output["path"]
+                for stage in plan["stages"] for output in stage["outputs"]
+            }
+            with self.subTest(path=path):
+                self.assertEqual(plan["execution_profile"], "CONTROLLED_SINGLE_STUDY")
+                self.assertIn("adapter_package_validation", stages)
+                self.assertIn(
+                    "source_audit" if route == "STRUCTURED_DATASET"
+                    else "adapter_artifact_materialization",
+                    stages,
+                )
+                self.assertEqual(
+                    stages["single_study_scope_review"]["required_gate"], "G2"
+                )
+                self.assertEqual(
+                    stages["single_study_na_artifacts"]["required_gate"], "G2"
+                )
+                self.assertEqual(
+                    stages["independent_result_review"]["required_gate"], "G3"
+                )
+                self.assertEqual(
+                    stages["publication_package_assembly"]["required_gate"], "G4"
+                )
+                self.assertEqual(
+                    stages["independent_result_review"]["executor"], "worker"
+                )
+                self.assertNotIn("baseline_model_fit", stages)
+                self.assertNotIn("nested_reproducibility_evaluation", stages)
+                self.assertNotIn("interaction_discovery", stages)
+                self.assertNotIn("interaction_robustness", stages)
+                self.assertEqual(
+                    outputs["virtual_prediction"],
+                    "06_modeling/not_applicable/virtual_prediction.json",
+                )
+                self.assertEqual(
+                    outputs["single_study_applicability_record"],
+                    "05_scope/single_study_applicability_record.json",
+                )
+                self.assertEqual(
+                    outputs["single_study_applicability_validation"],
+                    "05_scope/single_study_applicability_validation.json",
+                )
+                worker_inputs = set(stages["independent_result_review"]["inputs"])
+                self.assertTrue({
+                    "single_study_applicability_record",
+                    "single_study_applicability_validation",
+                    "canonical_bundle",
+                    "modeling_task",
+                    "model_report",
+                    "reproducibility_evaluation",
+                    "interaction_report",
+                    "robustness_report",
+                    "interaction_selection",
+                }.issubset(worker_inputs))
+                self.assertIn(
+                    "single_study_scope_validation",
+                    stages["publication_package_assembly"]["depends_on"],
+                )
+
     def test_core_skill_and_adapter_contract_preserve_cross_disciplinary_boundary(self):
         skill = (ROOT / ".agents" / "skills" / "datafication-of-reproducibility" / "SKILL.md").read_text(encoding="utf-8")
         adapter_contract = (ROOT / "docs" / "ADAPTER_CONTRACT.md").read_text(encoding="utf-8")
