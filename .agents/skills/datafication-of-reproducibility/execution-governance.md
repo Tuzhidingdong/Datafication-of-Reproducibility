@@ -43,6 +43,6 @@ Do not guess. Record the missing field and its status, identify whether it is cr
 
 ## Stop conditions
 
-Stop and report the blocker if source files cannot be read, identifiers cannot be reconciled safely, target semantics are ambiguous, leakage cannot be controlled, no supported validation design exists, or requested predictions are outside the model's applicability domain.
+Stop and report the blocker if a declared structured dataset cannot be parsed, identifiers cannot be reconciled safely from structured fields, target semantics are ambiguous, leakage cannot be controlled, no supported validation design exists, or requested predictions are outside the model's applicability domain. Do not resolve any such blocker by opening original papers/SI or other raw research documents; request corrected structured data or explicit metadata instead. Original-source assets are subject only to path/metadata/hash checks.
 
 Do not fabricate sample counts, feature mappings, model metrics, paper citations, experimental conditions, or mechanism evidence.
