@@ -266,7 +266,7 @@ class FormalRunPlanCliTests(unittest.TestCase):
                         self.assertEqual(statuses["canonical_bundle"], "CURRENT")
 
                     # The test stops before user approval. Runtime execution never creates a Gate decision.
-                    self.assertFalse(Path(plan_path and root / "workflow_gate_ledger.jsonl").exists())
+                    self.assertFalse((root / "workflow_gate_ledger.jsonl").exists())
 
 
 if __name__ == "__main__":
