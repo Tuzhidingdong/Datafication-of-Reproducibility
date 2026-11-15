@@ -31,7 +31,8 @@ from dor.acceptance_ledger import (initialize_acceptance_ledger, record_acceptan
     recover_acceptance_record, inspect_acceptance_history, create_acceptance_checkpoint,
     verify_acceptance_checkpoint)
 from dor.run_manager import (
-    authorize_worker, build_artifact_manifest, build_resume_plan, initialize_run, record_stage_status, verify_run,
+    authorize_worker, build_artifact_manifest, build_resume_plan, build_run_usage_report,
+    initialize_run, record_stage_status, verify_run,
 )
 
 def _write_json(path: Path | None, report: dict) -> str:
@@ -299,6 +300,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_artifacts.add_argument("--manifest", type=Path, required=True)
     run_artifacts.add_argument("--out", type=Path, default=None)
 
+    run_usage = subparsers.add_parser("run-usage", help="Aggregate token usage actually recorded for terminal Run stage attempts")
+    run_usage.add_argument("--manifest", type=Path, required=True)
+    run_usage.add_argument("--out", type=Path, default=None)
+
     review_packet = subparsers.add_parser("validate-run-review-packet", help="Validate a G0-G2 review packet against the active Run inputs and hashes")
     review_packet.add_argument("--packet", type=Path, required=True)
     review_packet.add_argument("--manifest", type=Path, required=True)
@@ -412,6 +417,10 @@ def main() -> int:
             return 0
         if args.command == "run-resume-plan":
             result = build_resume_plan(args.manifest)
+            print(_write_json(args.out, result), end="")
+            return 0
+        if args.command == "run-usage":
+            result = build_run_usage_report(args.manifest)
             print(_write_json(args.out, result), end="")
             return 0
         if args.command == "run-artifacts":
