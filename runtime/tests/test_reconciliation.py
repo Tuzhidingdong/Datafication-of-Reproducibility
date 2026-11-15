@@ -75,6 +75,30 @@ class ReconciliationTests(unittest.TestCase):
         report=reconcile_canonical_bundle(data,"a"*64)
         self.assertTrue(any(x["category"]=="EVIDENCE_VERIFICATION_REQUIRED" for x in report["issues"]))
 
+    def test_review_questions_never_direct_to_original_source_content(self):
+        data = bundle()
+        data["evidence"][0]["extraction_status"] = "REVIEW_REQUIRED"
+        duplicate = copy.deepcopy(data["evidence"][0])
+        duplicate["evidence_id"] = "EV2"
+        duplicate["quoted_text"] = "a different structured extraction"
+        data["evidence"].append(duplicate)
+
+        report = reconcile_canonical_bundle(data, "a" * 64)
+        review_issues = [
+            issue for issue in report["issues"]
+            if issue["category"] in {"EVIDENCE_VERIFICATION_REQUIRED", "EVIDENCE_EXTRACTION_DISAGREEMENT"}
+        ]
+        self.assertTrue(review_issues)
+        for issue in review_issues:
+            text = (issue.get("review_question", "") + " " + issue.get("summary", "")).lower()
+            self.assertNotIn("original source", text)
+            self.assertNotIn("open the source", text)
+            self.assertNotIn("verify this source passage", text)
+            self.assertTrue(
+                "structured" in text or "upstream" in text or "locator" in text,
+                issue,
+            )
+
     def test_reconciliation_does_not_mutate_bundle(self):
         data=bundle()
         before=copy.deepcopy(data)
