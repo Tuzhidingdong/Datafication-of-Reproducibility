@@ -615,7 +615,13 @@ def _validate_single_study_na_bundle(
         if not isinstance(record.get(field), str) or not record[field].strip():
             raise ValueError(f"G3 applicability record lacks {field}.")
 
+    run_id = record.get("run_id")
+    project_id = record.get("project_id")
+    if not isinstance(run_id, str) or not run_id.strip() or not isinstance(project_id, str) or not project_id.strip():
+        raise ValueError("G3 single-study applicability record requires non-empty Run and Project identity.")
     base_fields = {
+        "run_id": run_id,
+        "project_id": project_id,
         "applicability_status": "NOT_APPLICABLE",
         "scope": "CONTROLLED_SINGLE_STUDY",
         "study_ids": study_ids,
