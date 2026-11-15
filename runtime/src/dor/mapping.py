@@ -9,7 +9,7 @@ from typing import Any
 
 STATUSES = {"PROPOSED", "REVIEWED", "APPROVED", "REJECTED", "UNRESOLVED"}
 ENTITIES = {"studies", "systems", "conditions", "experiments", "observations", "comparisons", "evidence"}
-TRANSFORMS = {"IDENTITY", "NUMERIC_PARSE", "UNIT_CONVERSION", "LOOKUP", "SPLIT", "CUSTOM"}
+TRANSFORMS = {"IDENTITY", "NUMERIC_PARSE", "UNIT_CONVERSION", "LOOKUP", "SPLIT"}
 
 
 def sha256_file(path: Path) -> str:
@@ -40,7 +40,7 @@ def _validate_transform(rule: dict[str, Any], path: str, errors: list[dict[str, 
     if kind == "IDENTITY" and params:
         errors.append(_issue("IDENTITY_HAS_PARAMETERS", f"{path}.parameters", "IDENTITY must not silently apply conversion parameters."))
     elif kind == "UNIT_CONVERSION":
-        required = {"source_unit", "target_unit", "factor"}
+        required = {"source_unit", "target_unit", "factor", "unit_source_item_id"}
         missing = required - params.keys()
         if missing:
             errors.append(_issue("INCOMPLETE_UNIT_CONVERSION", f"{path}.parameters", f"UNIT_CONVERSION requires: {', '.join(sorted(missing))}."))
@@ -50,11 +50,11 @@ def _validate_transform(rule: dict[str, Any], path: str, errors: list[dict[str, 
             errors.append(_issue("INVALID_CONVERSION_FACTOR", f"{path}.parameters.factor", "Conversion factor must be a finite number."))
         if isinstance(offset, bool) or not isinstance(offset, (int, float)) or not math.isfinite(offset):
             errors.append(_issue("INVALID_CONVERSION_OFFSET", f"{path}.parameters.offset", "Conversion offset must be a finite number."))
-        for key in ("source_unit", "target_unit"):
+        for key in ("source_unit", "target_unit", "unit_source_item_id"):
             if key in params and (not isinstance(params[key], str) or not params[key].strip()):
-                errors.append(_issue("INVALID_CONVERSION_UNIT", f"{path}.parameters.{key}", "Unit labels must be non-empty strings."))
-    elif kind in {"LOOKUP", "SPLIT", "CUSTOM"} and not params:
-        errors.append(_issue("TRANSFORM_SPECIFICATION_REQUIRED", f"{path}.parameters", f"{kind} requires explicit parameters or a versioned specification reference."))
+                errors.append(_issue("INVALID_CONVERSION_UNIT", f"{path}.parameters.{key}", f"{key} must be a non-empty string."))
+    elif kind in {"LOOKUP", "SPLIT"} and not params:
+        errors.append(_issue("TRANSFORM_SPECIFICATION_REQUIRED", f"{path}.parameters", f"{kind} requires explicit parameters."))
     elif kind == "NUMERIC_PARSE":
         decimal = params.get("decimal_separator", ".")
         thousands = params.get("thousands_separator")
@@ -133,6 +133,17 @@ def validate_mapping_plan(plan: Any, inventory: Any, inventory_sha256: str) -> d
         if not isinstance(review, dict) or any(not isinstance(review.get(key), str) or not review[key].strip() for key in ("reviewer", "reviewed_at", "decision_note")):
             errors.append(_issue("APPROVAL_METADATA_REQUIRED", f"{path}.review", "Approved rule requires reviewer, reviewed_at, and decision_note."))
         _validate_transform(rule, f"{path}.transformation", errors)
+        transformation = rule.get("transformation") if isinstance(rule.get("transformation"), dict) else {}
+        parameters = transformation.get("parameters") if isinstance(transformation.get("parameters"), dict) else {}
+        if transformation.get("type") == "UNIT_CONVERSION":
+            if target_entity not in {"conditions", "observations"} or target_field != "normalized_value":
+                errors.append(_issue("UNIT_CONVERSION_TARGET_INVALID", f"{path}.target_field_id", "UNIT_CONVERSION must populate normalized_value on a condition or observation so the target unit can be recorded explicitly."))
+            unit_source_id = parameters.get("unit_source_item_id")
+            unit_source = inventory_by_id.get(unit_source_id) if isinstance(unit_source_id, str) else None
+            if unit_source is None:
+                errors.append(_issue("UNKNOWN_UNIT_SOURCE_ITEM", f"{path}.transformation.parameters.unit_source_item_id", "UNIT_CONVERSION requires a unit_source_item_id present in the exact source inventory."))
+            elif source is not None and (unit_source.get("source_file") != source.get("source_file") or unit_source.get("source_format") != source.get("source_format")):
+                errors.append(_issue("INCOMPATIBLE_UNIT_SOURCE_ITEM", f"{path}.transformation.parameters.unit_source_item_id", "The source-unit field must come from the same source file and format as the numeric value."))
         if source is not None and isinstance(target_entity, str) and isinstance(target_field, str):
             locator_check = {
                 "source_file": source.get("source_file"),
