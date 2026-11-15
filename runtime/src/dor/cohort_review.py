@@ -274,13 +274,20 @@ def validate_cohort_review_record(
     }
 
 
-def enforce_cohort_review(cohort_dir: Path, task_path: Path, workflow_ledger_path: Path) -> dict[str, Any]:
-    """Require both the signed-off review record and its current validator report."""
+def enforce_cohort_review(
+    cohort_dir: Path,
+    task_path: Path,
+    workflow_ledger_path: Path,
+    run_manifest_path: Path,
+) -> dict[str, Any]:
+    """Require the reviewed cohort, exact active Run, and current validation report."""
     cohort_dir = cohort_dir.expanduser().resolve(strict=True)
     ledger_path = workflow_ledger_path.expanduser().resolve(strict=True)
-    manifest_path = ledger_path.parent / "run_manifest.json"
-    if not manifest_path.is_file():
-        raise ValueError("Active Run manifest is required next to the workflow Gate Ledger for Cohort review enforcement.")
+    manifest_path = run_manifest_path.expanduser().resolve(strict=True)
+    manifest = _read_json(manifest_path, "Active Run manifest")
+    declared_ledger = manifest.get("workflow_ledger_path")
+    if not isinstance(declared_ledger, str) or Path(declared_ledger).expanduser().resolve(strict=False) != ledger_path:
+        raise ValueError("The supplied workflow Gate Ledger does not match the active Run manifest.")
     record_path = cohort_dir / "cohort_review_record.json"
     validation_path = cohort_dir / "cohort_review_validation.json"
     if not record_path.is_file() or not validation_path.is_file():
