@@ -29,6 +29,26 @@ class CanonicalBundleTests(unittest.TestCase):
         report=validate_canonical_bundle(bundle)
         self.assertFalse(report["valid"])
         self.assertTrue(any(e["code"]=="BROKEN_REFERENCE" for e in report["errors"]))
+    def test_observation_cannot_reference_evidence_from_another_study(self):
+        bundle=valid_bundle()
+        bundle["studies"].append({"study_id":"ST2","source_locators":[]})
+        bundle["evidence"][0]["study_id"]="ST2"
+        report=validate_canonical_bundle(bundle)
+        self.assertFalse(report["valid"])
+        self.assertTrue(any(e["code"]=="OBSERVATION_EVIDENCE_STUDY_MISMATCH" for e in report["errors"]))
+
+    def test_evidence_locator_requires_valid_hash_type_and_value(self):
+        bundle=valid_bundle()
+        bundle["evidence"][0]["source_locator"]["source_sha256"]="not-a-hash"
+        bundle["evidence"][0]["source_locator"]["locator_type"]="unknown"
+        bundle["evidence"][0]["source_locator"]["locator"]="  "
+        report=validate_canonical_bundle(bundle)
+        self.assertFalse(report["valid"])
+        codes={e["code"] for e in report["errors"]}
+        self.assertIn("INVALID_EVIDENCE_SOURCE_HASH",codes)
+        self.assertIn("INVALID_EVIDENCE_LOCATOR_TYPE",codes)
+        self.assertIn("INVALID_EVIDENCE_LOCATOR_VALUE",codes)
+
     def test_duplicate_ids_are_rejected(self):
         bundle=valid_bundle(); bundle["studies"].append(copy.deepcopy(bundle["studies"][0]))
         report=validate_canonical_bundle(bundle)
