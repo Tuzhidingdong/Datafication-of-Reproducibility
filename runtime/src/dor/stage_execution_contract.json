@@ -1,0 +1,1931 @@
+{
+  "schema_version": "1.0",
+  "description": "Executable mapping between the two generic Run Plan templates and supported Runtime/host actions. Run Plans must match one declared route variant exactly.",
+  "routes": {
+    "STRUCTURED_DATASET": [
+      "adapter_package_validation",
+      "source_audit",
+      "g0_review_packet",
+      "mapping_preparation",
+      "mapping_validation",
+      "build_spec_validation",
+      "g1_review_packet",
+      "canonical_build",
+      "canonical_bundle_validation",
+      "canonical_reconciliation",
+      "reconciliation_decision_review",
+      "reconciliation_decision_validation",
+      "exploratory_discovery",
+      "research_scope_selection",
+      "g2_review_packet",
+      "cohort_build",
+      "cohort_review",
+      "baseline_model_fit",
+      "nested_reproducibility_evaluation",
+      "interaction_discovery",
+      "interaction_robustness",
+      "g3_selection_packet",
+      "mechanism_plan_preparation",
+      "response_surface_generation",
+      "mechanism_evidence_bridge",
+      "virtual_condition_prediction",
+      "independent_result_review",
+      "human_review_and_promotion",
+      "publication_package_assembly",
+      "publication_package_audit"
+    ],
+    "CANONICAL_BUNDLE": [
+      "adapter_package_validation",
+      "adapter_artifact_materialization",
+      "g0_review_packet",
+      "mapping_validation",
+      "build_spec_validation",
+      "g1_review_packet",
+      "canonical_bundle_validation",
+      "canonical_reconciliation",
+      "reconciliation_decision_review",
+      "reconciliation_decision_validation",
+      "exploratory_discovery",
+      "research_scope_selection",
+      "g2_review_packet",
+      "cohort_build",
+      "cohort_review",
+      "baseline_model_fit",
+      "nested_reproducibility_evaluation",
+      "interaction_discovery",
+      "interaction_robustness",
+      "g3_selection_packet",
+      "mechanism_plan_preparation",
+      "response_surface_generation",
+      "mechanism_evidence_bridge",
+      "virtual_condition_prediction",
+      "independent_result_review",
+      "human_review_and_promotion",
+      "publication_package_assembly",
+      "publication_package_audit"
+    ]
+  },
+  "stages": [
+    {
+      "stage_id": "adapter_package_validation",
+      "action_type": "CLI",
+      "cli_command": "prepare-adapter-handoff",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "adapter_package_manifest"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "adapter_handoff",
+              "path": "00_adapter/adapter_handoff.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "adapter_package_manifest"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "adapter_handoff",
+              "path": "00_adapter/adapter_handoff.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "dataset_manifest",
+              "path": "00_adapter/dataset_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "source_audit",
+      "action_type": "CLI",
+      "cli_command": "audit",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "adapter_handoff"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "dataset_manifest",
+              "path": "01_audit/dataset_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "source_inventory",
+              "path": "01_audit/source_inventory.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "data_audit_report",
+              "path": "01_audit/data_audit_report.md",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "column_coverage",
+              "path": "01_audit/column_coverage.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "json_structure_paths",
+              "path": "01_audit/json_structure_paths.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mapping_review_queue",
+              "path": "01_audit/mapping_review_queue.csv",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "g0_review_packet",
+      "action_type": "MANUAL",
+      "validator_command": "validate-run-review-packet",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "dataset_manifest",
+            "source_inventory",
+            "data_audit_report",
+            "mapping_review_queue",
+            "adapter_handoff"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "g0_review_packet",
+              "path": "01_audit/g0_review_packet.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "g0_review_packet_validation",
+              "path": "01_audit/g0_review_packet_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "dataset_manifest",
+            "source_inventory",
+            "adapter_handoff",
+            "materialization_manifest"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "g0_review_packet",
+              "path": "01_review/g0_review_packet.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "g0_review_packet_validation",
+              "path": "01_review/g0_review_packet_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "mapping_preparation",
+      "action_type": "MANUAL",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": "G0",
+          "inputs": [
+            "source_inventory",
+            "g0_review_packet"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "mapping_plan",
+              "path": "02_mapping/mapping_plan.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "build_spec",
+              "path": "02_mapping/canonical_build_spec.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "mapping_validation",
+      "action_type": "CLI",
+      "cli_command": "validate-mapping",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "source_inventory",
+            "mapping_plan",
+            "build_spec"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "mapping_validation",
+              "path": "02_mapping/mapping_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G0",
+          "inputs": [
+            "source_inventory",
+            "mapping_plan"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "mapping_validation",
+              "path": "02_mapping/mapping_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "build_spec_validation",
+      "action_type": "CLI",
+      "cli_command": "validate-build-spec",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "source_inventory",
+            "mapping_plan",
+            "build_spec",
+            "mapping_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "build_spec_validation",
+              "path": "02_mapping/build_spec_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G0",
+          "inputs": [
+            "source_inventory",
+            "mapping_plan",
+            "build_spec",
+            "mapping_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "build_spec_validation",
+              "path": "02_mapping/build_spec_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "g1_review_packet",
+      "action_type": "MANUAL",
+      "validator_command": "validate-run-review-packet",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "source_inventory",
+            "mapping_plan",
+            "build_spec",
+            "mapping_validation",
+            "build_spec_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "g1_review_packet",
+              "path": "02_mapping/g1_review_packet.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "g1_review_packet_validation",
+              "path": "02_mapping/g1_review_packet_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": "G0",
+          "inputs": [
+            "source_inventory",
+            "mapping_plan",
+            "build_spec",
+            "mapping_validation",
+            "build_spec_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "g1_review_packet",
+              "path": "02_mapping/g1_review_packet.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "g1_review_packet_validation",
+              "path": "02_mapping/g1_review_packet_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_build",
+      "action_type": "CLI",
+      "cli_command": "build-canonical",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G1",
+          "inputs": [
+            "source_inventory",
+            "mapping_plan",
+            "build_spec",
+            "mapping_validation",
+            "g1_review_packet"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "canonical_bundle",
+              "path": "03_canonical/canonical_bundle.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "canonical_build_report",
+              "path": "03_canonical/build_report.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_bundle_validation",
+      "action_type": "CLI",
+      "cli_command": "validate-bundle",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "canonical_validation_report",
+              "path": "03_canonical/canonical_validation_report.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G1",
+          "inputs": [
+            "canonical_bundle"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "canonical_validation_report",
+              "path": "03_canonical/canonical_validation_report.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_reconciliation",
+      "action_type": "CLI",
+      "cli_command": "reconcile-bundle",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reconciliation_report",
+              "path": "04_reconciliation/reconciliation_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "reconciliation_review_queue",
+              "path": "04_reconciliation/reconciliation_review_queue.csv",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G1",
+          "inputs": [
+            "canonical_bundle"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reconciliation_report",
+              "path": "04_reconciliation/reconciliation_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "reconciliation_review_queue",
+              "path": "04_reconciliation/reconciliation_review_queue.csv",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "reconciliation_decision_review",
+      "action_type": "MANUAL",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle",
+            "reconciliation_report",
+            "reconciliation_review_queue"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reconciliation_decisions",
+              "path": "04_reconciliation/reconciliation_decisions.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle",
+            "reconciliation_report",
+            "reconciliation_review_queue"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reconciliation_decisions",
+              "path": "04_reconciliation/reconciliation_decisions.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "reconciliation_decision_validation",
+      "action_type": "CLI",
+      "cli_command": "validate-reconciliation-decisions",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle",
+            "reconciliation_report",
+            "reconciliation_decisions"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reconciliation_decision_validation",
+              "path": "04_reconciliation/reconciliation_decision_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle",
+            "reconciliation_report",
+            "reconciliation_decisions"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reconciliation_decision_validation",
+              "path": "04_reconciliation/reconciliation_decision_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "exploratory_discovery",
+      "action_type": "CLI",
+      "cli_command": "discover-opportunities",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "discovery_manifest",
+              "path": "04_discovery/discovery_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "discovery_report",
+              "path": "04_discovery/discovery_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "discovery_brief",
+              "path": "04_discovery/agent_research_brief.md",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "target_support",
+              "path": "04_discovery/target_support.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "study_coverage",
+              "path": "04_discovery/study_coverage.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "condition_support",
+              "path": "04_discovery/condition_support.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "joint_support",
+              "path": "04_discovery/joint_support.csv",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "discovery_manifest",
+              "path": "04_discovery/discovery_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "discovery_report",
+              "path": "04_discovery/discovery_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "discovery_brief",
+              "path": "04_discovery/agent_research_brief.md",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "target_support",
+              "path": "04_discovery/target_support.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "study_coverage",
+              "path": "04_discovery/study_coverage.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "condition_support",
+              "path": "04_discovery/condition_support.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "joint_support",
+              "path": "04_discovery/joint_support.csv",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "research_scope_selection",
+      "action_type": "MANUAL",
+      "validator_command": "validate-research-scope",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "discovery_report",
+            "discovery_brief",
+            "target_support",
+            "study_coverage",
+            "condition_support",
+            "joint_support"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "research_scope_record",
+              "path": "05_scope/research_scope_record.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "modeling_task",
+              "path": "05_scope/modeling_task.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "discovery_report",
+            "discovery_brief",
+            "target_support",
+            "study_coverage",
+            "condition_support",
+            "joint_support"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "research_scope_record",
+              "path": "05_scope/research_scope_record.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "modeling_task",
+              "path": "05_scope/modeling_task.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "g2_review_packet",
+      "action_type": "MANUAL",
+      "validator_command": "validate-run-review-packet",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle",
+            "canonical_validation_report",
+            "reconciliation_report",
+            "reconciliation_review_queue",
+            "research_scope_record",
+            "modeling_task",
+            "reconciliation_decisions",
+            "reconciliation_decision_validation",
+            "discovery_report"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "g2_review_packet",
+              "path": "04_reconciliation/g2_review_packet.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "g2_review_packet_validation",
+              "path": "04_reconciliation/g2_review_packet_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle",
+            "canonical_validation_report",
+            "reconciliation_report",
+            "reconciliation_review_queue",
+            "research_scope_record",
+            "modeling_task",
+            "reconciliation_decisions",
+            "reconciliation_decision_validation",
+            "discovery_report"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "g2_review_packet",
+              "path": "04_reconciliation/g2_review_packet.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "g2_review_packet_validation",
+              "path": "04_reconciliation/g2_review_packet_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "cohort_build",
+      "action_type": "CLI",
+      "cli_command": "build-cohort",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "canonical_bundle",
+            "modeling_task",
+            "g2_review_packet"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "modeling_cohort",
+              "path": "05_modeling/cohort/modeling_cohort.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "cohort_report",
+              "path": "05_modeling/cohort/cohort_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "split_manifest",
+              "path": "05_modeling/cohort/split_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "cohort_manifest",
+              "path": "05_modeling/cohort/modeling_cohort_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "canonical_bundle",
+            "modeling_task",
+            "g2_review_packet"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "modeling_cohort",
+              "path": "05_modeling/cohort/modeling_cohort.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "cohort_report",
+              "path": "05_modeling/cohort/cohort_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "split_manifest",
+              "path": "05_modeling/cohort/split_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "cohort_manifest",
+              "path": "05_modeling/cohort/modeling_cohort_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "cohort_review",
+      "action_type": "MANUAL",
+      "validator_command": "validate-cohort-review",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "cohort_review_record",
+              "path": "05_modeling/cohort/cohort_review_record.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "cohort_review_validation",
+              "path": "05_modeling/cohort/cohort_review_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "cohort_review_record",
+              "path": "05_modeling/cohort/cohort_review_record.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "cohort_review_validation",
+              "path": "05_modeling/cohort/cohort_review_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "baseline_model_fit",
+      "action_type": "CLI",
+      "cli_command": "fit-baselines",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "model_report",
+              "path": "06_modeling/baseline/model_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "model_artifact",
+              "path": "06_modeling/baseline/model_artifact.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "baseline_run_manifest",
+              "path": "06_modeling/baseline/modeling_run_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "test_predictions",
+              "path": "06_modeling/baseline/test_predictions.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "validation_model_comparison",
+              "path": "06_modeling/baseline/validation_model_comparison.csv",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "model_report",
+              "path": "06_modeling/baseline/model_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "model_artifact",
+              "path": "06_modeling/baseline/model_artifact.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "baseline_run_manifest",
+              "path": "06_modeling/baseline/modeling_run_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "test_predictions",
+              "path": "06_modeling/baseline/test_predictions.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "validation_model_comparison",
+              "path": "06_modeling/baseline/validation_model_comparison.csv",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "nested_reproducibility_evaluation",
+      "action_type": "CLI",
+      "cli_command": "evaluate-reproducibility",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reproducibility_evaluation",
+              "path": "06_modeling/reproducibility/reproducibility_evaluation.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "cross_study_predictions",
+              "path": "06_modeling/reproducibility/cross_study_predictions.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "study_performance",
+              "path": "06_modeling/reproducibility/study_performance.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "applicability_domain",
+              "path": "06_modeling/reproducibility/applicability_domain.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "reproducibility_manifest",
+              "path": "06_modeling/reproducibility/reproducibility_evaluation_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reproducibility_evaluation",
+              "path": "06_modeling/reproducibility/reproducibility_evaluation.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "cross_study_predictions",
+              "path": "06_modeling/reproducibility/cross_study_predictions.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "study_performance",
+              "path": "06_modeling/reproducibility/study_performance.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "applicability_domain",
+              "path": "06_modeling/reproducibility/applicability_domain.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "reproducibility_manifest",
+              "path": "06_modeling/reproducibility/reproducibility_evaluation_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "interaction_discovery",
+      "action_type": "CLI",
+      "cli_command": "discover-interactions",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "interaction_report",
+              "path": "06_modeling/interactions/interaction_discovery_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_catalogue",
+              "path": "06_modeling/interactions/interaction_catalogue.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_oof_predictions",
+              "path": "06_modeling/interactions/interaction_oof_predictions.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_manifest",
+              "path": "06_modeling/interactions/interaction_discovery_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "interaction_report",
+              "path": "06_modeling/interactions/interaction_discovery_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_catalogue",
+              "path": "06_modeling/interactions/interaction_catalogue.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_oof_predictions",
+              "path": "06_modeling/interactions/interaction_oof_predictions.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_manifest",
+              "path": "06_modeling/interactions/interaction_discovery_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "interaction_robustness",
+      "action_type": "CLI",
+      "cli_command": "assess-interaction-robustness",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "robustness_report",
+              "path": "06_modeling/interaction_robustness/interaction_robustness_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "robustness_catalogue",
+              "path": "06_modeling/interaction_robustness/interaction_robustness_catalogue.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "robustness_manifest",
+              "path": "06_modeling/interaction_robustness/interaction_robustness_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "modeling_task",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "robustness_report",
+              "path": "06_modeling/interaction_robustness/interaction_robustness_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "robustness_catalogue",
+              "path": "06_modeling/interaction_robustness/interaction_robustness_catalogue.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "robustness_manifest",
+              "path": "06_modeling/interaction_robustness/interaction_robustness_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "g3_selection_packet",
+      "action_type": "MANUAL",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": "G2",
+          "inputs": [
+            "interaction_report",
+            "interaction_catalogue",
+            "interaction_manifest",
+            "robustness_report",
+            "robustness_catalogue",
+            "robustness_manifest"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "interaction_selection",
+              "path": "07_review/interaction_selection.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": "G2",
+          "inputs": [
+            "interaction_report",
+            "interaction_catalogue",
+            "interaction_manifest",
+            "robustness_report",
+            "robustness_catalogue",
+            "robustness_manifest"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "interaction_selection",
+              "path": "07_review/interaction_selection.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "mechanism_plan_preparation",
+      "action_type": "MANUAL",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "interaction_selection",
+            "modeling_task",
+            "canonical_bundle",
+            "interaction_report",
+            "robustness_report"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "mechanism_plan",
+              "path": "07_review/mechanism_plan.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": {
+            "artifact_id": "interaction_selection",
+            "json_pointer": "/selected_interaction_ids",
+            "operator": "array_non_empty"
+          }
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "interaction_selection",
+            "modeling_task",
+            "canonical_bundle",
+            "interaction_report",
+            "robustness_report"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "mechanism_plan",
+              "path": "07_review/mechanism_plan.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": {
+            "artifact_id": "interaction_selection",
+            "json_pointer": "/selected_interaction_ids",
+            "operator": "array_non_empty"
+          }
+        }
+      ]
+    },
+    {
+      "stage_id": "response_surface_generation",
+      "action_type": "CLI",
+      "cli_command": "generate-interaction-surface",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G3",
+          "inputs": [
+            "interaction_selection",
+            "modeling_task",
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "interaction_report",
+            "interaction_catalogue",
+            "interaction_manifest",
+            "robustness_report",
+            "robustness_catalogue",
+            "robustness_manifest",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "interaction_response_surface_report",
+              "path": "07_response_surface/interaction_response_surface_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_response_surface",
+              "path": "07_response_surface/interaction_response_surface.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_observed_support",
+              "path": "07_response_surface/interaction_observed_support.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_marginal_effects",
+              "path": "07_response_surface/interaction_marginal_effects.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_response_surface_manifest",
+              "path": "07_response_surface/interaction_response_surface_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": {
+            "artifact_id": "interaction_selection",
+            "json_pointer": "/selected_interaction_ids",
+            "operator": "array_non_empty"
+          }
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G3",
+          "inputs": [
+            "interaction_selection",
+            "modeling_task",
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "interaction_report",
+            "interaction_catalogue",
+            "interaction_manifest",
+            "robustness_report",
+            "robustness_catalogue",
+            "robustness_manifest",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "interaction_response_surface_report",
+              "path": "07_response_surface/interaction_response_surface_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_response_surface",
+              "path": "07_response_surface/interaction_response_surface.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_observed_support",
+              "path": "07_response_surface/interaction_observed_support.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_marginal_effects",
+              "path": "07_response_surface/interaction_marginal_effects.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "interaction_response_surface_manifest",
+              "path": "07_response_surface/interaction_response_surface_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": {
+            "artifact_id": "interaction_selection",
+            "json_pointer": "/selected_interaction_ids",
+            "operator": "array_non_empty"
+          }
+        }
+      ]
+    },
+    {
+      "stage_id": "mechanism_evidence_bridge",
+      "action_type": "CLI",
+      "cli_command": "build-mechanism-evidence-bridge",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G3",
+          "inputs": [
+            "interaction_selection",
+            "modeling_task",
+            "canonical_bundle",
+            "mechanism_plan",
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "interaction_report",
+            "interaction_manifest",
+            "robustness_report",
+            "robustness_manifest",
+            "interaction_response_surface_report",
+            "interaction_response_surface_manifest",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "mechanism_evidence_bridge_report",
+              "path": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mechanism_findings",
+              "path": "07_mechanism_bridge/mechanism_findings.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mechanism_evidence_ledger",
+              "path": "07_mechanism_bridge/mechanism_evidence_ledger.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mechanism_review_queue",
+              "path": "07_mechanism_bridge/mechanism_review_queue.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mechanism_evidence_bridge_manifest",
+              "path": "07_mechanism_bridge/mechanism_evidence_bridge_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": {
+            "artifact_id": "interaction_selection",
+            "json_pointer": "/selected_interaction_ids",
+            "operator": "array_non_empty"
+          }
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G3",
+          "inputs": [
+            "interaction_selection",
+            "modeling_task",
+            "canonical_bundle",
+            "mechanism_plan",
+            "modeling_cohort",
+            "cohort_report",
+            "split_manifest",
+            "cohort_manifest",
+            "interaction_report",
+            "interaction_manifest",
+            "robustness_report",
+            "robustness_manifest",
+            "interaction_response_surface_report",
+            "interaction_response_surface_manifest",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "mechanism_evidence_bridge_report",
+              "path": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mechanism_findings",
+              "path": "07_mechanism_bridge/mechanism_findings.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mechanism_evidence_ledger",
+              "path": "07_mechanism_bridge/mechanism_evidence_ledger.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mechanism_review_queue",
+              "path": "07_mechanism_bridge/mechanism_review_queue.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mechanism_evidence_bridge_manifest",
+              "path": "07_mechanism_bridge/mechanism_evidence_bridge_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": {
+            "artifact_id": "interaction_selection",
+            "json_pointer": "/selected_interaction_ids",
+            "operator": "array_non_empty"
+          }
+        }
+      ]
+    },
+    {
+      "stage_id": "virtual_condition_prediction",
+      "action_type": "CLI",
+      "cli_command": "predict-virtual-condition",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "model_artifact",
+            "baseline_run_manifest",
+            "virtual_query_input"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "virtual_prediction",
+              "path": "08_virtual_reproduction/virtual_prediction.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G2",
+          "inputs": [
+            "model_artifact",
+            "baseline_run_manifest",
+            "virtual_query_input"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "virtual_prediction",
+              "path": "08_virtual_reproduction/virtual_prediction.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "independent_result_review",
+      "action_type": "WORKER",
+      "authorization_command": "run-worker-authorize",
+      "host_action": "dispatch-authorized-worker-packet",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "worker",
+          "required_gate": "G3",
+          "inputs": [
+            "model_report",
+            "reproducibility_evaluation",
+            "interaction_report",
+            "robustness_report",
+            "interaction_selection",
+            "virtual_prediction",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "worker_review_output",
+              "path": "worker_staging/independent_result_review/review.json",
+              "kind": "worker_staging"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "worker",
+          "required_gate": "G3",
+          "inputs": [
+            "model_report",
+            "reproducibility_evaluation",
+            "interaction_report",
+            "robustness_report",
+            "interaction_selection",
+            "virtual_prediction",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "worker_review_output",
+              "path": "worker_staging/independent_result_review/review.json",
+              "kind": "worker_staging"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "human_review_and_promotion",
+      "action_type": "MANUAL",
+      "validator_command": "validate-reviewed-findings",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "worker_review_output",
+            "interaction_selection",
+            "model_report",
+            "reproducibility_evaluation",
+            "interaction_report",
+            "robustness_report",
+            "virtual_prediction",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reviewed_findings",
+              "path": "09_review/reviewed_findings.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "reviewed_findings_validation",
+              "path": "09_review/reviewed_findings_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "worker_review_output",
+            "interaction_selection",
+            "model_report",
+            "reproducibility_evaluation",
+            "interaction_report",
+            "robustness_report",
+            "virtual_prediction",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "reviewed_findings",
+              "path": "09_review/reviewed_findings.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "reviewed_findings_validation",
+              "path": "09_review/reviewed_findings_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "publication_package_assembly",
+      "action_type": "CLI",
+      "cli_command": "build-publication-package",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": "G4",
+          "inputs": [
+            "publication_plan",
+            "model_report",
+            "reproducibility_evaluation",
+            "interaction_report",
+            "robustness_report",
+            "interaction_selection",
+            "virtual_prediction",
+            "reviewed_findings",
+            "worker_review_output",
+            "reviewed_findings_validation",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "publication_package_manifest",
+              "path": "10_publication/package/package_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "publication_writing_guide",
+              "path": "10_publication/package/README_FOR_WRITING_SKILL.md",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": "G4",
+          "inputs": [
+            "publication_plan",
+            "model_report",
+            "reproducibility_evaluation",
+            "interaction_report",
+            "robustness_report",
+            "interaction_selection",
+            "virtual_prediction",
+            "reviewed_findings",
+            "worker_review_output",
+            "reviewed_findings_validation",
+            "cohort_review_record",
+            "cohort_review_validation"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "publication_package_manifest",
+              "path": "10_publication/package/package_manifest.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "publication_writing_guide",
+              "path": "10_publication/package/README_FOR_WRITING_SKILL.md",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "publication_package_audit",
+      "action_type": "CLI",
+      "cli_command": "audit-publication-package",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "publication_package_manifest",
+            "publication_writing_guide"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "publication_package_integrity_report",
+              "path": "10_publication/package_integrity_report.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "publication_package_manifest",
+            "publication_writing_guide"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "publication_package_integrity_report",
+              "path": "10_publication/package_integrity_report.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    },
+    {
+      "stage_id": "adapter_artifact_materialization",
+      "action_type": "CLI",
+      "cli_command": "materialize-adapter-artifacts",
+      "route_variants": [
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "adapter_handoff"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "source_inventory",
+              "path": "00_adapter/materialized/source_inventory.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "mapping_plan",
+              "path": "00_adapter/materialized/mapping_plan.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "build_spec",
+              "path": "00_adapter/materialized/build_spec.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "canonical_bundle",
+              "path": "00_adapter/materialized/canonical_bundle.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "materialization_manifest",
+              "path": "00_adapter/materialized/materialization_manifest.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null
+        }
+      ]
+    }
+  ]
+}
