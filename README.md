@@ -27,6 +27,15 @@ No project-specific source adapter or domain vocabulary is part of the supported
 
 ## Quick start
 
+### Install the Runtime CLI
+
+Requirements: Python 3.10 or newer. From the repository root, install the Runtime into the same Python environment that the active Antigravity terminal/Skill execution uses:
+
+    python -m pip install -e ./runtime
+    dor --help
+
+The installation is editable, so Runtime source changes in this checkout are picked up without reinstalling. Ensure the Python environment's scripts directory is available on the shell PATH; otherwise the `dor` command will not be discoverable.
+
 The supported workflow starts from an external Adapter Package. DoR does not ingest raw papers/SI or infer domain semantics; the package must contain already-prepared structured data or a complete, provenance-bound Canonical Bundle.
 
 1. Install this Skill in the active Antigravity project under `.agents/skills/datafication-of-reproducibility/` (or the Antigravity global Skill directory).
