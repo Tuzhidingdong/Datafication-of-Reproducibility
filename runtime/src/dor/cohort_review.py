@@ -156,7 +156,8 @@ def validate_cohort_review_record(
     declared_studies = cohort_report.get("eligible_study_ids")
     if (not isinstance(declared_studies, list)
             or any(not isinstance(value, str) or not value for value in declared_studies)
-            or set(declared_studies) != study_ids):
+            or len(declared_studies) != len(set(declared_studies))
+            or sorted(declared_studies) != sorted(study_ids)):
         issue("ELIGIBLE_STUDY_SET_MISMATCH", "Cohort CSV Study IDs do not match cohort_report.eligible_study_ids.")
 
     split_assignments = split_manifest.get("study_to_split")
@@ -169,6 +170,8 @@ def validate_cohort_review_record(
     if not isinstance(declared_observations, dict):
         issue("SPLIT_OBSERVATION_IDS_MISSING", "Split manifest must declare observation_ids_by_split.")
         declared_observations = {}
+    elif set(declared_observations) != {"train", "validation", "test"}:
+        issue("SPLIT_PARTITION_KEYS_INVALID", "Split manifest must declare exactly train, validation, and test Observation ID groups.")
     for split_name in ("train", "validation", "test"):
         observed_ids = sorted(row["observation_id"] for row in rows if row.get("split") == split_name)
         declared_ids = declared_observations.get(split_name)
