@@ -120,6 +120,7 @@ def _validate_single_study_na_evidence(
     run_id: str,
     project_id: str,
     study_ids: list[str],
+    expected_reason: Any,
     issue,
 ) -> None:
     """Require both single-Study NA stages to bind the same exact applicability review."""
@@ -196,10 +197,9 @@ def _validate_single_study_na_evidence(
     if not isinstance(reason, str) or not reason.strip():
         issue("SINGLE_STUDY_NA_REASON_MISSING",
               f"Applicability record {reason_key} must contain a scientific reason.")
-    else:
-        stage_record = next((item for item in evidence if item.get("artifact_type") == "single_study_applicability_record"), None)
-        if stage_record is not None and not stage_record.get("path"):
-            issue("SINGLE_STUDY_NA_RECORD_PATH_MISSING", "Applicability record evidence must bind an exact path.")
+    elif reason != expected_reason:
+        issue("SINGLE_STUDY_NA_ACCEPTANCE_REASON_MISMATCH",
+              f"{stage_id} not_applicable_reason must match the exact reason in the bound applicability record.")
 
 
 def validate_acceptance_record(
@@ -466,6 +466,7 @@ def validate_acceptance_record(
                 run_id=str(manifest.get("run_id", "")),
                 project_id=str(manifest.get("project_id", "")),
                 study_ids=snapshot.get("study_ids", []) if isinstance(snapshot.get("study_ids"), list) else [],
+                expected_reason=item.get("not_applicable_reason"),
                 issue=issue,
             )
 
