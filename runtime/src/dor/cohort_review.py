@@ -86,6 +86,7 @@ def validate_cohort_review_record(
     if not cohort_dir.is_dir():
         raise NotADirectoryError(f"Cohort directory is not a directory: {cohort_dir}")
 
+    record_sha256_before = _sha256(record_path)
     record = _read_json(record_path, "Cohort review record")
     cohort_report = _read_json(cohort_dir / "cohort_report.json", "Cohort report")
     split_manifest = _read_json(cohort_dir / "split_manifest.json", "Split manifest")
@@ -243,9 +244,14 @@ def validate_cohort_review_record(
         if record.get("split_assessment") != "ACCEPTED":
             issue("SPLIT_NOT_ACCEPTED", "APPROVE_MODELING requires split_assessment=ACCEPTED.")
 
+    record_sha256_after = _sha256(record_path)
+    if record_sha256_after != record_sha256_before:
+        issue("REVIEW_RECORD_CHANGED_DURING_VALIDATION", "The human review record changed while it was being validated.")
+
     return {
         "schema_version": "1.0",
         "valid": not errors,
+        "record_sha256": record_sha256_after,
         "error_count": len(errors),
         "errors": errors,
         "review_id": record.get("review_id"),
@@ -280,7 +286,9 @@ def enforce_cohort_review(cohort_dir: Path, task_path: Path, workflow_ledger_pat
     saved_report = _read_json(validation_path, "Cohort review validation report")
     if result.get("valid") is not True or saved_report.get("valid") is not True:
         raise ValueError("Cohort review is not currently approved: " + json.dumps(result.get("errors", []), ensure_ascii=False))
-    for key in ("cohort_sha256", "cohort_report_sha256", "split_manifest_sha256", "cohort_manifest_sha256", "task_sha256", "review_id", "run_id", "project_id"):
+    for key in ("record_sha256", "cohort_sha256", "cohort_report_sha256", "split_manifest_sha256",
+                "cohort_manifest_sha256", "task_sha256", "review_id", "run_id", "project_id",
+                "task_id", "decision", "reviewed_study_count", "reviewed_observation_count"):
         if saved_report.get(key) != result.get(key):
             raise ValueError("Saved Cohort review validation report is stale or differs from current inputs: " + key)
     return result
