@@ -160,6 +160,13 @@ class RunManagerTests(unittest.TestCase):
         self.assertEqual(report["by_provider_model"][0]["model"], "test-model")
         self.assertEqual(report["accounting_policy"]["excluded_events"], ["RUNNING", "SKIPPED", "WORKER_AUTHORIZED"])
 
+    def test_run_stage_rejects_boolean_token_counts(self):
+        with self.assertRaisesRegex(ValueError, "input_tokens"):
+            record_stage_status(
+                self.manifest_path, "audit", "RUNNING", "local",
+                input_tokens=True,
+            )
+
     def test_run_usage_keeps_unreported_values_null(self):
         report = build_run_usage_report(self.manifest_path)
         self.assertEqual(report["terminal_attempt_count"], 0)
