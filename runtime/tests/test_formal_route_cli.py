@@ -86,8 +86,19 @@ class FormalRunPlanCliTests(unittest.TestCase):
         }]
         if route == "CANONICAL_BUNDLE":
             role_payloads = (
-                ("source_inventory", {"schema_version": "1.0", "items": []}),
-                ("mapping_plan", {"schema_version": "1.0", "rules": []}),
+                ("source_inventory", {
+                    "schema_version": "1.0",
+                    "items": [{
+                        "inventory_id": "SYNTHETIC_OPAQUE_SOURCE",
+                        "source_file": "sources/opaque_original.bin",
+                        "source_sha256": digest(source_path),
+                        "source_format": "binary",
+                        "locator_type": "file",
+                        "locator": "Opaque source file; metadata and hash only",
+                        "mapping_status": "NOT_MAPPED",
+                    }],
+                }),
+                ("mapping_plan", {"schema_version": "1.0", "mapping_version": "synthetic-1", "rules": []}),
                 ("build_spec", {"schema_version": "1.0"}),
                 ("canonical_bundle", empty_canonical_bundle()),
             )
@@ -247,6 +258,82 @@ class FormalRunPlanCliTests(unittest.TestCase):
                     ))
                     self.assertEqual(resume["next_actions"][0]["stage_id"], "g0_review_packet")
                     self.assertEqual(resume["next_actions"][0]["action"], "READY_TO_RUN")
+                    self._record(manifest, "g0_review_packet", "RUNNING")
+
+                    if route == "STRUCTURED_DATASET":
+                        g0_dir = run_root / "01_audit"
+                        input_paths = [
+                            ("dataset_manifest", g0_dir / "dataset_manifest.json"),
+                            ("source_inventory", g0_dir / "source_inventory.json"),
+                            ("data_audit_report", g0_dir / "data_audit_report.md"),
+                            ("mapping_review_queue", g0_dir / "mapping_review_queue.csv"),
+                            ("adapter_handoff", handoff),
+                        ]
+                    else:
+                        g0_dir = run_root / "01_review"
+                        materialized_dir = run_root / "00_adapter" / "materialized"
+                        input_paths = [
+                            ("dataset_manifest", run_root / "00_adapter" / "dataset_manifest.json"),
+                            ("source_inventory", materialized_dir / "source_inventory.json"),
+                            ("adapter_handoff", handoff),
+                            ("materialization_manifest", materialized_dir / "materialization_manifest.json"),
+                        ]
+
+                    packet_path = g0_dir / "g0_review_packet.json"
+                    validation_path = g0_dir / "g0_review_packet_validation.json"
+                    artifact_bindings = [
+                        {
+                            "artifact_id": artifact_id,
+                            "path": str(path.resolve()),
+                            "sha256": digest(path),
+                        }
+                        for artifact_id, path in input_paths
+                    ]
+                    packet = {
+                        "schema_version": "1.0",
+                        "run_id": f"RUN_FORMAL_{index}",
+                        "project_id": json.loads(plan_path.read_text(encoding="utf-8"))["project_id"],
+                        "stage_id": "g0_review_packet",
+                        "prepared_at": "2026-11-15T12:00:00+08:00",
+                        "packet_status": "AWAITING_HUMAN_REVIEW",
+                        "artifact_bindings": artifact_bindings,
+                        "review_items": [{
+                            "item_id": "review_all_exact_inputs",
+                            "question": "Have all exact Run-bound inputs and limitations been reviewed?",
+                            "artifact_ids": [item["artifact_id"] for item in artifact_bindings],
+                            "mandatory": True,
+                        }],
+                        "unresolved_questions": [],
+                    }
+                    write_json(packet_path, packet)
+                    validation = json.loads(self.run_cli(
+                        "validate-run-review-packet",
+                        "--packet", str(packet_path),
+                        "--manifest", str(manifest),
+                        "--out", str(validation_path),
+                    ))
+                    self.assertTrue(validation["valid"], validation.get("errors"))
+                    self.assertEqual(validation["checked_artifact_count"], len(input_paths))
+                    self._record(manifest, "g0_review_packet", "SUCCEEDED")
+
+                    verification = json.loads(self.run_cli(
+                        "run-verify", "--manifest", str(manifest),
+                    ))
+                    self.assertTrue(verification["valid_manifest_and_event_chain"])
+                    self.assertEqual(verification["source_integrity"], "CURRENT")
+
+                    # The next scientific stage is correctly blocked on an actual human G0 decision.
+                    resume = json.loads(self.run_cli(
+                        "run-resume-plan", "--manifest", str(manifest),
+                    ))
+                    g0_state = next(stage for stage in resume["stages"] if stage["stage_id"] == "g0_review_packet")
+                    next_mapping = next(stage for stage in resume["stages"] if stage["stage_id"] == (
+                        "mapping_preparation" if route == "STRUCTURED_DATASET" else "mapping_validation"
+                    ))
+                    self.assertEqual(g0_state["action"], "REUSE")
+                    self.assertEqual(next_mapping["action"], "BLOCKED_GATE")
+                    self.assertEqual(next_mapping["required_gate"], "G0")
+                    self.assertEqual(resume["next_actions"], [])
 
                     artifact_manifest_path = run_root / "artifact_manifest.json"
                     artifact_manifest = json.loads(self.run_cli(
