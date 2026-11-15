@@ -85,7 +85,7 @@ def validate_single_study_applicability_files(
     if validation_output_path is not None:
         _require_planned_path(root, plan, "single_study_applicability_validation", validation_output_path)
     if not bundle_file.is_file() or not task_file.is_file() or not record_file.is_file():
-        raise ValueError("A declared single-study applicability input or record is missing.");
+        raise ValueError("A declared single-study applicability input or record is missing.")
     bundle_sha = sha256_file(bundle_file)
     task_sha = sha256_file(task_file)
     bundle = _read_json(bundle_file, "Canonical Bundle")
