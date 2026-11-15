@@ -1420,7 +1420,7 @@ def record_stage_status(
     for value, label in ((input_tokens, "input_tokens"), (output_tokens, "output_tokens"),
                          (reasoning_tokens, "reasoning_tokens"), (cache_read_tokens, "cache_read_tokens"),
                          (cache_write_tokens, "cache_write_tokens")):
-        if value is not None and (not isinstance(value, int) or value < 0):
+        if value is not None and (type(value) is not int or value < 0):
             raise ValueError(f"{label} must be a non-negative integer when supplied.")
     root, manifest, plan, events = _manifest_context(manifest_path)
     stage = _stage_map(plan).get(stage_id)
