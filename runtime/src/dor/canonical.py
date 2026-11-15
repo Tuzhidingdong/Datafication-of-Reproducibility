@@ -13,6 +13,7 @@ ENTITY_KEYS = {
     "evidence": ("evidence_id", None),
 }
 MISSINGNESS = {"REPORTED", "NOT_REPORTED", "NOT_APPLICABLE", "AMBIGUOUS", "CONFLICTING", "NOT_ASSESSED"}
+LOCATOR_TYPES = {"csv_row", "csv_column", "json_path", "json_pointer", "pdf_page", "table_cell", "figure_panel", "supplementary_item", "other"}
 REQUIRED_FIELDS = {
     "studies": {"study_id", "source_locators"},
     "systems": {"system_id", "study_ids", "system_type"},
@@ -95,6 +96,16 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
             errors.append({"code":"INVALID_MISSINGNESS_STATE","path":f"observations[{i}].value_state","message":"Unknown value_state."})
         if row.get("value_state") == "REPORTED" and row.get("raw_value") is None:
             warnings.append({"code":"REPORTED_WITHOUT_RAW_VALUE","path":f"observations[{i}]","message":"Reported observation has no raw_value field."})
+        experiment = records["experiments"].get(row.get("experiment_id")) if isinstance(row.get("experiment_id"), str) else None
+        if experiment is not None and isinstance(row.get("evidence_ids"), list):
+            for evidence_id in row["evidence_ids"]:
+                evidence = records["evidence"].get(evidence_id) if isinstance(evidence_id, str) else None
+                if evidence is not None and evidence.get("study_id") != experiment.get("study_id"):
+                    errors.append({
+                        "code": "OBSERVATION_EVIDENCE_STUDY_MISMATCH",
+                        "path": f"observations[{i}].evidence_ids",
+                        "message": f"Evidence {evidence_id!r} belongs to a different Study than its linked Experiment.",
+                    })
         if row.get("value_state") != "REPORTED" and row.get("raw_value") == 0:
             warnings.append({"code":"ZERO_ON_NON_REPORTED_STATE","path":f"observations[{i}].raw_value","message":"A zero value is present despite a non-REPORTED state; review rather than infer."})
     for i, row in enumerate(records["comparisons"].values()):
@@ -105,8 +116,21 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     for i, row in enumerate(records["evidence"].values()):
         ref(f"evidence[{i}].study_id", row.get("study_id"), "studies")
         locator = row.get("source_locator")
-        if not isinstance(locator, dict) or not locator.get("source_file") or not locator.get("locator"):
-            errors.append({"code":"INVALID_EVIDENCE_LOCATOR","path":f"evidence[{i}].source_locator","message":"Evidence requires a source file and locator."})
+        if not isinstance(locator, dict):
+            errors.append({"code":"INVALID_EVIDENCE_LOCATOR","path":f"evidence[{i}].source_locator","message":"Evidence requires a locator object."})
+            continue
+        source_file = locator.get("source_file")
+        source_sha256 = locator.get("source_sha256")
+        locator_type = locator.get("locator_type")
+        locator_value = locator.get("locator")
+        if not isinstance(source_file, str) or not source_file.strip():
+            errors.append({"code":"INVALID_EVIDENCE_SOURCE_FILE","path":f"evidence[{i}].source_locator.source_file","message":"Evidence source_file must be a non-empty string."})
+        if not isinstance(source_sha256, str) or len(source_sha256) != 64 or any(char not in "0123456789abcdefABCDEF" for char in source_sha256):
+            errors.append({"code":"INVALID_EVIDENCE_SOURCE_HASH","path":f"evidence[{i}].source_locator.source_sha256","message":"Evidence source_sha256 must be a 64-character hexadecimal SHA-256."})
+        if not isinstance(locator_type, str) or locator_type not in LOCATOR_TYPES:
+            errors.append({"code":"INVALID_EVIDENCE_LOCATOR_TYPE","path":f"evidence[{i}].source_locator.locator_type","message":"Evidence locator_type is not supported."})
+        if not isinstance(locator_value, str) or not locator_value.strip():
+            errors.append({"code":"INVALID_EVIDENCE_LOCATOR_VALUE","path":f"evidence[{i}].source_locator.locator","message":"Evidence locator must be a non-empty string."})
     return {"valid": not errors, "error_count": len(errors), "warning_count": len(warnings),
         "errors": errors, "warnings": warnings,
         "counts": {name: len(ids[name]) for name in ENTITY_KEYS},
