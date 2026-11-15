@@ -154,19 +154,13 @@ def stage_action_bindings_for_plan(plan: dict[str, Any]) -> dict[str, dict[str, 
     Custom Run Plans intentionally return an empty mapping. The caller remains
     responsible for validating supported plans before relying on these bindings.
     """
-    stages = plan.get("stages")
-    if not isinstance(stages, list):
+    route, profile = _route_and_profile(plan)
+    if route is None:
         return {}
+    stages = plan.get("stages")
     stage_ids = {
         item.get("stage_id") for item in stages if isinstance(item, dict)
     }
-    if "source_audit" in stage_ids:
-        route = "STRUCTURED_DATASET"
-    elif "adapter_artifact_materialization" in stage_ids:
-        route = "CANONICAL_BUNDLE"
-    else:
-        return {}
-
     contract = _load_contract()
     bindings = contract.get("stages")
     if not isinstance(bindings, list):
@@ -190,6 +184,7 @@ def stage_action_bindings_for_plan(plan: dict[str, Any]) -> dict[str, dict[str, 
             "executor": variant.get("executor"),
             "runtime_command": binding.get("cli_command"),
             "validator_command": binding.get("validator_command"),
+            "executor": variant.get("executor"),
             "authorization_command": binding.get("authorization_command"),
             "host_action": binding.get("host_action"),
         }
@@ -200,13 +195,18 @@ def inspect_supported_run_plan_execution_contract(plan: dict[str, Any]) -> dict[
     """Return a compact validation report for a supported Run Plan's action bindings."""
     validate_supported_run_plan_execution_contract(plan)
     stage_ids = [item["stage_id"] for item in plan["stages"]]
-    route = "STRUCTURED_DATASET" if "source_audit" in stage_ids else "CANONICAL_BUNDLE"
+    route, profile = _route_and_profile(plan)
+    if route is None:
+        raise ValueError("Run Plan is not one of the supported adapter routes.")
     contract = _load_contract()
     binding_by_id = {item["stage_id"]: item for item in contract["stages"]}
     action_counts: dict[str, int] = {}
     actions = []
     for stage_id in stage_ids:
         binding = binding_by_id[stage_id]
+        variant = _select_route_variant(binding, route, profile)
+        if variant is None:
+            raise ValueError(f"Stage {stage_id} has no {route}/{profile} execution variant.")
         kind = binding["action_type"]
         action_counts[kind] = action_counts.get(kind, 0) + 1
         actions.append({
