@@ -2713,7 +2713,7 @@
           "route": "STRUCTURED_DATASET",
           "profile": "CONTROLLED_SINGLE_STUDY",
           "executor": "local",
-          "required_gate": null,
+          "required_gate": "G2",
           "inputs": [
             "single_study_applicability_record",
             "canonical_bundle",
@@ -2736,7 +2736,7 @@
           "route": "CANONICAL_BUNDLE",
           "profile": "CONTROLLED_SINGLE_STUDY",
           "executor": "local",
-          "required_gate": null,
+          "required_gate": "G2",
           "inputs": [
             "single_study_applicability_record",
             "canonical_bundle",
