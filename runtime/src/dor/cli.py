@@ -9,6 +9,10 @@ from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle
 from dor.canonical_discovery import run_canonical_discovery_scan
 from dor.cohort import build_modeling_cohort_files
 from dor.cohort_review import validate_cohort_review_record, enforce_cohort_review
+from dor.controlled_scope import (
+    validate_single_study_applicability_files,
+    prepare_single_study_not_applicable_artifacts_files,
+)
 from dor.execution_contract import inspect_supported_run_plan_execution_contract
 from dor.builder import build_canonical_files, validate_build_spec_files
 from dor.canonical import validate_canonical_bundle
@@ -316,6 +320,27 @@ def build_parser() -> argparse.ArgumentParser:
     reviewed_findings.add_argument("--manifest", type=Path, required=True)
     reviewed_findings.add_argument("--out", type=Path, required=True, help="Declared Run output path for the validation report")
 
+    single_study_scope = subparsers.add_parser(
+        "validate-single-study-applicability",
+        help="Validate a human-reviewed one-Study NOT_APPLICABLE declaration against the exact Run Bundle/task",
+    )
+    single_study_scope.add_argument("--record", type=Path, required=True)
+    single_study_scope.add_argument("--bundle", type=Path, required=True)
+    single_study_scope.add_argument("--task", type=Path, required=True)
+    single_study_scope.add_argument("--manifest", type=Path, required=True)
+    single_study_scope.add_argument("--out", type=Path, required=True)
+
+    single_study_na = subparsers.add_parser(
+        "prepare-single-study-not-applicable-artifacts",
+        help="Prepare explicit NOT_APPLICABLE records without fitting models or generating scientific predictions",
+    )
+    single_study_na.add_argument("--record", type=Path, required=True)
+    single_study_na.add_argument("--validation", type=Path, required=True)
+    single_study_na.add_argument("--bundle", type=Path, required=True)
+    single_study_na.add_argument("--task", type=Path, required=True)
+    single_study_na.add_argument("--manifest", type=Path, required=True)
+    single_study_na.add_argument("--out-dir", type=Path, required=True)
+
     worker_authorize = subparsers.add_parser("run-worker-authorize", help="Record an explicit pre-dispatch Worker authorization and emit its bounded task packet")
     worker_authorize.add_argument("--manifest", type=Path, required=True)
     worker_authorize.add_argument("--stage", dest="stage_id", required=True)
@@ -451,6 +476,19 @@ def main() -> int:
         if args.command == "validate-reviewed-findings":
             result = validate_reviewed_findings_files(args.record, args.manifest, args.out)
             print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
+        if args.command == "validate-single-study-applicability":
+            result = validate_single_study_applicability_files(
+                args.record, args.bundle, args.task, args.manifest,
+            )
+            print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
+        if args.command == "prepare-single-study-not-applicable-artifacts":
+            result = prepare_single_study_not_applicable_artifacts_files(
+                args.record, args.validation, args.bundle, args.task,
+                args.manifest, args.out_dir,
+            )
+            print(_write_json(None, result), end="")
             return 0 if result["valid"] else 2
         if args.command == "run-worker-authorize":
             result = authorize_worker(
