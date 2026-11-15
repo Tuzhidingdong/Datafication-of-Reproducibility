@@ -279,7 +279,7 @@ def evaluate_reproducibility_files(cohort_dir: Path, task_path: Path, output_dir
             baseline_metrics = _regression_metrics(actual, baseline_predictions)
             model_meta = {"selected_candidate_id": candidate_id, "alpha": alpha, "converged": converged,
                           "outer_refit_fallback": selected_model == "mean_baseline_fallback_nonconverged",
-                          "fallback_reason": "RIDGE_OUTER_REFIT_NOT_CONVERGED" if selected_model == "mean_baseline_fallback_nonconverged" else None},
+                          "fallback_reason": "RIDGE_OUTER_REFIT_NOT_CONVERGED" if selected_model == "mean_baseline_fallback_nonconverged" else None}
         else:
             candidate_id, smoothing, comparisons = _select_categorical_candidate(inner_train, inner_validation, bindings, settings)
             fold_predictions, selected_model = _predict_categorical_candidate(
