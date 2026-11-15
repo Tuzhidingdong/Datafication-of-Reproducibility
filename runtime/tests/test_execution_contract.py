@@ -3,10 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import unittest
+import tempfile
 from pathlib import Path
 
 from dor.cli import build_parser
 from dor.execution_contract import validate_supported_run_plan_execution_contract
+from dor.run_manager import build_resume_plan, initialize_run
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +26,75 @@ class StageExecutionContractTests(unittest.TestCase):
             with self.subTest(path=path):
                 plan = self._load_plan(path)
                 validate_supported_run_plan_execution_contract(plan)
+
+    def test_formal_run_resume_plan_exposes_exact_route_action_and_paths(self):
+        for index, relative_path in enumerate((
+            "templates/run_plan.example.json",
+            "templates/run_plan.canonical_adapter.example.json",
+        )):
+            with self.subTest(path=relative_path):
+                with tempfile.TemporaryDirectory(prefix="dor-formal-run-plan-") as temporary:
+                    root = Path(temporary)
+                    package_root = root / "adapter_package"
+                    config_root = root / "configuration"
+                    package_root.mkdir()
+                    config_root.mkdir()
+                    adapter_manifest = package_root / "adapter_manifest.json"
+                    virtual_query = config_root / "virtual_reproduction_query.json"
+                    publication_plan = config_root / "publication_package_plan.json"
+                    for path in (adapter_manifest, virtual_query, publication_plan):
+                        path.write_text("{}\\n", encoding="utf-8")
+
+                    plan = self._load_plan(relative_path)
+                    plan["source_roots"] = [str(package_root), str(config_root)]
+                    plan["workflow_ledger_path"] = str(root / "workflow_gate_ledger.jsonl")
+                    source_paths = {
+                        "adapter_package_manifest": adapter_manifest,
+                        "virtual_query_input": virtual_query,
+                        "publication_plan": publication_plan,
+                    }
+                    for artifact in plan["source_artifacts"]:
+                        artifact["path"] = str(source_paths[artifact["artifact_id"]])
+                    plan_path = root / "configured_run_plan.json"
+                    plan_path.write_text(
+                        json.dumps(plan, indent=2) + "\\n", encoding="utf-8"
+                    )
+                    run_root = root / "runs" / f"RUN_FORMAL_ROUTE_{index}"
+                    initialized = initialize_run(
+                        plan_path, run_root, f"RUN_FORMAL_ROUTE_{index}"
+                    )
+                    self.assertEqual(initialized["status"], "initialized")
+
+                    resume = build_resume_plan(run_root / "run_manifest.json")
+                    self.assertEqual(resume["route"] if "route" in resume else (
+                        "STRUCTURED_DATASET" if "source_audit" in {
+                            stage["stage_id"] for stage in plan["stages"]
+                        } else "CANONICAL_BUNDLE"
+                    ), "STRUCTURED_DATASET" if index == 0 else "CANONICAL_BUNDLE")
+                    self.assertEqual(resume["next_actions"][0]["stage_id"], "adapter_package_validation")
+                    first_action = resume["next_actions"][0]
+                    self.assertEqual(first_action["action"], "READY_TO_RUN")
+                    self.assertEqual(first_action["action_binding"]["runtime_command"], "prepare-adapter-handoff")
+                    self.assertEqual(
+                        first_action["action_binding"]["input_artifacts"][0]["path"],
+                        str(adapter_manifest.resolve()),
+                    )
+                    self.assertTrue(
+                        first_action["action_binding"]["output_artifacts"][0]["path"].startswith(
+                            str(run_root.resolve())
+                        )
+                    )
+
+                    worker_stage = next(
+                        stage for stage in resume["stages"]
+                        if stage["stage_id"] == "independent_result_review"
+                    )
+                    worker_binding = worker_stage["action_binding"]
+                    self.assertEqual(worker_binding["action_type"], "WORKER")
+                    self.assertEqual(worker_binding["authorization_command"], "run-worker-authorize")
+                    self.assertEqual(worker_binding["host_action"], "dispatch-authorized-worker-packet")
+                    self.assertIn("objective", worker_binding["worker_task"])
+                    self.assertIn("permitted_actions", worker_binding["worker_task"])
 
     def test_contract_cli_and_validator_actions_exist_in_runtime_parser(self):
         contract = json.loads(
