@@ -193,8 +193,14 @@ class CohortReviewTests(unittest.TestCase):
             writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
             writer.writeheader()
             writer.writerows(rows)
-        self.record["artifact_sha256"]["modeling_cohort.csv"] = hashlib.sha256(
-            self.csv_path.read_bytes()
+        new_csv_hash = hashlib.sha256(self.csv_path.read_bytes()).hexdigest()
+        self.record["artifact_sha256"]["modeling_cohort.csv"] = new_csv_hash
+        cohort_manifest_path = self.cohort_dir / "modeling_cohort_manifest.json"
+        cohort_manifest = json.loads(cohort_manifest_path.read_text(encoding="utf-8"))
+        cohort_manifest["artifact_sha256"]["modeling_cohort.csv"] = new_csv_hash
+        cohort_manifest_path.write_text(json.dumps(cohort_manifest), encoding="utf-8")
+        self.record["artifact_sha256"]["modeling_cohort_manifest.json"] = hashlib.sha256(
+            cohort_manifest_path.read_bytes()
         ).hexdigest()
         self._write_record()
         report = self._validate()
