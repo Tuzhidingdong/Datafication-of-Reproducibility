@@ -6,6 +6,10 @@ DoR's core Runtime, Skill, Run Plans, schemas, templates, and test fixtures are 
 
 Discipline-neutral infrastructure does not mean that the current analysis engine implements every research method or that every research dataset can be represented without loss in the current Canonical model.
 
+## Structured-data-only execution boundary
+
+DoR is a downstream consumer of already structured research data, not a literature-reading or extraction system. All DoR stages must operate on declared CSV/JSON data, supplied data dictionaries/configuration, structured evidence/locator metadata, and validated Canonical Bundles. Original papers, SI, images, and other raw research documents are provenance-only assets. DoR may register their identity/path and verify filesystem metadata or byte-level SHA-256, but must never open, parse, render, OCR, index, search, summarize, embed, or provide their contents to an LLM/Worker. A locator is an opaque reference, not permission to retrieve its target. Missing semantics or evidence must be returned as an unresolved structured-data issue for upstream correction; DoR must not repair it by reading the original.
+
 ## Current Canonical representation
 
 The current Canonical model is a general-purpose empirical relationship graph with these generic entities:
