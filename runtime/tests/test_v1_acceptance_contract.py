@@ -22,7 +22,14 @@ class V1AcceptanceContractTests(unittest.TestCase):
 
 
     def test_skill_enforces_acceptance_ledger_lifecycle_and_separate_ledgers(self):
-        skill = (ROOT / ".agents" / "skills" / "datafication-of-reproducibility" / "SKILL.md").read_text(encoding="utf-8")
+        skill_root = ROOT / ".agents" / "skills" / "datafication-of-reproducibility"
+        skill = (skill_root / "SKILL.md").read_text(encoding="utf-8")
+        phase_references = "\\n".join(
+            path.read_text(encoding="utf-8")
+            for path in sorted(skill_root.glob("execution-*.md"))
+        )
+        self.assertIn("Run Manager and controlled acceptance", skill)
+        self.assertIn("execution-run-manager-and-acceptance.md", skill)
         required = [
             "dor init-acceptance-ledger",
             "dor record-acceptance-revision",
@@ -37,9 +44,9 @@ class V1AcceptanceContractTests(unittest.TestCase):
         ]
         for text in required:
             with self.subTest(required=text):
-                self.assertIn(text, skill)
+                self.assertIn(text, phase_references)
         stale_command = "dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --out"
-        self.assertNotIn(stale_command, skill)
+        self.assertNotIn(stale_command, skill + phase_references)
 
     def test_guided_workflow_separates_acceptance_history_from_run_and_gate_ledgers(self):
         guide = (ROOT / "references" / "guided-workflow.md").read_text(encoding="utf-8")
