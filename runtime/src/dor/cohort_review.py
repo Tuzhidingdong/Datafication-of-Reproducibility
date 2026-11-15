@@ -142,7 +142,9 @@ def validate_cohort_review_record(
     if type(reported_study_count) is not int or reported_study_count != len(study_ids):
         issue("STUDY_COUNT_MISMATCH", "Cohort CSV Study count does not match cohort_report.eligible_study_count.")
     declared_studies = cohort_report.get("eligible_study_ids")
-    if not isinstance(declared_studies, list) or set(declared_studies) != study_ids:
+    if (not isinstance(declared_studies, list)
+            or any(not isinstance(value, str) or not value for value in declared_studies)
+            or set(declared_studies) != study_ids):
         issue("ELIGIBLE_STUDY_SET_MISMATCH", "Cohort CSV Study IDs do not match cohort_report.eligible_study_ids.")
 
     split_assignments = split_manifest.get("study_to_split")
@@ -176,22 +178,29 @@ def validate_cohort_review_record(
             if artifact_hashes.get(name) != expected:
                 issue("ARTIFACT_HASH_MISMATCH", f"{name} changed after the human cohort review.")
 
-    if record.get("reviewed_study_count") != len(study_ids):
-        issue("REVIEWED_STUDY_COUNT_MISMATCH", "reviewed_study_count must equal the eligible cohort Study count.")
-    if record.get("reviewed_observation_count") != row_count:
-        issue("REVIEWED_OBSERVATION_COUNT_MISMATCH", "reviewed_observation_count must equal the eligible cohort Observation count.")
+    reviewed_study_count = record.get("reviewed_study_count")
+    if type(reviewed_study_count) is not int or reviewed_study_count != len(study_ids):
+        issue("REVIEWED_STUDY_COUNT_MISMATCH", "reviewed_study_count must be an exact integer equal to the eligible cohort Study count.")
+    reviewed_observation_count = record.get("reviewed_observation_count")
+    if type(reviewed_observation_count) is not int or reviewed_observation_count != row_count:
+        issue("REVIEWED_OBSERVATION_COUNT_MISMATCH", "reviewed_observation_count must be an exact integer equal to the eligible cohort Observation count.")
 
     for field, allowed in ASSESSMENTS.items():
         if record.get(field) not in allowed:
             issue("ASSESSMENT_INVALID", f"{field} must be one of: {', '.join(sorted(allowed))}.")
+    scientific_contract = cohort_report.get("scientific_data_contract")
+    warning_items = scientific_contract.get("warnings", []) if isinstance(scientific_contract, dict) else []
     warning_codes = {
         item.get("code")
-        for item in cohort_report.get("scientific_data_contract", {}).get("warnings", [])
+        for item in warning_items
         if isinstance(item, dict) and isinstance(item.get("code"), str)
     }
     reviewed_codes = record.get("reviewed_warning_codes")
-    if not isinstance(reviewed_codes, list) or set(reviewed_codes) != warning_codes:
-        issue("GRAIN_WARNING_COVERAGE_MISMATCH", "reviewed_warning_codes must classify every warning code in the cohort scientific_data_contract, with no omissions or additions.")
+    if (not isinstance(reviewed_codes, list)
+            or any(not isinstance(value, str) for value in reviewed_codes)
+            or len(reviewed_codes) != len(set(reviewed_codes))
+            or set(reviewed_codes) != warning_codes):
+        issue("GRAIN_WARNING_COVERAGE_MISMATCH", "reviewed_warning_codes must classify every warning code in the cohort scientific_data_contract exactly once, with no omissions or additions.")
 
     if record.get("decision") not in {"APPROVE_MODELING", "REVISE", "STOP"}:
         issue("DECISION_INVALID", "decision must be APPROVE_MODELING, REVISE, or STOP.")
