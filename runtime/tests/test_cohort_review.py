@@ -223,6 +223,16 @@ class CohortReviewTests(unittest.TestCase):
         self.assertEqual(args.command, "validate-cohort-review")
         self.assertEqual(args.record, Path("record.json"))
 
+    def test_modelling_cli_requires_a_separate_run_manifest_argument(self):
+        args = build_parser().parse_args([
+            "fit-baselines", "--cohort-dir", "cohort", "--task", "task.json",
+            "--out-dir", "model", "--workflow-ledger", "project/run_control/gates.jsonl",
+            "--run-manifest", "run/RUN_1/run_manifest.json",
+        ])
+        self.assertEqual(args.command, "fit-baselines")
+        self.assertEqual(args.workflow_ledger, Path("project/run_control/gates.jsonl"))
+        self.assertEqual(args.run_manifest, Path("run/RUN_1/run_manifest.json"))
+
 
 if __name__ == "__main__":
     unittest.main()
