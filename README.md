@@ -27,12 +27,30 @@ No project-specific source adapter or domain vocabulary is part of the supported
 
 ## Quick start
 
-1. Install the Skill into a workspace under .agents/skills/ or the Antigravity global Skill directory.
-2. Select or develop an external adapter for the project's source format.
-3. Prepare an adapter package and validate its manifest and exact hashes.
-4. Audit source structure and review the generated inventory.
-5. Supply project-owned semantic mappings and explicit entity-grain decisions.
-6. Continue through the approval-gated canonical and analysis workflow.
+The supported workflow starts from an external Adapter Package. DoR does not ingest raw papers/SI or infer domain semantics; the package must contain already-prepared structured data or a complete, provenance-bound Canonical Bundle.
+
+1. Install this Skill in the active Antigravity project under `.agents/skills/datafication-of-reproducibility/` (or the Antigravity global Skill directory).
+2. Prepare the Adapter Package using [the Adapter Contract](docs/ADAPTER_CONTRACT.md). Keep package sources read-only.
+3. Resolve the route before creating a Run:
+
+       dor prepare-adapter-handoff --manifest <package_root>/adapter_manifest.json --package-root <package_root> --out <project_root>/run_control/adapter_route_preflight.json
+
+   Use the handoff's `route` field. Select `templates/run_plan.example.json` for `STRUCTURED_DATASET`, or `templates/run_plan.canonical_adapter.example.json` for `CANONICAL_BUNDLE`.
+4. Configure the selected template from the active project. Set its `source_roots`, `workflow_ledger_path`, and exact absolute paths for `adapter_package_manifest`, `virtual_query_input`, and `publication_plan`. Do not reuse a prior Run workspace.
+5. Preflight and initialize a new Run:
+
+       dor validate-execution-contract --plan <configured_run_plan.json>
+       dor run-init --plan <configured_run_plan.json> --run-root <new_run_root>
+       dor run-verify --manifest <new_run_root>/run_manifest.json
+       dor run-resume-plan --manifest <new_run_root>/run_manifest.json
+
+6. Follow the Run Manager's `next_actions` in order, using the exact action binding and stage instructions in [Run Plan execution bindings](docs/RUN_PLAN_EXECUTION_BINDINGS.md). Stop at each human approval gate until the user makes the decision. Worker stages require the configured host Worker Manager and explicit authorization.
+7. At completion, generate the artifact and usage reports:
+
+       dor run-artifacts --manifest <run_root>/run_manifest.json --out <run_root>/artifact_manifest.json
+       dor run-usage --manifest <run_root>/run_manifest.json --out <run_root>/run_usage_report.json
+
+The detailed stage commands, review packet formats, Worker hand-off, recovery, and publication package audit are specified in the operator guide and the Skill's phase references.
 
 ## Scientific safeguards
 
