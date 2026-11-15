@@ -140,9 +140,13 @@ class CohortReviewTests(unittest.TestCase):
             writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
             writer.writeheader()
             writer.writerows(rows)
+        self.record["artifact_sha256"]["modeling_cohort.csv"] = hashlib.sha256(
+            self.csv_path.read_bytes()
+        ).hexdigest()
+        self._write_record()
         report = self._validate()
         self.assertFalse(report["valid"])
-        self.assertIn("ARTIFACT_HASH_MISMATCH", {item["code"] for item in report["errors"]})
+        self.assertIn("COHORT_SPLIT_ASSIGNMENT_MISMATCH", {item["code"] for item in report["errors"]})
 
     def test_run_binding_is_mandatory_and_exact_when_manifest_is_supplied(self):
         self.record["run_id"] = "RUN_OTHER"
