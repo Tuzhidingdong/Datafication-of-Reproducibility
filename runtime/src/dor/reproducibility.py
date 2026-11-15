@@ -54,10 +54,10 @@ def _select_numeric_candidate(train: list[dict[str, Any]], validation: list[dict
     x_validation = _transform_rows(validation, encoder)
     for alpha in settings["ridge_alphas"]:
         fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
-        predictions = _predict_ridge(x_validation, fitted)
+        validation_metrics = _regression_metrics(y_validation, _predict_ridge(x_validation, fitted)) if fitted["converged"] else None
         comparisons.append({"candidate_id": "ridge_alpha_" + format(alpha, ".12g"),
             "model_type": "ridge_regression", "alpha": alpha,
-            "validation_metrics": _regression_metrics(y_validation, predictions),
+            "validation_metrics": validation_metrics,
             "converged": fitted["converged"], "iterations": fitted["iterations"],
             "eligible_for_selection": bool(fitted["converged"]),
             "exclusion_reason": None if fitted["converged"] else "RIDGE_FIT_NOT_CONVERGED"})
