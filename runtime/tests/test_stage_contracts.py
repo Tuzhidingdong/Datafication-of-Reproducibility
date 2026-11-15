@@ -10,7 +10,7 @@ from dor.stage_contracts import CONTRACT_VERSION, STAGE_CONTRACTS, validate_stag
 
 class StageEvidenceContractTests(unittest.TestCase):
     def test_registry_covers_fixed_eight_stage_protocol_in_order(self):
-        self.assertEqual(CONTRACT_VERSION, "1.0")
+        self.assertEqual(CONTRACT_VERSION, "1.1")
         self.assertEqual(tuple(STAGE_CONTRACTS), (
             "source_selection", "source_integrity", "extraction_review", "semantic_mapping",
             "canonical_reconciliation", "cohort_feasibility", "modeling_validation", "publication_handoff",
@@ -604,7 +604,7 @@ class StageEvidenceContractTests(unittest.TestCase):
         review = {
             "schema_version": "1.0", "source_hashes": {"paper": "a" * 64},
             "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
-                                   "locator": "page 1", "review_status": "SPOT_CHECKED"}],
+                                   "locator": "page 1", "review_status": "STRUCTURED_RECORD_REVIEWED"}],
             "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
                              "decision": "ACCEPTED_WITH_LIMITATIONS"},
         }
@@ -629,7 +629,7 @@ class StageEvidenceContractTests(unittest.TestCase):
         review = {
             "schema_version": "1.0", "source_hashes": {"paper": "a" * 64, "si": "b" * 64},
             "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
-                                   "locator": "page 1", "review_status": "SPOT_CHECKED"}],
+                                   "locator": "page 1", "review_status": "STRUCTURED_RECORD_REVIEWED"}],
             "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
                              "decision": "ACCEPTED_WITH_LIMITATIONS"},
         }
@@ -645,7 +645,7 @@ class StageEvidenceContractTests(unittest.TestCase):
         base = {
             "schema_version": "1.0", "source_hashes": {"paper": "a" * 64},
             "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
-                                   "locator": "page 1", "review_status": "SPOT_CHECKED"}],
+                                   "locator": "page 1", "review_status": "STRUCTURED_RECORD_REVIEWED"}],
             "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
                              "decision": "REJECTED"},
         }
@@ -666,7 +666,7 @@ class StageEvidenceContractTests(unittest.TestCase):
         review = {
             "schema_version": "1.0", "source_hashes": {},
             "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
-                                   "locator": "page 1", "review_status": "SPOT_CHECKED"}],
+                                   "locator": "page 1", "review_status": "STRUCTURED_RECORD_REVIEWED"}],
             "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
                              "decision": "ACCEPTED_WITH_LIMITATIONS"},
         }
@@ -678,6 +678,54 @@ class StageEvidenceContractTests(unittest.TestCase):
                               "path": "/data/paper.pdf", "sha256": "a" * 64}],
         )
         self.assertIn("EXTRACTION_SELECTION_MANIFEST_MISSING", {item["code"] for item in errors})
+
+    def test_extraction_review_rejects_original_document_spot_check_states(self):
+        base = {
+            "schema_version": "1.0",
+            "source_hashes": {"paper": "a" * 64},
+            "reviewed_locators": [{
+                "source_id": "paper", "locator_type": "upstream_locator",
+                "locator": "page 1 (opaque reference)", "review_status": "STRUCTURED_RECORD_REVIEWED",
+            }],
+            "human_review": {
+                "reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
+                "decision": "ACCEPTED_WITH_LIMITATIONS",
+            },
+        }
+        for status in ("SPOT_CHECKED", "UNREADABLE"):
+            with self.subTest(status=status):
+                payload = json.loads(json.dumps(base))
+                payload["reviewed_locators"][0]["review_status"] = status
+                codes = {item["code"] for item in validate_stage_payload(
+                    "extraction_review_record", payload, run_id="R1",
+                    project_id="P1", study_ids={"S1"}, source_snapshot=[{
+                        "source_id": "paper", "role": "PRIMARY_PAPER",
+                        "path": "/data/paper.pdf", "sha256": "a" * 64,
+                    }],
+                )}
+                self.assertIn("EXTRACTION_REVIEW_STATUS_INVALID", codes)
+
+    def test_extraction_review_blocks_unresolved_structured_locator(self):
+        payload = {
+            "schema_version": "1.0",
+            "source_hashes": {"paper": "a" * 64},
+            "reviewed_locators": [{
+                "source_id": "paper", "locator_type": "upstream_locator",
+                "locator": "record=R1", "review_status": "REVIEW_REQUIRED",
+            }],
+            "human_review": {
+                "reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
+                "decision": "ACCEPTED_WITH_LIMITATIONS",
+            },
+        }
+        codes = {item["code"] for item in validate_stage_payload(
+            "extraction_review_record", payload, run_id="R1", project_id="P1",
+            study_ids={"S1"}, source_snapshot=[{
+                "source_id": "paper", "role": "PRIMARY_PAPER",
+                "path": "/data/paper.pdf", "sha256": "a" * 64,
+            }],
+        )}
+        self.assertIn("EXTRACTION_LOCATOR_REVIEW_REQUIRED", codes)
 
     def test_run_manifest_rejects_duplicate_source_artifact_ids(self):
         source = {"source_id": "paper", "role": "PRIMARY_PAPER",
