@@ -1,5 +1,7 @@
 import json
 import unittest
+
+import jsonschema
 from pathlib import Path
 
 from dor.publication import _validate_plan
@@ -547,6 +549,18 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
         activation = stage["properties"]["activation"]
         self.assertIn("array_non_empty", activation["properties"]["operator"]["enum"])
         self.assertIn("equals", activation["properties"]["operator"]["enum"])
+        self.assertEqual(
+            schema["properties"]["execution_profile"]["enum"],
+            ["FULL_ANALYSIS", "CONTROLLED_SINGLE_STUDY"],
+        )
+        for relative_path in (
+            "templates/run_plan.single_study.example.json",
+            "templates/run_plan.canonical_adapter.single_study.example.json",
+        ):
+            plan = self._load_plan(relative_path)
+            self.assertEqual(plan["execution_profile"], "CONTROLLED_SINGLE_STUDY")
+            jsonschema.validate(plan, schema)
+
 
 
 if __name__ == "__main__":
