@@ -14,7 +14,7 @@ from dor.cli import build_parser
 from dor.mapping import sha256_file
 from dor.run_manager import (
     EVENT_GENESIS_HASH, _append_event, authorize_worker, build_artifact_manifest,
-    build_resume_plan, initialize_run, record_stage_status, verify_run,
+    build_resume_plan, build_run_usage_report, initialize_run, record_stage_status, verify_run,
 )
 
 
@@ -136,6 +136,35 @@ class RunManagerTests(unittest.TestCase):
         refreshed = build_artifact_manifest(self.manifest_path)
         by_id = {item["artifact_id"]: item for item in refreshed["artifacts"]}
         self.assertEqual(by_id["source_inventory"]["status"], "STALE_OR_MISSING")
+
+    def test_run_usage_aggregates_only_terminal_stage_attempts(self):
+        record_stage_status(
+            self.manifest_path, "audit", "RUNNING", "local",
+            command="dor audit", provider="test-provider", model="test-model",
+        )
+        self.write_outputs("audit")
+        record_stage_status(
+            self.manifest_path, "audit", "SUCCEEDED", "local",
+            input_tokens=120, output_tokens=35, reasoning_tokens=20,
+            cache_read_tokens=500, cache_write_tokens=25,
+        )
+        report = build_run_usage_report(self.manifest_path)
+        self.assertEqual(report["terminal_attempt_count"], 1)
+        self.assertEqual(report["running_event_count"], 1)
+        self.assertEqual(report["usage_summary"]["token_totals"]["input_tokens"]["total"], 120)
+        self.assertEqual(report["usage_summary"]["token_totals"]["output_tokens"]["total"], 35)
+        self.assertEqual(report["usage_summary"]["token_totals"]["reasoning_tokens"]["total"], 20)
+        self.assertEqual(report["usage_summary"]["token_totals"]["cache_read_tokens"]["total"], 500)
+        self.assertEqual(report["usage_summary"]["input_plus_output_tokens"], 155)
+        self.assertEqual(report["by_provider_model"][0]["provider"], "test-provider")
+        self.assertEqual(report["by_provider_model"][0]["model"], "test-model")
+        self.assertEqual(report["accounting_policy"]["excluded_events"], ["RUNNING", "SKIPPED", "WORKER_AUTHORIZED"])
+
+    def test_run_usage_keeps_unreported_values_null(self):
+        report = build_run_usage_report(self.manifest_path)
+        self.assertEqual(report["terminal_attempt_count"], 0)
+        self.assertIsNone(report["usage_summary"]["token_totals"]["input_tokens"]["total"])
+        self.assertEqual(report["usage_summary"]["usage_coverage"], "NO_USAGE_REPORTED")
 
     def test_dependency_graph_reuses_completed_stages(self):
         self.run_local("audit")
