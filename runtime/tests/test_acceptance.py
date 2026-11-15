@@ -522,9 +522,6 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "extraction_review": [("extraction_review_record", "extraction_review")],
             "semantic_mapping": [
                 ("mapping_plan", "mapping_plan"),
-                ("mapping_validation", "mapping_validation"),
-                ("build_spec", "build_spec"),
-                ("build_spec_validation", "build_spec_validation"),
             ],
             "canonical_reconciliation": [("canonical_bundle", "canonical_bundle"),
                                          ("reconciliation_report", "reconciliation_report"),
@@ -535,15 +532,11 @@ class AcceptanceValidatorTests(unittest.TestCase):
                                    ("modeling_cohort_manifest", "modeling_cohort_manifest"),
                                    ("modeling_cohort_csv", "modeling_cohort_csv")],
             "modeling_validation": [("model_report", "model_report"),
-                                    ("interaction_selection", "interaction_selection"),
-                                    ("worker_review_output", "worker_review_output"),
-                                    ("reviewed_findings", "reviewed_findings"),
                                     ("model_artifact", "model_artifact"),
                                     ("modeling_run_manifest", "modeling_run_manifest"),
                                     ("reproducibility_evaluation", "reproducibility_evaluation"),
                                     ("reproducibility_evaluation_manifest", "reproducibility_evaluation_manifest")],
-            "publication_handoff": [("publication_plan", "publication_plan"),
-                                    ("publication_package_manifest", "publication_manifest"),
+            "publication_handoff": [("publication_package_manifest", "publication_manifest"),
                                     ("publication_integrity_report", "publication_integrity")],
         }
         self.stage_evidence = {}
