@@ -17,6 +17,7 @@ Inside a currently approved stage, deterministic checks and pre-authorized scrip
 Use the user's existing Antigravity-to-OpenCode Worker Manager. Do not invent or replace its MCP interface.
 
 - Dispatch only bounded tasks with explicit inputs, permitted actions, expected artifacts, and token/context limits.
+- For independent-result review, start with compact summaries and status/count/warning/claim-scope fields from every declared input. Do not read the full modelling cohort, prediction tables, fold-level arrays, or other bulk rows into Worker context. Open only the detailed sections needed to verify a specific potential finding, cite exact artifact locations, and retain the source report hashes in the review record.
 - Do not give Workers the full nested database when a generated summary or selected evidence subset is sufficient.
 - Do not ask multiple Workers to repeat the same model training.
 - Use a data/statistics role for semantic audit and analysis design, a scientific-analysis role for interpretation, and an independent-audit role only for consequential findings.
