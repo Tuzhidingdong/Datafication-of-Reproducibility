@@ -426,7 +426,8 @@
       "stage_id": "cohort_review",
       "executor": "manual",
       "depends_on": [
-        "cohort_build"
+        "cohort_build",
+        "research_scope_selection"
       ],
       "required_gate": null,
       "inputs": [
