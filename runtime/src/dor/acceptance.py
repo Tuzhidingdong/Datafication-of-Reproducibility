@@ -113,6 +113,95 @@ def _evaluate_assertion(operator: str, actual: Any, expected: Any = None) -> tup
     return False, f"Unsupported assertion operator: {operator}."
 
 
+def _validate_single_study_na_evidence(
+    stage_id: str,
+    evidence: list[dict[str, Any]],
+    *,
+    run_id: str,
+    project_id: str,
+    study_ids: list[str],
+    issue,
+) -> None:
+    """Require both single-Study NA stages to bind the same exact applicability review."""
+    by_type: dict[str, dict[str, Any]] = {}
+    for item in evidence:
+        artifact_type = item.get("artifact_type")
+        if artifact_type in by_type:
+            issue("SINGLE_STUDY_NA_EVIDENCE_DUPLICATE",
+                  f"{stage_id} contains duplicate {artifact_type} evidence.")
+            continue
+        if isinstance(artifact_type, str):
+            by_type[artifact_type] = item
+
+    required = {
+        "single_study_applicability_record",
+        "single_study_applicability_validation",
+        "canonical_bundle",
+        "modeling_task",
+    }
+    missing = sorted(required - set(by_type))
+    if missing:
+        issue("SINGLE_STUDY_NA_EVIDENCE_MISSING",
+              f"{stage_id} requires the exact applicability record/validation, Canonical Bundle, and modeling task; missing: "
+              + ", ".join(missing) + ".")
+        return
+
+    record_item = by_type["single_study_applicability_record"]
+    validation_item = by_type["single_study_applicability_validation"]
+    bundle_item = by_type["canonical_bundle"]
+    task_item = by_type["modeling_task"]
+    record_payload = record_item.get("payload")
+    validation_payload = validation_item.get("payload")
+    if not all(isinstance(value, dict) for value in (record_payload, validation_payload)):
+        issue("SINGLE_STUDY_NA_EVIDENCE_UNREADABLE",
+              f"{stage_id} applicability record and validation must be readable JSON objects.")
+        return
+
+    if record_payload.get("schema_version") != "1.0":
+        issue("SINGLE_STUDY_NA_RECORD_SCHEMA_INVALID", "Single-study applicability record schema_version must be 1.0.")
+    if (record_payload.get("run_id") != run_id or record_payload.get("project_id") != project_id
+            or record_payload.get("scope") != "CONTROLLED_SINGLE_STUDY"
+            or record_payload.get("applicability_status") != "NOT_APPLICABLE"):
+        issue("SINGLE_STUDY_NA_RECORD_IDENTITY_INVALID",
+              "Single-study applicability record must match this Run/Project and declare CONTROLLED_SINGLE_STUDY / NOT_APPLICABLE.")
+    if record_payload.get("study_ids") != study_ids or record_payload.get("study_count") != 1:
+        issue("SINGLE_STUDY_NA_STUDY_SCOPE_MISMATCH",
+              "Single-study applicability record must bind the exact one Study in the Acceptance source snapshot.")
+    if record_payload.get("canonical_bundle_sha256") != bundle_item.get("sha256"):
+        issue("SINGLE_STUDY_NA_BUNDLE_HASH_MISMATCH",
+              "Single-study applicability record does not bind this Acceptance evidence's exact Canonical Bundle.")
+    if record_payload.get("modeling_task_sha256") != task_item.get("sha256"):
+        issue("SINGLE_STUDY_NA_TASK_HASH_MISMATCH",
+              "Single-study applicability record does not bind this Acceptance evidence's exact modeling task.")
+    if validation_payload.get("valid") is not True or validation_payload.get("applicability_status") != "NOT_APPLICABLE":
+        issue("SINGLE_STUDY_NA_VALIDATION_FAILED",
+              "Single-study applicability validation must be valid and declare NOT_APPLICABLE.")
+    if (validation_payload.get("run_id") != run_id
+            or validation_payload.get("project_id") != project_id
+            or validation_payload.get("applicability_record_sha256") != record_item.get("sha256")
+            or validation_payload.get("canonical_bundle_sha256") != bundle_item.get("sha256")
+            or validation_payload.get("modeling_task_sha256") != task_item.get("sha256")):
+        issue("SINGLE_STUDY_NA_VALIDATION_BINDING_MISMATCH",
+              "Single-study applicability validation must bind the exact Run, Project, record, Bundle, and task.")
+
+    status_key, reason_key = (
+        ("cohort_feasibility_status", "cohort_feasibility_reason")
+        if stage_id == "cohort_feasibility"
+        else ("modeling_validation_status", "modeling_validation_reason")
+    )
+    if record_payload.get(status_key) != "NOT_APPLICABLE":
+        issue("SINGLE_STUDY_NA_STAGE_STATUS_MISMATCH",
+              f"Applicability record {status_key} must be NOT_APPLICABLE.")
+    reason = record_payload.get(reason_key)
+    if not isinstance(reason, str) or not reason.strip():
+        issue("SINGLE_STUDY_NA_REASON_MISSING",
+              f"Applicability record {reason_key} must contain a scientific reason.")
+    else:
+        stage_record = next((item for item in evidence if item.get("artifact_type") == "single_study_applicability_record"), None)
+        if stage_record is not None and not stage_record.get("path"):
+            issue("SINGLE_STUDY_NA_RECORD_PATH_MISSING", "Applicability record evidence must bind an exact path.")
+
+
 def validate_acceptance_record(
     record_path: Path, run_manifest_path: Path, ledger_path: Path | None = None,
 ) -> dict[str, Any]:
@@ -368,6 +457,17 @@ def validate_acceptance_record(
                         typed_evidence.append({**artifact, "path": str(path), "payload": payload})
                     except (OSError, ValueError, TypeError) as exc:
                         issue("STAGE_EVIDENCE_JSON_INVALID", f"Typed evidence {artifact_id} must be a readable JSON object: {exc}")
+
+        if (status == "NOT_APPLICABLE"
+                and scope == "CONTROLLED_SINGLE_STUDY"
+                and stage_id in {"cohort_feasibility", "modeling_validation"}):
+            _validate_single_study_na_evidence(
+                stage_id, typed_evidence,
+                run_id=str(manifest.get("run_id", "")),
+                project_id=str(manifest.get("project_id", "")),
+                study_ids=snapshot.get("study_ids", []) if isinstance(snapshot.get("study_ids"), list) else [],
+                issue=issue,
+            )
 
         if status == "PASS":
             contract_issues = validate_stage_evidence(
