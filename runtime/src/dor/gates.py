@@ -232,12 +232,25 @@ def _binding_map(bindings: list[dict[str, str]]) -> dict[str, dict[str, str]]:
     return {item["artifact_id"]: item for item in bindings}
 
 
+def _require_gate_binding(
+    by_id: Mapping[str, dict[str, str]], artifact_id: str, gate_id: str,
+) -> dict[str, str]:
+    """Return one required Gate artifact with a user-actionable failure message."""
+    binding = by_id.get(artifact_id)
+    if binding is None:
+        raise ValueError(
+            f"{gate_id} approval is missing required artifact {artifact_id!r}. "
+            "Regenerate the review packet from the active Run and retry the Gate only after the missing stage output exists."
+        )
+    return binding
+
+
 def _validate_gate_review_packet(bindings: list[dict[str, str]], gate_id: str) -> None:
     stage_id = gate_id.lower() + "_review_packet"
     report_id = stage_id + "_validation"
     by_id = _binding_map(bindings)
-    packet_binding = by_id[stage_id]
-    report_binding = by_id[report_id]
+    packet_binding = _require_gate_binding(by_id, stage_id, gate_id)
+    report_binding = _require_gate_binding(by_id, report_id, gate_id)
     packet = _read_json_binding(packet_binding, gate_id + " review packet")
     report = _read_json_binding(report_binding, gate_id + " review packet validation")
 
@@ -399,11 +412,11 @@ def _validate_g1_artifacts(
     previous_gate_event: Mapping[str, Any],
 ) -> None:
     by_id = _binding_map(bindings)
-    mapping_binding = by_id["mapping_plan"]
-    validation_binding = by_id["mapping_validation"]
-    inventory_binding = by_id["source_inventory"]
-    spec_binding = by_id["build_spec"]
-    build_spec_validation_binding = by_id["build_spec_validation"]
+    mapping_binding = _require_gate_binding(by_id, "mapping_plan", "G1")
+    validation_binding = _require_gate_binding(by_id, "mapping_validation", "G1")
+    inventory_binding = _require_gate_binding(by_id, "source_inventory", "G1")
+    spec_binding = _require_gate_binding(by_id, "build_spec", "G1")
+    build_spec_validation_binding = _require_gate_binding(by_id, "build_spec_validation", "G1")
     prior_inventory = _binding_map(previous_gate_event["artifacts"]).get("source_inventory")
     if prior_inventory is None or (
         prior_inventory["path"] != inventory_binding["path"]
@@ -463,13 +476,13 @@ def _validate_g2_artifacts(
     previous_gate_event: Mapping[str, Any],
 ) -> None:
     by_id = _binding_map(bindings)
-    bundle_binding = by_id["canonical_bundle"]
-    validation_binding = by_id["canonical_validation_report"]
-    reconciliation_binding = by_id["reconciliation_report"]
-    decisions_binding = by_id["reconciliation_decisions"]
-    discovery_binding = by_id["discovery_report"]
-    scope_binding = by_id["research_scope_record"]
-    task_binding = by_id["modeling_task"]
+    bundle_binding = _require_gate_binding(by_id, "canonical_bundle", "G2")
+    validation_binding = _require_gate_binding(by_id, "canonical_validation_report", "G2")
+    reconciliation_binding = _require_gate_binding(by_id, "reconciliation_report", "G2")
+    decisions_binding = _require_gate_binding(by_id, "reconciliation_decisions", "G2")
+    discovery_binding = _require_gate_binding(by_id, "discovery_report", "G2")
+    scope_binding = _require_gate_binding(by_id, "research_scope_record", "G2")
+    task_binding = _require_gate_binding(by_id, "modeling_task", "G2")
     prior = _binding_map(previous_gate_event["artifacts"])
     bundle = _read_json_binding(bundle_binding, "G2 canonical_bundle")
     validation = _read_json_binding(validation_binding, "G2 canonical_validation_report")
@@ -532,11 +545,11 @@ def _validate_g3_selection(
     previous_gate_event: Mapping[str, Any],
 ) -> None:
     by_id = _binding_map(bindings)
-    report_binding = by_id["interaction_report"]
-    interaction_manifest_binding = by_id["interaction_manifest"]
-    robustness_binding = by_id["robustness_report"]
-    robustness_manifest_binding = by_id["robustness_manifest"]
-    selection_binding = by_id["interaction_selection"]
+    report_binding = _require_gate_binding(by_id, "interaction_report", "G3")
+    interaction_manifest_binding = _require_gate_binding(by_id, "interaction_manifest", "G3")
+    robustness_binding = _require_gate_binding(by_id, "robustness_report", "G3")
+    robustness_manifest_binding = _require_gate_binding(by_id, "robustness_manifest", "G3")
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G3")
     report = _read_json_binding(report_binding, "G3 interaction_report")
     interaction_manifest = _read_json_binding(interaction_manifest_binding, "G3 interaction_manifest")
     robustness_report = _read_json_binding(robustness_binding, "G3 robustness_report")
@@ -634,8 +647,8 @@ def _validate_g3_selection(
 
 def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
     by_id = _binding_map(bindings)
-    worker_binding = by_id["worker_review_output"]
-    reviewed_binding = by_id["reviewed_findings"]
+    worker_binding = _require_gate_binding(by_id, "worker_review_output", "G4")
+    reviewed_binding = _require_gate_binding(by_id, "reviewed_findings", "G4")
     worker_result = _read_json_binding(worker_binding, "G4 worker_review_output")
     reviewed = _read_json_binding(reviewed_binding, "G4 reviewed_findings")
     for label, binding in (
@@ -878,7 +891,7 @@ def require_selected_interaction_id(ledger_path: Path, interaction_id: str) -> d
     events = _load_events(Path(ledger_path).expanduser().resolve())
     event = next(item for item in reversed(events) if item["gate_id"] == "G3")
     by_id = {item["artifact_id"]: item for item in event["artifacts"]}
-    selection_binding = by_id["interaction_selection"]
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G3")
     with Path(selection_binding["path"]).open("r", encoding="utf-8-sig") as handle:
         selection = json.load(handle)
     if interaction_id not in selection.get("selected_interaction_ids", []):
@@ -893,7 +906,7 @@ def require_selected_interaction(ledger_path: Path, mechanism_plan_path: Path) -
     events = _load_events(Path(ledger_path).expanduser().resolve())
     event = next(item for item in reversed(events) if item["gate_id"] == "G3")
     by_id = {item["artifact_id"]: item for item in event["artifacts"]}
-    selection_binding = by_id["interaction_selection"]
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G3")
     plan_binding = by_id.get("mechanism_plan")
     if plan_binding is None:
         raise ValueError("G3 contains no mechanism plan; no mechanism investigation was approved.")
