@@ -12,6 +12,10 @@ class ReadOnlyAuditTests(unittest.TestCase):
             source_json.write_text(json.dumps({"records":[{"evidence":"quote","values":[1,None,"x"]}]}),encoding="utf-8")
             hashes=(sha256_file(source_csv),sha256_file(source_json)); result=run_audit(source_csv,source_json,output)
             self.assertEqual(result["audit_scope"],"READ_ONLY_STRUCTURAL_INSPECTION")
+            audit_text=(output/"data_audit_report.md").read_text(encoding="utf-8")
+            self.assertIn("opaque locator metadata",audit_text)
+            self.assertNotIn("inspect source evidence",audit_text)
+            self.assertTrue(any("were not opened or verified" in warning for warning in result["warnings"]))
             for name in ["dataset_manifest.json","data_audit_report.md","column_coverage.csv","json_structure_paths.csv","source_inventory.json","mapping_review_queue.csv"]:
                 self.assertTrue((output/name).is_file())
             self.assertEqual(hashes,(sha256_file(source_csv),sha256_file(source_json)))
