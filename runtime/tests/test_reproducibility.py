@@ -27,6 +27,9 @@ class ReproducibilityEvaluationTests(unittest.TestCase):
         result=evaluate_reproducibility_files(self.cohort_dir,self.task_path,out)
         self.assertTrue(result["valid"],result)
         report=result["report"]
+        self.assertEqual(report["outcome_type"], "NUMERIC")
+        self.assertIn("selected_candidate_id", report["folds"][0])
+        self.assertIn("converged", report["folds"][0])
         self.assertEqual(report["fold_count"],5)
         self.assertEqual(report["study_count"],8)
         self.assertEqual(report["observation_count"],8)
