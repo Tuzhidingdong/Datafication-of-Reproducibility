@@ -2643,7 +2643,6 @@
     {
       "stage_id": "single_study_scope_review",
       "action_type": "MANUAL",
-      "validator_command": "validate-single-study-applicability",
       "route_variants": [
         {
           "route": "STRUCTURED_DATASET",
