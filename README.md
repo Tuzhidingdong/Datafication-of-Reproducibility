@@ -59,6 +59,8 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
        dor run-artifacts --manifest <run_root>/run_manifest.json --out <run_root>/artifact_manifest.json
        dor run-usage --manifest <run_root>/run_manifest.json --out <run_root>/run_usage_report.json
 
+For a controlled one-Study pilot, also choose the matching Publication Plan template: `templates/publication_package_plan.single_study.example.json` for Structured Dataset or `templates/publication_package_plan.canonical_adapter.single_study.example.json` for Canonical Bundle. Bind the active Run/Project IDs and exact selected-source hashes before Run initialization.
+
 The detailed stage commands, review packet formats, Worker hand-off, recovery, and publication package audit are specified in the operator guide and the Skill's phase references.
 
 ## Scientific safeguards
