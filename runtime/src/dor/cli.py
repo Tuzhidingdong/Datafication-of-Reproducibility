@@ -328,6 +328,8 @@ def build_parser() -> argparse.ArgumentParser:
     single_study_scope.add_argument("--bundle", type=Path, required=True)
     single_study_scope.add_argument("--task", type=Path, required=True)
     single_study_scope.add_argument("--manifest", type=Path, required=True)
+    single_study_scope.add_argument("--workflow-ledger", type=Path, required=True,
+        help="G0-G4 approval ledger; G2 must currently approve the exact Bundle/task.")
     single_study_scope.add_argument("--out", type=Path, required=True)
 
     single_study_na = subparsers.add_parser(
@@ -480,6 +482,10 @@ def main() -> int:
             print(_write_json(args.out, result), end="")
             return 0 if result["valid"] else 2
         if args.command == "validate-single-study-applicability":
+            _enforce_gate(args, "G2", {
+                "canonical_bundle": args.bundle,
+                "modeling_task": args.task,
+            })
             result = validate_single_study_applicability_files(
                 args.record, args.bundle, args.task, args.manifest, args.out,
             )
