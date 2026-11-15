@@ -160,11 +160,6 @@ class WorkflowGateTests(unittest.TestCase):
                     "path": str(self.files["model_report"]),
                     "sha256": sha256_file(self.files["model_report"]),
                 },
-                {
-                    "artifact_id": "interaction_selection",
-                    "path": str(self.files["interaction_selection"]),
-                    "sha256": sha256_file(self.files["interaction_selection"]),
-                },
             ],
             "findings": [{
                 "worker_finding_id": "WF_001",
