@@ -1,0 +1,81 @@
+# Pre-Run discovery, initialization, review packets, Run Manager loop, external Adapter handoff and route selection
+
+## Discovery-first research entry
+
+DoR never assumes a particular source system or research domain. When a project has an external adapter that can provide a validated Canonical Bundle, use the same bundle for exploratory profiling and the subsequent formal workflow.
+
+### Stage -1 — Exploratory discovery when a Canonical Bundle already exists
+
+- Read the external adapter package contract at ../../../docs/ADAPTER_CONTRACT.md.
+- Create a DoR handoff with dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <adapter_handoff.json>. The output is a hash-bound routing record; it does not approve scientific semantics.
+- This pre-Run stage is available only when the handoff route is CANONICAL_BUNDLE. Run dor discover-opportunities --adapter-handoff <adapter_handoff.json> --out-dir <new_discovery_directory>.
+- Read agent_research_brief.md and discovery_report.json. Use aggregate CSV outputs only when a specific signal needs inspection.
+- Do not load complete source datasets or large evidence collections into an LLM context. Use deterministic local processing and pass only bounded summaries or task-specific evidence packets to Agents.
+- Treat every signal as exploratory. Do not infer domain meanings from identifiers, filenames, or unreviewed labels.
+- Synthesize a small set of testable research opportunities. Each must cite supporting signal IDs, independent Study support, data limitations, identifiability, confounding risks, counterexamples, proposed validation, and novelty-review status.
+- The user selects or revises a research direction before a formal analysis task and Run are initialized.
+
+If the handoff route is STRUCTURED_DATASET, do not run this stage outside the formal workflow. Initialize the guided Run, validate the handoff, audit all declared supported datasets, complete G0/G1 review and canonical construction, then use the Run Plan's exploratory_discovery stage on the resulting canonical bundle before G2. This avoids bypassing source and mapping approvals.
+
+A pre-Run Canonical Bundle scan does not create a formal Run, approve mappings, initialize acceptance, record G0-G4, or launch modelling. If the same external bundle is later used for formal analysis, its matching source_inventory, mapping_plan, and build_spec must be supplied and pass the existing G1/G2 provenance checks. Exploratory results never replace the approval-gated workflow.
+
+## Progressive workflow
+
+Before executing any Run Plan, read [the command-level operator guide](../../../docs/RUN_PLAN_EXECUTION_BINDINGS.md). The machine-checked stage-to-action contract is `runtime/src/dor/stage_execution_contract.json`; `dor run-init` validates it and the two supported route templates before initialization. If a stage has no declared action, do not invent one; report it as an integration gap.
+
+### Stage 0 — Initialize
+
+- Read the project configuration.
+- Resolve source paths and output workspace.
+- Verify that source inputs exist and are readable.
+- Record source file names, sizes, and SHA-256 hashes.
+- Confirm that output paths do not overwrite or reside inside protected source files.
+- Create a new run directory; never overwrite an earlier run by default.
+- For adapter-backed projects, first create a route-preflight handoff outside the protected package using `dor prepare-adapter-handoff`. Use its route to select the appropriate Run Plan template. Initialize the formal Run with `dor run-init --plan <selected_run_plan.json> --run-root <new_run_root>`, then verify it with `dor run-verify --manifest <run_root>/run_manifest.json`. The formal adapter validation stage must regenerate the handoff inside the Run workspace; the preflight file is not a Run artifact.
+
+### Human review artifact contracts
+
+For each manual G0, G1, or G2 review-packet stage, copy the generic review packet template, set the exact Run/project/stage identity and timezone-aware timestamp, and bind every declared input to its Run-relative path and current SHA-256. Then run dor validate-run-review-packet with the packet, active run_manifest.json, and the exact validation-report output declared by that stage in the Run Plan. The validator rejects missing/extra inputs, stale hashes, path mismatches, invalid references, and malformed packets. Keep packet_status=AWAITING_HUMAN_REVIEW; never place an APPROVE decision inside the packet. The approval itself belongs only in the append-only G0-G4 Gate Ledger.
+
+For human_review_and_promotion, inspect every Worker finding. Worker results must follow schemas/worker_result.schema.json and use templates/worker_result.example.json as a neutral format reference, with stable finding IDs, supporting artifact IDs, and exact evidence locators. The human record must bind the exact Worker output and all six inputs supplied to that Worker, record exactly one disposition per finding, and include reviewer rationale. Run dor validate-reviewed-findings with the record, active Run manifest, and the validation-report path declared by the Run Plan. The validator enforces exact artifact hashes, one-to-one finding coverage, bounded support references, revised summaries for ACCEPT_WITH_CHANGES, and aggregate promotion-decision consistency. Only ACCEPT_AS_IS and ACCEPT_WITH_CHANGES findings may be promoted; REJECT and DEFER remain unpromoted. This record does not create a G0-G4 approval. G4 must separately bind the exact Worker output, reviewed_findings record, publication plan, and every reviewed artifact.
+
+### Human cohort-grain review before modelling
+
+After `cohort_build`, do not start baseline fitting, nested reproducibility evaluation, or interaction analysis until the manual `cohort_review` stage is complete. Inspect the exact Cohort report, every `scientific_data_contract` warning, eligible Observation and Study counts, split assignments, repeated Observation groups, partial/missing explicit identity coverage, and any evidence relevant to statistical independence. Do not infer independence from unique row IDs or the existence of a replicate/sample label. Record the human decision, assessment states, all warning codes reviewed, and SHA-256 hashes for the Cohort CSV/report/split/manifest and modeling task in `cohort_review_record.json`. Run `dor validate-cohort-review` against the active Run manifest. Only a valid `APPROVE_MODELING` record may unlock downstream modelling; otherwise revise the Cohort or stop.
+
+### Run Manager execution loop
+
+The Run Manager is the execution ledger and safety controller for the immutable Run Plan; it does not automatically execute arbitrary commands or launch Workers. The Skill is responsible for dispatching the exact stage action after consulting the current Run state.
+
+- Before each stage, run `dor run-resume-plan --manifest <run_root>/run_manifest.json`. Execute a stage only when its action is `READY_TO_RUN`, `RETRY_REQUIRED`, or `REBUILD_REQUIRED`. Recheck the exact inputs and active approval gate before dispatch. For a stage with `required_gate`, Run Manager checks every shared artifact ID against the current Gate event's exact resolved path and SHA-256; a different copy is `BLOCKED_GATE`, even when the filename or content appears equivalent. The same comparison is repeated when recording RUNNING and when authorizing a Worker.
+- For a local stage, record RUNNING with `dor run-stage-record --manifest <run_root>/run_manifest.json --stage <stage_id> --status RUNNING --producer-kind local --command "<exact CLI command>"`. Execute only the command bound to that stage. Verify every declared output before recording SUCCEEDED. Record FAILED with a non-empty reason if execution or output inspection fails.
+- For a manual stage, record RUNNING with `--producer-kind manual` before the review/preparation action and SUCCEEDED only after every declared output has been created and checked. A reviewer's decision is recorded separately in the G0-G4 approval ledger.
+- For a Worker stage, inspect the host Worker Manager's current model availability first. Present the exact role, provider, model, active project root, inputs, permitted outputs, objective, forbidden actions and task limits; never silently start a Worker or substitute a model. Obtain explicit authorization for that exact choice and record it with `dor run-worker-authorize`. Then record the stage as RUNNING with the exact role/provider/model/project before dispatching the returned bounded packet through the host Worker Manager. Tag the job with Run ID, Stage ID and authorization event hash when supported; monitor that same job to a terminal state. Place only the declared result in its exact Run staging path, verify it, then record actual job/session/task identifiers and usage. If the host manager is unavailable or job state is unknown, stop and report the blocker; do not silently use a local substitute or duplicate an active job.
+- If the resume action is `SKIP_REQUIRED`, record `SKIPPED` with the executor declared in the plan. Do not create placeholder output files. A skip is not an approval and cannot satisfy another stage's declared artifact input.
+- Do not dispatch a stage in `WAITING_FOR_DEPENDENCIES`, `WAITING_FOR_ACTIVATION_INPUT`, or `BLOCKED_GATE`. Present the missing dependency/approval packet instead. For `RUNNING_NEEDS_RECONCILIATION`, inspect the prior external process before considering `--confirm-abandoned`. For `SOURCE_CHANGED_NEW_RUN_REQUIRED`, initialize a new Run from the revised source snapshot.
+- For `REBUILD_REQUIRED`, archive the previous attempt's output files outside their declared output locations before retrying; Run Manager refuses to overwrite existing files. After each stage boundary, use `dor run-verify` and refresh `dor run-artifacts` when artifact lineage changes. On interruption, trust the newly computed resume plan rather than conversational history.
+
+### External adapter handoff
+
+Use an independently maintained adapter to read source-system files and prepare an adapter package conforming to schemas/adapter_package.schema.json. Adapter code and domain-specific retrieval or vocabulary rules must remain outside the DoR core repository.
+
+- Register the adapter manifest and its protected package root in the Run Plan. The generic Run Plan template declares the manifest once; its adapter_package_validation stage creates the run-bound adapter_handoff artifact.
+- In that stage, run dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <run_root>/00_adapter/adapter_handoff.json. Do not write the handoff inside the source package.
+- Treat a valid handoff as an integrity and routing result only. It does not approve extraction quality, semantic mappings, entity grain, unit compatibility, or scientific suitability.
+- For a STRUCTURED_DATASET route, the next source_audit stage runs dor audit --adapter-handoff <adapter_handoff.json> --out <run_root>/01_audit. This audits every supported standardized_dataset CSV/JSON artifact declared in the package and preserves its package-relative path and artifact identity in the source inventory.
+- For a CANONICAL_BUNDLE route, the handoff command also runs DoR's structural/reference validator. Use discovery through --adapter-handoff so the manifest, sources, and canonical artifact hashes are rechecked before use. A direct pre-Run discovery scan is not a replacement for G0/G1/G2 approval.
+- Review the source inventory before defining mappings. Use the adapter package's declared source_inventory, mapping_plan, and build_spec as review candidates only; they must be bound to the exact package hashes and pass the usual mapping/G1 checks before formal analysis.
+- Use project-owned domain profiles and human-reviewed mapping/build specifications. Do not infer scientific meanings from identifiers or filenames.
+- If an adapter supplies a Canonical Bundle, validate it and preserve its exact source/adapter provenance before using it for discovery or formal analysis.
+- Never silently merge conflicting source values, remove repeated records, or convert missing information into reported facts.
+
+### Select the formal Run Plan by adapter route
+
+- Use `templates/run_plan.example.json` for a STRUCTURED_DATASET handoff. The formal Run performs source audit, G0/G1 review, canonical construction, then Discovery and the downstream workflow.
+- Use `templates/run_plan.canonical_adapter.example.json` for a CANONICAL_BUNDLE handoff only when the package declares exactly one artifact for each generic role: `source_inventory`, `mapping_plan`, `build_spec`, and `canonical_bundle`. The latter three provenance hashes in the bundle must agree with the supplied mapping plan, inventory, and build specification.
+- In the canonical-adapter template's adapter validation stage, run `dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <run_root>/00_adapter/adapter_handoff.json --dataset-manifest-out <run_root>/00_adapter/dataset_manifest.json`.
+- In its materialization stage, run `dor materialize-adapter-artifacts --adapter-handoff <adapter_handoff.json> --role source_inventory --role mapping_plan --role build_spec --role canonical_bundle --out-dir <run_root>/00_adapter/materialized`. The role selector must resolve to exactly one declared artifact per role. Materialization copies verified files and does not rewrite their contents. It also checks every Source Inventory row against the Adapter Manifest's exact declared source/artifact path, hash, and format; unresolved or conflicting provenance blocks import.
+- Present the package snapshot, exact source inventory, handoff, and materialization manifest for G0. Do not infer approval from a valid package or valid Canonical Bundle.
+- After explicit G0 approval, run `dor validate-mapping` and `dor validate-build-spec` against the materialized mapping plan, source inventory, and build specification. Present both validation reports, the supplied Build Spec, and its provenance for G1. The G1 gate must bind those exact files and recompute both deterministic validations.
+- Only after explicit G1 approval, validate the supplied Canonical Bundle. Do not rebuild it or bypass G1. Continue with reconciliation, Discovery, user research-scope selection, and G2 exactly as in the standard route.
+- If any required artifact or provenance link is missing or inconsistent, do not use the canonical-adapter template. Return to the structured-data route or ask the external adapter owner to produce a complete, traceable package.
