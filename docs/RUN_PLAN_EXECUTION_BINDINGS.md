@@ -99,6 +99,32 @@ After a Worker or another metered stage reaches a terminal state, record only us
 Before dispatch, verify conditional post-selection stages from `dor run-resume-plan`: they must be reusable/completed when the selection is non-empty or have current `SKIPPED` events when it is empty. Mark absent optional outputs `not_generated` in the publication plan; never declare a completed source path before the file exists.
 | `publication_package_audit` | `dor audit-publication-package --package-dir <run_root>/10_publication/package --out <run_root>/10_publication/package_integrity_report.json` | `publication_package_integrity_report` |
 
+## Controlled single-Study execution profile
+
+Use this profile only for a declared one-Study pilot. It is separate from the full-analysis profile and retains the same two Adapter entry routes and the G0-G4 approval ledger:
+
+- `templates/run_plan.single_study.example.json` for `STRUCTURED_DATASET`.
+- `templates/run_plan.canonical_adapter.single_study.example.json` for `CANONICAL_BUNDLE`.
+
+Set `execution_profile=CONTROLLED_SINGLE_STUDY` exactly as supplied. Do not remove stages or alter their dependencies/action bindings. The profile reuses the route-specific stages through G2, then runs:
+
+| Stage | Operator action | Required result |
+|---|---|---|
+| `single_study_scope_review` | After G2 approval, copy `templates/single_study_applicability_record.example.json` to the exact declared output `05_scope/single_study_applicability_record.json`. Bind the active Run/Project IDs, exactly one Study ID, and exact Canonical Bundle/Modeling Task SHA-256 values. Record separate scientific reasons for cohort feasibility and cross-Study model validation being `NOT_APPLICABLE`, plus human reviewer, timezone-aware timestamp, and rationale. | Human-reviewed applicability declaration; no synthetic split or model claim |
+| `single_study_scope_validation` | Run `dor validate-single-study-applicability --record <run_root>/05_scope/single_study_applicability_record.json --bundle <exact_run_canonical_bundle> --task <run_root>/05_scope/modeling_task.json --manifest <run_root>/run_manifest.json --out <run_root>/05_scope/single_study_applicability_validation.json`. | Deterministic validation confirms exactly one eligible Study and that the only cohort-construction failure is inability to create three independent Study partitions |
+| `single_study_na_artifacts` | After the stage is READY and G2 remains APPROVED, run `dor prepare-single-study-not-applicable-artifacts --record <run_root>/05_scope/single_study_applicability_record.json --validation <run_root>/05_scope/single_study_applicability_validation.json --bundle <exact_run_canonical_bundle> --task <run_root>/05_scope/modeling_task.json --manifest <run_root>/run_manifest.json --workflow-ledger <run_root>/workflow_gate_ledger.jsonl --out-dir <run_root>/06_modeling/not_applicable`. | Hash-bound NOT_APPLICABLE JSON records and manifests for model, nested reproducibility, interaction, robustness, and virtual prediction. No model, metrics, folds, interaction candidates, or predictions are created |
+| `g3_selection_packet` | Copy `templates/interaction_selection.single_study.example.json` to `07_review/interaction_selection.json`; bind the exact N/A interaction/robustness report hashes and approved task ID. Keep both interaction ID arrays empty; preserve the N/A status, reason, reviewer, timestamp, and rationale. | G3 explicitly records that there are no interaction findings to select; it does not claim a negative interaction result |
+| `independent_result_review` | Authorize and dispatch the configured Host Worker only after showing role/provider/model/project/inputs/outputs/limits and receiving the user's explicit authorization. The task reviews provenance, reconciliation, applicability, and all N/A limitations; it must not run or fabricate analyses. | Worker findings with exact artifact/evidence locators, or a valid explicit no-findings result |
+| `human_review_and_promotion` | Review every Worker finding and validate the human disposition record as for the full-analysis profile. | Exact one-to-one human dispositions; no automatic promotion |
+| `publication_package_assembly` | G4 approval must bind the publication plan, Worker output, reviewed findings, applicability record/validation, exact Bundle/reconciliation/scope/task, and all N/A reports/manifests/selection. Include those records in the publication plan's source file list. | Writing Skill package explicitly states limited one-Study scope and that cross-Study/model/interaction results were not generated |
+| `publication_package_audit` | Run the declared package auditor. | Hash-verified, complete/partial Publication Package and integrity report |
+
+The G3/G4 validators use a distinct single-Study evidence set and reject missing/stale hashes, a different Run/Project/Study, non-empty interaction selection, or model-like metrics/folds/predictions in N/A reports. They do not weaken the normal multi-Study gate contracts.
+
+For the post-Run V1.0 Acceptance Record, both `cohort_feasibility` and `modeling_validation` may be `NOT_APPLICABLE` only with a scientific reason. Each stage must cite the same `single_study_applicability_record` and `single_study_applicability_validation`, plus the exact Run-bound `canonical_bundle` and `modeling_task`. The Acceptance validator checks their live hashes, Run/Project identity, one Study ID, and stage-specific reason. The final decision must be `CONDITIONAL_PASS` when every applicable stage passes; do not issue a full `PASS` for a one-Study pilot.
+
+Before the V1.0 controlled single-Study acceptance, add the primary paper and linked SI as separate opaque provenance-only `source_artifacts` in the Run Plan so their paths and hashes are part of the Run source snapshot. Map these exact source IDs to `PRIMARY_PAPER` and `SUPPLEMENTARY_INFORMATION` in the Acceptance Record. Do not open or pass their contents to a Worker; only existence, filesystem metadata, and byte-level SHA-256 are allowed.
+
 ## Exact G0-G4 approval artifact bindings
 
 Use the exact Run-relative file paths below. These commands bind the approval to the same artifacts produced by the active Run. Do not use project-global or preflight copies.
