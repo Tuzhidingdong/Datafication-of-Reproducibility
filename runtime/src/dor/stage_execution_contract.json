@@ -2660,7 +2660,8 @@
           "outputs": [
             {
               "artifact_id": "single_study_applicability_record",
-              "path": "05_scope/single_study_applicability_record.json"
+              "path": "05_scope/single_study_applicability_record.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -2689,7 +2690,8 @@
           "outputs": [
             {
               "artifact_id": "single_study_applicability_record",
-              "path": "05_scope/single_study_applicability_record.json"
+              "path": "05_scope/single_study_applicability_record.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -2722,7 +2724,8 @@
           "outputs": [
             {
               "artifact_id": "single_study_applicability_validation",
-              "path": "05_scope/single_study_applicability_validation.json"
+              "path": "05_scope/single_study_applicability_validation.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -2745,7 +2748,8 @@
           "outputs": [
             {
               "artifact_id": "single_study_applicability_validation",
-              "path": "05_scope/single_study_applicability_validation.json"
+              "path": "05_scope/single_study_applicability_validation.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -2776,31 +2780,38 @@
           "outputs": [
             {
               "artifact_id": "model_report",
-              "path": "06_modeling/not_applicable/model_report.json"
+              "path": "06_modeling/not_applicable/model_report.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "reproducibility_evaluation",
-              "path": "06_modeling/not_applicable/reproducibility_evaluation.json"
+              "path": "06_modeling/not_applicable/reproducibility_evaluation.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "interaction_report",
-              "path": "06_modeling/not_applicable/interaction_discovery_report.json"
+              "path": "06_modeling/not_applicable/interaction_discovery_report.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "interaction_manifest",
-              "path": "06_modeling/not_applicable/interaction_discovery_manifest.json"
+              "path": "06_modeling/not_applicable/interaction_discovery_manifest.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "robustness_report",
-              "path": "06_modeling/not_applicable/interaction_robustness_report.json"
+              "path": "06_modeling/not_applicable/interaction_robustness_report.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "robustness_manifest",
-              "path": "06_modeling/not_applicable/interaction_robustness_manifest.json"
+              "path": "06_modeling/not_applicable/interaction_robustness_manifest.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "virtual_prediction",
-              "path": "06_modeling/not_applicable/virtual_prediction.json"
+              "path": "06_modeling/not_applicable/virtual_prediction.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -2825,31 +2836,38 @@
           "outputs": [
             {
               "artifact_id": "model_report",
-              "path": "06_modeling/not_applicable/model_report.json"
+              "path": "06_modeling/not_applicable/model_report.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "reproducibility_evaluation",
-              "path": "06_modeling/not_applicable/reproducibility_evaluation.json"
+              "path": "06_modeling/not_applicable/reproducibility_evaluation.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "interaction_report",
-              "path": "06_modeling/not_applicable/interaction_discovery_report.json"
+              "path": "06_modeling/not_applicable/interaction_discovery_report.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "interaction_manifest",
-              "path": "06_modeling/not_applicable/interaction_discovery_manifest.json"
+              "path": "06_modeling/not_applicable/interaction_discovery_manifest.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "robustness_report",
-              "path": "06_modeling/not_applicable/interaction_robustness_report.json"
+              "path": "06_modeling/not_applicable/interaction_robustness_report.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "robustness_manifest",
-              "path": "06_modeling/not_applicable/interaction_robustness_manifest.json"
+              "path": "06_modeling/not_applicable/interaction_robustness_manifest.json",
+              "kind": "derived"
             },
             {
               "artifact_id": "virtual_prediction",
-              "path": "06_modeling/not_applicable/virtual_prediction.json"
+              "path": "06_modeling/not_applicable/virtual_prediction.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
