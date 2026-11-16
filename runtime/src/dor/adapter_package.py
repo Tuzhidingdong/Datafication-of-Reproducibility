@@ -235,11 +235,16 @@ def initialize_adapter_package(
         for artifact_id, role, raw_path in artifact_entries
     ]
 
-    output = manifest_path.expanduser() if manifest_path is not None else root / "adapter_manifest.json"
-    if not output.is_absolute():
-        output = output.resolve(strict=False)
-    else:
-        output = output.resolve(strict=False)
+    requested_output = (
+        manifest_path.expanduser()
+        if manifest_path is not None
+        else Path("adapter_manifest.json")
+    )
+    output = (
+        requested_output
+        if requested_output.is_absolute()
+        else root / requested_output
+    ).resolve(strict=False)
     if not output.is_relative_to(root):
         raise ValueError("Adapter manifest output must be inside package_root.")
     if output in {
