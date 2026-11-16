@@ -30,7 +30,7 @@ When the structured CSV/JSON and provenance files already exist but the generic 
 
     dor init-adapter-package --package-root path/to/package --adapter-id upstream-preparation --adapter-version 1.0 --source paper=path/to/paper.pdf --artifact records=standardized_dataset=path/to/package/records.csv
 
-Repeat the source/artifact arguments for each explicit file. Source files may be outside the package root; artifacts must be inside it. The helper computes SHA-256 and validates the manifest without opening original-document contents. It does not perform upstream extraction or scientific mapping.
+Repeat the source/artifact arguments for each explicit file. Relative paths resolve from the package root. Use absolute paths for external provenance sources; artifacts must resolve inside the package root. The helper computes SHA-256 and validates the manifest without opening original-document contents. It does not perform upstream extraction or scientific mapping.
 
 Prepare and validate the route preflight:
 
