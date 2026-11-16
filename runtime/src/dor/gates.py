@@ -873,13 +873,64 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
     run_root = Path(run_root_value).expanduser().resolve(strict=True)
     if not run_root.is_dir():
         raise ValueError("G4 Publication Plan run_root must be a directory.")
-    for label, binding in (
-        ("publication_plan", plan_binding),
-        ("publication_plan_validation", validation_binding),
+    plan_unresolved = Path(plan_binding["path"]).expanduser()
+    report_unresolved = Path(validation_binding["path"]).expanduser()
+    if plan_unresolved.is_symlink() or report_unresolved.is_symlink():
+        raise ValueError("G4 Publication Plan and validation report must not be symbolic links.")
+    plan_path = plan_unresolved.resolve(strict=True)
+    validation_path = report_unresolved.resolve(strict=True)
+    if plan_path.parent.parent != run_root:
+        raise ValueError("G4 final Publication Plan must be the declared Run output under 10_publication.")
+    for label, path, binding in (
+        ("publication_plan", plan_path, plan_binding),
+        ("publication_plan_validation", validation_path, validation_binding),
     ):
-        path = Path(binding["path"]).expanduser().resolve(strict=True)
         if not path.is_relative_to(run_root) or sha256_file(path) != binding["sha256"]:
             raise ValueError(f"G4 {label} is outside the active Run or changed after validation.")
+
+    # Independently reload the immutable Run Manifest/Event Ledger and recompute
+    # the conditional G3 branch states. Do not treat validation_report.valid as
+    # sufficient evidence that the optional outputs were actually completed.
+    manifest_path = run_root / "run_manifest.json"
+    try:
+        run_manifest = _read_json(manifest_path, "G4 active run_manifest")
+        if (run_manifest.get("run_id") != report.get("run_id")
+                or run_manifest.get("project_id") != report.get("project_id")
+                or run_manifest.get("workspace_root") != str(run_root)):
+            raise ValueError("G4 Publication Plan validation report differs from the active Run Manifest.")
+        from dor.run_manager import build_resume_plan
+        resume = build_resume_plan(manifest_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise ValueError("G4 could not independently verify the active Run state: " + str(exc)) from exc
+
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G4")
+    selection = _read_json_binding(selection_binding, "G4 interaction_selection")
+    if (not Path(selection_binding["path"]).is_file()
+            or sha256_file(Path(selection_binding["path"])) != selection_binding["sha256"]):
+        raise ValueError("G4 interaction_selection changed after its Gate binding.")
+    selected_ids = selection.get("selected_interaction_ids")
+    if (not isinstance(selected_ids, list)
+            or any(not isinstance(item, str) or not item.strip() for item in selected_ids)
+            or len(selected_ids) != len(set(selected_ids))):
+        raise ValueError("G4 interaction_selection.selected_interaction_ids must be unique non-empty strings.")
+    run_stage_ids = set(run_manifest.get("stage_order", []))
+    if "single_study_applicability_record" not in by_id:
+        resume_actions = {
+            item.get("stage_id"): item.get("action")
+            for item in resume.get("stages", [])
+            if isinstance(item, dict)
+        }
+        expected_optional_action = "REUSE" if selected_ids else "SKIPPED"
+        for optional_stage_id in (
+            "mechanism_plan_preparation",
+            "response_surface_generation",
+            "mechanism_evidence_bridge",
+        ):
+            if optional_stage_id in run_stage_ids and resume_actions.get(optional_stage_id) != expected_optional_action:
+                raise ValueError(
+                    f"G4 conditional stage {optional_stage_id} must be {expected_optional_action} "
+                    f"for the G3 interaction selection; found {resume_actions.get(optional_stage_id)}."
+                )
 
     if not isinstance(plan, dict):
         raise ValueError("G4 Publication Plan must be a JSON object.")
