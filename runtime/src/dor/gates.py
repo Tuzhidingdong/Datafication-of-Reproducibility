@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -914,8 +915,11 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
                 or "\\" in source_path or any(part in {"", ".", ".."} for part in relative.parts)
                 or relative.as_posix() != source_path):
             raise ValueError(f"G4 Publication Plan source_path is not a safe Run-relative path: {source_path!r}.")
-        source_file = (run_root / relative).resolve(strict=True)
-        if source_file.is_symlink() or not source_file.is_file() or not source_file.is_relative_to(run_root):
+        unresolved_source = run_root / relative
+        if unresolved_source.is_symlink():
+            raise ValueError(f"G4 Publication Plan source must not be a symbolic link: {unresolved_source}.")
+        source_file = unresolved_source.resolve(strict=True)
+        if not source_file.is_file() or not source_file.is_relative_to(run_root):
             raise ValueError(f"G4 Publication Plan source is not a regular file inside the Run: {source_file}.")
         digest = sha256_file(source_file)
         report_source = reported_by_package.get(package_id)
@@ -949,7 +953,7 @@ def _validate_g4_reviewed_findings(
         _validate_single_study_na_bundle(by_id, previous_gate_event)
         expected_reviewed_artifacts = G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
     else:
-        expected_reviewed_artifacts = G4_REQUIRED_REVIEWED_ARTIFACTS
+        expected_reviewed_artifacts = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
     worker_binding = _require_gate_binding(by_id, "worker_review_output", "G4")
     reviewed_binding = _require_gate_binding(by_id, "reviewed_findings", "G4")
     worker_result = _read_json_binding(worker_binding, "G4 worker_review_output")
