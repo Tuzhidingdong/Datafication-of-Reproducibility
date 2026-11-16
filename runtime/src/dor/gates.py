@@ -845,7 +845,10 @@ def _validate_g3_selection(
 
 
 
-def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
+def _validate_g4_publication_plan(
+    by_id: Mapping[str, dict[str, str]],
+    previous_gate_event: Mapping[str, Any] | None,
+) -> None:
     """Recheck the exact late-bound Publication Plan and every source it packages."""
     plan_binding = _require_gate_binding(by_id, "publication_plan", "G4")
     validation_binding = _require_gate_binding(by_id, "publication_plan_validation", "G4")
@@ -892,14 +895,21 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
     # the conditional G3 branch states. Do not treat validation_report.valid as
     # sufficient evidence that the optional outputs were actually completed.
     manifest_path = run_root / "run_manifest.json"
+    if previous_gate_event is None or previous_gate_event.get("gate_id") != "G3":
+        raise ValueError("G4 Publication Plan verification requires the exact approved G3 event.")
     try:
-        run_manifest = _read_json(manifest_path, "G4 active run_manifest")
-        if (run_manifest.get("run_id") != report.get("run_id")
+        from dor.run_manager import (
+            _artifact_path, _latest_stage_events, _manifest_context, _stage_map,
+        )
+        active_root, run_manifest, run_plan, run_events = _manifest_context(manifest_path)
+        if (active_root != run_root
+                or run_manifest.get("run_id") != report.get("run_id")
                 or run_manifest.get("project_id") != report.get("project_id")
                 or run_manifest.get("workspace_root") != str(run_root)):
             raise ValueError("G4 Publication Plan validation report differs from the active Run Manifest.")
-        from dor.run_manager import build_resume_plan
-        resume = build_resume_plan(manifest_path)
+        latest_stage_events = _latest_stage_events(run_events)
+        run_stage_ids = set(run_manifest.get("stage_order", []))
+        stage_map = _stage_map(run_plan)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise ValueError("G4 could not independently verify the active Run state: " + str(exc)) from exc
 
@@ -913,24 +923,52 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
             or any(not isinstance(item, str) or not item.strip() for item in selected_ids)
             or len(selected_ids) != len(set(selected_ids))):
         raise ValueError("G4 interaction_selection.selected_interaction_ids must be unique non-empty strings.")
-    run_stage_ids = set(run_manifest.get("stage_order", []))
     if "single_study_applicability_record" not in by_id:
-        resume_actions = {
-            item.get("stage_id"): item.get("action")
-            for item in resume.get("stages", [])
-            if isinstance(item, dict)
-        }
-        expected_optional_action = "REUSE" if selected_ids else "SKIPPED"
+        expected_status = "SUCCEEDED" if selected_ids else "SKIPPED"
         for optional_stage_id in (
             "mechanism_plan_preparation",
             "response_surface_generation",
             "mechanism_evidence_bridge",
         ):
-            if optional_stage_id in run_stage_ids and resume_actions.get(optional_stage_id) != expected_optional_action:
+            if optional_stage_id not in run_stage_ids:
+                continue
+            stage = stage_map[optional_stage_id]
+            event = latest_stage_events.get(optional_stage_id)
+            if event is None or event.get("status") != expected_status:
+                observed = event.get("status") if event else "NOT_STARTED"
                 raise ValueError(
-                    f"G4 conditional stage {optional_stage_id} must be {expected_optional_action} "
-                    f"for the G3 interaction selection; found {resume_actions.get(optional_stage_id)}."
+                    f"G4 conditional stage {optional_stage_id} must have status "
+                    f"{expected_status} for the G3 interaction selection; found {observed}."
                 )
+            approval = event.get("gate_approval")
+            if (not isinstance(approval, dict)
+                    or approval.get("gate_id") != "G3"
+                    or approval.get("status") != "APPROVED"
+                    or approval.get("event_hash") != previous_gate_event.get("event_hash")):
+                raise ValueError(
+                    f"G4 conditional stage {optional_stage_id} was not produced under the exact current G3 approval."
+                )
+            if expected_status == "SUCCEEDED":
+                recorded_outputs = {
+                    item.get("artifact_id"): item
+                    for item in event.get("output_artifacts", [])
+                    if isinstance(item, dict)
+                }
+                declared_outputs = {
+                    item["artifact_id"] for item in stage.get("outputs", [])
+                }
+                if set(recorded_outputs) != declared_outputs:
+                    raise ValueError(
+                        f"G4 conditional stage {optional_stage_id} does not bind every declared output."
+                    )
+                for output in stage.get("outputs", []):
+                    path = _artifact_path(run_root, output)
+                    binding = recorded_outputs[output["artifact_id"]]
+                    if (not path.is_file() or path.is_symlink()
+                            or sha256_file(path) != binding.get("sha256")):
+                        raise ValueError(
+                            f"G4 conditional output {output['artifact_id']} is missing or changed after its successful Run event."
+                        )
 
     if not isinstance(plan, dict):
         raise ValueError("G4 Publication Plan must be a JSON object.")
@@ -1333,7 +1371,7 @@ def _validate_g4_reviewed_findings(
     )
     if not consistent:
         raise ValueError("G4 promotion_decision is inconsistent with the individual human finding dispositions.")
-    _validate_g4_publication_plan(by_id)
+    _validate_g4_publication_plan(by_id, previous_gate_event)
 
 def _validate_approval_artifacts(
     gate_id: str,
