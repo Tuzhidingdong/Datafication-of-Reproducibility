@@ -78,19 +78,22 @@ def _parse_explicit_path(raw_path: str, label: str) -> Path:
     if not value:
         raise ValueError(f"{label} path must be non-empty.")
     expanded = Path(value).expanduser()
-    if not expanded.is_absolute():
-        normalized = value.replace("\\", "/")
-        windows_path = PureWindowsPath(normalized)
-        if (
-            windows_path.is_absolute()
-            or windows_path.drive
-            or any(part in {"", ".", ".."} for part in normalized.split("/"))
-        ):
-            raise ValueError(
-                f"{label} relative path cannot contain absolute/drive prefixes, "
-                f"empty, current-directory, or parent-directory components: {value!r}"
-            )
-    return expanded
+    if expanded.is_absolute():
+        return expanded
+    # Accept either slash convention while preserving package-relative
+    # semantics on Windows and POSIX hosts.
+    normalized = value.replace("\\", "/")
+    windows_path = PureWindowsPath(normalized)
+    if (
+        windows_path.is_absolute()
+        or windows_path.drive
+        or any(part in {"", ".", ".."} for part in normalized.split("/"))
+    ):
+        raise ValueError(
+            f"{label} relative path cannot contain absolute/drive prefixes, "
+            f"empty, current-directory, or parent-directory components: {value!r}"
+        )
+    return Path(normalized).expanduser()
 
 
 def _parse_source_binding(value: str) -> tuple[str, Path]:
