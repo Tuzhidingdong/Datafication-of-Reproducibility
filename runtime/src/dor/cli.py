@@ -606,7 +606,7 @@ def main() -> int:
                 confirm_abandoned=args.confirm_abandoned,
             )
             print(_write_json(None, result), end="")
-            return 0
+            return 2 if result.get("automatic_failure") is True else 0
         if args.command == "gate-record":
             result=record_gate_decision(args.workflow_ledger,args.gate_id,args.decision,
                 args.reviewer,args.rationale,_parse_artifact_bindings(args.artifacts or []))
