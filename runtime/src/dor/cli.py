@@ -459,15 +459,29 @@ def main() -> int:
             print(_write_json(args.out, result), end="")
             return 0 if result["valid"] else 2
         if args.command == "init-acceptance":
+            ledger_path = args.out.with_name(args.out.stem + "_acceptance_events.jsonl")
+            snapshots_path = ledger_path.with_name(ledger_path.name + ".revisions")
+            if ledger_path.is_symlink() or ledger_path.exists() or snapshots_path.is_symlink() or snapshots_path.exists():
+                raise FileExistsError(
+                    "The derived Acceptance revision ledger or snapshot directory already exists; "
+                    "choose a new Acceptance output path rather than reusing or overwriting history."
+                )
             result = initialize_acceptance_record(
                 args.manifest, args.out,
                 source_selection_manifest=args.source_selection_manifest,
                 extraction_review_record=args.extraction_review_record,
             )
-            ledger_path = args.out.with_name(args.out.stem + "_acceptance_events.jsonl")
-            ledger_report = initialize_acceptance_ledger(
-                args.out, ledger_path, args.actor, args.rationale,
-            )
+            record_path = Path(result["record_path"])
+            try:
+                ledger_report = initialize_acceptance_ledger(
+                    record_path, ledger_path, args.actor, args.rationale,
+                )
+            except BaseException:
+                # Remove only the draft created by this invocation and only
+                # when no ledger/snapshot history was committed.
+                if not ledger_path.exists() and not snapshots_path.exists():
+                    record_path.unlink(missing_ok=True)
+                raise
             result["acceptance_ledger_path"] = str(ledger_path.resolve(strict=False))
             result["acceptance_ledger_revision"] = ledger_report["revision"]
             result["acceptance_ledger_event_hash"] = ledger_report["event_hash"]
