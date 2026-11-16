@@ -389,28 +389,60 @@ class WorkflowGateTests(unittest.TestCase):
         }
         validation_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         self.files["publication_plan_validation"] = validation_path
+        source_output_definitions = []
+        source_output_bindings = []
+        for source_id in source_map.values():
+            source_path = Path(by_id[source_id]["path"]).resolve()
+            relative_source = source_path.relative_to(self.root.resolve()).as_posix()
+            source_output_definitions.append({
+                "artifact_id": source_id,
+                "path": relative_source,
+                "kind": "derived",
+            })
+            source_output_bindings.append({
+                "artifact_id": source_id,
+                "path": str(source_path),
+                "sha256": by_id[source_id]["sha256"],
+            })
         (self.root / "run_manifest.json").write_text(json.dumps({
             "schema_version": "1.0",
             "run_id": "RUN_GATE",
             "project_id": "PROJECT_TEST",
             "workspace_root": str(self.root.resolve()),
-            "stage_order": ["publication_plan_preparation"],
+            "stage_order": ["g4_source_fixture", "publication_plan_preparation"],
         }, indent=2) + "\n", encoding="utf-8")
         (self.root / "run_plan.json").write_text(json.dumps({
             "schema_version": "1.0",
             "source_artifacts": [],
-            "stages": [{
-                "stage_id": "publication_plan_preparation",
-                "executor": "manual",
-                "required_gate": "G3",
-                "inputs": [],
-                "outputs": [
-                    {"artifact_id": "publication_plan", "path": "10_publication/publication_package_plan.json"},
-                    {"artifact_id": "publication_plan_validation", "path": "10_publication/publication_plan_validation.json"},
-                ],
-            }],
+            "stages": [
+                {
+                    "stage_id": "g4_source_fixture",
+                    "executor": "manual",
+                    "depends_on": [],
+                    "inputs": [],
+                    "outputs": source_output_definitions,
+                },
+                {
+                    "stage_id": "publication_plan_preparation",
+                    "executor": "manual",
+                    "required_gate": "G3",
+                    "depends_on": ["g4_source_fixture"],
+                    "inputs": [],
+                    "outputs": [
+                        {"artifact_id": "publication_plan", "path": "10_publication/publication_package_plan.json"},
+                        {"artifact_id": "publication_plan_validation", "path": "10_publication/publication_plan_validation.json"},
+                    ],
+                },
+            ],
         }, indent=2) + "\n", encoding="utf-8")
-        (self.root / "run_events.jsonl").write_text(json.dumps({
+        run_events = [{
+            "event_type": "STAGE_STATUS",
+            "stage_id": "g4_source_fixture",
+            "status": "SUCCEEDED",
+            "input_artifacts": [],
+            "output_artifacts": source_output_bindings,
+            "gate_approval": None,
+        }, {
             "event_type": "STAGE_STATUS",
             "stage_id": "publication_plan_preparation",
             "status": "SUCCEEDED",
@@ -432,7 +464,14 @@ class WorkflowGateTests(unittest.TestCase):
                 "status": "APPROVED",
                 "event_hash": g3_event_hash,
             },
-        }, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+        }]
+        (self.root / "run_events.jsonl").write_text(
+            "".join(
+                json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n"
+                for event in run_events
+            ),
+            encoding="utf-8",
+        )
         by_id["publication_plan"] = {
             "artifact_id": "publication_plan",
             "path": str(plan_path.resolve()),
