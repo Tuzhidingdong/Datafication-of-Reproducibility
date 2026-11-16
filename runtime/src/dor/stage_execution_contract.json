@@ -2851,18 +2851,7 @@
             "reviewed_findings",
             "reviewed_findings_validation",
             "cohort_review_record",
-            "cohort_review_validation",
-            "mechanism_plan",
-            "interaction_response_surface_report",
-            "interaction_response_surface",
-            "interaction_response_surface_manifest",
-            "interaction_observed_support",
-            "interaction_marginal_effects",
-            "mechanism_evidence_bridge_report",
-            "mechanism_findings",
-            "mechanism_evidence_ledger",
-            "mechanism_review_queue",
-            "mechanism_evidence_bridge_manifest"
+            "cohort_review_validation"
           ],
           "outputs": [
             {
@@ -2886,10 +2875,7 @@
             "virtual_condition_prediction",
             "independent_result_review",
             "human_review_and_promotion",
-            "cohort_review",
-            "mechanism_plan_preparation",
-            "response_surface_generation",
-            "mechanism_evidence_bridge"
+            "cohort_review"
           ]
         },
         {
@@ -2909,18 +2895,7 @@
             "reviewed_findings",
             "reviewed_findings_validation",
             "cohort_review_record",
-            "cohort_review_validation",
-            "mechanism_plan",
-            "interaction_response_surface_report",
-            "interaction_response_surface",
-            "interaction_response_surface_manifest",
-            "interaction_observed_support",
-            "interaction_marginal_effects",
-            "mechanism_evidence_bridge_report",
-            "mechanism_findings",
-            "mechanism_evidence_ledger",
-            "mechanism_review_queue",
-            "mechanism_evidence_bridge_manifest"
+            "cohort_review_validation"
           ],
           "outputs": [
             {
@@ -2944,10 +2919,7 @@
             "virtual_condition_prediction",
             "independent_result_review",
             "human_review_and_promotion",
-            "cohort_review",
-            "mechanism_plan_preparation",
-            "response_surface_generation",
-            "mechanism_evidence_bridge"
+            "cohort_review"
           ]
         },
         {
