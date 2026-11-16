@@ -181,6 +181,16 @@ class StageExecutionContractTests(unittest.TestCase):
                 self.assertIn("publication_plan_template", {
                     item["artifact_id"] for item in plan["source_artifacts"]
                 })
+                if expected_profile is None:
+                    self.assertTrue({
+                        "mechanism_plan_preparation", "response_surface_generation",
+                        "mechanism_evidence_bridge",
+                    }.issubset(set(preparation["depends_on"])))
+                    self.assertFalse({
+                        "mechanism_plan", "interaction_response_surface_report",
+                        "interaction_response_surface_manifest",
+                        "mechanism_evidence_bridge_report",
+                    }.intersection(set(preparation["inputs"])))
 
         parser = build_parser()
         validation_args = parser.parse_args([
