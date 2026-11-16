@@ -201,7 +201,13 @@ class RunManagerTests(unittest.TestCase):
             project_root, "human-operator", "Authorize the isolated synthetic review attempt.",
         )
         self.assertEqual(first_auth["attempt"], 1)
-        self.assertEqual(len(first_auth["task_packet"]["inputs"]), 2)
+        self.assertEqual(first_auth["task_packet"]["schema_version"], "1.0")
+        self.assertEqual(first_auth["task_packet"]["task_id"], "DOR_RUN_LIFECYCLE_independent_review_ATTEMPT_0001")
+        self.assertEqual(first_auth["task_packet"]["authorization_event_hash"], first_auth["authorization_event_hash"])
+        self.assertEqual(first_auth["task_packet_sha256"], hashlib.sha256(
+            json.dumps(first_auth["task_packet"], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        ).hexdigest())
+        self.assertEqual(len(first_auth["task_packet"]["input_artifacts"]), 2)
         self.assertEqual(len(first_auth["task_packet"]["permitted_outputs"]), 1)
         worker_kwargs = {
             "role": "independent_reviewer",
@@ -245,6 +251,11 @@ class RunManagerTests(unittest.TestCase):
             project_root, "human-operator", "Authorize a new attempt after the recorded failure.",
         )
         self.assertEqual(second_auth["attempt"], 2)
+        self.assertEqual(second_auth["task_packet"]["task_id"], "DOR_RUN_LIFECYCLE_independent_review_ATTEMPT_0002")
+        self.assertNotEqual(
+            first_auth["task_packet"]["authorization_event_hash"],
+            second_auth["task_packet"]["authorization_event_hash"],
+        )
         record_stage_status(
             manifest_path, "independent_review", "RUNNING", "worker",
             **worker_kwargs,
