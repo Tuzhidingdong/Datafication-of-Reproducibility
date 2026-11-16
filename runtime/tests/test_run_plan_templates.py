@@ -427,7 +427,7 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 "MECHANISM_MANIFEST_001": "07_mechanism_bridge/mechanism_evidence_bridge_manifest.json",
                 "RESPONSE_SURFACE_REPORT_001": "07_response_surface/interaction_response_surface_report.json",
                 "RESPONSE_SURFACE_DATA_001": "07_response_surface/interaction_response_surface.csv",
-                "RESPONSE_SURFACE_MANIFEST_001": "07_response_surface/interaction_response_surface_manifest.json",
+                "RESPONSE_SURFACE_MANIFEST_001": "response_surface/interaction_response_surface_manifest.json",
                 "RESPONSE_SURFACE_SUPPORT_001": "07_response_surface/interaction_observed_support.csv",
                 "RESPONSE_SURFACE_MARGINALS_001": "07_response_surface/interaction_marginal_effects.csv",
             }

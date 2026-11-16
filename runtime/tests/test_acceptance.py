@@ -631,8 +631,9 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 ("modeling_task", "modeling_task", "modeling_task"),
             )
         ]
-        self.stage_evidence["cohort_feasibility"] = [dict(item) for item in applicability_evidence]
-        self.stage_evidence["modeling_validation"] = [dict(item) for item in applicability_evidence]
+        if len(ids) == 1:
+            self.stage_evidence["cohort_feasibility"] = [dict(item) for item in applicability_evidence]
+            self.stage_evidence["modeling_validation"] = [dict(item) for item in applicability_evidence]
 
         self.record_path = self.root / f"{self.run_id}_acceptance.json"
         self.ledger_path = self.root / f"{self.run_id}_acceptance_events.jsonl"
@@ -745,8 +746,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "G0": ["source_inventory"],
             "G1": ["mapping_plan"],
             "G2": ["canonical_bundle"],
-            "G3": ["canonical_bundle"],
-            "G4": ["canonical_bundle"],
+            "G3": ["cohort_report"],
+            "G4": ["model_report"],
         }
         events = {}
         gate_artifacts = {}
