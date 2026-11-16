@@ -101,10 +101,12 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
         ])
 
     def test_success_executes_bound_cli_and_records_stage_automatically(self):
-        def fake_run(command, cwd, check, timeout):
+        def fake_run(command, cwd, check, timeout, env):
             self.assertEqual(command[1:4], ["-m", "dor.cli", "validate-bundle"])
             self.assertEqual(cwd, str(self.run_root.resolve()))
             self.assertFalse(check)
+            runtime_src = str(Path(__file__).resolve().parents[1] / "src")
+            self.assertIn(runtime_src, env["PYTHONPATH"].split(";") if ";" in env["PYTHONPATH"] else env["PYTHONPATH"].split(":"))
             self.output.parent.mkdir(parents=True, exist_ok=True)
             self.output.write_text('{"status":"synthetic-success"}\n', encoding="utf-8")
             return subprocess.CompletedProcess(command, 0)
@@ -125,7 +127,7 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
         self.assertEqual(state["status"], "SUCCEEDED")
 
     def test_failed_command_archives_partial_outputs_and_allows_retry(self):
-        def fake_run(command, cwd, check, timeout):
+        def fake_run(command, cwd, check, timeout, env):
             self.output.parent.mkdir(parents=True, exist_ok=True)
             self.output.write_text('{"partial":true}\n', encoding="utf-8")
             return subprocess.CompletedProcess(command, 3)
@@ -168,7 +170,7 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        def fake_run(command, cwd, check, timeout):
+        def fake_run(command, cwd, check, timeout, env):
             self.output.parent.mkdir(parents=True, exist_ok=True)
             self.output.write_text('{"status":"synthetic-success"}\n', encoding="utf-8")
             return subprocess.CompletedProcess(command, 0)
