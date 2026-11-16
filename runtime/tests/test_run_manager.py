@@ -213,11 +213,28 @@ class RunManagerTests(unittest.TestCase):
             manifest_path, "independent_review", "RUNNING", "worker",
             **worker_kwargs,
         )
-        record_stage_status(
-            manifest_path, "independent_review", "FAILED", "worker",
-            **worker_kwargs, job_id="synthetic-job-failed",
-            input_tokens=80, output_tokens=20, reason="Synthetic first attempt failed before producing output.",
+        failed_worker_output = run_root / "worker_staging" / "independent_review" / "review.json"
+        failed_worker_output.parent.mkdir(parents=True, exist_ok=True)
+        failed_worker_output.write_text(json.dumps({
+            "schema_version": "1.0",
+            "task_id": "synthetic-failed-task",
+            "status": "completed",
+            "summary": "This packet deliberately omits required findings and must be rejected.",
+            "artifacts": [],
+            "warnings": [],
+            "unresolved_questions": [],
+        }, indent=2) + "\\n", encoding="utf-8")
+        failed_attempt = record_stage_status(
+            manifest_path, "independent_review", "SUCCEEDED", "worker",
+            **worker_kwargs, job_id="synthetic-job-failed", task_id="synthetic-failed-task",
+            input_tokens=80, output_tokens=20,
         )
+        self.assertEqual(failed_attempt["status"], "FAILED")
+        self.assertTrue(failed_attempt["automatic_failure"])
+        self.assertFalse(failed_worker_output.exists())
+        archived_review = run_root / failed_attempt["archived_outputs"][0]["archive_path"]
+        self.assertTrue(archived_review.is_file())
+        self.assertTrue((run_root / failed_attempt["archive_manifest"]["path"]).is_file())
         failed_resume = build_resume_plan(manifest_path)
         failed_state = next(item for item in failed_resume["stages"] if item["stage_id"] == "independent_review")
         self.assertEqual(failed_state["action"], "RETRY_REQUIRED")
