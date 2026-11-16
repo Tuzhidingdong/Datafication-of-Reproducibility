@@ -236,7 +236,7 @@ class RunManagerTests(unittest.TestCase):
         worker_output.parent.mkdir(parents=True, exist_ok=True)
         worker_output.write_text(json.dumps({
             "schema_version": "1.0",
-            "task_id": "SYNTHETIC_REVIEW_TASK",
+            "task_id": "synthetic-task-success",
             "status": "completed",
             "summary": "The synthetic inputs are traceable and contain no unresolved blocker.",
             "findings": [],
