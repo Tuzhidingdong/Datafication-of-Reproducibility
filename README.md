@@ -40,6 +40,12 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
 
 1. Install this Skill in the active Antigravity project under `.agents/skills/datafication-of-reproducibility/` (or the Antigravity global Skill directory).
 2. Prepare the Adapter Package using [the Adapter Contract](docs/ADAPTER_CONTRACT.md). Keep package sources read-only.
+
+   When the structured CSV/JSON outputs and provenance files already exist but no adapter manifest has been created, initialize a manifest from only the explicitly selected files:
+
+       dor init-adapter-package --package-root <package_root> --adapter-id <preparation_process_id> --adapter-version <version> --source <source_id>=<source_file> --artifact <artifact_id>=standardized_dataset=<package_relative_csv_or_json>
+
+   Repeat \`--source\` and \`--artifact\` for each selected file. The package directory and artifact files must already exist. Source paths may be external; artifact paths must be inside the package root. This command records file identities and hashes only; it does not scan directories, convert files, infer field meanings, or read original-document contents. Then continue with \`dor prepare-adapter-handoff\` below.
 3. Resolve the route before creating a Run:
 
        dor prepare-adapter-handoff --manifest <package_root>/adapter_manifest.json --package-root <package_root> --out <project_root>/run_control/adapter_route_preflight.json
