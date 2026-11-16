@@ -185,7 +185,7 @@ class AdapterPackageInitializerTests(unittest.TestCase):
             invalid_paths = [
                 "data/./records.csv",
                 "data//records.csv",
-                "data\\\\records.csv" if False else "data\\\\records.csv",
+                "data\\\\records.csv",
             ]
             for invalid in invalid_paths:
                 with self.subTest(path=invalid):
