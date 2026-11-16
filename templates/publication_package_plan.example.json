@@ -32,7 +32,8 @@
         "Methods",
         "Results",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "model_artifact"
     },
     {
       "artifact_id": "MECHANISM_BRIDGE_001",
@@ -71,7 +72,8 @@
       "linked_record_ids": [],
       "manuscript_sections": [
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "worker_review_output"
     },
     {
       "artifact_id": "HUMAN_DISPOSITION_RECORD",
@@ -83,7 +85,8 @@
       "linked_record_ids": [],
       "manuscript_sections": [
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reviewed_findings"
     },
     {
       "artifact_id": "HUMAN_DISPOSITION_VALIDATION",
@@ -95,7 +98,8 @@
       "linked_record_ids": [],
       "manuscript_sections": [
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reviewed_findings_validation"
     },
     {
       "artifact_id": "MECHANISM_FINDINGS_001",
@@ -214,7 +218,8 @@
         "Results",
         "Discussion",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "model_report"
     },
     {
       "artifact_id": "REPRODUCIBILITY_EVALUATION_001",
@@ -229,7 +234,8 @@
         "Results",
         "Discussion",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reproducibility_evaluation"
     },
     {
       "artifact_id": "INTERACTION_REPORT_001",
@@ -244,7 +250,8 @@
         "Results",
         "Discussion",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "interaction_report"
     },
     {
       "artifact_id": "INTERACTION_ROBUSTNESS_001",
@@ -259,7 +266,8 @@
         "Results",
         "Discussion",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "robustness_report"
     },
     {
       "artifact_id": "INTERACTION_SELECTION_001",
@@ -274,7 +282,8 @@
         "Results",
         "Discussion",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "interaction_selection"
     },
     {
       "artifact_id": "VIRTUAL_PREDICTION_001",
@@ -289,6 +298,33 @@
         "Results",
         "Discussion",
         "Supporting Information"
+      ],
+      "source_artifact_id": "virtual_prediction"
+    },
+    {
+      "artifact_id": "COHORT_REVIEW_RECORD",
+      "path": "reviews/cohort_review_record.json",
+      "source_path": "05_modeling/cohort/cohort_review_record.json",
+      "source_artifact_id": "cohort_review_record",
+      "type": "review",
+      "description": "Human-approved Cohort grain, independence, and Study split review.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods"
+      ]
+    },
+    {
+      "artifact_id": "COHORT_REVIEW_VALIDATION",
+      "path": "reviews/cohort_review_validation.json",
+      "source_path": "05_modeling/cohort/cohort_review_validation.json",
+      "source_artifact_id": "cohort_review_validation",
+      "type": "validation",
+      "description": "Deterministic validation of the human Cohort review.",
+      "status": "complete",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods"
       ]
     }
   ]
