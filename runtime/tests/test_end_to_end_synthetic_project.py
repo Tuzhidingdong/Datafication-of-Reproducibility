@@ -37,7 +37,7 @@ def write_json(path: Path, value) -> None:
 
 
 class EndToEndSyntheticProjectTests(unittest.TestCase):
-    """A complete synthetic CSV/JSON -> canonical -> analysis -> publication path."""
+    """Synthetic CSV/JSON -> canonical -> analysis -> G0-G3 and standalone package-builder path."""
 
     @classmethod
     def setUpClass(cls):
