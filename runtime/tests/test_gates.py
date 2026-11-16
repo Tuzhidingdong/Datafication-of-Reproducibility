@@ -397,6 +397,7 @@ class WorkflowGateTests(unittest.TestCase):
         }, indent=2) + "\n", encoding="utf-8")
         (self.root / "run_plan.json").write_text(json.dumps({
             "schema_version": "1.0",
+            "source_artifacts": [],
             "stages": [{
                 "stage_id": "publication_plan_preparation",
                 "executor": "manual",
