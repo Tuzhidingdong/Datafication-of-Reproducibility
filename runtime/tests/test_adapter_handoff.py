@@ -195,9 +195,14 @@ class AdapterHandoffTests(unittest.TestCase):
             materialization = json.loads(
                 Path(result["materialization_manifest"]).read_text(encoding="utf-8")
             )
+            # The materialization manifest preserves upstream artifact identity;
+            # the role remains a separate field used for DoR's role-based filenames.
             self.assertEqual(
-                {item["artifact_id"] for item in materialization["artifacts"]},
-                set(source_hashes),
+                {
+                    (item["artifact_id"], item["role"])
+                    for item in materialization["artifacts"]
+                },
+                {(artifact_id, role) for artifact_id, role, _ in role_payloads},
             )
 
     def test_materialization_checks_inventory_sources_against_manifest_hashes(self):

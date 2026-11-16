@@ -468,14 +468,26 @@ def build_mechanism_evidence_bridge_files(
             if item["relationship"] == "CONTRADICTS" and not item["counted_for_evidence_summary"]:
                 review_rows.append({
                     "hypothesis_id": hypothesis["hypothesis_id"], "issue_code": "CONTRADICTORY_EVIDENCE_NOT_CLASSIFIED_OR_VERIFIED",
-                    "evidence_id": item["evidence_id"], "review_action": "REVIEW_SOURCE_VERIFICATION_AND_EVIDENCE_CLASSIFICATION",
-                    "detail": "This record is marked as contradicting the hypothesis but was not counted because it is unverified, contextual, or unclassified."
+                    "evidence_id": item["evidence_id"], "review_action": "REVIEW_STRUCTURED_EVIDENCE_CLASSIFICATION",
+                    "detail": (
+                        "This structured Evidence record is marked as contradicting the hypothesis but was not counted "
+                        "because its supplied extraction status or classification is insufficient. Review only the "
+                        "provided Evidence record, recorded locator metadata, and linked Observation; retain the "
+                        "contradiction and request an upstream structured-data correction when unresolved. "
+                        "Do not open the original source or dereference its locator."
+                    )
                 })
             if item["verification_status"] != "VERIFIED":
                 review_rows.append({
                     "hypothesis_id": hypothesis["hypothesis_id"], "issue_code": "EVIDENCE_NOT_VERIFIED",
-                    "evidence_id": item["evidence_id"], "review_action": "CHECK_ORIGINAL_SOURCE_AND_UPDATE_CANONICAL_EVIDENCE",
-                    "detail": "Canonical extraction_status is " + str(item["extraction_status"]) + "; this item is not counted as verified mechanism evidence."
+                    "evidence_id": item["evidence_id"], "review_action": "REQUEST_UPSTREAM_STRUCTURED_DATA_CORRECTION",
+                    "detail": (
+                        "The supplied canonical extraction_status is " + str(item["extraction_status"]) +
+                        "; this item is not counted as verified mechanism evidence. Review only the supplied "
+                        "structured Evidence record, recorded locator/hash metadata, and linked structured "
+                        "Observation. If they do not resolve the issue, request an upstream structured-data "
+                        "correction; do not open the original source or dereference its locator."
+                    )
                 })
             ledger_rows.append({
                 "hypothesis_id": hypothesis["hypothesis_id"], "evidence_id": item["evidence_id"],

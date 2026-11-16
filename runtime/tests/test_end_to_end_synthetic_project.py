@@ -37,13 +37,17 @@ def write_json(path: Path, value) -> None:
 
 
 class EndToEndSyntheticProjectTests(unittest.TestCase):
-    """A complete synthetic CSV/JSON -> canonical -> analysis -> publication path."""
+    """Synthetic CSV/JSON -> canonical -> analysis -> G0-G3 and standalone package-builder path."""
 
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory(prefix="dor-e2e-")
-        cls.root = Path(cls.temp.name)
-        cls.source_root = cls.root / "sources"
+        cls.temp_root = Path(cls.temp.name)
+        # Keep immutable source inputs and the Run workspace as sibling directories.
+        # Run Manager rejects nested source/workspace roots by design.
+        cls.root = cls.temp_root / "workspace"
+        cls.root.mkdir()
+        cls.source_root = cls.temp_root / "sources"
         cls.source_root.mkdir()
 
         cls.csv_path = cls.source_root / "experiment_records.csv"
@@ -69,9 +73,14 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls.package_dir = cls.root / "06_publication" / "package"
         cls.package_audit_path = cls.root / "06_publication" / "package_integrity_report.json"
         cls.gate_ledger = cls.root / "workflow_gate_ledger.jsonl"
+        cls.e2e_run_plan_path = cls.temp_root / "synthetic_run_plan.json"
+        cls.run_manifest_path = cls.root / "run_manifest.json"
+        cls.run_id = "RUN_SYNTHETIC_E2E"
+        cls.project_id = "PROJECT_SYNTHETIC_E2E"
         cls.executed_cli_commands = []
 
         cls._create_sources()
+        cls._initialize_synthetic_run()
         cls._audit_sources()
         cls._create_mapping_and_build_spec()
         cls._build_canonical_bundle()
@@ -89,6 +98,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             cls.reconciliation_decisions_path, cls.reconciliation_decision_validation_path,
             cls.discovery_report_path, cls.research_scope_record_path,
             cls.query_path, cls.gate_ledger,
+            cls.e2e_run_plan_path, cls.run_manifest_path,
         ]
         cls.source_bytes_after_build = {
             item: item.read_bytes() for item in cls.protected_source_paths
@@ -100,6 +110,46 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.temp.cleanup()
+
+    @classmethod
+    def _initialize_synthetic_run(cls):
+        plan = {
+            "schema_version": "1.0",
+            "project_id": cls.project_id,
+            "source_roots": [str(cls.source_root.resolve())],
+            "workflow_ledger_path": str(cls.gate_ledger.resolve(strict=False)),
+            "source_artifacts": [
+                {"artifact_id": "synthetic_source_csv", "path": str(cls.csv_path.resolve())},
+                {"artifact_id": "synthetic_source_json", "path": str(cls.json_path.resolve())},
+            ],
+            # This minimal custom plan anchors this legacy pipeline fixture to one
+            # exact Run and Gate Ledger. It deliberately does not claim that the
+            # older stage-by-stage test harness records Run Manager stage events.
+            "stages": [{
+                "stage_id": "synthetic_e2e_context",
+                "executor": "manual",
+                "depends_on": [],
+                "inputs": ["synthetic_source_csv", "synthetic_source_json"],
+                "outputs": [{
+                    "artifact_id": "synthetic_e2e_context_record",
+                    "path": "run_control/synthetic_e2e_context_record.json",
+                }],
+            }],
+        }
+        write_json(cls.e2e_run_plan_path, plan)
+        cls._run_cli(
+            "run-init", "--plan", str(cls.e2e_run_plan_path),
+            "--run-root", str(cls.root), "--run-id", cls.run_id,
+        )
+        cls.run_manifest = json.loads(cls.run_manifest_path.read_text(encoding="utf-8"))
+        cls.run_id = cls.run_manifest["run_id"]
+        cls.project_id = cls.run_manifest["project_id"]
+        if cls.run_manifest.get("workflow_ledger_path") != str(cls.gate_ledger.resolve()):
+            raise AssertionError("Synthetic Run Manifest is not bound to the active Workflow Gate Ledger.")
+
+    @classmethod
+    def _run_manifest_argument(cls):
+        return ["--run-manifest", str(cls.run_manifest_path)]
 
     @classmethod
     def _run_cli(cls, *arguments):
@@ -126,17 +176,18 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         report_id = stage_id + "_validation"
         workspace = Path(run_root or cls.root).resolve()
         artifact_bindings = list(artifact_bindings)
-        extra_paths = {
-            "G0": {
+        extra_paths = {}
+        if gate_id == "G0":
+            extra_paths = {
                 "data_audit_report": cls.audit_dir / "data_audit_report.md",
                 "mapping_review_queue": cls.audit_dir / "mapping_review_queue.csv",
                 "adapter_handoff": cls.root / "00_adapter" / "adapter_handoff.json",
-            },
-            "G2": {
+            }
+        elif gate_id == "G2":
+            extra_paths = {
                 "reconciliation_review_queue": cls.reconciliation_dir / "reconciliation_review_queue.csv",
                 "reconciliation_decision_validation": cls.reconciliation_decision_validation_path,
-            },
-        }.get(gate_id, {})
+            }
         original_ids = {artifact_id for artifact_id, _ in artifact_bindings}
         existing_ids = set(original_ids)
         for artifact_id, path in extra_paths.items():
@@ -175,8 +226,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         ]
         packet = {
             "schema_version": "1.0",
-            "run_id": "RUN_SYNTHETIC_E2E",
-            "project_id": "PROJECT_SYNTHETIC_E2E",
+            "run_id": cls.run_id,
+            "project_id": cls.project_id,
             "stage_id": stage_id,
             "prepared_at": "2026-11-14T00:00:00Z",
             "packet_status": "AWAITING_HUMAN_REVIEW",
@@ -733,10 +784,71 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cohort_report = json.loads((cls.cohort_dir / "cohort_report.json").read_text(encoding="utf-8"))
         cohort_manifest = json.loads((cls.cohort_dir / "modeling_cohort_manifest.json").read_text(encoding="utf-8"))
         cls.cohort_result = {"valid": cohort_report["valid"], "report": cohort_report, "manifest": cohort_manifest}
+
+        # A modelling command is unlocked only after the exact active Run and
+        # current Cohort/task snapshots have a validated, hash-bound review record.
+        cohort_csv_path = cls.cohort_dir / "modeling_cohort.csv"
+        with cohort_csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            cohort_rows = list(csv.DictReader(handle))
+        warning_items = cohort_report.get("scientific_data_contract", {}).get("warnings", [])
+        warning_codes = sorted({
+            item["code"] for item in warning_items
+            if isinstance(item, dict) and isinstance(item.get("code"), str)
+        })
+        reviewable_inputs = {
+            "modeling_cohort.csv": cohort_csv_path,
+            "cohort_report.json": cls.cohort_dir / "cohort_report.json",
+            "split_manifest.json": cls.cohort_dir / "split_manifest.json",
+            "modeling_cohort_manifest.json": cls.cohort_dir / "modeling_cohort_manifest.json",
+            "modeling_task.json": cls.task_path,
+        }
+        cls.cohort_review_record_path = cls.cohort_dir / "cohort_review_record.json"
+        write_json(cls.cohort_review_record_path, {
+            "schema_version": "1.0",
+            "review_id": "SYNTHETIC_COHORT_REVIEW_E2E",
+            "run_id": cls.run_id,
+            "project_id": cls.project_id,
+            "task_id": cls.task["task_id"],
+            "reviewer": "synthetic-e2e-fixture-reviewer",
+            "reviewed_at": "2026-11-15T00:00:00+08:00",
+            "decision": "APPROVE_MODELING",
+            "record_grain_assessment": "ACCEPTED",
+            "independence_assessment": "SUPPORTED",
+            "split_assessment": "ACCEPTED",
+            "reviewed_warning_codes": warning_codes,
+            "reviewed_study_count": len({row["study_id"] for row in cohort_rows}),
+            "reviewed_observation_count": len(cohort_rows),
+            "artifact_sha256": {
+                name: sha256_file(path) for name, path in reviewable_inputs.items()
+            },
+            "rationale": (
+                "Synthetic test fixture only: this deterministic record exercises the "
+                "Cohort review contract and is not a production human approval."
+            ),
+            "limitations": ["Synthetic fixture only; no production scientific judgement is represented."],
+        })
+        cls.cohort_review_validation_path = cls.cohort_dir / "cohort_review_validation.json"
+        cls._run_cli(
+            "validate-cohort-review",
+            "--record", str(cls.cohort_review_record_path),
+            "--cohort-dir", str(cls.cohort_dir),
+            "--task", str(cls.task_path),
+            "--manifest", str(cls.run_manifest_path),
+            "--out", str(cls.cohort_review_validation_path),
+        )
+        cls.cohort_review_validation = json.loads(
+            cls.cohort_review_validation_path.read_text(encoding="utf-8")
+        )
+        if not cls.cohort_review_validation.get("valid"):
+            raise AssertionError(
+                "Synthetic Cohort review failed validation: "
+                + repr(cls.cohort_review_validation.get("errors"))
+            )
+
         cls._run_cli(
             "fit-baselines", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--out-dir", str(cls.model_dir),
-            *cls._ledger_argument(),
+            *cls._ledger_argument(), *cls._run_manifest_argument(),
         )
         cls.model_result = {
             "report": json.loads((cls.model_dir / "model_report.json").read_text(encoding="utf-8")),
@@ -745,7 +857,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls._run_cli(
             "evaluate-reproducibility", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--out-dir", str(cls.evaluation_dir),
-            "--folds", "4", "--seed", "31", *cls._ledger_argument(),
+            "--folds", "4", "--seed", "31",
+            *cls._ledger_argument(), *cls._run_manifest_argument(),
         )
         cls.evaluation_result = {
             "report": json.loads(
@@ -758,7 +871,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         cls._run_cli(
             "discover-interactions", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--out-dir", str(cls.interaction_dir),
-            "--folds", "4", "--seed", "19", *cls._ledger_argument(),
+            "--folds", "4", "--seed", "19",
+            *cls._ledger_argument(), *cls._run_manifest_argument(),
         )
         cls.interaction_result = {
             "report": json.loads(
@@ -777,7 +891,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "assess-interaction-robustness", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--out-dir", str(cls.robustness_dir),
             "--seeds", "11,19,23", "--folds", "4",
-            "--minimum-candidate-run-fraction", "0.6", *cls._ledger_argument(),
+            "--minimum-candidate-run-fraction", "0.6",
+            *cls._ledger_argument(), *cls._run_manifest_argument(),
         )
         cls.robustness_result = {
             "report": json.loads(
@@ -822,7 +937,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 "scope_statement": "Only the synthetic observations and endpoint in this test fixture.",
                 "predicted_observations": ["A direct process observable changes.", "An independent probe supports the proposed process."],
                 "alternative_explanations": ["A study-level protocol difference."],
-                "unresolved_variables": ["No physical chemistry is represented by the fixture."],
+                "unresolved_variables": ["No discipline-specific physical system is represented by the fixture."],
                 "evidence_assessments": [
                     {
                         "evidence_id": direct["evidence_id"], "relationship": "SUPPORTS",
@@ -882,7 +997,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "generate-interaction-surface", "--cohort-dir", str(cls.cohort_dir),
             "--task", str(cls.task_path), "--interaction-dir", str(cls.interaction_dir),
             "--interaction-id", cls.interaction_id, "--out-dir", str(cls.surface_dir),
-            "--robustness-dir", str(cls.robustness_dir), *cls._ledger_argument(),
+            "--robustness-dir", str(cls.robustness_dir),
+            *cls._ledger_argument(), *cls._run_manifest_argument(),
         )
         cls.surface_result = {
             "report": json.loads(
@@ -895,7 +1011,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "--interaction-dir", str(cls.interaction_dir), "--plan", str(cls.mechanism_plan_path),
             "--out-dir", str(cls.mechanism_dir),
             "--robustness-dir", str(cls.robustness_dir),
-            "--response-surface-dir", str(cls.surface_dir), *cls._ledger_argument(),
+            "--response-surface-dir", str(cls.surface_dir),
+            *cls._ledger_argument(), *cls._run_manifest_argument(),
         )
         cls.mechanism_result = {
             "report": json.loads(
@@ -965,8 +1082,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             })
         write_json(cls.package_plan_path, {
             "schema_version": "1.0",
-            "project_id": "SYNTHETIC_E2E_PROJECT",
-            "run_id": "SYNTHETIC_E2E_RUN_001",
+            "project_id": cls.project_id,
+            "run_id": cls.run_id,
             "package_version": "0.6.0",
             "domain_profile": None,
             "writing_guide_source": None,
@@ -1014,8 +1131,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         reviewed_findings_path = cls.root / "09_review" / "reviewed_findings.json"
         reviewed_findings = {
             "schema_version": "1.0",
-            "run_id": "SYNTHETIC_E2E_RUN_001",
-            "project_id": "SYNTHETIC_E2E_PROJECT",
+            "run_id": cls.run_id,
+            "project_id": cls.project_id,
             "reviewer": "synthetic-e2e-human-reviewer",
             "reviewed_at": "2026-11-14T00:00:00Z",
             "worker_output": {
@@ -1076,48 +1193,57 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         ])
         write_json(cls.package_plan_path, package_plan)
 
-        cls._approve_gate("G4", [
-            ("publication_plan", cls.package_plan_path),
-            ("worker_review_output", worker_output_path),
-            ("reviewed_findings", reviewed_findings_path),
-            *reviewed_artifact_sources,
-        ], "Synthetic user approval of the package plan and the exact six-artifact human-reviewed Worker review set.")
-        cls._run_cli(
-            "build-publication-package", "--plan", str(cls.package_plan_path),
-            "--workspace-root", str(cls.root), "--out-dir", str(cls.package_dir),
-            *cls._ledger_argument(),
+        # This legacy synthetic pipeline exercises deterministic package assembly
+        # independently of the formal G4 Run DAG. The late-bound Run publication
+        # and G4 source-producer contract is covered by the dedicated Run/Gate
+        # fixtures; this older fixture deliberately has no such Stage outputs.
+        package_result = build_publication_package_files(
+            cls.package_plan_path, cls.root, cls.package_dir,
         )
-        cls.package_result = {
-            "manifest": json.loads((cls.package_dir / "package_manifest.json").read_text(encoding="utf-8"))
-        }
+        cls.package_result = {"manifest": package_result["manifest"]}
         cls._run_cli(
             "audit-publication-package", "--package-dir", str(cls.package_dir),
             "--out", str(cls.package_audit_path),
         )
         cls.package_audit = json.loads(cls.package_audit_path.read_text(encoding="utf-8"))
 
-    def test_v08_full_run_records_and_enforces_all_five_human_approval_gates(self):
+    def test_v08_synthetic_pipeline_records_g0_to_g3_before_standalone_package_assembly(self):
         state = inspect_gate_ledger(self.gate_ledger)
         self.assertTrue(state["valid_ledger"])
-        self.assertEqual(state["event_count"], 5)
-        self.assertEqual(state["workflow_status"], "READY_FOR_FINALIZATION")
+        self.assertEqual(state["event_count"], 4)
+        self.assertEqual(state["workflow_status"], "IN_PROGRESS")
         self.assertEqual(
-            [state["gates"][gate]["status"] for gate in ("G0", "G1", "G2", "G3", "G4")],
-            ["APPROVED"] * 5,
+            [state["gates"][gate]["status"] for gate in ("G0", "G1", "G2", "G3")],
+            ["APPROVED"] * 4,
         )
+        self.assertEqual(state["gates"]["G4"]["status"], "NOT_RECORDED")
         gate_commands = {
             "build-canonical", "build-cohort", "fit-baselines",
             "evaluate-reproducibility", "discover-interactions",
             "assess-interaction-robustness", "generate-interaction-surface",
             "build-mechanism-evidence-bridge", "predict-virtual-condition",
-            "build-publication-package",
         }
         executed_gated = [args for args in self.executed_cli_commands if args[0] in gate_commands]
-        self.assertGreaterEqual(len(executed_gated), 10)
+        self.assertGreaterEqual(len(executed_gated), 9)
         for arguments in executed_gated:
             with self.subTest(command=arguments[0]):
                 self.assertIn("--workflow-ledger", arguments)
                 self.assertNotIn("--allow-untracked-legacy", arguments)
+                if arguments[0] in {
+                    "fit-baselines", "evaluate-reproducibility", "discover-interactions",
+                    "assess-interaction-robustness", "generate-interaction-surface",
+                    "build-mechanism-evidence-bridge",
+                }:
+                    self.assertIn("--run-manifest", arguments)
+                    self.assertEqual(
+                        arguments[arguments.index("--run-manifest") + 1],
+                        str(self.run_manifest_path),
+                    )
+        self.assertTrue(self.cohort_review_validation["valid"])
+        self.assertEqual(
+            self.cohort_review_validation["run_id"],
+            self.run_id,
+        )
 
     def test_v08_changed_mapping_reapproval_invalidates_all_existing_downstream_gates(self):
         with tempfile.TemporaryDirectory(prefix="dor-v08-reapproval-") as temp_name:
@@ -1132,7 +1258,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 encoding="utf-8",
             )
             # The JSON content remains semantically parseable, but its exact artifact
-            # hash/path changes. Recording a new G1 must not silently retain G2-G4.
+            # hash/path changes. Recording a new G1 must not silently retain G2 or G3.
             changed_build_spec = temp_root / "build_spec_revised.json"
             revised_spec = json.loads(self.spec_path.read_text(encoding="utf-8"))
             revised_spec["mapping_plan_sha256"] = sha256_file(changed_mapping)
@@ -1171,7 +1297,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             self.assertEqual(state["gates"]["G1"]["status"], "APPROVED")
             self.assertEqual(state["gates"]["G2"]["status"], "BLOCKED_UPSTREAM")
             self.assertEqual(state["gates"]["G3"]["status"], "BLOCKED_UPSTREAM")
-            self.assertEqual(state["gates"]["G4"]["status"], "BLOCKED_UPSTREAM")
+            self.assertEqual(state["gates"]["G4"]["status"], "NOT_RECORDED")
 
             blocked_output = temp_root / "must_not_build_cohort"
             stdout = io.StringIO()
@@ -1333,7 +1459,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
              "--task", "task.json", "--interaction-dir", "interactions", "--plan", "mechanism.json",
              "--out-dir", "mechanism"],
             ["predict-virtual-condition", "--model-run-dir", "model", "--query", "query.json", "--out", "prediction.json"],
-            ["build-publication-package", "--plan", "package_plan.json", "--workspace-root", ".", "--out-dir", "package"],
+            ["build-publication-package", "--plan", "package_plan.json", "--validation", "publication_plan_validation.json",
+             "--workspace-root", ".", "--out-dir", "package", "--workflow-ledger", "workflow_gate_ledger.jsonl"],
             ["audit-publication-package", "--package-dir", "package"],
         ]
         for arguments in cases:

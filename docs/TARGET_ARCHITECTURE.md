@@ -348,7 +348,7 @@ Build that only after the real pilot identifies expensive repeatable operations 
 | Tabular file descriptions | Explicit CSV artifacts | Frictionless Data Package / Table Schema |
 | Model experiment tracking | DOR task and evaluation contracts | Optional MLflow mirror if justified |
 | Large-data versioning | Protected source identity and manifests | Optional DataLad if justified |
-| Portable execution workflow | Explicit Run Plan + `RUN_PLAN_EXECUTION_BINDINGS.md`; Skill dispatches the declared stage actions while Run Manager records exact attempts/artifacts and computes safe resume decisions | Optional standards-based workflow export only when a concrete portability need exists |
+| Portable execution workflow | Explicit Run Plan + `stage_execution_contract.json` + `stage_runner.py`; Runtime executes only allowlisted local CLI stages, while the Skill/user completes manual tasks and explicitly dispatches host Workers. Run Manager records exact attempts/artifacts and computes safe resume decisions | Optional standards-based workflow export only when a concrete portability need exists |
 
 See [Standards Alignment](STANDARDS_ALIGNMENT.md) for versioned references and adopt/defer decisions.
 
@@ -359,7 +359,7 @@ See [Standards Alignment](STANDARDS_ALIGNMENT.md) for versioned references and a
 | Source inspection and import | `audit.py`, `inventory.py`, `adapters.py`, `adapter_handoff.py` | Keep source readers and domain-specific retrieval outside DoR; validate package provenance before import |
 | Canonical graph and construction | `canonical.py`, `mapping.py`, `builder.py` | Preserve; do not rewrite before source audit |
 | Review/reconciliation | `reconciliation.py`, `gates.py`, `acceptance.py`, `acceptance_ledger.py`, `stage_contracts.py` | Clarify lifecycle and reduce duplicate state, not add more ledgers |
-| Run execution provenance | `run_manager.py` | Keep as plan/record/resume layer; do not overstate it as an execution engine |
+| Run execution provenance | `run_manager.py`, `stage_runner.py`, `execution_contract.py` | Keep the Manager as plan/record/resume authority; the contract-bound Stage Runner executes only declared local CLI actions and preserves manual/Worker/Gate boundaries |
 | Modelling and evidence | `cohort.py`, `modeling.py`, `reproducibility.py`, `interactions.py`, `robustness.py`, `response_surface.py`, `mechanism_bridge.py`, `virtual_reproduction.py` | Use only when the real accepted data supports the task |
 | Publication and hand-off | `publication.py` and Writing Skill interface | Preserve; add RO-Crate as an additional export later |
 | External adapters/integrations | Domain adapters and host Worker Manager | Add only for a demonstrated source type or workflow need |

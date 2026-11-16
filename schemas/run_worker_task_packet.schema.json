@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/blob/main/schemas/run_worker_task_packet.schema.json",
+  "title": "Run Manager Worker Authorization Packet",
+  "description": "Exact packet emitted by dor run-worker-authorize for one authorized Worker attempt. The authorization event hash binds this packet to the immutable Run event chain.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "project_id",
+    "run_id",
+    "stage_id",
+    "attempt",
+    "authorization_event_hash",
+    "authorized_by",
+    "role",
+    "provider",
+    "model",
+    "project_root",
+    "input_artifacts",
+    "permitted_outputs",
+    "objective",
+    "permitted_actions",
+    "forbidden_actions",
+    "max_context_tokens",
+    "max_output_tokens",
+    "constraints"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "task_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "stage_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "attempt": {"type": "integer", "minimum": 1},
+    "authorization_event_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "authorized_by": {"type": "string", "minLength": 1},
+    "role": {"type": "string", "minLength": 1},
+    "provider": {"type": "string", "minLength": 1},
+    "model": {"type": "string", "minLength": 1},
+    "project_root": {"type": "string", "minLength": 1},
+    "input_artifacts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/artifactSnapshot"}
+    },
+    "permitted_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["artifact_id", "path", "kind"],
+        "properties": {
+          "artifact_id": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "kind": {"const": "worker_staging"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "objective": {"type": "string", "minLength": 1},
+    "permitted_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "max_context_tokens": {
+      "oneOf": [
+        {"type": "integer", "minimum": 1},
+        {"type": "null"}
+      ]
+    },
+    "max_output_tokens": {
+      "oneOf": [
+        {"type": "integer", "minimum": 1},
+        {"type": "null"}
+      ]
+    },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "artifactSnapshot": {
+      "type": "object",
+      "required": ["artifact_id", "path", "sha256"],
+      "properties": {
+        "artifact_id": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

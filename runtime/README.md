@@ -26,6 +26,21 @@ The G2 Gate re-runs the same validation against the exact bound files. The recor
 
 DoR consumes packages prepared by independently maintained adapters. The package contract is in ../schemas/adapter_package.schema.json and ../docs/ADAPTER_CONTRACT.md.
 
+When the structured CSV/JSON and provenance files already exist but the generic manifest has not been created, build it from explicitly selected files (no directory scan or semantic inference):
+
+    dor init-adapter-package --package-root path/to/package --adapter-id upstream-preparation --adapter-version 1.0 --source paper=path/to/paper.pdf --artifact records=standardized_dataset=path/to/package/records.csv
+
+Repeat the source/artifact arguments for each explicit file. Relative paths resolve from the package root. Use absolute paths for external provenance sources; artifacts must resolve inside the package root. The manifest must be a direct child of the package root so the formal Run can derive the package root from its parent; `--out` may change only its filename. The helper computes SHA-256 and validates the manifest without opening original-document contents. It does not perform upstream extraction or scientific mapping.
+
+Prepare and validate the route preflight:
+
+    dor prepare-adapter-handoff --manifest path/to/package/adapter_manifest.json --package-root path/to/package --out path/to/project/run_control/adapter_route_preflight.json
+
+Generate a configured Run Plan instead of manually editing the stage graph:
+
+    dor init-run-plan --adapter-handoff path/to/project/run_control/adapter_route_preflight.json --project-root path/to/project --run-root path/to/new/run
+
+The conservative default is `CONTROLLED_SINGLE_STUDY`. Use `--profile FULL_ANALYSIS --virtual-query-input <existing_query.json>` only for a suitable multi-Study research design. Provide provenance-only Acceptance sources with repeated `--acceptance-source SOURCE_ID=ROLE=FILE_PATH` arguments. The helper validates the generated plan with the Run Manager's own plan validator; it does not create approvals or dispatch a Worker.
     dor prepare-adapter-handoff --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/run/00_adapter/adapter_handoff.json
 
 This validates the external package, verifies exact source/artifact SHA-256 hashes, and selects one generic route:

@@ -457,28 +457,36 @@ def _run_regression(rows: list[dict[str, Any]], task: dict[str, Any], settings: 
     comparisons: list[dict[str, Any]] = []
     mean_predictions = _predict_mean(y_train, len(validation))
     mean_metrics = _regression_metrics(y_validation, mean_predictions)
-    comparisons.append({"candidate_model":"mean_baseline","alpha":None,"validation_metrics":mean_metrics,"converged":True,"iterations":0})
-    candidate_models: dict[str, dict[str, Any]] = {}
+    comparisons.append({"candidate_model":"mean_baseline","candidate_id":"mean_baseline","alpha":None,
+                         "validation_metrics":mean_metrics,"converged":True,"iterations":0,
+                         "eligible_for_selection":True})
     bindings = task["feature_bindings"]
     encoder, x_train = _fit_encoder(train, bindings)
     x_validation = _transform_rows(validation, encoder)
     for alpha in settings["ridge_alphas"]:
         fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
-        predictions = _predict_ridge(x_validation, fitted)
+        validation_metrics = None
+        if fitted["converged"]:
+            predictions = _predict_ridge(x_validation, fitted)
+            validation_metrics = _regression_metrics(y_validation, predictions)
         name = "ridge_alpha_" + format(alpha, ".12g")
-        candidate_models[name] = {"fit":fitted,"encoder":encoder}
         comparisons.append({"candidate_model":"ridge_regression","candidate_id":name,"alpha":alpha,
-                            "validation_metrics":_regression_metrics(y_validation,predictions),
-                            "converged":fitted["converged"],"iterations":fitted["iterations"]})
-    chosen = min(comparisons, key=lambda item:(item["validation_metrics"]["rmse"],
-                                                0 if item["candidate_model"]=="mean_baseline" else 1,
-                                                item.get("alpha") or 0))
-    selected_name = chosen.get("candidate_id","mean_baseline")
+                            "validation_metrics":validation_metrics,
+                            "converged":fitted["converged"],"iterations":fitted["iterations"],
+                            "eligible_for_selection":bool(fitted["converged"]),
+                            "exclusion_reason":None if fitted["converged"] else "RIDGE_FIT_NOT_CONVERGED"})
+    eligible_comparisons = [item for item in comparisons if item.get("eligible_for_selection") is True]
+    chosen = min(eligible_comparisons, key=lambda item:(item["validation_metrics"]["rmse"],
+                                                        0 if item["candidate_model"]=="mean_baseline" else 1,
+                                                        item.get("alpha") or 0))
+    validation_selected_name = chosen.get("candidate_id", "mean_baseline")
+    selected_name = validation_selected_name
     train_validation = train + validation
     y_train_validation = [row["outcome"] for row in train_validation]
     baseline_model = {"model_type":"mean_baseline","prediction":sum(y_train_validation)/len(y_train_validation)}
     test_actual = [row["outcome"] for row in test]
     baseline_predictions = [baseline_model["prediction"]] * len(test)
+    final_refit_fallback_reason = None
     if selected_name == "mean_baseline":
         selected_model = baseline_model
         selected_predictions = baseline_predictions
@@ -486,14 +494,22 @@ def _run_regression(rows: list[dict[str, Any]], task: dict[str, Any], settings: 
         selected_encoder, x_train_validation = _fit_encoder(train_validation, bindings)
         final_fit = _fit_ridge(x_train_validation,y_train_validation,chosen["alpha"],
                                settings["max_iter"],settings["tolerance"])
-        selected_model = {"model_type":"ridge_regression","alpha":chosen["alpha"],
-                          "fit":final_fit,"encoder":selected_encoder}
-        selected_predictions = _predict_ridge(_transform_rows(test,selected_encoder),final_fit)
+        if final_fit["converged"]:
+            selected_model = {"model_type":"ridge_regression","alpha":chosen["alpha"],
+                              "fit":final_fit,"encoder":selected_encoder}
+            selected_predictions = _predict_ridge(_transform_rows(test,selected_encoder),final_fit)
+        else:
+            selected_model = baseline_model
+            selected_predictions = baseline_predictions
+            selected_name = "mean_baseline"
+            final_refit_fallback_reason = "RIDGE_FINAL_REFIT_NOT_CONVERGED"
     report = {
         "schema_version":"1.0","task_id":task["task_id"],"target_id":task["target_id"],
         "endpoint_definition":task["endpoint_definition"],"outcome_value_field":task["outcome_value_field"],
         "outcome_unit":task["outcome_unit"],"outcome_type":"NUMERIC","primary_selection_metric":"validation_rmse_minimized",
         "selected_model":selected_model["model_type"],"selected_candidate_id":selected_name,
+        "validation_selected_candidate_id":validation_selected_name,
+        "final_refit_fallback_reason":final_refit_fallback_reason,
         "validation_comparison":comparisons,
         "test_evaluation":{"selected_model":_regression_metrics(test_actual,selected_predictions),
                            "mean_baseline":_regression_metrics(test_actual,baseline_predictions)},
@@ -626,7 +642,9 @@ def run_baseline_models_files(cohort_dir: Path,task_path: Path,output_dir: Path)
         writer=csv.DictWriter(handle,fieldnames=comparison_fields)
         writer.writeheader()
         for item in comparisons:
-            metrics=item["validation_metrics"]
+            # A non-converged Ridge candidate is deliberately retained in the
+            # comparison report with null metrics; leave its CSV metric cells blank.
+            metrics=item.get("validation_metrics") or {}
             writer.writerow({
                 "candidate_model":item["candidate_model"],"candidate_id":item.get("candidate_id"),
                 "alpha":item.get("alpha"),"smoothing":item.get("smoothing"),

@@ -1,7 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/worker_task.schema.json",
-  "title": "Worker Task Packet",
+  "title": "Generic Worker Task Packet (not emitted by Run Manager)",
+  "description": "This legacy generic packet shape is not the authorization packet returned by dor run-worker-authorize. For Run Manager dispatch, validate against schemas/run_worker_task_packet.schema.json.",
   "type": "object",
   "required": ["schema_version", "task_id", "project_id", "run_id", "phase", "role", "objective", "input_artifacts", "permissions", "expected_outputs"],
   "properties": {

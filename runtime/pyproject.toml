@@ -15,5 +15,8 @@ dor = "dor.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+dor = ["stage_execution_contract.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

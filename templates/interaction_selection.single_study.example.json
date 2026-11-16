@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.1",
+  "task_id": "REPLACE_WITH_G2_APPROVED_TASK_ID",
+  "interaction_report_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "selected_interaction_ids": [],
+  "not_selected_interaction_ids": [],
+  "reviewer": "REPLACE_WITH_HUMAN_REVIEWER",
+  "reviewed_at": "2026-11-15T12:00:00+08:00",
+  "rationale": "No interaction catalogue was generated because the approved scope contains one independent Study. This is not an empty scientific finding; cross-Study interaction analysis is NOT_APPLICABLE.",
+  "robustness_report_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "applicability_status": "NOT_APPLICABLE",
+  "not_applicable_reason": "One independent Study cannot support Study-held-out model validation, nested cross-Study reproducibility evaluation, or cross-Study interaction robustness assessment."
+}

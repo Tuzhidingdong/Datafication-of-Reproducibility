@@ -48,17 +48,21 @@ def _select_numeric_candidate(train: list[dict[str, Any]], validation: list[dict
     mean_prediction = sum(y_train) / len(y_train)
     mean_metrics = _regression_metrics(y_validation, [mean_prediction] * len(validation))
     comparisons.append({"candidate_id": "mean_baseline", "model_type": "mean_baseline",
-                        "alpha": None, "validation_metrics": mean_metrics, "converged": True})
+                        "alpha": None, "validation_metrics": mean_metrics, "converged": True,
+                        "eligible_for_selection": True})
     encoder, x_train = _fit_encoder(train, bindings)
     x_validation = _transform_rows(validation, encoder)
     for alpha in settings["ridge_alphas"]:
         fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
-        predictions = _predict_ridge(x_validation, fitted)
+        validation_metrics = _regression_metrics(y_validation, _predict_ridge(x_validation, fitted)) if fitted["converged"] else None
         comparisons.append({"candidate_id": "ridge_alpha_" + format(alpha, ".12g"),
             "model_type": "ridge_regression", "alpha": alpha,
-            "validation_metrics": _regression_metrics(y_validation, predictions),
-            "converged": fitted["converged"], "iterations": fitted["iterations"]})
-    chosen = min(comparisons, key=lambda item: (item["validation_metrics"]["rmse"],
+            "validation_metrics": validation_metrics,
+            "converged": fitted["converged"], "iterations": fitted["iterations"],
+            "eligible_for_selection": bool(fitted["converged"]),
+            "exclusion_reason": None if fitted["converged"] else "RIDGE_FIT_NOT_CONVERGED"})
+    eligible_comparisons = [item for item in comparisons if item.get("eligible_for_selection") is True]
+    chosen = min(eligible_comparisons, key=lambda item: (item["validation_metrics"]["rmse"],
         0 if item["model_type"] == "mean_baseline" else 1, item.get("alpha") or 0))
     return chosen["candidate_id"], chosen.get("alpha"), comparisons
 
@@ -73,8 +77,11 @@ def _predict_numeric_candidate(train: list[dict[str, Any]], test: list[dict[str,
         raise ValueError("Selected Ridge candidate is missing alpha.")
     encoder, x_train = _fit_encoder(train, bindings)
     fitted = _fit_ridge(x_train, y_train, alpha, settings["max_iter"], settings["tolerance"])
+    if not fitted["converged"]:
+        baseline = sum(y_train) / len(y_train)
+        return [baseline] * len(test), "mean_baseline_fallback_nonconverged", False
     predictions = _predict_ridge(_transform_rows(test, encoder), fitted)
-    return predictions, "ridge_regression", fitted["converged"]
+    return predictions, "ridge_regression", True
 
 
 def _select_categorical_candidate(train: list[dict[str, Any]], validation: list[dict[str, Any]],
@@ -270,7 +277,9 @@ def evaluate_reproducibility_files(cohort_dir: Path, task_path: Path, output_dir
             fold_metrics = _regression_metrics(actual, fold_predictions)
             baseline_predictions = [sum(row["outcome"] for row in outer_train) / len(outer_train)] * len(outer_test)
             baseline_metrics = _regression_metrics(actual, baseline_predictions)
-            model_meta = {"selected_candidate_id": candidate_id, "alpha": alpha, "converged": converged}
+            model_meta = {"selected_candidate_id": candidate_id, "alpha": alpha, "converged": converged,
+                          "outer_refit_fallback": selected_model == "mean_baseline_fallback_nonconverged",
+                          "fallback_reason": "RIDGE_OUTER_REFIT_NOT_CONVERGED" if selected_model == "mean_baseline_fallback_nonconverged" else None}
         else:
             candidate_id, smoothing, comparisons = _select_categorical_candidate(inner_train, inner_validation, bindings, settings)
             fold_predictions, selected_model = _predict_categorical_candidate(

@@ -52,10 +52,14 @@
       "type": "object",
       "required": ["type", "parameters"],
       "properties": {
-        "type": {"enum": ["IDENTITY", "NUMERIC_PARSE", "UNIT_CONVERSION", "LOOKUP", "SPLIT", "CUSTOM"]},
+        "type": {"enum": ["IDENTITY", "NUMERIC_PARSE", "UNIT_CONVERSION", "LOOKUP", "SPLIT"]},
         "parameters": {"type": "object"}
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [{
+        "if": {"properties": {"type": {"const": "UNIT_CONVERSION"}}, "required": ["type"]},
+        "then": {"properties": {"parameters": {"required": ["source_unit", "target_unit", "unit_source_item_id", "factor"]}}}
+      }]
     }
   }
 }

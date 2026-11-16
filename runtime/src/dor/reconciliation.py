@@ -227,7 +227,7 @@ def reconcile_canonical_bundle(bundle: Any, bundle_sha256: str | None = None) ->
             issues.append(_make_issue(
                 "EVIDENCE_VERIFICATION_REQUIRED", "REVIEW_REQUIRED", "evidence", [evidence_id],
                 [evidence_id], "Evidence extraction status is " + str(item.get("extraction_status")) + ".",
-                "Verify this source passage/table/figure locator and reconcile the extracted statement against the original source.",
+                "Review the supplied structured evidence record, its recorded upstream locator metadata, and linked structured observations. If the structured records do not resolve the discrepancy, retain it as unresolved and request an upstream structured-data correction; do not open or retrieve the original source.",
                 {"extraction_status": item.get("extraction_status"),
                  "linked_observation_ids": sorted(linked_observations)},
             ))
@@ -247,7 +247,7 @@ def reconcile_canonical_bundle(bundle: Any, bundle_sha256: str | None = None) ->
         issues.append(_make_issue(
             category, "REVIEW_REQUIRED", "evidence", evidence_ids, evidence_ids,
             "Multiple evidence records point to the same exact source locator.",
-            "Compare the original source locator and retain both extraction records until their provenance and interpretation are reviewed.",
+            "Compare the supplied structured evidence records and their recorded locator/hash metadata. Retain both records until their upstream provenance and interpretation are clarified; do not dereference the locator or reopen the original source.",
             {"source_locator": {
                 "study_id": locator_key[0], "source_file": locator_key[1],
                 "source_sha256": locator_key[2], "locator_type": locator_key[3],

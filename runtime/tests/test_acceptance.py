@@ -82,6 +82,8 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "reproducibility_evaluation_manifest": "evidence/reproducibility_evaluation_manifest.json",
             "publication_manifest": "evidence/publication_package/package_manifest.json",
             "publication_integrity": "evidence/publication_integrity_report.json",
+            "single_study_applicability_record": "evidence/single_study_applicability_record.json",
+            "single_study_applicability_validation": "evidence/single_study_applicability_validation.json",
         }
         outputs = [{"artifact_id": artifact_id, "path": relpath}
                    for artifact_id, relpath in artifact_paths.items()]
@@ -161,7 +163,12 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 {"source_id": item["source_id"],
                  "locator_type": "pdf_page" if item["source_id"] != "paired" else "csv_row",
                  "locator": "page 1" if item["source_id"] != "paired" else "row 2",
-                 "review_status": "SPOT_CHECKED"}
+                 "review_status": (
+                     "STRUCTURED_RECORD_REVIEWED"
+                     if item["role"] == "STRUCTURED_DATA"
+                     else ("UPSTREAM_EXTRACTION_UNVERIFIED"
+                           if item["role"] == "PRIMARY_PAPER" else "NOT_APPLICABLE")
+                 )}
                 for item in self.source_records
             ],
             "human_review": {
@@ -512,6 +519,44 @@ class AcceptanceValidatorTests(unittest.TestCase):
         integrity_report = audit_publication_package_files(package_dir)
         self._write_json(paths["publication_integrity"], integrity_report)
 
+        applicability_record = {
+            "schema_version": "1.0",
+            "run_id": self.run_id,
+            "project_id": "PROJECT_1",
+            "scope": "CONTROLLED_SINGLE_STUDY",
+            "applicability_status": "NOT_APPLICABLE",
+            "study_ids": [ids[0]],
+            "study_count": 1,
+            "canonical_bundle_sha256": self.sha(paths["canonical_bundle"]),
+            "modeling_task_sha256": task_hash,
+            "cohort_feasibility_status": "NOT_APPLICABLE",
+            "cohort_feasibility_reason": "One independent Study cannot form independent train/validation/test Study partitions.",
+            "modeling_validation_status": "NOT_APPLICABLE",
+            "modeling_validation_reason": "One independent Study cannot support Study-held-out model or nested reproducibility validation.",
+            "reviewer": "synthetic-reviewer",
+            "reviewed_at": "2026-11-15T12:00:00+08:00",
+            "rationale": "Synthetic fixture only; no model or cross-Study validation is claimed.",
+        }
+        applicability_record_hash = self._write_json(
+            paths["single_study_applicability_record"], applicability_record,
+        )
+        self._write_json(paths["single_study_applicability_validation"], {
+            "schema_version": "1.0",
+            "valid": True,
+            "run_id": self.run_id,
+            "project_id": "PROJECT_1",
+            "scope": "CONTROLLED_SINGLE_STUDY",
+            "applicability_status": "NOT_APPLICABLE",
+            "study_ids": [ids[0]],
+            "study_count": 1,
+            "eligible_study_count": 1,
+            "canonical_bundle_sha256": applicability_record["canonical_bundle_sha256"],
+            "modeling_task_sha256": task_hash,
+            "applicability_record_sha256": applicability_record_hash,
+            "validation_basis": "SYNTHETIC_ACCEPTANCE_FIXTURE_ONLY",
+            "errors": [],
+        })
+
         record_stage_status(self.manifest, "acceptance_evidence", "SUCCEEDED", "local")
 
         self.output_paths = paths
@@ -522,9 +567,6 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "extraction_review": [("extraction_review_record", "extraction_review")],
             "semantic_mapping": [
                 ("mapping_plan", "mapping_plan"),
-                ("mapping_validation", "mapping_validation"),
-                ("build_spec", "build_spec"),
-                ("build_spec_validation", "build_spec_validation"),
             ],
             "canonical_reconciliation": [("canonical_bundle", "canonical_bundle"),
                                          ("reconciliation_report", "reconciliation_report"),
@@ -535,15 +577,11 @@ class AcceptanceValidatorTests(unittest.TestCase):
                                    ("modeling_cohort_manifest", "modeling_cohort_manifest"),
                                    ("modeling_cohort_csv", "modeling_cohort_csv")],
             "modeling_validation": [("model_report", "model_report"),
-                                    ("interaction_selection", "interaction_selection"),
-                                    ("worker_review_output", "worker_review_output"),
-                                    ("reviewed_findings", "reviewed_findings"),
                                     ("model_artifact", "model_artifact"),
                                     ("modeling_run_manifest", "modeling_run_manifest"),
                                     ("reproducibility_evaluation", "reproducibility_evaluation"),
                                     ("reproducibility_evaluation_manifest", "reproducibility_evaluation_manifest")],
-            "publication_handoff": [("publication_plan", "publication_plan"),
-                                    ("publication_package_manifest", "publication_manifest"),
+            "publication_handoff": [("publication_package_manifest", "publication_manifest"),
                                     ("publication_integrity_report", "publication_integrity")],
         }
         self.stage_evidence = {}
@@ -578,6 +616,24 @@ class AcceptanceValidatorTests(unittest.TestCase):
                     "path": str(path), "sha256": self.sha(path),
                 })
             self.stage_evidence[stage_id] = items
+
+        applicability_evidence = [
+            {
+                "artifact_id": artifact_id,
+                "artifact_type": artifact_type,
+                "path": str(paths[key]),
+                "sha256": self.sha(paths[key]),
+            }
+            for artifact_id, artifact_type, key in (
+                ("single_study_applicability_record", "single_study_applicability_record", "single_study_applicability_record"),
+                ("single_study_applicability_validation", "single_study_applicability_validation", "single_study_applicability_validation"),
+                ("canonical_bundle", "canonical_bundle", "canonical_bundle"),
+                ("modeling_task", "modeling_task", "modeling_task"),
+            )
+        ]
+        if len(ids) == 1:
+            self.stage_evidence["cohort_feasibility"] = [dict(item) for item in applicability_evidence]
+            self.stage_evidence["modeling_validation"] = [dict(item) for item in applicability_evidence]
 
         self.record_path = self.root / f"{self.run_id}_acceptance.json"
         self.ledger_path = self.root / f"{self.run_id}_acceptance_events.jsonl"
@@ -670,7 +726,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
 
     def bind_synthetic_gate_ledger(self):
         self.gate_ledger_path = self.root / "workflow_gates.jsonl"
-        self.gate_ledger_path.write_text("synthetic gate ledger snapshot\\n", encoding="utf-8")
+        self.gate_ledger_path.write_text("synthetic gate ledger snapshot\n", encoding="utf-8")
         self.gate_event_hashes = {gate: hashlib.sha256(gate.encode()).hexdigest()
                                   for gate in ("G0", "G1", "G2", "G3", "G4")}
         evidence_by_id = {
@@ -682,12 +738,16 @@ class AcceptanceValidatorTests(unittest.TestCase):
             for stage in self.record["stages"] if stage["status"] == "PASS"
             for artifact in stage["evidence"]
         }
+        # Each synthetic Gate event binds at least one artifact that is also
+        # accepted by the corresponding V1.0 stage contract. The Gate ledger
+        # itself remains mocked here; this fixture tests Acceptance cross-binding,
+        # not the production Gate artifact-completeness rules.
         gate_artifact_ids = {
             "G0": ["source_inventory"],
-            "G1": ["mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation"],
-            "G2": ["canonical_bundle", "reconciliation_report", "reconciliation_decisions", "modeling_task"],
-            "G3": ["cohort_report", "split_manifest", "modeling_cohort_manifest"],
-            "G4": ["publication_plan", "model_report", "interaction_selection", "worker_review_output", "reviewed_findings"],
+            "G1": ["mapping_plan"],
+            "G2": ["canonical_bundle"],
+            "G3": ["cohort_report"],
+            "G4": ["model_report"],
         }
         events = {}
         gate_artifacts = {}
@@ -780,7 +840,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertTrue(self.validate()["valid"], self.validate()["issues"])
         previous_binding = json.loads(json.dumps(self.record["workflow_gate_ledger"]))
         self.gate_ledger_path.write_text(
-            self.gate_ledger_path.read_text(encoding="utf-8") + "synthetic appended event\\n",
+            self.gate_ledger_path.read_text(encoding="utf-8") + "synthetic appended event\n",
             encoding="utf-8",
         )
         revised_hashes = dict(previous_binding["gate_event_hashes"])
@@ -823,7 +883,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         run_event_path = self.manifest.parent / "run_events.jsonl"
         previous_events = [json.loads(line) for line in run_event_path.read_text(encoding="utf-8").splitlines() if line.strip()]
         new_event = {"event_hash": hashlib.sha256(b"synthetic run event extension").hexdigest()}
-        run_event_path.write_text(run_event_path.read_text(encoding="utf-8") + "synthetic appended event\\n", encoding="utf-8")
+        run_event_path.write_text(run_event_path.read_text(encoding="utf-8") + "synthetic appended event\n", encoding="utf-8")
         self.record["run_event_ledger"] = {
             "path": old_binding["path"],
             "sha256": self.sha(run_event_path),
@@ -859,7 +919,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertTrue(self.validate()["valid"], self.validate()["issues"])
         run_event_path = self.manifest.parent / "run_events.jsonl"
         with run_event_path.open("a", encoding="utf-8") as handle:
-            handle.write("synthetic later event\\n")
+            handle.write("synthetic later event\n")
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("RUN_EVENT_LEDGER_CHANGED", codes)
 
@@ -883,7 +943,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.write_record()
         self.assertTrue(self.validate()["valid"], self.validate()["issues"])
         with self.gate_ledger_path.open("a", encoding="utf-8") as handle:
-            handle.write("synthetic later G3 review\\n")
+            handle.write("synthetic later G3 review\n")
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("WORKFLOW_GATE_LEDGER_CHANGED", codes)
 
@@ -925,17 +985,49 @@ class AcceptanceValidatorTests(unittest.TestCase):
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("SINGLE_STUDY_MODEL_VALIDATION_INVALID", codes)
 
-    def test_conditional_pass_allows_na_only_with_reason(self):
+    def test_conditional_pass_requires_hash_bound_single_study_na_evidence(self):
         for stage in STAGE_ORDER:
             if stage in {"cohort_feasibility", "modeling_validation"}:
-                self.set_stage(stage, "NOT_APPLICABLE", evidence=False,
-                    not_applicable_reason="Single Study cannot support Study-held-out validation.")
+                self.set_stage(
+                    stage, "NOT_APPLICABLE",
+                    not_applicable_reason=(
+                        "One independent Study cannot form independent train/validation/test Study partitions."
+                        if stage == "cohort_feasibility"
+                        else "One independent Study cannot support Study-held-out model or nested reproducibility validation."
+                    ),
+                )
             else:
                 self.set_stage(stage, "PASS")
         self.record["final_assessment"]["decision"] = "CONDITIONAL_PASS"
         self.write_record()
         report = self.validate()
         self.assertTrue(report["valid"], report["issues"])
+
+    def test_single_study_na_evidence_rejects_wrong_task_hash(self):
+        validation_path = self.output_paths["single_study_applicability_validation"]
+        validation = json.loads(validation_path.read_text(encoding="utf-8"))
+        validation["modeling_task_sha256"] = "f" * 64
+        validation_path.write_text(json.dumps(validation, indent=2) + "\n", encoding="utf-8")
+        for stage in STAGE_ORDER:
+            if stage in {"cohort_feasibility", "modeling_validation"}:
+                self.set_stage(
+                    stage, "NOT_APPLICABLE",
+                    not_applicable_reason=(
+                        "One independent Study cannot form independent train/validation/test Study partitions."
+                        if stage == "cohort_feasibility"
+                        else "One independent Study cannot support Study-held-out model or nested reproducibility validation."
+                    ),
+                )
+            else:
+                self.set_stage(stage, "PASS")
+        self.record["final_assessment"]["decision"] = "CONDITIONAL_PASS"
+        self.write_record()
+        codes = {item["code"] for item in self.validate()["issues"]}
+        self.assertTrue({
+            "EVIDENCE_RUN_ARTIFACT_NOT_CURRENT",
+            "RUN_ARTIFACT_MANIFEST_ENTRY_INVALID",
+            "SINGLE_STUDY_NA_VALIDATION_BINDING_MISMATCH",
+        }.intersection(codes))
 
     def test_na_without_reason_is_rejected(self):
         self.set_stage("modeling_validation", "NOT_APPLICABLE", evidence=False)

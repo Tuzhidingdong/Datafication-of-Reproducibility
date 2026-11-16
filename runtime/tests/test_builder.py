@@ -11,11 +11,11 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.source = self.root / "source.csv"
         with self.source.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.writer(handle)
-            writer.writerow(["DOI","Title","System","Feature01","ConditionType","ValueState","Experiment","Target","Value"])
-            writer.writerow(["10.1000/a","Study A","System A","25","feature_01","REPORTED","E1","TARGET_01","100"])
-            writer.writerow(["10.1000/a","Study A","System A","25","feature_01","REPORTED","E2","TARGET_01","110"])
+            writer.writerow(["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value"])
+            writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E1","TARGET_01","100"])
+            writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E2","TARGET_01","110"])
         self.source_hash = sha256_file(self.source)
-        columns = ["DOI","Title","System","Feature01","ConditionType","ValueState","Experiment","Target","Value"]
+        columns = ["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value"]
         self.inventory = {"schema_version":"1.0","items":[
             {"inventory_id":f"SRC_{name}","source_file":"source.csv","source_sha256":self.source_hash,
              "source_format":"csv","locator_type":"csv_column","locator":name}
@@ -32,6 +32,9 @@ class CanonicalBuilderTests(unittest.TestCase):
         add("R_COND_TYPE","ConditionType","conditions","condition_type")
         add("R_COND_STATE","ValueState","conditions","value_state")
         add("R_FEATURE_01","Feature01","conditions","raw_value","NUMERIC_PARSE")
+        add("R_RAW_UNIT","FeatureUnit","conditions","raw_unit")
+        add("R_NORMALIZED_FEATURE","Feature01","conditions","normalized_value","UNIT_CONVERSION",
+            {"source_unit":"unit_01","target_unit":"unit_02","unit_source_item_id":"SRC_FeatureUnit","factor":2.0,"offset":0.0})
         add("R_EXP_KEY","Experiment","experiments","source_experiment_key")
         add("R_TARGET","Target","observations","target_id")
         add("R_OBS_STATE","ValueState","observations","value_state")
@@ -51,7 +54,7 @@ class CanonicalBuilderTests(unittest.TestCase):
             {"definition_id":"D_SYSTEM","entity_type":"systems","source_file":"source.csv",
              "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System"]},"field_rule_ids":["R_SYS_TYPE"]},
             {"definition_id":"D_CONDITION","entity_type":"conditions","source_file":"source.csv",
-             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System","SRC_Feature01"]},"field_rule_ids":["R_COND_TYPE","R_COND_STATE","R_FEATURE_01"]},
+             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_DOI","SRC_System","SRC_Feature01"]},"field_rule_ids":["R_COND_TYPE","R_COND_STATE","R_FEATURE_01","R_RAW_UNIT","R_NORMALIZED_FEATURE"]},
             {"definition_id":"D_EXPERIMENT","entity_type":"experiments","source_file":"source.csv",
              "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment"]},"field_rule_ids":["R_EXP_KEY"]},
             {"definition_id":"D_OBSERVATION","entity_type":"observations","source_file":"source.csv",
@@ -81,6 +84,11 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertEqual(bundle["experiments"][0]["study_id"],bundle["studies"][0]["study_id"])
         self.assertEqual(bundle["build_provenance"]["build_spec_sha256"],self.spec_hash)
         self.assertEqual(bundle["observations"][0]["_provenance"]["mapping_plan_sha256"],self.plan_hash)
+        condition=bundle["conditions"][0]
+        self.assertEqual(condition["normalized_value"],50)
+        self.assertEqual(condition["normalized_unit"],"unit_02")
+        conversion=next(item for item in condition["field_provenance"] if item["target_field_id"]=="normalized_value")
+        self.assertEqual(conversion["source_unit_provenance"]["source_unit"],"unit_01")
 
     def _switch_observations_to_json(self):
         json_path = self.root / "observations.json"
@@ -186,13 +194,24 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertIsNone(bundle)
         self.assertTrue(any(e["code"]=="GROUP_FIELD_CONFLICT" for e in report["errors"]))
 
-    def test_custom_transform_is_not_executed(self):
+    def test_custom_transform_is_rejected_by_mapping_validation(self):
         rule=next(item for item in self.mapping["rules"] if item["mapping_rule_id"]=="R_VALUE")
         rule["transformation"]={"type":"CUSTOM","parameters":{"implementation":"not-installed"}}
         bundle, report=build_canonical_bundle(self.mapping,self.inventory,self.spec,self.root,
                                               self.plan_hash,self.inventory_path_hash)
         self.assertIsNone(bundle)
-        self.assertTrue(any(e["code"]=="VALUE_TRANSFORM_FAILED" for e in report["errors"]))
+        self.assertTrue(any(e["code"]=="UNKNOWN_TRANSFORMATION" for e in report["errors"]))
+
+    def test_unit_conversion_rejects_a_source_unit_mismatch(self):
+        content=self.source.read_text(encoding="utf-8").replace("unit_01","unit_wrong")
+        self.source.write_text(content,encoding="utf-8")
+        new_hash=sha256_file(self.source)
+        for item in self.inventory["items"]:
+            item["source_sha256"]=new_hash
+        bundle, report=build_canonical_bundle(self.mapping,self.inventory,self.spec,self.root,
+                                              self.plan_hash,self.inventory_path_hash)
+        self.assertIsNone(bundle)
+        self.assertTrue(any("SOURCE_UNIT_MISMATCH" in e["message"] for e in report["errors"]))
 
     def test_unapproved_mapping_cannot_build(self):
         self.mapping["rules"][0]["status"]="REVIEWED"

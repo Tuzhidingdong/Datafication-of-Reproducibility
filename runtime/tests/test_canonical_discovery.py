@@ -72,6 +72,36 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(pair["supporting_study_count"], 3)
         self.assertEqual(pair["interpretation_status"], "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION")
 
+    def test_joint_support_excludes_unreported_observations(self):
+        bundle = make_bundle()
+        unreported = next(row for row in bundle["observations"] if row["observation_id"] == "O1B")
+        unreported.update({"value_state": "NOT_REPORTED", "raw_value": None, "normalized_value": None})
+        result = summarize_canonical_bundle(bundle, minimum_studies=3)
+        pair = next(row for row in result["joint_rows"]
+                    if row["target_a"] == "TARGET_A" and row["target_b"] == "TARGET_B")
+        self.assertEqual(pair["supporting_study_count"], 2)
+        self.assertFalse(any(item["signal_type"] == "CO_OBSERVED_TARGET_PAIR" for item in result["signals"]))
+
+    def test_condition_coverage_requires_a_reported_value(self):
+        bundle = make_bundle()
+        bundle["conditions"][0]["raw_value"] = None
+        bundle["conditions"][0]["value_state"] = "REPORTED"
+        result = summarize_canonical_bundle(bundle, minimum_studies=3)
+        row = next(item for item in result["condition_rows"] if item["target_id"] == "TARGET_A")
+        self.assertEqual(row["study_count"], 2)
+        self.assertFalse(any(item["signal_type"] == "CONDITION_COVERAGE" for item in result["signals"]))
+
+    def test_normalized_value_without_normalized_unit_falls_back_as_a_pair(self):
+        bundle = make_bundle()
+        for row in bundle["observations"]:
+            if row["target_id"] == "TARGET_A":
+                row["normalized_value"] = row["raw_value"] / 10
+                row["normalized_unit"] = None
+        result = summarize_canonical_bundle(bundle, minimum_studies=3)
+        target = next(item for item in result["target_rows"] if item["target_id"] == "TARGET_A")
+        self.assertEqual(target["unit"], "unit-x")
+        self.assertEqual(target["numeric_median"], 20.0)
+
     def test_scan_writes_aggregate_outputs_and_preserves_bundle(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

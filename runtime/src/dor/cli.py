@@ -4,10 +4,18 @@ import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit, run_audit_from_adapter_handoff
 from dor.adapters import validate_adapter_package_files
+from dor.adapter_package import initialize_adapter_package
+from dor.project_setup import initialize_project_run_plan
 from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle_from_handoff,
     materialize_adapter_artifacts_files)
 from dor.canonical_discovery import run_canonical_discovery_scan
 from dor.cohort import build_modeling_cohort_files
+from dor.cohort_review import validate_cohort_review_record, enforce_cohort_review
+from dor.controlled_scope import (
+    validate_single_study_applicability_files,
+    prepare_single_study_not_applicable_artifacts_files,
+)
+from dor.execution_contract import inspect_supported_run_plan_execution_contract
 from dor.builder import build_canonical_files, validate_build_spec_files
 from dor.canonical import validate_canonical_bundle
 from dor.diagnostics import diagnose_canonical_bundle
@@ -21,16 +29,21 @@ from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 from dor.research_scope import validate_research_scope_files
 from dor.review import validate_run_review_packet_files, validate_reviewed_findings_files
-from dor.publication import build_publication_package_files, audit_publication_package_files
+from dor.publication import (
+    build_publication_package_files, audit_publication_package_files,
+    validate_publication_plan_files,
+)
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
-from dor.acceptance import validate_acceptance_record
+from dor.acceptance import initialize_acceptance_record, validate_acceptance_record
 from dor.acceptance_ledger import (initialize_acceptance_ledger, record_acceptance_revision,
     recover_acceptance_record, inspect_acceptance_history, create_acceptance_checkpoint,
     verify_acceptance_checkpoint)
 from dor.run_manager import (
-    authorize_worker, build_artifact_manifest, build_resume_plan, initialize_run, record_stage_status, verify_run,
+    authorize_worker, build_artifact_manifest, build_resume_plan, build_run_usage_report,
+    initialize_run, record_stage_status, verify_run,
 )
+from dor.stage_runner import advance_run, execute_local_stage
 
 def _write_json(path: Path | None, report: dict) -> str:
     rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
@@ -43,6 +56,8 @@ def _write_json(path: Path | None, report: dict) -> str:
 def _add_gate_args(command_parser: argparse.ArgumentParser) -> None:
     command_parser.add_argument("--workflow-ledger", type=Path, default=None,
         help="Hash-bound G0-G4 approval ledger; required for guided project execution.")
+    command_parser.add_argument("--run-manifest", type=Path, default=None,
+        help="Exact active run_manifest.json; required for Cohort-review enforcement on modelling commands.")
     command_parser.add_argument("--allow-untracked-legacy", action="store_true",
         help="Explicit legacy-only bypass for archived scripts; never use in a real project.")
 
@@ -75,6 +90,49 @@ def _parse_artifact_bindings(values: list[str]) -> list[tuple[str, Path]]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dor", description="Datafication of Reproducibility runtime")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    adapter_initialize = subparsers.add_parser(
+        "init-adapter-package",
+        help="Create a hash-bound manifest for explicitly selected existing source and dataset files",
+    )
+    adapter_initialize.add_argument("--package-root", type=Path, required=True,
+        help="Existing package directory; artifact files must be inside it")
+    adapter_initialize.add_argument("--adapter-id", required=True,
+        help="Identifier for the upstream preparation process, not a scientific domain")
+    adapter_initialize.add_argument("--adapter-version", required=True,
+        help="Version label for the upstream preparation process")
+    adapter_initialize.add_argument("--package-id", default=None,
+        help="Optional package identifier; defaults to a normalized package-directory name")
+    adapter_initialize.add_argument("--source", action="append", default=[],
+        help="Explicit provenance source as SOURCE_ID=FILE_PATH; repeat as needed")
+    adapter_initialize.add_argument("--artifact", action="append", default=[],
+        help="Explicit package artifact as ARTIFACT_ID=ROLE=FILE_PATH; repeat as needed")
+    adapter_initialize.add_argument("--out", type=Path, default=None,
+        help="New manifest filename directly inside package-root; relative paths resolve from package-root; defaults to adapter_manifest.json")
+    project_run_plan = subparsers.add_parser(
+        "init-run-plan",
+        help="Create a validated project Run Plan from an Adapter handoff and a supported route/profile",
+    )
+    project_run_plan.add_argument("--adapter-handoff", type=Path, required=True,
+        help="Existing validated route-preflight adapter_handoff.json")
+    project_run_plan.add_argument("--project-root", type=Path, required=True,
+        help="Existing project directory; configuration and run_control folders are created if needed")
+    project_run_plan.add_argument("--run-root", type=Path, required=True,
+        help="New Run workspace path; it must be separate from every protected source root")
+    project_run_plan.add_argument("--profile", choices=["CONTROLLED_SINGLE_STUDY", "FULL_ANALYSIS"],
+        default="CONTROLLED_SINGLE_STUDY",
+        help="Analysis profile; the conservative one-Study profile is the default")
+    project_run_plan.add_argument("--project-id", default=None,
+        help="Optional stable project identifier; defaults to a normalized project-directory name")
+    project_run_plan.add_argument("--workflow-ledger", type=Path, default=None,
+        help="Optional G0-G4 ledger path; defaults to project_root/run_control/workflow_gate_ledger.jsonl")
+    project_run_plan.add_argument("--virtual-query-input", type=Path, default=None,
+        help="Required only for FULL_ANALYSIS; an existing explicit virtual reproduction query JSON")
+    project_run_plan.add_argument("--publication-plan-template", type=Path, default=None,
+        help="Optional existing project-owned Publication Plan blueprint; otherwise a route/profile template is copied")
+    project_run_plan.add_argument("--acceptance-source", action="append", default=[],
+        help="Optional provenance-only V1.0 source as SOURCE_ID=ROLE=FILE_PATH; repeat as needed")
+    project_run_plan.add_argument("--out", type=Path, default=None,
+        help="New Run Plan output path; defaults to project_root/run_control/run_plan.<route_profile>.json")
     adapter_validation = subparsers.add_parser(
         "validate-adapter-package",
         help="Validate an external adapter package without interpreting its data semantics",
@@ -167,6 +225,12 @@ def build_parser() -> argparse.ArgumentParser:
     cohort.add_argument("--bundle", type=Path, required=True, help="Validated canonical_bundle.json")
     cohort.add_argument("--task", type=Path, required=True, help="Explicit modeling_task.json")
     cohort.add_argument("--out-dir", type=Path, required=True, help="New or empty derived cohort output directory")
+    cohort_review = subparsers.add_parser("validate-cohort-review", help="Validate the human record for cohort grain, independence, and split suitability")
+    cohort_review.add_argument("--record", type=Path, required=True, help="Human-reviewed cohort_review_record.json")
+    cohort_review.add_argument("--cohort-dir", type=Path, required=True, help="Exact output directory created by dor build-cohort")
+    cohort_review.add_argument("--task", type=Path, required=True, help="Exact modeling task used to build the cohort")
+    cohort_review.add_argument("--manifest", type=Path, default=None, help="Active Run manifest; required for a guided Run")
+    cohort_review.add_argument("--out", type=Path, required=True, help="Declared cohort_review_validation.json output")
     models = subparsers.add_parser("fit-baselines", help="Fit deterministic baseline models and evaluate the selected model on held-out studies")
     models.add_argument("--cohort-dir", type=Path, required=True, help="Cohort output directory from dor build-cohort")
     models.add_argument("--task", type=Path, required=True, help="Exact modeling task JSON used to build the cohort")
@@ -208,8 +272,18 @@ def build_parser() -> argparse.ArgumentParser:
     mechanism.add_argument("--out-dir", type=Path, required=True, help="New or empty derived mechanism bridge output directory")
     mechanism.add_argument("--robustness-dir", type=Path, default=None, help="Optional hash-verified repeated-seed robustness output")
     mechanism.add_argument("--response-surface-dir", type=Path, default=None, help="Optional hash-verified descriptive response-surface output")
+    publication_plan_validation = subparsers.add_parser(
+        "validate-publication-plan",
+        help="Validate the final Publication Plan against current Run Artifacts before G4 review",
+    )
+    publication_plan_validation.add_argument("--plan", type=Path, required=True)
+    publication_plan_validation.add_argument("--manifest", type=Path, required=True)
+    publication_plan_validation.add_argument("--out", type=Path, required=True,
+        help="Exact Run output path for publication_plan_validation.json")
+
     package = subparsers.add_parser("build-publication-package", help="Assemble an explicitly curated, hash-verified Writing Skill package")
-    package.add_argument("--plan", type=Path, required=True, help="Explicit publication_package_plan.json")
+    package.add_argument("--plan", type=Path, required=True, help="Final Run-bound publication_package_plan.json")
+    package.add_argument("--validation", type=Path, required=True, help="Exact publication_plan_validation.json approved at G4")
     package.add_argument("--workspace-root", type=Path, required=True, help="Workspace root for declared relative source paths")
     package.add_argument("--out-dir", type=Path, required=True, help="New or empty publication package directory")
     package_audit = subparsers.add_parser("audit-publication-package", help="Verify publication package paths, completeness states, and SHA-256 hashes")
@@ -238,6 +312,19 @@ def build_parser() -> argparse.ArgumentParser:
     acceptance.add_argument("--run-manifest", type=Path, required=True, help="Exact run_manifest.json referenced by the record")
     acceptance.add_argument("--ledger", type=Path, required=True, help="Append-only acceptance revision ledger JSONL")
     acceptance.add_argument("--out", type=Path, help="Optional validation report JSON")
+
+    acceptance_prepare = subparsers.add_parser(
+        "init-acceptance",
+        help="Create a post-Run Acceptance draft with exact Run evidence bindings; no scientific statuses are approved",
+    )
+    acceptance_prepare.add_argument("--manifest", type=Path, required=True, help="Completed Run Manager run_manifest.json")
+    acceptance_prepare.add_argument("--out", type=Path, required=True, help="New acceptance_record.json path; existing files are never overwritten")
+    acceptance_prepare.add_argument("--source-selection-manifest", type=Path, required=True,
+        help="Optional completed post-Run source_selection_manifest.json")
+    acceptance_prepare.add_argument("--extraction-review-record", type=Path, required=True,
+        help="Optional completed post-Run extraction_review_record.json")
+    acceptance_prepare.add_argument("--actor", required=True, help="Operator creating the draft and revision ledger")
+    acceptance_prepare.add_argument("--rationale", required=True, help="Reason for initializing the Acceptance draft")
 
     acceptance_init = subparsers.add_parser("init-acceptance-ledger", help="Create immutable revision history for a new acceptance record")
     acceptance_init.add_argument("--record", type=Path, required=True)
@@ -270,6 +357,8 @@ def build_parser() -> argparse.ArgumentParser:
     acceptance_checkpoint_verify.add_argument("--checkpoint", type=Path, required=True)
     acceptance_checkpoint_verify.add_argument("--expected-sha256", required=True, help="Trusted checkpoint digest obtained from an independent channel")
 
+    execution_contract = subparsers.add_parser("validate-execution-contract", help="Check a supported Run Plan against its machine-readable Runtime/Worker action bindings")
+    execution_contract.add_argument("--plan", type=Path, required=True, help="One of the two published generic adapter Run Plan templates, or a configured copy")
     run_init = subparsers.add_parser("run-init", help="Create a new isolated run workspace from an explicit stage/artifact plan")
     run_init.add_argument("--plan", type=Path, required=True)
     run_init.add_argument("--run-root", type=Path, required=True)
@@ -289,6 +378,23 @@ def build_parser() -> argparse.ArgumentParser:
     run_artifacts.add_argument("--manifest", type=Path, required=True)
     run_artifacts.add_argument("--out", type=Path, default=None)
 
+    run_usage = subparsers.add_parser("run-usage", help="Aggregate token usage actually recorded for terminal Run stage attempts")
+    run_usage.add_argument("--manifest", type=Path, required=True)
+    run_usage.add_argument("--out", type=Path, default=None)
+
+    run_execute = subparsers.add_parser("run-stage-execute", help="Derive argv from Run Artifacts and execute one contract-bound local stage")
+    run_execute.add_argument("--manifest", type=Path, required=True)
+    run_execute.add_argument("--stage", dest="stage_id", required=True)
+    run_execute.add_argument("--args-file", type=Path, default=None, help="Explicit JSON argv override for custom or unbound Run stages only")
+    run_execute.add_argument("--timeout-seconds", type=int, default=3600)
+    run_execute.add_argument("--dry-run", action="store_true", help="Print the exact argv without changing the Run")
+
+    run_advance = subparsers.add_parser("run-advance", help="Derive argv from Run Artifacts and execute local stages until a human, Worker, Gate, or input boundary")
+    run_advance.add_argument("--manifest", type=Path, required=True)
+    run_advance.add_argument("--args-dir", type=Path, default=None, help="Explicit per-stage JSON argv overrides for custom or unbound Run stages only")
+    run_advance.add_argument("--max-local-stages", type=int, default=10)
+    run_advance.add_argument("--timeout-seconds", type=int, default=3600)
+
     review_packet = subparsers.add_parser("validate-run-review-packet", help="Validate a G0-G2 review packet against the active Run inputs and hashes")
     review_packet.add_argument("--packet", type=Path, required=True)
     review_packet.add_argument("--manifest", type=Path, required=True)
@@ -298,6 +404,31 @@ def build_parser() -> argparse.ArgumentParser:
     reviewed_findings.add_argument("--record", type=Path, required=True)
     reviewed_findings.add_argument("--manifest", type=Path, required=True)
     reviewed_findings.add_argument("--out", type=Path, required=True, help="Declared Run output path for the validation report")
+
+    single_study_scope = subparsers.add_parser(
+        "validate-single-study-applicability",
+        help="Validate a human-reviewed one-Study NOT_APPLICABLE declaration against the exact Run Bundle/task",
+    )
+    single_study_scope.add_argument("--record", type=Path, required=True)
+    single_study_scope.add_argument("--bundle", type=Path, required=True)
+    single_study_scope.add_argument("--task", type=Path, required=True)
+    single_study_scope.add_argument("--manifest", type=Path, required=True)
+    single_study_scope.add_argument("--workflow-ledger", type=Path, required=True,
+        help="G0-G4 approval ledger; G2 must currently approve the exact Bundle/task.")
+    single_study_scope.add_argument("--out", type=Path, required=True)
+
+    single_study_na = subparsers.add_parser(
+        "prepare-single-study-not-applicable-artifacts",
+        help="Prepare explicit NOT_APPLICABLE records without fitting models or generating scientific predictions",
+    )
+    single_study_na.add_argument("--record", type=Path, required=True)
+    single_study_na.add_argument("--validation", type=Path, required=True)
+    single_study_na.add_argument("--bundle", type=Path, required=True)
+    single_study_na.add_argument("--task", type=Path, required=True)
+    single_study_na.add_argument("--manifest", type=Path, required=True)
+    single_study_na.add_argument("--workflow-ledger", type=Path, required=True,
+        help="G0-G4 approval ledger; G2 must currently approve the exact Bundle/task.")
+    single_study_na.add_argument("--out-dir", type=Path, required=True)
 
     worker_authorize = subparsers.add_parser("run-worker-authorize", help="Record an explicit pre-dispatch Worker authorization and emit its bounded task packet")
     worker_authorize.add_argument("--manifest", type=Path, required=True)
@@ -337,6 +468,41 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
+        if args.command == "validate-execution-contract":
+            plan = json.loads(args.plan.read_text(encoding="utf-8-sig"))
+            if not isinstance(plan, dict):
+                raise ValueError("Run Plan must be a JSON object.")
+            report = inspect_supported_run_plan_execution_contract(plan)
+            print(_write_json(None, report), end="")
+            return 0
+        cohort_review_required_commands = {
+            "fit-baselines", "evaluate-reproducibility", "discover-interactions",
+            "assess-interaction-robustness", "generate-interaction-surface",
+            "build-mechanism-evidence-bridge",
+        }
+        if args.command in cohort_review_required_commands and args.workflow_ledger is not None:
+            if args.run_manifest is None:
+                raise ValueError("Modelling commands require --run-manifest so the Cohort approval is bound to the exact active Run.")
+            enforce_cohort_review(args.cohort_dir, args.task, args.workflow_ledger, args.run_manifest)
+        if args.command == "init-adapter-package":
+            result = initialize_adapter_package(
+                args.package_root, args.adapter_id, args.adapter_version,
+                args.source, args.artifact, args.out, args.package_id,
+            )
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "init-run-plan":
+            result = initialize_project_run_plan(
+                args.adapter_handoff, args.project_root, args.run_root,
+                profile=args.profile, project_id=args.project_id,
+                workflow_ledger_path=args.workflow_ledger,
+                virtual_query_input=args.virtual_query_input,
+                publication_plan_template=args.publication_plan_template,
+                acceptance_sources=args.acceptance_source,
+                output_path=args.out,
+            )
+            print(_write_json(None, result), end="")
+            return 0
         if args.command == "validate-adapter-package":
             report = validate_adapter_package_files(args.manifest, args.package_root, args.out)
             print(_write_json(None, report), end="")
@@ -369,6 +535,35 @@ def main() -> int:
             result = validate_acceptance_record(args.record, args.run_manifest, args.ledger)
             print(_write_json(args.out, result), end="")
             return 0 if result["valid"] else 2
+        if args.command == "init-acceptance":
+            ledger_path = args.out.with_name(args.out.stem + "_acceptance_events.jsonl")
+            snapshots_path = ledger_path.with_name(ledger_path.name + ".revisions")
+            if ledger_path.is_symlink() or ledger_path.exists() or snapshots_path.is_symlink() or snapshots_path.exists():
+                raise FileExistsError(
+                    "The derived Acceptance revision ledger or snapshot directory already exists; "
+                    "choose a new Acceptance output path rather than reusing or overwriting history."
+                )
+            result = initialize_acceptance_record(
+                args.manifest, args.out,
+                source_selection_manifest=args.source_selection_manifest,
+                extraction_review_record=args.extraction_review_record,
+            )
+            record_path = Path(result["record_path"])
+            try:
+                ledger_report = initialize_acceptance_ledger(
+                    record_path, ledger_path, args.actor, args.rationale,
+                )
+            except BaseException:
+                # Remove only the draft created by this invocation and only
+                # when no ledger/snapshot history was committed.
+                if not ledger_path.exists() and not snapshots_path.exists():
+                    record_path.unlink(missing_ok=True)
+                raise
+            result["acceptance_ledger_path"] = str(ledger_path.resolve(strict=False))
+            result["acceptance_ledger_revision"] = ledger_report["revision"]
+            result["acceptance_ledger_event_hash"] = ledger_report["event_hash"]
+            print(_write_json(None, result), end="")
+            return 0
         if args.command == "run-init":
             result = initialize_run(args.plan, args.run_root, args.run_id)
             print(_write_json(None, result), end="")
@@ -390,6 +585,38 @@ def main() -> int:
             result = build_resume_plan(args.manifest)
             print(_write_json(args.out, result), end="")
             return 0
+        if args.command == "run-usage":
+            result = build_run_usage_report(args.manifest)
+            print(_write_json(args.out, result), end="")
+            return 0
+        if args.command == "run-stage-execute":
+            cli_arguments = None
+            if args.args_file is not None:
+                try:
+                    cli_arguments = json.loads(args.args_file.read_text(encoding="utf-8-sig"))
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise ValueError(f"Could not read --args-file as a JSON array: {exc}") from exc
+                if not isinstance(cli_arguments, list):
+                    raise ValueError("--args-file must contain a JSON array of CLI argument strings.")
+            result = execute_local_stage(
+                args.manifest, args.stage_id, cli_arguments,
+                timeout_seconds=args.timeout_seconds, dry_run=args.dry_run,
+            )
+            print(_write_json(None, result), end="")
+            return 0 if result["status"] in {"DRY_RUN", "SUCCEEDED"} else 2
+        if args.command == "run-advance":
+            result = advance_run(
+                args.manifest,
+                args.args_dir,
+                max_local_stages=args.max_local_stages,
+                timeout_seconds=args.timeout_seconds,
+            )
+            print(_write_json(None, result), end="")
+            return 0 if result["status"] in {
+                "COMPLETE", "PAUSED_FOR_GATE", "PAUSED_FOR_HUMAN",
+                "PAUSED_FOR_WORKER_AUTHORIZATION", "ARGUMENTS_REQUIRED",
+                "INPUT_REQUIRED", "YIELDED_AFTER_LOCAL_STAGE_LIMIT",
+            } else 2
         if args.command == "run-artifacts":
             result = build_artifact_manifest(args.manifest)
             if args.out is not None:
@@ -415,6 +642,27 @@ def main() -> int:
             result = validate_reviewed_findings_files(args.record, args.manifest, args.out)
             print(_write_json(args.out, result), end="")
             return 0 if result["valid"] else 2
+        if args.command == "validate-single-study-applicability":
+            _enforce_gate(args, "G2", {
+                "canonical_bundle": args.bundle,
+                "modeling_task": args.task,
+            })
+            result = validate_single_study_applicability_files(
+                args.record, args.bundle, args.task, args.manifest, args.out,
+            )
+            print(_write_json(args.out, result), end="")
+            return 0 if result["valid"] else 2
+        if args.command == "prepare-single-study-not-applicable-artifacts":
+            _enforce_gate(args, "G2", {
+                "canonical_bundle": args.bundle,
+                "modeling_task": args.task,
+            })
+            result = prepare_single_study_not_applicable_artifacts_files(
+                args.record, args.validation, args.bundle, args.task,
+                args.manifest, args.out_dir,
+            )
+            print(_write_json(None, result), end="")
+            return 0 if result["valid"] else 2
         if args.command == "run-worker-authorize":
             result = authorize_worker(
                 args.manifest, args.stage_id, args.role, args.provider, args.model,
@@ -435,7 +683,7 @@ def main() -> int:
                 confirm_abandoned=args.confirm_abandoned,
             )
             print(_write_json(None, result), end="")
-            return 0
+            return 2 if result.get("automatic_failure") is True else 0
         if args.command == "gate-record":
             result=record_gate_decision(args.workflow_ledger,args.gate_id,args.decision,
                 args.reviewer,args.rationale,_parse_artifact_bindings(args.artifacts or []))
@@ -504,6 +752,10 @@ def main() -> int:
             report=validate_mapping_files(args.plan,args.inventory)
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
+        if args.command == "validate-cohort-review":
+            report=validate_cohort_review_record(args.record,args.cohort_dir,args.task,args.manifest)
+            print(_write_json(args.out,report),end="")
+            return 0 if report["valid"] else 2
         if args.command == "validate-build-spec":
             report=validate_build_spec_files(args.plan,args.inventory,args.spec)
             print(_write_json(args.out,report),end="")
@@ -555,9 +807,18 @@ def main() -> int:
                 "review_state":report["review_state"],
                 "claim_scope":report["claim_scope"]},ensure_ascii=False,indent=2))
             return 0
+        if args.command == "validate-publication-plan":
+            report = validate_publication_plan_files(args.plan, args.manifest, args.out)
+            print(_write_json(None, report), end="")
+            return 0 if report["valid"] else 2
         if args.command == "build-publication-package":
-            _enforce_gate(args,"G4",{"publication_plan":args.plan})
-            result=build_publication_package_files(args.plan,args.workspace_root,args.out_dir)
+            _enforce_gate(args, "G4", {
+                "publication_plan": args.plan,
+                "publication_plan_validation": args.validation,
+            })
+            result = build_publication_package_files(
+                args.plan, args.workspace_root, args.out_dir, args.validation,
+            )
             print(json.dumps({"status":"completed","output_dir":result["output_dir"],
                 "artifact_count":result["artifact_count"],"copied_artifact_count":result["copied_artifact_count"],
                 "completeness":result["manifest"]["completeness"]},ensure_ascii=False,indent=2))

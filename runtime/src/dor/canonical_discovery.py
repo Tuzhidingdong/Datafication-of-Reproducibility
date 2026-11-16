@@ -31,16 +31,28 @@ def _number(value: Any) -> float | None:
     return result if math.isfinite(result) else None
 
 
+def _has_normalized_pair(record: dict[str, Any]) -> bool:
+    return (
+        record.get("normalized_value") not in (None, "")
+        and record.get("normalized_unit") not in (None, "")
+    )
+
+
 def _value(record: dict[str, Any]) -> Any:
-    value = record.get("normalized_value")
-    return record.get("raw_value") if value is None or value == "" else value
+    if _has_normalized_pair(record):
+        return record["normalized_value"]
+    return record.get("raw_value")
 
 
 def _unit(record: dict[str, Any]) -> str:
-    value = record.get("normalized_unit")
-    if value is None or value == "":
-        value = record.get("raw_unit")
+    value = record.get("normalized_unit") if _has_normalized_pair(record) else record.get("raw_unit")
     return str(value).strip() if value not in (None, "") else "UNSPECIFIED_UNIT"
+
+
+def _has_reported_value(record: dict[str, Any]) -> bool:
+    return record.get("value_state") == "REPORTED" and any(
+        record.get(field) not in (None, "") for field in ("raw_value", "normalized_value")
+    )
 
 
 def _median(values: list[float]) -> float | None:
@@ -88,16 +100,19 @@ def summarize_canonical_bundle(
         study_id = experiment["study_id"]
         unit = _unit(observation)
         by_target_unit[(target_id, unit)].append(observation)
-        targets_by_experiment[experiment_id].add(target_id)
+        if _has_reported_value(observation):
+            targets_by_experiment[experiment_id].add(target_id)
 
         numeric = _number(_value(observation))
-        if observation.get("value_state") == "REPORTED" and numeric is not None and unit != "UNSPECIFIED_UNIT":
+        if _has_reported_value(observation) and numeric is not None and unit != "UNSPECIFIED_UNIT":
             reported_numeric += 1
             by_study_target_unit[(target_id, unit, study_id)].append(numeric)
 
+        if not _has_reported_value(observation):
+            continue
         for condition_id in experiment.get("condition_ids", []):
             condition = conditions[condition_id]
-            if condition.get("value_state") != "REPORTED":
+            if not _has_reported_value(condition):
                 continue
             condition_type = str(condition.get("condition_type") or "UNSPECIFIED_CONDITION")
             condition_links[(target_id, condition_type)].add(study_id)
@@ -112,18 +127,24 @@ def summarize_canonical_bundle(
     for (target_id, unit), items in sorted(by_target_unit.items()):
         numeric = [
             value for item in items
-            if item.get("value_state") == "REPORTED"
+            if _has_reported_value(item)
             and (value := _number(_value(item))) is not None
             and unit != "UNSPECIFIED_UNIT"
         ]
         study_count = len({
             study_by_experiment[item["experiment_id"]] for item in items
         })
+        reported_items = [item for item in items if _has_reported_value(item)]
+        reported_study_count = len({
+            study_by_experiment[item["experiment_id"]] for item in reported_items
+        })
         target_rows.append({
             "target_id": target_id,
             "unit": unit,
             "observation_count": len(items),
             "study_count": study_count,
+            "reported_observation_count": len(reported_items),
+            "reported_study_count": reported_study_count,
             "reported_numeric_count": len(numeric),
             "numeric_min": min(numeric) if numeric else None,
             "numeric_median": _median(numeric),
@@ -260,8 +281,9 @@ def run_canonical_discovery_scan(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     _write_csv(output_dir / "target_support.csv",
-        ["target_id", "unit", "observation_count", "study_count", "reported_numeric_count",
-         "numeric_min", "numeric_median", "numeric_max"], result["target_rows"])
+        ["target_id", "unit", "observation_count", "study_count", "reported_observation_count",
+         "reported_study_count", "reported_numeric_count", "numeric_min", "numeric_median", "numeric_max"],
+        result["target_rows"])
     _write_csv(output_dir / "study_coverage.csv",
         ["target_id", "unit", "study_id", "observation_count", "study_median"], result["study_rows"])
     _write_csv(output_dir / "condition_support.csv",

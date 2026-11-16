@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/cohort_review_record.schema.json",
+  "title": "Hash-bound human review of a modelling cohort",
+  "type": "object",
+  "required": [
+    "schema_version", "review_id", "run_id", "project_id", "task_id",
+    "reviewer", "reviewed_at", "decision", "record_grain_assessment",
+    "independence_assessment", "split_assessment", "reviewed_warning_codes",
+    "reviewed_study_count", "reviewed_observation_count", "artifact_sha256",
+    "rationale"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "review_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "reviewer": {"type": "string", "minLength": 1},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "decision": {"enum": ["APPROVE_MODELING", "REVISE", "STOP"]},
+    "record_grain_assessment": {"enum": ["ACCEPTED", "UNRESOLVED", "REQUIRES_REVISION"]},
+    "independence_assessment": {"enum": ["SUPPORTED", "NOT_APPLICABLE", "NOT_ESTABLISHED"]},
+    "split_assessment": {"enum": ["ACCEPTED", "REQUIRES_REVISION"]},
+    "reviewed_warning_codes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "reviewed_study_count": {"type": "integer", "minimum": 1},
+    "reviewed_observation_count": {"type": "integer", "minimum": 1},
+    "artifact_sha256": {
+      "type": "object",
+      "required": [
+        "modeling_cohort.csv", "cohort_report.json", "split_manifest.json",
+        "modeling_cohort_manifest.json", "modeling_task.json"
+      ],
+      "properties": {
+        "modeling_cohort.csv": {"$ref": "#/$defs/sha256"},
+        "cohort_report.json": {"$ref": "#/$defs/sha256"},
+        "split_manifest.json": {"$ref": "#/$defs/sha256"},
+        "modeling_cohort_manifest.json": {"$ref": "#/$defs/sha256"},
+        "modeling_task.json": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "rationale": {"type": "string", "minLength": 1},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "allOf": [{
+    "if": {"properties": {"decision": {"const": "APPROVE_MODELING"}}, "required": ["decision"]},
+    "then": {
+      "properties": {
+        "record_grain_assessment": {"const": "ACCEPTED"},
+        "independence_assessment": {"enum": ["SUPPORTED", "NOT_APPLICABLE"]},
+        "split_assessment": {"const": "ACCEPTED"}
+      }
+    }
+  }],
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}
+  }
+}

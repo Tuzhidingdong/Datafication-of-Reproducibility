@@ -7,19 +7,31 @@
   ],
   "selected_sources": [
     {
-      "source_id": "SOURCE_PAPER",
+      "source_id": "SOURCE_PRIMARY_PAPER",
       "role": "PRIMARY_PAPER",
       "path": "REPLACE_WITH_EXACT_RUN_SNAPSHOT_PATH",
       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "source_id": "SOURCE_SUPPLEMENTARY_INFORMATION",
+      "role": "SUPPLEMENTARY_INFORMATION",
+      "path": "REPLACE_WITH_EXACT_RUN_SNAPSHOT_PATH",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "source_id": "SOURCE_STRUCTURED_DATA",
+      "role": "STRUCTURED_DATA",
+      "path": "REPLACE_WITH_EXACT_RUN_SNAPSHOT_PATH",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
     }
   ],
   "excluded_sources": [
     {
-      "source_id": "SOURCE_SUPPLEMENTARY",
-      "role": "SUPPLEMENTARY_INFORMATION",
+      "source_id": "SOURCE_UNRELATED_OR_AGGREGATE",
+      "role": "OTHER",
       "path": "REPLACE_WITH_EXACT_RUN_SNAPSHOT_PATH",
-      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "reason": "REPLACE_WITH_EXPLICIT_REASON"
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "reason": "REPLACE_WITH_EXPLICIT_REASON_FOR_EXCLUDING_THIS_SOURCE_FROM_THE_PILOT_SCOPE"
     }
   ]
 }

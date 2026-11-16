@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/stage_execution_contract.schema.json",
+  "title": "Run Plan stage execution contract",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "routes",
+    "stages",
+    "profiles"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "description": {
+      "type": "string"
+    },
+    "routes": {
+      "type": "object",
+      "required": [
+        "STRUCTURED_DATASET",
+        "CANONICAL_BUNDLE"
+      ],
+      "properties": {
+        "STRUCTURED_DATASET": {
+          "$ref": "#/$defs/stageIds"
+        },
+        "CANONICAL_BUNDLE": {
+          "$ref": "#/$defs/stageIds"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/stage"
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "required": [
+        "CONTROLLED_SINGLE_STUDY"
+      ],
+      "properties": {
+        "CONTROLLED_SINGLE_STUDY": {
+          "type": "object",
+          "required": [
+            "STRUCTURED_DATASET",
+            "CANONICAL_BUNDLE"
+          ],
+          "properties": {
+            "STRUCTURED_DATASET": {
+              "$ref": "#/$defs/stageIds"
+            },
+            "CANONICAL_BUNDLE": {
+              "$ref": "#/$defs/stageIds"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stageIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": [
+        "artifact_id",
+        "path",
+        "kind"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "derived",
+            "worker_staging"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "variant": {
+      "type": "object",
+      "required": [
+        "route",
+        "executor",
+        "required_gate",
+        "depends_on",
+        "inputs",
+        "outputs",
+        "activation"
+      ],
+      "properties": {
+        "route": {
+          "enum": [
+            "STRUCTURED_DATASET",
+            "CANONICAL_BUNDLE"
+          ]
+        },
+        "executor": {
+          "enum": [
+            "local",
+            "manual",
+            "worker"
+          ]
+        },
+        "required_gate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "G0",
+            "G1",
+            "G2",
+            "G3",
+            "G4",
+            null
+          ]
+        },
+        "depends_on": {
+          "$ref": "#/$defs/stageIds"
+        },
+        "inputs": {
+          "$ref": "#/$defs/stageIds"
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/output"
+          }
+        },
+        "activation": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "profile": {
+          "const": "CONTROLLED_SINGLE_STUDY"
+        },
+        "argv_template": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/argvToken"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "executor": {
+                "const": "local"
+              }
+            },
+            "required": [
+              "executor"
+            ]
+          },
+          "then": {
+            "required": [
+              "argv_template"
+            ]
+          }
+        }
+      ]
+    },
+    "stage": {
+      "type": "object",
+      "required": [
+        "stage_id",
+        "action_type",
+        "route_variants"
+      ],
+      "properties": {
+        "stage_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_type": {
+          "enum": [
+            "CLI",
+            "MANUAL",
+            "WORKER"
+          ]
+        },
+        "cli_command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validator_command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authorization_command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "host_action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route_variants": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/variant"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action_type": {
+                "const": "CLI"
+              }
+            },
+            "required": [
+              "action_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "cli_command"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_type": {
+                "const": "WORKER"
+              }
+            },
+            "required": [
+              "action_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "authorization_command",
+              "host_action"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "argvToken": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "$ref": "#/$defs/argvBinding"
+        }
+      ]
+    },
+    "argvBinding": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "artifact"
+          ],
+          "properties": {
+            "artifact": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "artifact_parent"
+          ],
+          "properties": {
+            "artifact_parent": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "run_root"
+          ],
+          "properties": {
+            "run_root": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "json_value"
+          ],
+          "properties": {
+            "json_value": {
+              "$ref": "#/$defs/jsonPointerBinding"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "single_json_array_item"
+          ],
+          "properties": {
+            "single_json_array_item": {
+              "$ref": "#/$defs/jsonPointerBinding"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "jsonPointerBinding": {
+      "type": "object",
+      "required": [
+        "artifact_id",
+        "pointer"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pointer": {
+          "type": "string",
+          "pattern": "^(|/.*)$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

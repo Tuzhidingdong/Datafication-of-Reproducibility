@@ -139,7 +139,7 @@ def validate_adapter_package_files(
             if not source_path.is_file():
                 errors.append({"code": "SOURCE_MISSING", "message": f"{location} source file is missing: {raw_path}"})
             elif _sha256(source_path) != expected.lower():
-                errors.append({"code": "SOURCE_HASH_MISMATCH", "message": f"{location} source hash differs: {raw_path}"})
+                errors.append({"code": "SOURCE_HASH_MISMATCH", "message": f"{location} source SHA-256 mismatch: {raw_path}"})
             else:
                 verified_sources += 1
         except (OSError, ValueError) as exc:
@@ -173,7 +173,7 @@ def validate_adapter_package_files(
             if not artifact_path.is_file():
                 errors.append({"code": "ARTIFACT_MISSING", "message": f"{location} artifact file is missing: {raw_path}"})
             elif _sha256(artifact_path) != expected.lower():
-                errors.append({"code": "ARTIFACT_HASH_MISMATCH", "message": f"{location} artifact hash differs: {raw_path}"})
+                errors.append({"code": "ARTIFACT_HASH_MISMATCH", "message": f"{location} artifact SHA-256 mismatch: {raw_path}"})
             else:
                 verified_artifacts += 1
         except (OSError, ValueError) as exc:

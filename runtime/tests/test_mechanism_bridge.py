@@ -188,6 +188,25 @@ class MechanismEvidenceBridgeTests(unittest.TestCase):
         self.assertEqual(mechanism["evidence_counts"]["supporting_verified_evidence"], 0)
         self.assertEqual(mechanism["evidence_counts"]["pending_source_verification"], 1)
 
+    def test_unverified_evidence_review_requests_upstream_structured_correction_only(self):
+        result = self._build("structured_only_review_actions")
+        pending = [
+            item for item in result["report"]["review_queue"]
+            if item["issue_code"] == "EVIDENCE_NOT_VERIFIED"
+        ]
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(
+            pending[0]["review_action"],
+            "REQUEST_UPSTREAM_STRUCTURED_DATA_CORRECTION",
+        )
+        detail = pending[0]["detail"].lower()
+        self.assertIn("supplied structured evidence record", detail)
+        self.assertIn("upstream structured-data correction", detail)
+        self.assertIn("do not open the original source", detail)
+        self.assertIn("dereference its locator", detail)
+        self.assertNotIn("check_original_source", pending[0]["review_action"])
+        self.assertNotIn("original source", pending[0]["review_action"].lower())
+
     def test_prospective_label_is_not_counted_when_source_study_overlaps_discovery(self):
         plan = mechanism_plan(self.interaction_id)
         assessment = next(item for item in plan["mechanism_hypotheses"][0]["evidence_assessments"]

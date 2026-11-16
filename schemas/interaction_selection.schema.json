@@ -58,7 +58,41 @@
     "robustness_report_sha256": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "applicability_status": {
+      "const": "NOT_APPLICABLE"
+    },
+    "not_applicable_reason": {
+      "type": "string",
+      "minLength": 1
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "applicability_status": {
+            "const": "NOT_APPLICABLE"
+          }
+        },
+        "required": [
+          "applicability_status"
+        ]
+      },
+      "then": {
+        "required": [
+          "not_applicable_reason"
+        ],
+        "properties": {
+          "selected_interaction_ids": {
+            "maxItems": 0
+          },
+          "not_selected_interaction_ids": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
 }

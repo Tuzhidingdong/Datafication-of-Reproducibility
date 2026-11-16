@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -26,6 +27,49 @@ G4_REQUIRED_REVIEWED_ARTIFACTS = {
     "interaction_selection",
     "virtual_prediction",
 }
+G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS = {
+    *G4_REQUIRED_REVIEWED_ARTIFACTS,
+    "model_artifact",
+    "cohort_review_record",
+    "cohort_review_validation",
+}
+G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS = {
+    "single_study_applicability_record",
+    "single_study_applicability_validation",
+    "canonical_bundle",
+    "canonical_validation_report",
+    "reconciliation_report",
+    "reconciliation_decisions",
+    "research_scope_record",
+    "modeling_task",
+    *G4_REQUIRED_REVIEWED_ARTIFACTS,
+    "interaction_manifest",
+    "robustness_manifest",
+}
+G3_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
+    "single_study_applicability_record",
+    "single_study_applicability_validation",
+    "canonical_bundle",
+    "modeling_task",
+    "model_report",
+    "reproducibility_evaluation",
+    "interaction_report",
+    "interaction_manifest",
+    "robustness_report",
+    "robustness_manifest",
+    "interaction_selection",
+    "virtual_prediction",
+}
+G4_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
+    "publication_plan", "publication_plan_validation",
+    "worker_review_output", "reviewed_findings", "reviewed_findings_validation",
+    *G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS,
+}
+G4_FULL_ANALYSIS_REQUIRED_ARTIFACTS = {
+    "publication_plan", "publication_plan_validation",
+    "worker_review_output", "reviewed_findings", "reviewed_findings_validation",
+    *G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS,
+}
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory", "g0_review_packet", "g0_review_packet_validation"},
     "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation", "g1_review_packet", "g1_review_packet_validation"},
@@ -35,11 +79,12 @@ REQUIRED_ARTIFACTS = {
         "robustness_report", "robustness_manifest", "interaction_selection",
     },
     "G4": {
-        "publication_plan", "worker_review_output", "reviewed_findings",
-        *G4_REQUIRED_REVIEWED_ARTIFACTS,
+        "publication_plan", "publication_plan_validation",
+        "worker_review_output", "reviewed_findings",
+        *G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS,
     },
 }
-G4_REVIEWABLE_ARTIFACTS = G4_REQUIRED_REVIEWED_ARTIFACTS
+G4_REVIEWABLE_ARTIFACTS = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
 
 
 # These sets mirror the two supported generic Run Plan entry routes. They are
@@ -195,11 +240,21 @@ def _load_events(ledger_path: Path) -> list[dict[str, Any]]:
                 if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
                     raise ValueError(f"Invalid artifact SHA-256 at line {line_number}.")
             if event["decision"] == "APPROVE":
-                missing = REQUIRED_ARTIFACTS[gate] - artifact_ids
+                single_study_profile = "single_study_applicability_record" in artifact_ids
+                if gate == "G3" and single_study_profile:
+                    required = G3_SINGLE_STUDY_REQUIRED_ARTIFACTS
+                elif gate == "G4" and single_study_profile:
+                    required = G4_SINGLE_STUDY_REQUIRED_ARTIFACTS
+                else:
+                    required = REQUIRED_ARTIFACTS[gate]
+                missing = required - artifact_ids
                 if missing:
                     raise ValueError(f"Gate {gate} event at line {line_number} lacks required artifacts: {', '.join(sorted(missing))}.")
-                if gate == "G4" and not G4_REVIEWABLE_ARTIFACTS.issubset(artifact_ids):
-                    raise ValueError("G4 requires the complete six-artifact input set supplied to independent_result_review.")
+                if gate == "G4":
+                    reviewable = (G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
+                                  if single_study_profile else G4_REVIEWABLE_ARTIFACTS)
+                    if not reviewable.issubset(artifact_ids):
+                        raise ValueError("G4 does not bind the complete declared Worker review input set.")
             prior_gate = PREVIOUS_GATE.get(gate)
             expected_dependency = latest_by_gate.get(prior_gate, {}).get("event_hash") if prior_gate else None
             if event.get("depends_on_event_hash") != expected_dependency:
@@ -232,12 +287,25 @@ def _binding_map(bindings: list[dict[str, str]]) -> dict[str, dict[str, str]]:
     return {item["artifact_id"]: item for item in bindings}
 
 
+def _require_gate_binding(
+    by_id: Mapping[str, dict[str, str]], artifact_id: str, gate_id: str,
+) -> dict[str, str]:
+    """Return one required Gate artifact with a user-actionable failure message."""
+    binding = by_id.get(artifact_id)
+    if binding is None:
+        raise ValueError(
+            f"{gate_id} approval is missing required artifact {artifact_id!r}. "
+            "Regenerate the review packet from the active Run and retry the Gate only after the missing stage output exists."
+        )
+    return binding
+
+
 def _validate_gate_review_packet(bindings: list[dict[str, str]], gate_id: str) -> None:
     stage_id = gate_id.lower() + "_review_packet"
     report_id = stage_id + "_validation"
     by_id = _binding_map(bindings)
-    packet_binding = by_id[stage_id]
-    report_binding = by_id[report_id]
+    packet_binding = _require_gate_binding(by_id, stage_id, gate_id)
+    report_binding = _require_gate_binding(by_id, report_id, gate_id)
     packet = _read_json_binding(packet_binding, gate_id + " review packet")
     report = _read_json_binding(report_binding, gate_id + " review packet validation")
 
@@ -399,11 +467,11 @@ def _validate_g1_artifacts(
     previous_gate_event: Mapping[str, Any],
 ) -> None:
     by_id = _binding_map(bindings)
-    mapping_binding = by_id["mapping_plan"]
-    validation_binding = by_id["mapping_validation"]
-    inventory_binding = by_id["source_inventory"]
-    spec_binding = by_id["build_spec"]
-    build_spec_validation_binding = by_id["build_spec_validation"]
+    mapping_binding = _require_gate_binding(by_id, "mapping_plan", "G1")
+    validation_binding = _require_gate_binding(by_id, "mapping_validation", "G1")
+    inventory_binding = _require_gate_binding(by_id, "source_inventory", "G1")
+    spec_binding = _require_gate_binding(by_id, "build_spec", "G1")
+    build_spec_validation_binding = _require_gate_binding(by_id, "build_spec_validation", "G1")
     prior_inventory = _binding_map(previous_gate_event["artifacts"]).get("source_inventory")
     if prior_inventory is None or (
         prior_inventory["path"] != inventory_binding["path"]
@@ -463,13 +531,13 @@ def _validate_g2_artifacts(
     previous_gate_event: Mapping[str, Any],
 ) -> None:
     by_id = _binding_map(bindings)
-    bundle_binding = by_id["canonical_bundle"]
-    validation_binding = by_id["canonical_validation_report"]
-    reconciliation_binding = by_id["reconciliation_report"]
-    decisions_binding = by_id["reconciliation_decisions"]
-    discovery_binding = by_id["discovery_report"]
-    scope_binding = by_id["research_scope_record"]
-    task_binding = by_id["modeling_task"]
+    bundle_binding = _require_gate_binding(by_id, "canonical_bundle", "G2")
+    validation_binding = _require_gate_binding(by_id, "canonical_validation_report", "G2")
+    reconciliation_binding = _require_gate_binding(by_id, "reconciliation_report", "G2")
+    decisions_binding = _require_gate_binding(by_id, "reconciliation_decisions", "G2")
+    discovery_binding = _require_gate_binding(by_id, "discovery_report", "G2")
+    scope_binding = _require_gate_binding(by_id, "research_scope_record", "G2")
+    task_binding = _require_gate_binding(by_id, "modeling_task", "G2")
     prior = _binding_map(previous_gate_event["artifacts"])
     bundle = _read_json_binding(bundle_binding, "G2 canonical_bundle")
     validation = _read_json_binding(validation_binding, "G2 canonical_validation_report")
@@ -527,16 +595,166 @@ def _validate_g2_artifacts(
         raise ValueError("G2 modeling_task requires an exact non-empty endpoint_definition.")
 
 
+def _validate_single_study_na_bundle(
+    by_id: Mapping[str, dict[str, str]],
+    previous_gate_event: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Verify NOT_APPLICABLE records against the exact G2-approved task and Bundle."""
+    previous = _binding_map(previous_gate_event.get("artifacts", []))
+    bundle_binding = _require_gate_binding(previous, "canonical_bundle", "G3")
+    task_binding = _require_gate_binding(previous, "modeling_task", "G3")
+    record_binding = _require_gate_binding(by_id, "single_study_applicability_record", "G3")
+    validation_binding = _require_gate_binding(by_id, "single_study_applicability_validation", "G3")
+    record = _read_json_binding(record_binding, "single-study applicability record")
+    validation = _read_json_binding(validation_binding, "single-study applicability validation")
+    task = _read_json_binding(task_binding, "G2 modeling task")
+    bundle = _read_json_binding(bundle_binding, "G2 canonical_bundle")
+    bundle_studies = bundle.get("studies")
+    bundle_study_ids = [
+        item.get("study_id") for item in bundle_studies
+        if isinstance(item, dict) and isinstance(item.get("study_id"), str) and item.get("study_id")
+    ] if isinstance(bundle_studies, list) else []
+    if len(bundle_study_ids) != 1 or bundle_study_ids != record.get("study_ids"):
+        raise ValueError("G3 single-study applicability record must match exactly one explicit Study in the G2-approved Canonical Bundle.")
+
+    if record.get("schema_version") != "1.0" or record.get("scope") != "CONTROLLED_SINGLE_STUDY":
+        raise ValueError("G3 single-study applicability record has an unsupported schema or scope.")
+    if (record.get("applicability_status") != "NOT_APPLICABLE"
+            or type(record.get("study_count")) is not int or record.get("study_count") != 1):
+        raise ValueError("G3 single-study applicability record must declare one Study and NOT_APPLICABLE.")
+    if (record.get("canonical_bundle_sha256") != bundle_binding["sha256"]
+            or record.get("modeling_task_sha256") != task_binding["sha256"]):
+        raise ValueError("G3 single-study applicability record differs from the exact G2-approved Bundle/task.")
+    if (validation.get("valid") is not True
+            or validation.get("applicability_status") != "NOT_APPLICABLE"
+            or validation.get("run_id") != record.get("run_id")
+            or validation.get("project_id") != record.get("project_id")
+            or validation.get("study_count") != 1
+            or validation.get("eligible_study_count") != 1):
+        raise ValueError("G3 requires a valid deterministic single-study applicability report for the same Run/Project and one eligible Study.")
+    if (validation.get("applicability_record_sha256") != record_binding["sha256"]
+            or validation.get("canonical_bundle_sha256") != bundle_binding["sha256"]
+            or validation.get("modeling_task_sha256") != task_binding["sha256"]):
+        raise ValueError("G3 applicability validation does not bind the exact record, Bundle, and task.")
+    study_ids = record.get("study_ids")
+    if not isinstance(study_ids, list) or len(study_ids) != 1 or not isinstance(study_ids[0], str) or not study_ids[0]:
+        raise ValueError("G3 single-study applicability record requires exactly one explicit Study ID.")
+    for status_field, reason_field in (
+        ("cohort_feasibility_status", "cohort_feasibility_reason"),
+        ("modeling_validation_status", "modeling_validation_reason"),
+    ):
+        if record.get(status_field) != "NOT_APPLICABLE":
+            raise ValueError(f"G3 applicability record {status_field} must be NOT_APPLICABLE.")
+        if not isinstance(record.get(reason_field), str) or not record[reason_field].strip():
+            raise ValueError(f"G3 applicability record lacks {reason_field}.")
+    if not all(isinstance(record.get(field), str) and record[field].strip()
+               for field in ("reviewer", "rationale")):
+        raise ValueError("G3 applicability record requires reviewer and rationale.")
+    try:
+        reviewed_at = datetime.fromisoformat(record["reviewed_at"].replace("Z", "+00:00"))
+        if reviewed_at.tzinfo is None or reviewed_at.utcoffset() is None:
+            raise ValueError("timezone required")
+    except (KeyError, ValueError) as exc:
+        raise ValueError("G3 applicability record reviewed_at must be timezone-aware.") from exc
+
+    run_id = record.get("run_id")
+    project_id = record.get("project_id")
+    if not isinstance(run_id, str) or not run_id.strip() or not isinstance(project_id, str) or not project_id.strip():
+        raise ValueError("G3 single-study applicability record requires non-empty Run and Project identity.")
+    base_fields = {
+        "run_id": run_id,
+        "project_id": project_id,
+        "applicability_status": "NOT_APPLICABLE",
+        "scope": "CONTROLLED_SINGLE_STUDY",
+        "study_ids": study_ids,
+        "study_count": 1,
+        "eligible_study_count": 1,
+        "canonical_bundle_sha256": bundle_binding["sha256"],
+        "modeling_task_sha256": task_binding["sha256"],
+        "applicability_record_sha256": record_binding["sha256"],
+    }
+    report_ids = {
+        "model_report": "model_report",
+        "reproducibility_evaluation": "reproducibility_evaluation",
+        "interaction_report": "interaction_report",
+        "robustness_report": "robustness_report",
+        "virtual_prediction": "virtual_prediction",
+    }
+    for artifact_id, label in report_ids.items():
+        binding = _require_gate_binding(by_id, artifact_id, "G3")
+        report = _read_json_binding(binding, "G3 " + label)
+        if report.get("schema_version") != "1.0" or any(report.get(key) != value for key, value in base_fields.items()):
+            raise ValueError(f"G3 {label} is not a matching NOT_APPLICABLE record.")
+        if report.get("task_id") != task.get("task_id"):
+            raise ValueError(f"G3 {label} task_id differs from the approved task.")
+        if not isinstance(report.get("reason"), str) or not report["reason"].strip():
+            raise ValueError(f"G3 {label} lacks its explicit non-applicability reason.")
+        if artifact_id in {"interaction_report", "robustness_report"} and report.get("interaction_catalogue") != []:
+            raise ValueError(f"G3 {label} must contain an explicitly empty interaction catalogue.")
+        for forbidden in ("model_artifact", "validation_metrics", "test_evaluation",
+                          "folds", "per_study_performance", "prediction", "predicted_value"):
+            if forbidden in report:
+                raise ValueError(f"G3 {label} must not contain fabricated scientific result field {forbidden}.")
+
+    for manifest_id, report_id, filename in (
+        ("interaction_manifest", "interaction_report", "interaction_discovery_report.json"),
+        ("robustness_manifest", "robustness_report", "interaction_robustness_report.json"),
+    ):
+        binding = _require_gate_binding(by_id, manifest_id, "G3")
+        payload = _read_json_binding(binding, "G3 " + manifest_id)
+        if any(payload.get(key) != value for key, value in base_fields.items()):
+            raise ValueError(f"G3 {manifest_id} is not a matching NOT_APPLICABLE manifest.")
+        inputs = payload.get("input_hashes")
+        outputs = payload.get("output_hashes")
+        report_binding = _require_gate_binding(by_id, report_id, "G3")
+        if (not isinstance(inputs, dict)
+                or inputs.get("task_sha256") != task_binding["sha256"]
+                or inputs.get("canonical_bundle_sha256") != bundle_binding["sha256"]
+                or inputs.get("applicability_record_sha256") != record_binding["sha256"]):
+            raise ValueError(f"G3 {manifest_id} does not bind the exact Bundle/task/applicability record.")
+        if not isinstance(outputs, dict) or outputs.get(filename) != report_binding["sha256"]:
+            raise ValueError(f"G3 {manifest_id} does not bind the exact NOT_APPLICABLE report.")
+
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G3")
+    selection = _read_json_binding(selection_binding, "G3 interaction_selection")
+    if selection.get("schema_version") != "1.1":
+        raise ValueError("G3 single-study interaction_selection schema_version must be 1.1.")
+    if selection.get("task_id") != task.get("task_id"):
+        raise ValueError("G3 interaction_selection task_id differs from the approved task.")
+    if (selection.get("interaction_report_sha256") != by_id["interaction_report"]["sha256"]
+            or selection.get("robustness_report_sha256") != by_id["robustness_report"]["sha256"]):
+        raise ValueError("G3 interaction_selection must bind the exact NOT_APPLICABLE reports.")
+    if selection.get("selected_interaction_ids") != [] or selection.get("not_selected_interaction_ids") != []:
+        raise ValueError("A NOT_APPLICABLE single-Study Run cannot select nonexistent interactions.")
+    if selection.get("applicability_status") != "NOT_APPLICABLE":
+        raise ValueError("G3 interaction_selection must explicitly declare NOT_APPLICABLE.")
+    if selection.get("not_applicable_reason") != record["modeling_validation_reason"]:
+        raise ValueError("G3 interaction_selection reason differs from the reviewed applicability record.")
+    if not all(isinstance(selection.get(key), str) and selection[key].strip()
+               for key in ("reviewer", "reviewed_at", "rationale")):
+        raise ValueError("G3 single-study interaction_selection requires reviewer, timestamp, and rationale.")
+    try:
+        parsed = datetime.fromisoformat(selection["reviewed_at"].replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("timezone required")
+    except ValueError as exc:
+        raise ValueError("G3 single-study interaction_selection reviewed_at must be timezone-aware.") from exc
+    return record
+
+
 def _validate_g3_selection(
     bindings: list[dict[str, str]],
     previous_gate_event: Mapping[str, Any],
 ) -> None:
     by_id = _binding_map(bindings)
-    report_binding = by_id["interaction_report"]
-    interaction_manifest_binding = by_id["interaction_manifest"]
-    robustness_binding = by_id["robustness_report"]
-    robustness_manifest_binding = by_id["robustness_manifest"]
-    selection_binding = by_id["interaction_selection"]
+    if "single_study_applicability_record" in by_id:
+        _validate_single_study_na_bundle(by_id, previous_gate_event)
+        return
+    report_binding = _require_gate_binding(by_id, "interaction_report", "G3")
+    interaction_manifest_binding = _require_gate_binding(by_id, "interaction_manifest", "G3")
+    robustness_binding = _require_gate_binding(by_id, "robustness_report", "G3")
+    robustness_manifest_binding = _require_gate_binding(by_id, "robustness_manifest", "G3")
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G3")
     report = _read_json_binding(report_binding, "G3 interaction_report")
     interaction_manifest = _read_json_binding(interaction_manifest_binding, "G3 interaction_manifest")
     robustness_report = _read_json_binding(robustness_binding, "G3 robustness_report")
@@ -632,19 +850,586 @@ def _validate_g3_selection(
             raise ValueError("G3 mechanism_plan interaction_id is not in selected_interaction_ids.")
 
 
-def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
+
+def _validate_g4_publication_plan(
+    by_id: Mapping[str, dict[str, str]],
+    previous_gate_event: Mapping[str, Any] | None,
+) -> None:
+    """Recheck the exact late-bound Publication Plan and every source it packages."""
+    plan_binding = _require_gate_binding(by_id, "publication_plan", "G4")
+    validation_binding = _require_gate_binding(by_id, "publication_plan_validation", "G4")
+    plan = _read_json_binding(plan_binding, "G4 publication_plan")
+    report = _read_json_binding(validation_binding, "G4 publication_plan_validation")
+    try:
+        from dor.publication import _validate_plan
+        _validate_plan(plan)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("G4 Publication Plan fails its structural contract: " + str(exc)) from exc
+
+    if report.get("schema_version") != "1.0" or report.get("contract") != "RUN_BOUND_PUBLICATION_PLAN":
+        raise ValueError("G4 publication_plan_validation has an unsupported contract.")
+    if report.get("valid") is not True:
+        raise ValueError("G4 publication_plan_validation must declare valid=true.")
+    if report.get("plan") != {
+        "path": plan_binding["path"],
+        "sha256": plan_binding["sha256"],
+    }:
+        raise ValueError("G4 publication_plan_validation does not bind the exact Gate-bound plan path and SHA-256.")
+    if report.get("validation_report_path") != validation_binding["path"]:
+        raise ValueError("G4 publication_plan_validation report path differs from the Gate-bound report.")
+    if (plan.get("run_id") != report.get("run_id")
+            or plan.get("project_id") != report.get("project_id")):
+        raise ValueError("G4 Publication Plan identity differs from its validation report.")
+
+    run_root_value = report.get("run_root")
+    if not isinstance(run_root_value, str) or not run_root_value.strip():
+        raise ValueError("G4 publication_plan_validation must identify run_root.")
+    run_root = Path(run_root_value).expanduser().resolve(strict=True)
+    if not run_root.is_dir():
+        raise ValueError("G4 Publication Plan run_root must be a directory.")
+    plan_unresolved = Path(plan_binding["path"]).expanduser()
+    report_unresolved = Path(validation_binding["path"]).expanduser()
+    if plan_unresolved.is_symlink() or report_unresolved.is_symlink():
+        raise ValueError("G4 Publication Plan and validation report must not be symbolic links.")
+    plan_path = plan_unresolved.resolve(strict=True)
+    validation_path = report_unresolved.resolve(strict=True)
+    if plan_path.parent.parent != run_root:
+        raise ValueError("G4 final Publication Plan must be the declared Run output under 10_publication.")
+    for label, path, binding in (
+        ("publication_plan", plan_path, plan_binding),
+        ("publication_plan_validation", validation_path, validation_binding),
+    ):
+        if not path.is_relative_to(run_root) or sha256_file(path) != binding["sha256"]:
+            raise ValueError(f"G4 {label} is outside the active Run or changed after validation.")
+
+    # Independently reload the immutable Run Manifest/Event Ledger and recompute
+    # the conditional G3 branch states. Do not treat validation_report.valid as
+    # sufficient evidence that the optional outputs were actually completed.
+    manifest_path = run_root / "run_manifest.json"
+    if previous_gate_event is None or previous_gate_event.get("gate_id") != "G3":
+        raise ValueError("G4 Publication Plan verification requires the exact approved G3 event.")
+    try:
+        from dor.run_manager import (
+            _artifact_definitions, _artifact_path, _latest_stage_events,
+            _manifest_context, _stage_map, build_artifact_manifest,
+        )
+        active_root, run_manifest, run_plan, run_events = _manifest_context(manifest_path)
+        if (active_root != run_root
+                or run_manifest.get("run_id") != report.get("run_id")
+                or run_manifest.get("project_id") != report.get("project_id")
+                or run_manifest.get("workspace_root") != str(run_root)):
+            raise ValueError("G4 Publication Plan validation report differs from the active Run Manifest.")
+        latest_stage_events = _latest_stage_events(run_events)
+        run_stage_ids = set(run_manifest.get("stage_order", []))
+        stage_map = _stage_map(run_plan)
+        artifact_definitions, artifact_producers = _artifact_definitions(run_plan)
+        live_artifact_manifest = build_artifact_manifest(manifest_path)
+        live_artifacts_by_id = {
+            item.get("artifact_id"): item
+            for item in live_artifact_manifest.get("artifacts", [])
+            if isinstance(item, dict) and isinstance(item.get("artifact_id"), str)
+        }
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise ValueError("G4 could not independently verify the active Run state: " + str(exc)) from exc
+
+    preparation_stage = stage_map.get("publication_plan_preparation")
+    if preparation_stage is None or preparation_stage.get("executor") != "manual":
+        raise ValueError("The active Run must declare publication_plan_preparation as a manual Stage.")
+    expected_plan_path = _artifact_path(run_root, artifact_definitions["publication_plan"])
+    expected_validation_path = _artifact_path(run_root, artifact_definitions["publication_plan_validation"])
+    if plan_path != expected_plan_path or validation_path != expected_validation_path:
+        raise ValueError("G4 Publication Plan files differ from the exact declared Run Stage outputs.")
+    preparation_event = latest_stage_events.get("publication_plan_preparation")
+    if preparation_event is None or preparation_event.get("status") != "SUCCEEDED":
+        observed = preparation_event.get("status") if preparation_event else "NOT_STARTED"
+        raise ValueError(f"G4 publication_plan_preparation must be SUCCEEDED; found {observed}.")
+    preparation_approval = preparation_event.get("gate_approval")
+    if (not isinstance(preparation_approval, dict)
+            or preparation_approval.get("gate_id") != "G3"
+            or preparation_approval.get("status") != "APPROVED"
+            or preparation_approval.get("event_hash") != previous_gate_event.get("event_hash")):
+        raise ValueError("Publication Plan preparation was not completed under the exact current G3 approval.")
+    preparation_inputs = {
+        item.get("artifact_id"): item
+        for item in preparation_event.get("input_artifacts", [])
+        if isinstance(item, dict)
+    }
+    declared_preparation_inputs = set(preparation_stage.get("inputs", []))
+    if set(preparation_inputs) != declared_preparation_inputs:
+        raise ValueError("Publication Plan preparation did not bind every declared Run input.")
+    for artifact_id in declared_preparation_inputs:
+        path = _artifact_path(run_root, artifact_definitions[artifact_id])
+        binding = preparation_inputs[artifact_id]
+        if (not path.is_file() or path.is_symlink()
+                or sha256_file(path) != binding.get("sha256")):
+            raise ValueError(f"Publication Plan preparation input {artifact_id} changed after the Stage event.")
+    preparation_outputs = {
+        item.get("artifact_id"): item
+        for item in preparation_event.get("output_artifacts", [])
+        if isinstance(item, dict)
+    }
+    for artifact_id, path in (
+        ("publication_plan", plan_path),
+        ("publication_plan_validation", validation_path),
+    ):
+        binding = preparation_outputs.get(artifact_id)
+        if binding is None or binding.get("sha256") != sha256_file(path):
+            raise ValueError(f"Publication Plan preparation output {artifact_id} differs from its successful Stage event.")
+
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G4")
+    g3_selection_binding = next(
+        (item for item in previous_gate_event.get("artifacts", [])
+         if item.get("artifact_id") == "interaction_selection"),
+        None,
+    )
+    if (g3_selection_binding is None
+            or g3_selection_binding.get("path") != selection_binding.get("path")
+            or g3_selection_binding.get("sha256") != selection_binding.get("sha256")):
+        raise ValueError("G4 interaction_selection must be the exact file approved by G3.")
+    selection = _read_json_binding(selection_binding, "G4 interaction_selection")
+    if (not Path(selection_binding["path"]).is_file()
+            or sha256_file(Path(selection_binding["path"])) != selection_binding["sha256"]):
+        raise ValueError("G4 interaction_selection changed after its Gate binding.")
+    selected_ids = selection.get("selected_interaction_ids")
+    if (not isinstance(selected_ids, list)
+            or any(not isinstance(item, str) or not item.strip() for item in selected_ids)
+            or len(selected_ids) != len(set(selected_ids))):
+        raise ValueError("G4 interaction_selection.selected_interaction_ids must be unique non-empty strings.")
+    if "single_study_applicability_record" not in by_id:
+        expected_status = "SUCCEEDED" if selected_ids else "SKIPPED"
+        for optional_stage_id in (
+            "mechanism_plan_preparation",
+            "response_surface_generation",
+            "mechanism_evidence_bridge",
+        ):
+            if optional_stage_id not in run_stage_ids:
+                continue
+            stage = stage_map[optional_stage_id]
+            event = latest_stage_events.get(optional_stage_id)
+            if event is None or event.get("status") != expected_status:
+                observed = event.get("status") if event else "NOT_STARTED"
+                raise ValueError(
+                    f"G4 conditional stage {optional_stage_id} must have status "
+                    f"{expected_status} for the G3 interaction selection; found {observed}."
+                )
+            approval = event.get("gate_approval")
+            required_gate = stage.get("required_gate")
+            if expected_status == "SKIPPED":
+                if approval is not None:
+                    raise ValueError(
+                        f"G4 skipped conditional stage {optional_stage_id} must not claim a Gate approval."
+                    )
+            elif required_gate is None:
+                if approval is not None:
+                    raise ValueError(
+                        f"G4 conditional stage {optional_stage_id} has an unexpected Gate approval."
+                    )
+            elif (not isinstance(approval, dict)
+                    or approval.get("gate_id") != "G3"
+                    or approval.get("status") != "APPROVED"
+                    or approval.get("event_hash") != previous_gate_event.get("event_hash")):
+                raise ValueError(
+                    f"G4 conditional stage {optional_stage_id} was not produced under the exact current G3 approval."
+                )
+            if expected_status == "SUCCEEDED":
+                recorded_outputs = {
+                    item.get("artifact_id"): item
+                    for item in event.get("output_artifacts", [])
+                    if isinstance(item, dict)
+                }
+                declared_outputs = {
+                    item["artifact_id"] for item in stage.get("outputs", [])
+                }
+                if set(recorded_outputs) != declared_outputs:
+                    raise ValueError(
+                        f"G4 conditional stage {optional_stage_id} does not bind every declared output."
+                    )
+                recorded_inputs = {
+                    item.get("artifact_id"): item
+                    for item in event.get("input_artifacts", [])
+                    if isinstance(item, dict)
+                }
+                declared_inputs = set(stage.get("inputs", []))
+                if set(recorded_inputs) != declared_inputs:
+                    raise ValueError(
+                        f"G4 conditional stage {optional_stage_id} does not bind every declared input."
+                    )
+                for artifact_id in declared_inputs:
+                    path = _artifact_path(run_root, artifact_definitions[artifact_id])
+                    binding = recorded_inputs[artifact_id]
+                    if (not path.is_file() or path.is_symlink()
+                            or sha256_file(path) != binding.get("sha256")):
+                        raise ValueError(
+                            f"G4 conditional input {artifact_id} is missing or changed after stage {optional_stage_id}."
+                        )
+                for output in stage.get("outputs", []):
+                    path = _artifact_path(run_root, output)
+                    binding = recorded_outputs[output["artifact_id"]]
+                    if (not path.is_file() or path.is_symlink()
+                            or sha256_file(path) != binding.get("sha256")):
+                        raise ValueError(
+                            f"G4 conditional output {output['artifact_id']} is missing or changed after its successful Run event."
+                        )
+                if optional_stage_id == "mechanism_plan_preparation":
+                    g3_mechanism_plan = next(
+                        (item for item in previous_gate_event.get("artifacts", [])
+                         if item.get("artifact_id") == "mechanism_plan"),
+                        None,
+                    )
+                    recorded_plan = recorded_outputs.get("mechanism_plan", {})
+                    plan_path = _artifact_path(run_root, stage["outputs"][0])
+                    if (g3_mechanism_plan is None
+                            or g3_mechanism_plan.get("path") != str(plan_path)
+                            or g3_mechanism_plan.get("sha256") != recorded_plan.get("sha256")):
+                        raise ValueError(
+                            "G4 mechanism_plan_preparation output differs from the mechanism_plan approved at G3."
+                        )
+
+    if not isinstance(plan, dict):
+        raise ValueError("G4 Publication Plan must be a JSON object.")
+    if not all(isinstance(plan.get(key), str) and plan[key].strip()
+               for key in ("project_id", "run_id", "package_version")):
+        raise ValueError("G4 Publication Plan requires project_id, run_id, and package_version.")
+    if report.get("run_id") != plan.get("run_id") or report.get("project_id") != plan.get("project_id"):
+        raise ValueError("G4 Publication Plan identity differs from the active validation report.")
+    if not isinstance(report.get("errors"), list) or report["errors"]:
+        raise ValueError("G4 Publication Plan validation report must contain an empty errors array.")
+
+    entries = plan.get("artifacts")
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("G4 Publication Plan artifacts must be a non-empty array.")
+    package_ids: list[str] = []
+    for item in entries:
+        if not isinstance(item, dict):
+            raise ValueError("G4 Publication Plan contains a malformed artifact entry.")
+        package_id = item.get("artifact_id")
+        if not isinstance(package_id, str) or not package_id.strip():
+            raise ValueError("G4 Publication Plan contains an empty package artifact ID.")
+        package_ids.append(package_id)
+    if len(package_ids) != len(set(package_ids)):
+        raise ValueError("G4 Publication Plan contains duplicate package artifact IDs.")
+
+    required_common = {
+        "WORKER_REVIEW_RECORD", "HUMAN_DISPOSITION_RECORD",
+        "HUMAN_DISPOSITION_VALIDATION",
+    }
+    if "single_study_applicability_record" in by_id:
+        required_package_ids = required_common | {
+            "ADAPTER_HANDOFF", "DATASET_MANIFEST", "SOURCE_INVENTORY",
+            "MAPPING_PLAN", "MAPPING_VALIDATION", "BUILD_SPEC",
+            "BUILD_SPEC_VALIDATION", "CANONICAL_BUNDLE",
+            "CANONICAL_VALIDATION", "RECONCILIATION_REPORT",
+            "RECONCILIATION_DECISIONS", "RECONCILIATION_VALIDATION",
+            "DISCOVERY_REPORT", "RESEARCH_SCOPE_RECORD", "MODELING_TASK",
+            "G2_REVIEW_PACKET",
+            "SINGLE_STUDY_APPLICABILITY_RECORD",
+            "SINGLE_STUDY_APPLICABILITY_VALIDATION",
+            "MODEL_NOT_APPLICABLE_RECORD",
+            "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",
+            "INTERACTION_NOT_APPLICABLE_RECORD",
+            "INTERACTION_NOT_APPLICABLE_MANIFEST",
+            "ROBUSTNESS_NOT_APPLICABLE_RECORD",
+            "ROBUSTNESS_NOT_APPLICABLE_MANIFEST",
+            "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD",
+            "INTERACTION_SELECTION",
+        }
+        expected_package_sources = {
+            "ADAPTER_HANDOFF": "adapter_handoff",
+            "DATASET_MANIFEST": "dataset_manifest",
+            "SOURCE_INVENTORY": "source_inventory",
+            "MAPPING_PLAN": "mapping_plan",
+            "MAPPING_VALIDATION": "mapping_validation",
+            "BUILD_SPEC": "build_spec",
+            "BUILD_SPEC_VALIDATION": "build_spec_validation",
+            "CANONICAL_BUNDLE": "canonical_bundle",
+            "CANONICAL_VALIDATION": "canonical_validation_report",
+            "RECONCILIATION_REPORT": "reconciliation_report",
+            "RECONCILIATION_DECISIONS": "reconciliation_decisions",
+            "RECONCILIATION_VALIDATION": "reconciliation_decision_validation",
+            "DISCOVERY_REPORT": "discovery_report",
+            "RESEARCH_SCOPE_RECORD": "research_scope_record",
+            "MODELING_TASK": "modeling_task",
+            "G2_REVIEW_PACKET": "g2_review_packet",
+            "SINGLE_STUDY_APPLICABILITY_RECORD": "single_study_applicability_record",
+            "SINGLE_STUDY_APPLICABILITY_VALIDATION": "single_study_applicability_validation",
+            "MODEL_NOT_APPLICABLE_RECORD": "model_report",
+            "REPRODUCIBILITY_NOT_APPLICABLE_RECORD": "reproducibility_evaluation",
+            "INTERACTION_NOT_APPLICABLE_RECORD": "interaction_report",
+            "INTERACTION_NOT_APPLICABLE_MANIFEST": "interaction_manifest",
+            "ROBUSTNESS_NOT_APPLICABLE_RECORD": "robustness_report",
+            "ROBUSTNESS_NOT_APPLICABLE_MANIFEST": "robustness_manifest",
+            "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD": "virtual_prediction",
+            "INTERACTION_SELECTION": "interaction_selection",
+            "WORKER_REVIEW_RECORD": "worker_review_output",
+            "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
+            "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+        }
+    else:
+        required_package_ids = required_common | {
+            "COHORT_REVIEW_RECORD", "COHORT_REVIEW_VALIDATION",
+            "MODEL_ARTIFACT_001", "MODEL_REPORT_001",
+            "REPRODUCIBILITY_EVALUATION_001", "INTERACTION_REPORT_001",
+            "INTERACTION_ROBUSTNESS_001", "INTERACTION_SELECTION_001",
+            "VIRTUAL_PREDICTION_001",
+        }
+        expected_package_sources = {
+            "MODEL_ARTIFACT_001": "model_artifact",
+            "MODEL_REPORT_001": "model_report",
+            "REPRODUCIBILITY_EVALUATION_001": "reproducibility_evaluation",
+            "INTERACTION_REPORT_001": "interaction_report",
+            "INTERACTION_ROBUSTNESS_001": "robustness_report",
+            "INTERACTION_SELECTION_001": "interaction_selection",
+            "VIRTUAL_PREDICTION_001": "virtual_prediction",
+            "COHORT_REVIEW_RECORD": "cohort_review_record",
+            "COHORT_REVIEW_VALIDATION": "cohort_review_validation",
+            "WORKER_REVIEW_RECORD": "worker_review_output",
+            "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
+            "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+            "MECHANISM_PLAN_001": "mechanism_plan",
+            "MECHANISM_BRIDGE_001": "mechanism_evidence_bridge_report",
+            "MECHANISM_FINDINGS_001": "mechanism_findings",
+            "MECHANISM_LEDGER_001": "mechanism_evidence_ledger",
+            "MECHANISM_REVIEW_QUEUE_001": "mechanism_review_queue",
+            "MECHANISM_MANIFEST_001": "mechanism_evidence_bridge_manifest",
+            "RESPONSE_SURFACE_REPORT_001": "interaction_response_surface_report",
+            "RESPONSE_SURFACE_DATA_001": "interaction_response_surface",
+            "RESPONSE_SURFACE_MANIFEST_001": "interaction_response_surface_manifest",
+            "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
+            "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
+        }
+    missing_package_ids = sorted(required_package_ids - set(package_ids))
+    if missing_package_ids:
+        raise ValueError(
+            "G4 Publication Plan is missing required delivery entries: "
+            + ", ".join(missing_package_ids)
+        )
+    report_sources = report.get("source_artifacts")
+    if not isinstance(report_sources, list):
+        raise ValueError("G4 publication_plan_validation must contain source_artifacts.")
+    reported_by_package: dict[str, dict[str, Any]] = {}
+    for item in report_sources:
+        if not isinstance(item, dict):
+            raise ValueError("G4 Publication Plan source binding is malformed.")
+        package_id = item.get("package_artifact_id")
+        if not isinstance(package_id, str) or not package_id.strip() or package_id in reported_by_package:
+            raise ValueError("G4 Publication Plan source bindings require unique package_artifact_id values.")
+        reported_by_package[package_id] = item
+
+    expected_package_ids: set[str] = set()
+    for item in entries:
+        if not isinstance(item, dict):
+            raise ValueError("G4 Publication Plan contains a malformed artifact entry.")
+        package_id = item.get("artifact_id")
+        source_path = item.get("source_path")
+        source_id = item.get("source_artifact_id")
+        status = item.get("status")
+        if status not in {"complete", "partial", "requires_review", "not_generated", "not_applicable"}:
+            raise ValueError(f"G4 Publication Plan {package_id} has an unsupported status.")
+        if status in {"complete", "partial"} and not isinstance(source_path, str):
+            raise ValueError(f"G4 Publication Plan {package_id} requires a source_path for status={status}.")
+        if status in {"not_generated", "not_applicable"} and (source_path is not None or source_id is not None):
+            raise ValueError(f"G4 Publication Plan {package_id} cannot bind a source for status={status}.")
+        if source_path is None:
+            if source_id is not None:
+                raise ValueError(f"G4 Publication Plan {package_id} has source_artifact_id without source_path.")
+            continue
+        if not isinstance(package_id, str) or not isinstance(source_id, str) or not source_id.strip():
+            raise ValueError("Every sourced G4 Publication Plan entry requires package artifact_id and source_artifact_id.")
+        expected_source_id = expected_package_sources.get(package_id)
+        if expected_source_id is not None and source_id != expected_source_id:
+            raise ValueError(
+                f"G4 Publication Plan {package_id} must bind Run Artifact {expected_source_id}, not {source_id}."
+            )
+        expected_package_ids.add(package_id)
+        relative = Path(source_path)
+        if (relative.is_absolute() or re.match(r"^[A-Za-z]:", source_path)
+                or "\\" in source_path or any(part in {"", ".", ".."} for part in relative.parts)
+                or relative.as_posix() != source_path):
+            raise ValueError(f"G4 Publication Plan source_path is not a safe Run-relative path: {source_path!r}.")
+        unresolved_source = run_root / relative
+        if unresolved_source.is_symlink():
+            raise ValueError(f"G4 Publication Plan source must not be a symbolic link: {unresolved_source}.")
+        source_file = unresolved_source.resolve(strict=True)
+        if not source_file.is_file() or not source_file.is_relative_to(run_root):
+            raise ValueError(f"G4 Publication Plan source is not a regular file inside the Run: {source_file}.")
+        digest = sha256_file(source_file)
+        report_source = reported_by_package.get(package_id)
+        if report_source is None:
+            raise ValueError(f"G4 publication_plan_validation omits package source {package_id}.")
+        if (report_source.get("artifact_id") != source_id
+                or report_source.get("path") != str(source_file)
+                or report_source.get("sha256") != digest):
+            raise ValueError(f"G4 Publication Plan source {package_id} differs from its validation binding.")
+
+        definition = artifact_definitions.get(source_id)
+        producer_stage_id = artifact_producers.get(source_id)
+        if definition is None or producer_stage_id is None:
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} is not a derived Artifact in the active Run Plan."
+            )
+        declared_run_path = _artifact_path(run_root, definition)
+        if source_file != declared_run_path:
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} differs from its declared Run Artifact path."
+            )
+        producer_event = latest_stage_events.get(producer_stage_id)
+        if producer_event is None or producer_event.get("status") != "SUCCEEDED":
+            observed = producer_event.get("status") if producer_event else "NOT_STARTED"
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} producer {producer_stage_id} "
+                f"must be SUCCEEDED; found {observed}."
+            )
+        producer_output = next(
+            (item for item in producer_event.get("output_artifacts", [])
+             if isinstance(item, dict) and item.get("artifact_id") == source_id),
+            None,
+        )
+        if (producer_output is None
+                or producer_output.get("path") != str(declared_run_path)
+                or producer_output.get("sha256") != digest):
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} differs from its successful producer event."
+            )
+        live_artifact = live_artifacts_by_id.get(source_id)
+        if (live_artifact is None or live_artifact.get("status") != "CURRENT"
+                or live_artifact.get("path") != str(declared_run_path)
+                or live_artifact.get("expected_sha256") != digest
+                or live_artifact.get("actual_sha256") != digest):
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} is not a current reusable Artifact in the active Run."
+            )
+
+        gate_source = by_id.get(source_id)
+        if gate_source is None:
+            raise ValueError(f"G4 Gate event must bind Publication Plan source Run Artifact {source_id}.")
+        if gate_source["path"] != str(source_file) or gate_source["sha256"] != digest:
+            raise ValueError(f"G4 Gate binding for {source_id} differs from the exact Publication Plan source.")
+
+    # Every mandatory delivery entry must be connected to its declared Run
+    # Artifact, not merely present as an unsourced placeholder in the plan.
+    for package_id in required_package_ids:
+        entry = next((item for item in entries if item.get("artifact_id") == package_id), None)
+        expected_source_id = expected_package_sources.get(package_id)
+        binding = reported_by_package.get(package_id)
+        if (entry is None or expected_source_id is None
+                or entry.get("source_artifact_id") != expected_source_id
+                or not isinstance(entry.get("source_path"), str)
+                or binding is None or binding.get("artifact_id") != expected_source_id):
+            raise ValueError(
+                f"G4 required publication entry {package_id} must be sourced from Run Artifact {expected_source_id}."
+            )
+
+    if "single_study_applicability_record" not in by_id:
+        optional_package_groups = {
+            "mechanism_plan_preparation": {"MECHANISM_PLAN_001": "mechanism_plan"},
+            "response_surface_generation": {
+                "RESPONSE_SURFACE_REPORT_001": "interaction_response_surface_report",
+                "RESPONSE_SURFACE_DATA_001": "interaction_response_surface",
+                "RESPONSE_SURFACE_MANIFEST_001": "interaction_response_surface_manifest",
+                "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
+                "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
+            },
+            "mechanism_evidence_bridge": {
+                "MECHANISM_BRIDGE_001": "mechanism_evidence_bridge_report",
+                "MECHANISM_FINDINGS_001": "mechanism_findings",
+                "MECHANISM_LEDGER_001": "mechanism_evidence_ledger",
+                "MECHANISM_REVIEW_QUEUE_001": "mechanism_review_queue",
+                "MECHANISM_MANIFEST_001": "mechanism_evidence_bridge_manifest",
+            },
+        }
+        for optional_stage_id, package_map in optional_package_groups.items():
+            if optional_stage_id not in run_stage_ids:
+                continue
+            for package_id, source_id in package_map.items():
+                entry = next((item for item in entries if item.get("artifact_id") == package_id), None)
+                binding = reported_by_package.get(package_id)
+                if selected_ids:
+                    if (entry is None
+                            or entry.get("status") not in {"complete", "partial", "requires_review"}
+                            or entry.get("source_artifact_id") != source_id
+                            or not isinstance(entry.get("source_path"), str)
+                            or binding is None or binding.get("artifact_id") != source_id):
+                        raise ValueError(
+                            f"G4 selected interaction requires package entry {package_id} "
+                            f"to include Run Artifact {source_id}."
+                        )
+                elif (entry is None or entry.get("status") != "not_generated"
+                      or entry.get("source_path") is not None
+                      or entry.get("source_artifact_id") is not None
+                      or binding is not None):
+                    raise ValueError(
+                        f"G4 no-interaction branch requires {package_id} to remain not_generated without a source."
+                    )
+
+    if set(reported_by_package) != expected_package_ids:
+        raise ValueError("G4 publication_plan_validation source set differs from the final Publication Plan.")
+    if report.get("checked_source_count") != len(expected_package_ids):
+        raise ValueError("G4 publication_plan_validation checked_source_count is inconsistent.")
+
+
+def _validate_g4_reviewed_findings(
+    bindings: list[dict[str, str]],
+    previous_gate_event: Mapping[str, Any] | None = None,
+) -> None:
     by_id = _binding_map(bindings)
-    worker_binding = by_id["worker_review_output"]
-    reviewed_binding = by_id["reviewed_findings"]
+    single_study_profile = "single_study_applicability_record" in by_id
+    if single_study_profile:
+        if previous_gate_event is None:
+            raise ValueError("G4 single-study review requires the approved G3 event.")
+        _validate_single_study_na_bundle(by_id, previous_gate_event)
+        expected_reviewed_artifacts = G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
+    else:
+        expected_reviewed_artifacts = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
+    worker_binding = _require_gate_binding(by_id, "worker_review_output", "G4")
+    reviewed_binding = _require_gate_binding(by_id, "reviewed_findings", "G4")
+    validation_binding = _require_gate_binding(by_id, "reviewed_findings_validation", "G4")
     worker_result = _read_json_binding(worker_binding, "G4 worker_review_output")
     reviewed = _read_json_binding(reviewed_binding, "G4 reviewed_findings")
+    validation_report = _read_json_binding(
+        validation_binding, "G4 reviewed_findings_validation",
+    )
     for label, binding in (
         ("worker_review_output", worker_binding),
         ("reviewed_findings", reviewed_binding),
+        ("reviewed_findings_validation", validation_binding),
     ):
         bound_path = Path(binding["path"])
-        if not bound_path.is_file() or sha256_file(bound_path) != binding["sha256"]:
+        if not bound_path.is_file() or bound_path.is_symlink() or sha256_file(bound_path) != binding["sha256"]:
             raise ValueError(f"G4 {label} changed after the Gate artifact hash was recorded.")
+
+    if (validation_report.get("schema_version") != "1.0"
+            or validation_report.get("contract") != "REVIEWED_WORKER_FINDINGS"
+            or validation_report.get("valid") is not True
+            or validation_report.get("errors") != []
+            or validation_report.get("stage_id") != "human_review_and_promotion"):
+        raise ValueError("G4 reviewed_findings_validation must be a valid, error-free promotion-stage report.")
+    if (validation_report.get("run_id") != reviewed.get("run_id")
+            or validation_report.get("project_id") != reviewed.get("project_id")
+            or validation_report.get("validation_report_path") != validation_binding["path"]):
+        raise ValueError("G4 reviewed_findings_validation Run/Project identity or report path is inconsistent.")
+    record_report_binding = validation_report.get("record")
+    if (not isinstance(record_report_binding, dict)
+            or record_report_binding.get("path") != reviewed_binding["path"]
+            or record_report_binding.get("sha256") != reviewed_binding["sha256"]):
+        raise ValueError("G4 reviewed_findings_validation does not bind the exact human disposition record.")
+    report_worker_binding = validation_report.get("worker_output")
+    if (not isinstance(report_worker_binding, dict)
+            or report_worker_binding.get("artifact_id") != "worker_review_output"
+            or report_worker_binding.get("path") != worker_binding["path"]
+            or report_worker_binding.get("sha256") != worker_binding["sha256"]
+            or report_worker_binding.get("worker_status") != worker_result.get("status")):
+        raise ValueError("G4 reviewed_findings_validation does not bind the exact Worker output.")
+    report_run_root = validation_report.get("run_root")
+    if not isinstance(report_run_root, str) or not report_run_root.strip():
+        raise ValueError("G4 reviewed_findings_validation must identify the active Run root.")
+    try:
+        resolved_run_root = Path(report_run_root).expanduser().resolve(strict=True)
+        if not Path(reviewed_binding["path"]).expanduser().resolve(strict=True).is_relative_to(resolved_run_root):
+            raise ValueError("G4 reviewed_findings_validation record is outside the active Run.")
+        if not Path(validation_binding["path"]).expanduser().resolve(strict=True).is_relative_to(resolved_run_root):
+            raise ValueError("G4 reviewed_findings_validation report is outside the active Run.")
+    except OSError as exc:
+        raise ValueError("G4 reviewed_findings_validation Run root cannot be verified.") from exc
 
     worker_required = {
         "schema_version", "task_id", "status", "summary", "findings",
@@ -768,11 +1553,13 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
         path = Path(binding["path"])
         if not path.is_file() or sha256_file(path) != binding["sha256"]:
             raise ValueError(f"G4 reviewed artifact {artifact_id} changed after human review.")
-    if reviewed_ids != G4_REQUIRED_REVIEWED_ARTIFACTS:
-        missing = sorted(G4_REQUIRED_REVIEWED_ARTIFACTS - reviewed_ids)
-        unexpected = sorted(reviewed_ids - G4_REQUIRED_REVIEWED_ARTIFACTS)
+    if validation_report.get("reviewed_artifact_count") != len(expected_reviewed_artifacts):
+        raise ValueError("G4 reviewed_findings_validation reviewed_artifact_count differs from the active Worker input set.")
+    if reviewed_ids != expected_reviewed_artifacts:
+        missing = sorted(expected_reviewed_artifacts - reviewed_ids)
+        unexpected = sorted(reviewed_ids - expected_reviewed_artifacts)
         raise ValueError(
-            "G4 reviewed_findings must bind exactly the six artifacts supplied to independent_result_review; "
+            "G4 reviewed_findings must bind exactly the artifacts supplied to the active Worker review stage; "
             + "missing=" + ", ".join(missing) + "; unexpected=" + ", ".join(unexpected) + "."
         )
     for finding_id, finding in worker_findings.items():
@@ -842,6 +1629,13 @@ def _validate_g4_reviewed_findings(bindings: list[dict[str, str]]) -> None:
     )
     if not consistent:
         raise ValueError("G4 promotion_decision is inconsistent with the individual human finding dispositions.")
+    if (validation_report.get("promotion_decision") != decision
+            or validation_report.get("expected_promotion_decision") != decision):
+        raise ValueError("G4 reviewed_findings_validation promotion decision differs from the exact human disposition record.")
+    reported_worker = validation_report.get("worker_output", {})
+    if reported_worker.get("finding_count") != len(worker_findings):
+        raise ValueError("G4 reviewed_findings_validation Worker finding count is inconsistent.")
+    _validate_g4_publication_plan(by_id, previous_gate_event)
 
 def _validate_approval_artifacts(
     gate_id: str,
@@ -867,7 +1661,7 @@ def _validate_approval_artifacts(
     elif gate_id == "G3":
         _validate_g3_selection(bindings, latest_by_gate["G2"])
     elif gate_id == "G4":
-        _validate_g4_reviewed_findings(bindings)
+        _validate_g4_reviewed_findings(bindings, latest_by_gate.get("G3"))
 
 
 def require_selected_interaction_id(ledger_path: Path, interaction_id: str) -> dict[str, Any]:
@@ -878,7 +1672,7 @@ def require_selected_interaction_id(ledger_path: Path, interaction_id: str) -> d
     events = _load_events(Path(ledger_path).expanduser().resolve())
     event = next(item for item in reversed(events) if item["gate_id"] == "G3")
     by_id = {item["artifact_id"]: item for item in event["artifacts"]}
-    selection_binding = by_id["interaction_selection"]
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G3")
     with Path(selection_binding["path"]).open("r", encoding="utf-8-sig") as handle:
         selection = json.load(handle)
     if interaction_id not in selection.get("selected_interaction_ids", []):
@@ -893,7 +1687,7 @@ def require_selected_interaction(ledger_path: Path, mechanism_plan_path: Path) -
     events = _load_events(Path(ledger_path).expanduser().resolve())
     event = next(item for item in reversed(events) if item["gate_id"] == "G3")
     by_id = {item["artifact_id"]: item for item in event["artifacts"]}
-    selection_binding = by_id["interaction_selection"]
+    selection_binding = _require_gate_binding(by_id, "interaction_selection", "G3")
     plan_binding = by_id.get("mechanism_plan")
     if plan_binding is None:
         raise ValueError("G3 contains no mechanism plan; no mechanism investigation was approved.")
@@ -1023,12 +1817,22 @@ def record_gate_decision(
     bindings = _artifact_bindings(artifact_specs)
     ids = {item["artifact_id"] for item in bindings}
     if decision == "APPROVE":
-        missing = REQUIRED_ARTIFACTS[gate_id] - ids
+        required_artifacts = REQUIRED_ARTIFACTS[gate_id]
+        reviewed_artifacts: set[str] = set()
+        if gate_id == "G4":
+            single_study_profile = "single_study_applicability_record" in ids
+            if single_study_profile:
+                required_artifacts = G4_SINGLE_STUDY_REQUIRED_ARTIFACTS
+                reviewed_artifacts = G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
+            else:
+                required_artifacts = G4_FULL_ANALYSIS_REQUIRED_ARTIFACTS
+                reviewed_artifacts = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
+        missing = required_artifacts - ids
         if missing:
             raise ValueError(f"Gate {gate_id} requires artifact IDs: {', '.join(sorted(missing))}.")
-        if gate_id == "G4" and not G4_REVIEWABLE_ARTIFACTS.issubset(ids):
+        if gate_id == "G4" and not reviewed_artifacts.issubset(ids):
             raise ValueError(
-                "G4 requires the complete six-artifact input set supplied to independent_result_review."
+                "G4 requires the complete profile-specific Worker reviewed-artifact set declared by the active workflow."
             )
     ledger_path = ledger_path.expanduser().resolve()
     lock_path = ledger_path.with_name(ledger_path.name + ".lock")

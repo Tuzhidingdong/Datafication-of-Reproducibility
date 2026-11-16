@@ -8,13 +8,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-CONTRACT_VERSION = "1.0"
+CONTRACT_VERSION = "1.1"
 
 STAGE_CONTRACTS: dict[str, dict[str, Any]] = {
     "source_selection": {
         "required_artifact_types": ["source_selection_manifest", "source_inventory"],
         "checks": ["selected_excluded_partition_exact", "selected_source_set_matches_run_snapshot", "excluded_source_reasons_present", "inventory_references_selected_sources_only"],
-        "scope": "User-selected source inventory and explicit exclusions; filenames are labels, not semantics.",
+        "scope": "Agent-selected source inventory from declared structured-input metadata and explicit exclusions; filenames are labels, not semantics.",
     },
     "source_integrity": {
         "required_artifact_types": ["run_manifest"],
@@ -23,8 +23,8 @@ STAGE_CONTRACTS: dict[str, dict[str, Any]] = {
     },
     "extraction_review": {
         "required_artifact_types": ["extraction_review_record"],
-        "checks": ["source_hash_bindings", "exact_review_locators", "human_review_decision"],
-        "scope": "DOR-owned human spot-check record; no assumption about an upstream parser's private schema.",
+        "checks": ["source_hash_bindings", "exact_structured_record_locators", "human_structured_data_review_decision"],
+        "scope": "Human review of delivered structured records and opaque upstream locator metadata only; original source-document contents are never accessed or verified by DoR.",
     },
     "semantic_mapping": {
         "required_artifact_types": ["mapping_plan"],
@@ -120,6 +120,28 @@ def _validate_source_selection(payload: Any, source_snapshot: list[dict[str, Any
         missing = sorted(set(expected) - set(assigned))
         unknown = sorted(set(assigned) - set(expected))
         errors.append(_error("SOURCE_SELECTION_PARTITION_MISMATCH", f"selected_sources and excluded_sources must partition the exact Run source snapshot; missing={missing}, unknown={unknown}.", "source_selection_manifest"))
+    selected_ids = {
+        item.get("source_id") for item in selected
+        if isinstance(item, dict) and _nonempty(item.get("source_id"))
+    }
+    selected_roles = {
+        item.get("role") for item in expected.values()
+        if item.get("source_id") in selected_ids
+    }
+    if "STRUCTURED_DATA" not in selected_roles:
+        errors.append(_error(
+            "SOURCE_SELECTION_STRUCTURED_DATA_MISSING",
+            "At least one STRUCTURED_DATA source must be selected for a V1.0 acceptance scope.",
+            "source_selection_manifest",
+        ))
+    if len(study_ids) == 1:
+        for required_role in ("PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"):
+            if required_role not in selected_roles:
+                errors.append(_error(
+                    "SOURCE_SELECTION_SINGLE_STUDY_PROVENANCE_MISSING",
+                    f"A controlled single-Study acceptance must select its {required_role} provenance source.",
+                    "source_selection_manifest",
+                ))
     if payload.get("study_ids") != sorted(study_ids):
         errors.append(_error("SOURCE_SELECTION_STUDY_SET_MISMATCH", "source_selection_manifest.study_ids must equal the sorted explicit acceptance Study IDs.", "source_selection_manifest"))
     return errors
@@ -178,18 +200,33 @@ def _validate_run_manifest(payload: Any, run_id: str, project_id: str,
         return [_error("RUN_MANIFEST_SHAPE_INVALID", "run_manifest must be a JSON object.", "run_manifest")]
     if payload.get("schema_version") != "1.0" or payload.get("run_id") != run_id or payload.get("project_id") != project_id:
         errors.append(_error("RUN_MANIFEST_IDENTITY_MISMATCH", "run_manifest schema/run/project identity does not match this acceptance.", "run_manifest"))
-    source_artifacts = payload.get("source_artifacts")
+    acceptance_sources = payload.get("acceptance_source_artifacts")
+    if acceptance_sources is not None:
+        if not isinstance(acceptance_sources, list):
+            errors.append(_error("RUN_MANIFEST_SOURCE_SET_MISMATCH", "run_manifest.acceptance_source_artifacts must be an array.", "run_manifest"))
+            acceptance_sources = []
+        source_entries = [
+            {
+                "artifact_id": item.get("source_id"),
+                "path": item.get("path"),
+                "sha256": item.get("sha256"),
+                "role": item.get("role"),
+            }
+            for item in acceptance_sources if isinstance(item, dict)
+        ]
+    else:
+        source_entries = payload.get("source_artifacts")
     actual: dict[str, dict[str, Any]] = {}
-    if not isinstance(source_artifacts, list):
-        errors.append(_error("RUN_MANIFEST_SOURCE_SET_MISMATCH", "run_manifest.source_artifacts must be an array.", "run_manifest"))
-        source_artifacts = []
-    for index, artifact in enumerate(source_artifacts):
+    if not isinstance(source_entries, list):
+        errors.append(_error("RUN_MANIFEST_SOURCE_SET_MISMATCH", "Run Manifest acceptance/source artifact set must be an array.", "run_manifest"))
+        source_entries = []
+    for index, artifact in enumerate(source_entries):
         if not isinstance(artifact, dict) or not _nonempty(artifact.get("artifact_id")):
-            errors.append(_error("RUN_MANIFEST_SOURCE_ENTRY_INVALID", f"source_artifacts[{index}] requires an explicit artifact_id.", "run_manifest"))
+            errors.append(_error("RUN_MANIFEST_SOURCE_ENTRY_INVALID", f"source_artifacts[{index}] requires an explicit source/artifact ID.", "run_manifest"))
             continue
         artifact_id = artifact["artifact_id"]
         if artifact_id in actual:
-            errors.append(_error("RUN_MANIFEST_SOURCE_ID_DUPLICATE", f"run_manifest contains duplicate source artifact_id {artifact_id}.", "run_manifest"))
+            errors.append(_error("RUN_MANIFEST_SOURCE_ID_DUPLICATE", f"run_manifest contains duplicate source artifact ID {artifact_id}.", "run_manifest"))
             continue
         actual[artifact_id] = artifact
     expected = {item.get("source_id"): item for item in source_snapshot if isinstance(item, dict)}
@@ -200,8 +237,9 @@ def _validate_run_manifest(payload: Any, run_id: str, project_id: str,
         if bound is None:
             continue
         if (Path(str(bound.get("path", ""))).expanduser().resolve(strict=False) != Path(str(item.get("path", ""))).expanduser().resolve(strict=False)
-                or bound.get("sha256") != item.get("sha256")):
-            errors.append(_error("RUN_MANIFEST_SOURCE_BINDING_MISMATCH", f"Run Manifest source {source_id} path/hash differs from source_snapshot.", "run_manifest"))
+                or bound.get("sha256") != item.get("sha256")
+                or ("role" in bound and bound.get("role") != item.get("role"))):
+            errors.append(_error("RUN_MANIFEST_SOURCE_BINDING_MISMATCH", f"Run Manifest source {source_id} role/path/hash differs from source_snapshot.", "run_manifest"))
     return errors
 
 
@@ -213,6 +251,12 @@ def _validate_extraction_review(payload: Any, source_snapshot: list[dict[str, An
     expected = {item.get("source_id"): item.get("sha256") for item in source_snapshot if isinstance(item, dict)}
     if not isinstance(hashes, dict) or hashes != expected:
         errors.append(_error("EXTRACTION_SOURCE_HASH_BINDING_MISMATCH", "source_hashes must exactly match the selected source IDs and SHA-256 values.", "extraction_review_record"))
+    locator_source_ids: set[str] = set()
+    structured_sources_with_review: set[str] = set()
+    source_roles = {
+        item.get("source_id"): item.get("role")
+        for item in source_snapshot if isinstance(item, dict)
+    }
     locators = payload.get("reviewed_locators")
     if not isinstance(locators, list) or not locators:
         errors.append(_error("EXTRACTION_LOCATORS_MISSING", "reviewed_locators must be a non-empty array.", "extraction_review_record"))
@@ -221,10 +265,32 @@ def _validate_extraction_review(payload: Any, source_snapshot: list[dict[str, An
             if not isinstance(locator, dict) or any(not _nonempty(locator.get(key)) for key in ("source_id", "locator_type", "locator", "review_status")):
                 errors.append(_error("EXTRACTION_LOCATOR_INCOMPLETE", f"reviewed_locators[{index}] requires source_id, locator_type, locator, and review_status.", "extraction_review_record"))
                 continue
-            if locator["source_id"] not in expected:
-                errors.append(_error("EXTRACTION_LOCATOR_SOURCE_UNKNOWN", f"reviewed_locators[{index}] references an unselected source_id.", "extraction_review_record"))
-            if locator["review_status"] not in {"SPOT_CHECKED", "REVIEW_REQUIRED", "UNREADABLE", "NOT_APPLICABLE"}:
-                errors.append(_error("EXTRACTION_REVIEW_STATUS_INVALID", f"reviewed_locators[{index}] has an unsupported review_status.", "extraction_review_record"))
+            source_id = locator["source_id"]
+            status = locator["review_status"]
+            role = source_roles.get(source_id)
+            if source_id not in expected:
+                errors.append(_error("EXTRACTION_LOCATOR_SOURCE_UNKNOWN", f"reviewed_locators[{index}] references a source outside the selected source set.", "extraction_review_record"))
+            else:
+                locator_source_ids.add(source_id)
+            if status not in {"STRUCTURED_RECORD_REVIEWED", "UPSTREAM_EXTRACTION_UNVERIFIED", "REVIEW_REQUIRED", "NOT_APPLICABLE"}:
+                errors.append(_error("EXTRACTION_REVIEW_STATUS_INVALID", f"reviewed_locators[{index}] has an unsupported review_status for structured-data-only review.", "extraction_review_record"))
+            elif status == "REVIEW_REQUIRED":
+                errors.append(_error("EXTRACTION_LOCATOR_REVIEW_REQUIRED", f"reviewed_locators[{index}] remains unresolved and blocks extraction_review PASS.", "extraction_review_record"))
+            if role in {"PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"} and status == "STRUCTURED_RECORD_REVIEWED":
+                errors.append(_error(
+                    "ORIGINAL_DOCUMENT_CONTENT_REVIEW_FORBIDDEN",
+                    f"Source {source_id} is provenance-only; paper/SI content must never be marked as inspected or reviewed.",
+                    "extraction_review_record",
+                ))
+            if role == "STRUCTURED_DATA" and status == "STRUCTURED_RECORD_REVIEWED":
+                structured_sources_with_review.add(source_id)
+    for source_id, role in source_roles.items():
+        if role == "STRUCTURED_DATA" and source_id in expected and source_id not in structured_sources_with_review:
+            errors.append(_error(
+                "STRUCTURED_SOURCE_REVIEW_MISSING",
+                f"Selected structured source {source_id} needs at least one reviewed row/field locator.",
+                "extraction_review_record",
+            ))
     review = payload.get("human_review")
     if not isinstance(review, dict) or not all(_nonempty(review.get(key)) for key in ("reviewer", "reviewed_at", "decision")):
         errors.append(_error("EXTRACTION_HUMAN_REVIEW_MISSING", "human_review requires reviewer, reviewed_at, and decision.", "extraction_review_record"))

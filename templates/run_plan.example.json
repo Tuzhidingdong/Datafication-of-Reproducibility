@@ -16,7 +16,7 @@
       "path": "D:/Research/Project/configuration/virtual_reproduction_query.json"
     },
     {
-      "artifact_id": "publication_plan",
+      "artifact_id": "publication_plan_template",
       "path": "D:/Research/Project/configuration/publication_package_plan.json"
     }
   ],
@@ -190,6 +190,7 @@
       "stage_id": "canonical_build",
       "executor": "local",
       "depends_on": [
+        "adapter_package_validation",
         "source_audit",
         "mapping_preparation",
         "mapping_validation",
@@ -197,6 +198,7 @@
       ],
       "required_gate": "G1",
       "inputs": [
+        "adapter_handoff",
         "source_inventory",
         "mapping_plan",
         "build_spec",
@@ -423,11 +425,38 @@
       ]
     },
     {
+      "stage_id": "cohort_review",
+      "executor": "manual",
+      "depends_on": [
+        "cohort_build",
+        "research_scope_selection"
+      ],
+      "required_gate": null,
+      "inputs": [
+        "modeling_cohort",
+        "cohort_report",
+        "split_manifest",
+        "cohort_manifest",
+        "modeling_task"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "cohort_review_record",
+          "path": "05_modeling/cohort/cohort_review_record.json"
+        },
+        {
+          "artifact_id": "cohort_review_validation",
+          "path": "05_modeling/cohort/cohort_review_validation.json"
+        }
+      ]
+    },
+    {
       "stage_id": "baseline_model_fit",
       "executor": "local",
       "depends_on": [
         "cohort_build",
-        "research_scope_selection"
+        "research_scope_selection",
+        "cohort_review"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -435,7 +464,9 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task"
+        "modeling_task",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -465,7 +496,8 @@
       "executor": "local",
       "depends_on": [
         "cohort_build",
-        "research_scope_selection"
+        "research_scope_selection",
+        "cohort_review"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -473,7 +505,9 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task"
+        "modeling_task",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -503,7 +537,8 @@
       "executor": "local",
       "depends_on": [
         "cohort_build",
-        "research_scope_selection"
+        "research_scope_selection",
+        "cohort_review"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -511,7 +546,9 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task"
+        "modeling_task",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -537,7 +574,8 @@
       "executor": "local",
       "depends_on": [
         "cohort_build",
-        "research_scope_selection"
+        "research_scope_selection",
+        "cohort_review"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -545,7 +583,9 @@
         "cohort_report",
         "split_manifest",
         "cohort_manifest",
-        "modeling_task"
+        "modeling_task",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -622,7 +662,8 @@
         "cohort_build",
         "research_scope_selection",
         "interaction_discovery",
-        "interaction_robustness"
+        "interaction_robustness",
+        "cohort_review"
       ],
       "required_gate": "G3",
       "inputs": [
@@ -637,7 +678,9 @@
         "interaction_manifest",
         "robustness_report",
         "robustness_catalogue",
-        "robustness_manifest"
+        "robustness_manifest",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "activation": {
         "artifact_id": "interaction_selection",
@@ -678,7 +721,8 @@
         "interaction_discovery",
         "interaction_robustness",
         "mechanism_plan_preparation",
-        "response_surface_generation"
+        "response_surface_generation",
+        "cohort_review"
       ],
       "required_gate": "G3",
       "inputs": [
@@ -695,7 +739,9 @@
         "robustness_report",
         "robustness_manifest",
         "interaction_response_surface_report",
-        "interaction_response_surface_manifest"
+        "interaction_response_surface_manifest",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "activation": {
         "artifact_id": "interaction_selection",
@@ -753,21 +799,25 @@
         "interaction_discovery",
         "interaction_robustness",
         "g3_selection_packet",
-        "virtual_condition_prediction"
+        "virtual_condition_prediction",
+        "cohort_review"
       ],
       "required_gate": "G3",
       "inputs": [
+        "model_artifact",
         "model_report",
         "reproducibility_evaluation",
         "interaction_report",
         "robustness_report",
         "interaction_selection",
-        "virtual_prediction"
+        "virtual_prediction",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "worker_task": {
-        "objective": "Independently audit the declared model, reproducibility, interaction, robustness, selection, and virtual-prediction reports for leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks. Every finding must include a stable, unique finding_id; use the same ID throughout the review packet and do not merge distinct findings.",
+        "objective": "Independently audit the declared Cohort review, serialized model artifact and model report, reproducibility, interaction, robustness, selection, and virtual-prediction artifacts for model-file integrity, leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks. Every finding must include a stable, unique finding_id; use the same ID throughout the review packet and do not merge distinct findings.",
         "permitted_actions": [
-          "Read only the six declared compact JSON/report inputs",
+          "Read only the declared compact JSON/report inputs; inspect summary/status/count/warning/claim-scope fields first, and open detailed report sections only when needed to substantiate a specific finding.",
           "Write one structured review JSON to the exact permitted staging path",
           "Follow schemas/worker_result.schema.json. Assign a stable finding_id to each finding and cite supporting_artifact_ids with exact evidence locators (artifact_id plus JSON path, line, or equivalent location).",
           "Conform the JSON result to schemas/worker_result.schema.json and use templates/worker_result.example.json as a neutral format reference; each finding needs a stable ID, supporting artifact IDs, and exact evidence locators."
@@ -800,16 +850,20 @@
         "nested_reproducibility_evaluation",
         "interaction_discovery",
         "interaction_robustness",
-        "virtual_condition_prediction"
+        "virtual_condition_prediction",
+        "cohort_review"
       ],
       "inputs": [
         "worker_review_output",
         "interaction_selection",
+        "model_artifact",
         "model_report",
         "reproducibility_evaluation",
         "interaction_report",
         "robustness_report",
-        "virtual_prediction"
+        "virtual_prediction",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {
@@ -819,6 +873,52 @@
         {
           "artifact_id": "reviewed_findings_validation",
           "path": "09_review/reviewed_findings_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "publication_plan_preparation",
+      "executor": "manual",
+      "depends_on": [
+        "baseline_model_fit",
+        "nested_reproducibility_evaluation",
+        "interaction_discovery",
+        "interaction_robustness",
+        "g3_selection_packet",
+        "virtual_condition_prediction",
+        "independent_result_review",
+        "human_review_and_promotion",
+        "cohort_review",
+        "mechanism_plan_preparation",
+        "response_surface_generation",
+        "mechanism_evidence_bridge"
+      ],
+      "required_gate": "G3",
+      "inputs": [
+        "publication_plan_template",
+        "model_artifact",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "robustness_report",
+        "interaction_selection",
+        "virtual_prediction",
+        "worker_review_output",
+        "reviewed_findings",
+        "reviewed_findings_validation",
+        "cohort_review_record",
+        "cohort_review_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "publication_plan",
+          "path": "10_publication/publication_package_plan.json",
+          "kind": "derived"
+        },
+        {
+          "artifact_id": "publication_plan_validation",
+          "path": "10_publication/publication_plan_validation.json",
+          "kind": "derived"
         }
       ]
     },
@@ -833,11 +933,15 @@
         "g3_selection_packet",
         "virtual_condition_prediction",
         "human_review_and_promotion",
-        "independent_result_review"
+        "independent_result_review",
+        "cohort_review",
+        "publication_plan_preparation"
       ],
       "required_gate": "G4",
       "inputs": [
         "publication_plan",
+        "publication_plan_validation",
+        "model_artifact",
         "model_report",
         "reproducibility_evaluation",
         "interaction_report",
@@ -846,7 +950,9 @@
         "virtual_prediction",
         "reviewed_findings",
         "worker_review_output",
-        "reviewed_findings_validation"
+        "reviewed_findings_validation",
+        "cohort_review_record",
+        "cohort_review_validation"
       ],
       "outputs": [
         {

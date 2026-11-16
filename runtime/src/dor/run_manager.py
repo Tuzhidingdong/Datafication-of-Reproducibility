@@ -16,7 +16,12 @@ import uuid
 from typing import Any, Mapping
 
 from dor.gates import inspect_gate_ledger
+from dor.execution_contract import (
+    stage_action_bindings_for_plan,
+    validate_supported_run_plan_execution_contract,
+)
 from dor.mapping import sha256_file
+from dor.worker_result import validate_worker_result_payload
 
 RUN_SCHEMA_VERSION = "1.0"
 EVENT_GENESIS_HASH = "0" * 64
@@ -114,7 +119,10 @@ def _absolute_existing_directory(raw: Any, label: str) -> Path:
     return resolved
 
 
-def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[list[str], dict[str, dict[str, Any]], dict[str, str]]:
+def _validate_plan(
+    plan: dict[str, Any], run_root: Path | None = None, *,
+    allow_missing_acceptance_sources: bool = False,
+) -> tuple[list[str], dict[str, dict[str, Any]], dict[str, str]]:
     if plan.get("schema_version") != RUN_SCHEMA_VERSION:
         raise ValueError(f"Run plan schema_version must be {RUN_SCHEMA_VERSION}.")
     project_id = plan.get("project_id")
@@ -154,9 +162,50 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
             raise ValueError(f"Source artifact {artifact_id} is outside all declared source_roots: {path}.")
         artifacts[artifact_id] = {"artifact_id": artifact_id, "path": str(path), "kind": "source"}
 
+    acceptance_source_defs = plan.get("acceptance_source_artifacts")
+    if acceptance_source_defs is not None:
+        if not isinstance(acceptance_source_defs, list) or not acceptance_source_defs:
+            raise ValueError("acceptance_source_artifacts, when supplied, must be a non-empty explicit array.")
+        acceptance_source_ids: set[str] = set()
+        acceptance_source_paths: set[str] = set()
+        allowed_source_roles = {
+            "PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION", "STRUCTURED_DATA", "OTHER",
+        }
+        for item in acceptance_source_defs:
+            if not isinstance(item, dict):
+                raise ValueError("Every acceptance_source_artifacts item must be an object.")
+            source_id, role, raw_path = item.get("source_id"), item.get("role"), item.get("path")
+            if not isinstance(source_id, str) or not _STAGE_ID.fullmatch(source_id):
+                raise ValueError(f"Invalid acceptance source_id: {source_id!r}.")
+            if source_id in acceptance_source_ids:
+                raise ValueError(f"Duplicate acceptance source_id: {source_id}.")
+            acceptance_source_ids.add(source_id)
+            if role not in allowed_source_roles:
+                raise ValueError(
+                    f"Acceptance source {source_id} role must be one of {sorted(allowed_source_roles)}."
+                )
+            if not isinstance(raw_path, str) or not Path(raw_path).expanduser().is_absolute():
+                raise ValueError(f"Acceptance source {source_id} path must be absolute.")
+            source_path = Path(raw_path).expanduser().resolve(
+                strict=not allow_missing_acceptance_sources,
+            )
+            if not allow_missing_acceptance_sources and not source_path.is_file():
+                raise ValueError(f"Acceptance source {source_id} is not a file: {source_path}.")
+            if allow_missing_acceptance_sources and source_path.exists() and not source_path.is_file():
+                raise ValueError(f"Acceptance source {source_id} is not a file: {source_path}.")
+            if not any(source_path.is_relative_to(source_root) for source_root in roots):
+                raise ValueError(
+                    f"Acceptance source {source_id} is outside all declared source_roots: {source_path}."
+                )
+            normalized_source_path = str(source_path)
+            if normalized_source_path in acceptance_source_paths:
+                raise ValueError(f"Duplicate acceptance source path: {source_path}.")
+            acceptance_source_paths.add(normalized_source_path)
+
     stages_value = plan.get("stages")
     if not isinstance(stages_value, list) or not stages_value:
         raise ValueError("Run plan requires a non-empty explicit stages array.")
+    validate_supported_run_plan_execution_contract(plan)
     stages: dict[str, dict[str, Any]] = {}
     producer_by_artifact: dict[str, str] = {}
     output_paths: set[str] = set()
@@ -268,6 +317,15 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
             "worker_task": worker_task, "activation": activation,
         }
 
+    acceptance_id_collisions = acceptance_source_ids.intersection(
+        set(artifacts) | set(producer_by_artifact)
+    ) if acceptance_source_defs is not None else set()
+    if acceptance_id_collisions:
+        raise ValueError(
+            "Acceptance source IDs must be distinct from Run Artifact IDs: "
+            + ", ".join(sorted(acceptance_id_collisions)) + "."
+        )
+
     for stage_id, stage in stages.items():
         unknown = set(stage["depends_on"]) - set(stages)
         if unknown:
@@ -305,7 +363,10 @@ def _initialization_snapshot(manifest: Mapping[str, Any]) -> dict[str, Any]:
         "plan_path", "plan_sha256", "event_ledger_path", "workflow_ledger_path",
         "source_roots", "source_artifacts", "stage_order", "integrity_scope",
     )
-    return {key: manifest.get(key) for key in keys}
+    snapshot = {key: manifest.get(key) for key in keys}
+    if "acceptance_source_artifacts" in manifest:
+        snapshot["acceptance_source_artifacts"] = manifest.get("acceptance_source_artifacts")
+    return snapshot
 
 
 def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
@@ -323,7 +384,7 @@ def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[s
     if plan_hash != manifest.get("plan_sha256"):
         raise ValueError("Run plan SHA-256 differs from the immutable run-init snapshot.")
     plan = _read_json(plan_path, "Bound run plan")
-    order, source_defs, producer_by_artifact = _validate_plan(plan, root)
+    order, source_defs, producer_by_artifact = _validate_plan(plan, root, allow_missing_acceptance_sources=True)
     if plan.get("project_id") != manifest.get("project_id"):
         raise ValueError("Run manifest project_id differs from its bound run plan.")
     if manifest.get("plan_path") != "run_plan.json" or manifest.get("event_ledger_path") != "run_events.jsonl":
@@ -344,6 +405,37 @@ def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[s
             raise ValueError("Run manifest source artifact definitions differ from the bound plan.")
     if len(manifest.get("source_artifacts", [])) != len(source_defs):
         raise ValueError("Run manifest source artifact set differs from the bound plan.")
+    plan_acceptance_sources = plan.get("acceptance_source_artifacts")
+    manifest_acceptance_sources = manifest.get("acceptance_source_artifacts")
+    if plan_acceptance_sources is None:
+        if manifest_acceptance_sources is not None:
+            raise ValueError("Run manifest declares acceptance sources absent from the bound Run Plan.")
+    else:
+        if not isinstance(manifest_acceptance_sources, list) or len(manifest_acceptance_sources) != len(plan_acceptance_sources):
+            raise ValueError("Run manifest acceptance source set differs from the bound Run Plan.")
+        expected_acceptance = {item["source_id"]: item for item in plan_acceptance_sources}
+        observed_acceptance = {
+            item.get("source_id"): item for item in manifest_acceptance_sources
+            if isinstance(item, dict) and isinstance(item.get("source_id"), str)
+        }
+        if set(observed_acceptance) != set(expected_acceptance):
+            raise ValueError("Run manifest acceptance source IDs differ from the bound Run Plan.")
+        for source_id, definition in expected_acceptance.items():
+            observed = observed_acceptance[source_id]
+            declared_path = Path(definition["path"]).expanduser()
+            try:
+                expected_path = str(declared_path.resolve(strict=True))
+            except (FileNotFoundError, NotADirectoryError):
+                # The initialization event is the immutable authority for the
+                # originally resolved target. Preserve Run inspection when a
+                # provenance-only paper/SI file has since been moved/deleted;
+                # verify_run will report its live hash state as missing.
+                expected_path = observed.get("path")
+            if (observed.get("role") != definition["role"]
+                    or observed.get("path") != expected_path
+                    or not isinstance(observed.get("sha256"), str)
+                    or not re.fullmatch(r"[0-9a-f]{64}", observed["sha256"])):
+                raise ValueError(f"Run manifest acceptance source definition differs from the bound plan: {source_id}.")
     event_path = _safe_relative_path(root, manifest.get("event_ledger_path"), "Run event ledger path")
     events = _load_events(event_path, manifest["run_id"])
     if not events or events[0].get("initialization") != _initialization_snapshot(manifest):
@@ -464,6 +556,14 @@ def _validate_event_semantics(
                 raise ValueError(f"Worker authorization lacks rationale at line {line_number}.")
             if event.get("task_spec") != stage.get("worker_task"):
                 raise ValueError(f"Worker authorization task specification differs from the run plan at line {line_number}.")
+            if "worker_task_id" in event:
+                expected_worker_task_id = (
+                    f"DOR_{event['run_id']}_{stage_id}_ATTEMPT_{event['attempt']:04d}"
+                )
+                if event.get("worker_task_id") != expected_worker_task_id:
+                    raise ValueError(
+                        f"Worker authorization task ID differs from its Run/Stage/Attempt identity at line {line_number}."
+                    )
             validate_snapshots(event.get("input_artifacts"), stage["inputs"], "Worker authorization inputs", line_number)
             expected_outputs = [
                 {"artifact_id": item["artifact_id"], "path": str(_artifact_path(root, item)), "kind": item["kind"]}
@@ -558,6 +658,62 @@ def _validate_event_semantics(
                     raise ValueError(f"FAILED event output list is invalid at line {line_number}.")
                 for item in output_items:
                     validate_snapshots([item], [item["artifact_id"]], "Failed-stage outputs", line_number)
+            if (status == "FAILED" and stage.get("executor") == "worker"
+                    and ("archived_outputs" in event or "archive_manifest" in event)):
+                archived_outputs = event.get("archived_outputs")
+                archive_manifest = event.get("archive_manifest")
+                if not isinstance(archived_outputs, list) or not isinstance(archive_manifest, dict):
+                    raise ValueError(f"Failed Worker attempt has an incomplete immutable output archive at line {line_number}.")
+                archived_ids: set[str] = set()
+                allowed_archive_outputs = {item["artifact_id"]: item for item in stage["outputs"]}
+                expected_archive_prefix = (
+                    f".dor_attempt_archive/{stage_id}/attempt-{event['attempt']:04d}/"
+                )
+                for archived_item in archived_outputs:
+                    required_archive_fields = {"artifact_id", "original_path", "archive_path", "sha256"}
+                    if (not isinstance(archived_item, dict)
+                            or set(archived_item) != required_archive_fields):
+                        raise ValueError(f"Failed Worker archive entry is malformed at line {line_number}.")
+                    artifact_id = archived_item.get("artifact_id")
+                    definition = allowed_archive_outputs.get(artifact_id)
+                    if definition is None or artifact_id in archived_ids:
+                        raise ValueError(f"Failed Worker archive has an unknown/duplicate Artifact ID at line {line_number}.")
+                    archived_ids.add(artifact_id)
+                    expected_original = str(_artifact_path(root, definition))
+                    if archived_item.get("original_path") != expected_original:
+                        raise ValueError(f"Failed Worker archive original path differs from its declared output at line {line_number}.")
+                    archive_relative = archived_item.get("archive_path")
+                    if (not isinstance(archive_relative, str)
+                            or not archive_relative.startswith(expected_archive_prefix)):
+                        raise ValueError(f"Failed Worker archive path is outside its per-attempt archive at line {line_number}.")
+                    archive_path = _safe_relative_path(root, archive_relative, "Worker archived output")
+                    digest = archived_item.get("sha256")
+                    if (not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest)
+                            or archive_path.is_symlink() or not archive_path.is_file()
+                            or sha256_file(archive_path) != digest):
+                        raise ValueError(f"Failed Worker archived output is missing, linked, or hash-mismatched at line {line_number}.")
+                failed_output_ids = {item["artifact_id"] for item in output_items}
+                if archived_ids != failed_output_ids:
+                    raise ValueError(f"Failed Worker archive does not cover exactly the recorded partial outputs at line {line_number}.")
+                archive_manifest_path = archive_manifest.get("path")
+                archive_manifest_hash = archive_manifest.get("sha256")
+                if (archive_manifest_path != expected_archive_prefix + "archive_manifest.json"
+                        or not isinstance(archive_manifest_hash, str)
+                        or not re.fullmatch(r"[a-f0-9]{64}", archive_manifest_hash)):
+                    raise ValueError(f"Failed Worker archive manifest binding is malformed at line {line_number}.")
+                archive_manifest_file = _safe_relative_path(root, archive_manifest_path, "Worker archive manifest")
+                if (archive_manifest_file.is_symlink() or not archive_manifest_file.is_file()
+                        or sha256_file(archive_manifest_file) != archive_manifest_hash):
+                    raise ValueError(f"Failed Worker archive manifest is missing or hash-mismatched at line {line_number}.")
+                archive_payload = _read_json(archive_manifest_file, "Worker failure archive manifest")
+                if (archive_payload.get("run_id") != event["run_id"]
+                        or archive_payload.get("stage_id") != stage_id
+                        or archive_payload.get("attempt") != event["attempt"]
+                        or archive_payload.get("reason") != event.get("reason")
+                        or archive_payload.get("archived_outputs") != archived_outputs):
+                    raise ValueError(f"Failed Worker archive manifest content differs from its event at line {line_number}.")
+            elif "archived_outputs" in event or "archive_manifest" in event:
+                raise ValueError(f"Only failed Worker attempts may declare an output archive at line {line_number}.")
             started_producer = latest.get("producer", {})
             completed_producer = event.get("producer", {})
             for key, value in started_producer.items():
@@ -634,6 +790,79 @@ def _artifact_path(root: Path, definition: Mapping[str, Any]) -> Path:
     if definition.get("kind") == "source":
         return Path(definition["path"]).expanduser().resolve(strict=False)
     return _safe_relative_path(root, definition["path"], f"Artifact {definition['artifact_id']} path")
+
+
+def _archive_failed_worker_outputs(
+    root: Path, run_id: str, stage: Mapping[str, Any], attempt: int, reason: str,
+) -> tuple[list[dict[str, str]], dict[str, str]]:
+    """Move failed Worker staging files into an immutable per-attempt archive."""
+    archive_base = root / ".dor_attempt_archive"
+    stage_archive = archive_base / str(stage["stage_id"])
+    attempt_archive = stage_archive / f"attempt-{attempt:04d}"
+    for directory in (archive_base, stage_archive):
+        if directory.is_symlink():
+            raise ValueError(f"Worker failure archive directory must not be a symlink: {directory}.")
+    if attempt_archive.exists() or attempt_archive.is_symlink():
+        raise FileExistsError(f"Worker failure archive already exists; refusing overwrite: {attempt_archive}.")
+    attempt_archive.mkdir(parents=True, exist_ok=False)
+    archived: list[dict[str, str]] = []
+    moved: list[tuple[Path, Path]] = []
+    manifest_path = attempt_archive / "archive_manifest.json"
+    try:
+        for output in stage.get("outputs", []):
+            source = _artifact_path(root, output)
+            if not source.exists() and not source.is_symlink():
+                continue
+            if source.is_symlink() or not source.is_file():
+                raise ValueError(
+                    f"Worker staging output must be a regular non-symlink file before archiving: {source}."
+                )
+            source_hash = sha256_file(source)
+            relative_output = Path(str(output["path"]))
+            destination = attempt_archive / relative_output
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.exists() or destination.is_symlink():
+                raise FileExistsError(f"Worker archive destination already exists: {destination}.")
+            os.replace(source, destination)
+            moved.append((source, destination))
+            archived.append({
+                "artifact_id": str(output["artifact_id"]),
+                "original_path": str(source),
+                "archive_path": destination.relative_to(root).as_posix(),
+                "sha256": source_hash,
+            })
+        manifest = {
+            "schema_version": "1.0",
+            "run_id": run_id,
+            "stage_id": stage["stage_id"],
+            "attempt": attempt,
+            "recorded_at": _now(),
+            "reason": reason,
+            "archived_outputs": archived,
+        }
+        raw = (json.dumps(manifest, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
+        with manifest_path.open("xb") as handle:
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+        manifest_binding = {
+            "path": manifest_path.relative_to(root).as_posix(),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }
+        return archived, manifest_binding
+    except BaseException:
+        for source, destination in reversed(moved):
+            if destination.exists() and not source.exists():
+                source.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(destination, source)
+        for current, directories, files in os.walk(attempt_archive, topdown=False):
+            current_path = Path(current)
+            for filename in files:
+                (current_path / filename).unlink(missing_ok=True)
+            for directory in directories:
+                (current_path / directory).rmdir()
+        attempt_archive.rmdir()
+        raise
 
 
 def _json_pointer_lookup(document: Any, pointer: str) -> tuple[bool, Any]:
@@ -823,7 +1052,12 @@ def _stage_gate_input_mismatches(
 
 def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                  events: list[dict[str, Any]]) -> dict[str, Any]:
-    order, _, producer_by_artifact = _validate_plan(plan, root)
+    # This is a loaded Run, not first-time initialization. Provenance-only
+    # Acceptance sources may be missing; keep their status inspectable while
+    # preserving strict existence checks for operational source_artifacts.
+    order, _, producer_by_artifact = _validate_plan(
+        plan, root, allow_missing_acceptance_sources=True,
+    )
     stages = _stage_map(plan)
     latest = _latest_stage_events(events)
     gate_snapshot = _gate_status(manifest)
@@ -831,11 +1065,27 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
     details: dict[str, dict[str, Any]] = {}
     source_hashes = {item["artifact_id"]: item["sha256"] for item in manifest["source_artifacts"]}
     definitions, _ = _artifact_definitions(plan)
+    action_bindings = stage_action_bindings_for_plan(plan)
 
     for stage_id in order:
         stage = stages[stage_id]
         dependencies = stage["depends_on"]
-        dependency_actions = [actions[item] for item in dependencies]
+        consumed_inputs = set(stage["inputs"])
+        unresolved_dependencies: list[str] = []
+        for dependency_id in dependencies:
+            dependency_action = actions[dependency_id]
+            if dependency_action == "REUSE":
+                continue
+            dependency_outputs = {
+                item["artifact_id"] for item in stages[dependency_id].get("outputs", [])
+            }
+            # A conditionally inactive stage is a satisfied control dependency
+            # only when this consumer does not require any of its outputs.
+            # If even one output is listed as an input, the downstream stage
+            # remains blocked until the producer is active and reusable.
+            if dependency_action == "SKIPPED" and not (dependency_outputs & consumed_inputs):
+                continue
+            unresolved_dependencies.append(dependency_id)
         current_event = latest.get(stage_id)
         reasons: list[str] = []
         changed_source_inputs = []
@@ -884,9 +1134,12 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                 action = "ACTIVE"
 
             if action == "ACTIVE":
-                if any(item != "REUSE" for item in dependency_actions):
+                if unresolved_dependencies:
                     action = "INVALIDATED_BY_UPSTREAM" if current_event and current_event.get("status") == "SUCCEEDED" else "WAITING_FOR_DEPENDENCIES"
-                    reasons.append("One or more declared dependencies are not currently reusable.")
+                    reasons.append(
+                        "One or more declared dependencies are not reusable or safely skipped: "
+                        + ", ".join(unresolved_dependencies) + "."
+                    )
                 elif not _required_gate_is_current(stage, gate_snapshot):
                     action = "BLOCKED_GATE"
                     reasons.append(f"Required gate {stage.get('required_gate')} is not currently approved.")
@@ -956,6 +1209,50 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
             "reasons": reasons,
             "last_event_hash": current_event.get("event_hash") if current_event else None,
         }
+        binding = action_bindings.get(stage_id)
+        if binding is not None:
+            details[stage_id]["action_binding"] = {
+                **binding,
+                "input_artifacts": [
+                    {
+                        "artifact_id": artifact_id,
+                        "path": str(_artifact_path(root, definitions[artifact_id])),
+                        "kind": definitions[artifact_id].get("kind", "derived"),
+                    }
+                    for artifact_id in stage["inputs"]
+                ],
+                "output_artifacts": [
+                    {
+                        "artifact_id": output["artifact_id"],
+                        "path": str(_artifact_path(root, output)),
+                        "kind": output.get("kind", "derived"),
+                    }
+                    for output in stage["outputs"]
+                ],
+                **(
+                    {"worker_task": stage["worker_task"]}
+                    if isinstance(stage.get("worker_task"), dict) else {}
+                ),
+            }
+
+    actionable_states = {
+        "READY_TO_RUN", "RETRY_REQUIRED", "REBUILD_REQUIRED", "SKIP_REQUIRED",
+    }
+    next_actions = [
+        {
+            "stage_id": stage_id,
+            "action": details[stage_id]["action"],
+            "executor": stages[stage_id].get("executor", "local"),
+            "required_gate": stages[stage_id].get("required_gate"),
+            "reasons": details[stage_id]["reasons"],
+            **(
+                {"action_binding": details[stage_id]["action_binding"]}
+                if "action_binding" in details[stage_id] else {}
+            ),
+        }
+        for stage_id in order
+        if details[stage_id]["action"] in actionable_states
+    ]
 
     reusable = sum(1 for value in actions.values() if value == "REUSE")
     ready = sum(1 for value in actions.values() if value == "READY_TO_RUN")
@@ -975,6 +1272,7 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
         "rebuild_or_retry_count": rebuild,
         "source_changed_block_count": blocked_source,
         "stages": [details[stage_id] for stage_id in order],
+        "next_actions": next_actions,
         "execution_policy": "PLAN_ONLY_NO_COMMANDS_OR_WORKERS_ARE_STARTED_AND_NO_GATE_DECISIONS_ARE_CREATED",
     }
 
@@ -1001,6 +1299,15 @@ def initialize_run(plan_path: Path, run_root: Path, run_id: str | None = None) -
         source_artifacts.append({
             "artifact_id": item["artifact_id"], "path": str(path), "sha256": sha256_file(path),
         })
+    acceptance_source_artifacts = None
+    if "acceptance_source_artifacts" in plan:
+        acceptance_source_artifacts = []
+        for item in plan["acceptance_source_artifacts"]:
+            path = Path(item["path"]).expanduser().resolve(strict=True)
+            acceptance_source_artifacts.append({
+                "source_id": item["source_id"], "role": item["role"],
+                "path": str(path), "sha256": sha256_file(path),
+            })
     workflow_ledger = plan.get("workflow_ledger_path")
     if workflow_ledger:
         workflow_ledger = str(Path(workflow_ledger).expanduser().resolve(strict=False))
@@ -1020,6 +1327,8 @@ def initialize_run(plan_path: Path, run_root: Path, run_id: str | None = None) -
         "stage_order": _validate_plan(plan, run_root)[0],
         "integrity_scope": "INITIALIZATION_EVENT_BINDS_PLAN_AND_SOURCE_SNAPSHOTS_PLUS_APPEND_ONLY_EVENT_CHAIN_NOT_USER_AUTHENTICATION",
     }
+    if acceptance_source_artifacts is not None:
+        manifest["acceptance_source_artifacts"] = acceptance_source_artifacts
     _write_json_atomic(run_root / "run_manifest.json", manifest)
     initialization_payload = {
         "schema_version": RUN_SCHEMA_VERSION,
@@ -1063,6 +1372,18 @@ def verify_run(manifest_path: Path) -> dict[str, Any]:
             "expected_sha256": item["sha256"], "actual_sha256": actual,
             "status": "CURRENT" if actual == item["sha256"] else "STALE_OR_MISSING",
         })
+    acceptance_source_status = []
+    for item in manifest.get("acceptance_source_artifacts", []):
+        path = Path(item["path"])
+        try:
+            actual = sha256_file(path) if path.is_file() else None
+        except OSError:
+            actual = None
+        acceptance_source_status.append({
+            "source_id": item["source_id"], "role": item["role"], "path": item["path"],
+            "expected_sha256": item["sha256"], "actual_sha256": actual,
+            "status": "CURRENT" if actual == item["sha256"] else "STALE_OR_MISSING",
+        })
     resume = _resume_plan(root, manifest, plan, events)
     artifact_manifest = _artifact_manifest(root, manifest, plan, events)
     return {
@@ -1074,7 +1395,11 @@ def verify_run(manifest_path: Path) -> dict[str, Any]:
         "event_count": len(events),
         "last_event_hash": events[-1]["event_hash"] if events else EVENT_GENESIS_HASH,
         "source_artifacts": source_status,
-        "source_integrity": "CURRENT" if all(item["status"] == "CURRENT" for item in source_status) else "SOURCE_CHANGED_NEW_RUN_REQUIRED",
+        "acceptance_source_artifacts": acceptance_source_status,
+        "source_integrity": (
+            "CURRENT" if all(item["status"] == "CURRENT" for item in source_status + acceptance_source_status)
+            else "SOURCE_CHANGED_NEW_RUN_REQUIRED"
+        ),
         "artifact_manifest": artifact_manifest,
         "resume_plan": resume,
     }
@@ -1152,6 +1477,86 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
     for item in artifacts:
         counts[item["status"]] = counts.get(item["status"], 0) + 1
     source_states = [item["status"] for item in artifacts if item["kind"] == "source"]
+    acceptance_source_artifacts = []
+    for source in manifest.get("acceptance_source_artifacts", []):
+        path = Path(source["path"])
+        try:
+            actual = sha256_file(path) if path.is_file() else None
+        except OSError:
+            actual = None
+        acceptance_source_artifacts.append({
+            "source_id": source["source_id"],
+            "role": source["role"],
+            "path": source["path"],
+            "expected_sha256": source["sha256"],
+            "actual_sha256": actual,
+            "status": "CURRENT" if actual == source["sha256"] else "SOURCE_CHANGED_OR_MISSING",
+        })
+    all_source_states = source_states + [
+        item["status"] for item in acceptance_source_artifacts
+    ]
+    acceptance_source_counts: dict[str, int] = {}
+    for item in acceptance_source_artifacts:
+        acceptance_source_counts[item["status"]] = (
+            acceptance_source_counts.get(item["status"], 0) + 1
+        )
+    archived_attempts = []
+    for event in events:
+        if (event.get("event_type") != "STAGE_STATUS"
+                or event.get("status") != "FAILED"
+                or not isinstance(event.get("archive_manifest"), dict)):
+            continue
+        manifest_binding = event["archive_manifest"]
+        archive_manifest_path = _safe_relative_path(
+            root, manifest_binding["path"], "Worker failure archive manifest"
+        )
+        try:
+            archive_manifest_actual = (
+                sha256_file(archive_manifest_path)
+                if archive_manifest_path.is_file() and not archive_manifest_path.is_symlink()
+                else None
+            )
+        except OSError:
+            archive_manifest_actual = None
+        archived_files = []
+        for archived in event.get("archived_outputs", []):
+            archived_path = _safe_relative_path(
+                root, archived["archive_path"], "Worker archived output"
+            )
+            try:
+                actual = (
+                    sha256_file(archived_path)
+                    if archived_path.is_file() and not archived_path.is_symlink()
+                    else None
+                )
+            except OSError:
+                actual = None
+            archived_files.append({
+                "artifact_id": archived["artifact_id"],
+                "original_path": archived["original_path"],
+                "archive_path": str(archived_path),
+                "expected_sha256": archived["sha256"],
+                "actual_sha256": actual,
+                "status": "CURRENT" if actual == archived["sha256"] else "MISSING_OR_TAMPERED",
+            })
+        manifest_current = archive_manifest_actual == manifest_binding["sha256"]
+        archived_attempts.append({
+            "stage_id": event["stage_id"],
+            "attempt": event["attempt"],
+            "reason": event.get("reason"),
+            "event_hash": event["event_hash"],
+            "archive_manifest_path": str(archive_manifest_path),
+            "archive_manifest_expected_sha256": manifest_binding["sha256"],
+            "archive_manifest_actual_sha256": archive_manifest_actual,
+            "archive_manifest_status": "CURRENT" if manifest_current else "MISSING_OR_TAMPERED",
+            "archived_outputs": archived_files,
+            "status": (
+                "CURRENT" if manifest_current and all(item["status"] == "CURRENT" for item in archived_files)
+                else "MISSING_OR_TAMPERED"
+            ),
+            "reusable_as_stage_outputs": False,
+        })
+
     return {
         "schema_version": RUN_SCHEMA_VERSION,
         "run_id": manifest["run_id"],
@@ -1163,7 +1568,11 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
         "last_event_hash": events[-1]["event_hash"] if events else EVENT_GENESIS_HASH,
         "artifact_count": len(artifacts),
         "status_counts": counts,
-        "source_integrity": "CURRENT" if all(item == "CURRENT" for item in source_states) else "SOURCE_CHANGED_NEW_RUN_REQUIRED",
+        "archived_attempt_count": len(archived_attempts),
+        "archived_attempts": archived_attempts,
+        "source_integrity": "CURRENT" if all(item == "CURRENT" for item in all_source_states) else "SOURCE_CHANGED_NEW_RUN_REQUIRED",
+        "acceptance_source_artifacts": acceptance_source_artifacts,
+        "acceptance_source_status_counts": acceptance_source_counts,
         "artifacts": artifacts,
         "source_of_truth": "RUN_PLAN_SOURCE_SNAPSHOTS_AND_HASH_CHAINED_RUN_EVENTS; THIS_MANIFEST_IS_A_REGENERABLE_VIEW",
     }
@@ -1172,6 +1581,119 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
 def build_artifact_manifest(manifest_path: Path) -> dict[str, Any]:
     root, manifest, plan, events = _manifest_context(manifest_path)
     return _artifact_manifest(root, manifest, plan, events)
+
+def _usage_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    fields = ("input_tokens", "output_tokens", "reasoning_tokens",
+              "cache_read_tokens", "cache_write_tokens")
+    totals: dict[str, Any] = {}
+    for field in fields:
+        values = [row[field] for row in rows if row.get(field) is not None]
+        totals[field] = {
+            "total": sum(values) if values else None,
+            "reported_attempts": len(values),
+            "missing_attempts": len(rows) - len(values),
+        }
+    base_complete = sum(
+        1 for row in rows
+        if row.get("input_tokens") is not None and row.get("output_tokens") is not None
+    )
+    return {
+        "attempt_count": len(rows),
+        "attempts_with_any_usage": sum(
+            1 for row in rows if any(row.get(field) is not None for field in fields)
+        ),
+        "base_input_output_complete_attempts": base_complete,
+        "token_totals": totals,
+        "input_plus_output_tokens": (
+            totals["input_tokens"]["total"] + totals["output_tokens"]["total"]
+            if base_complete == len(rows) and rows else None
+        ),
+        "usage_coverage": (
+            "NO_USAGE_REPORTED" if not any(row.get(field) is not None for row in rows for field in fields)
+            else ("COMPLETE_INPUT_OUTPUT" if rows and base_complete == len(rows) else "PARTIAL")
+        ),
+    }
+
+
+def build_run_usage_report(manifest_path: Path) -> dict[str, Any]:
+    """Summarize token usage actually recorded on terminal Run stage attempts."""
+    root, manifest, plan, events = _manifest_context(manifest_path)
+    token_fields = (
+        "input_tokens", "output_tokens", "reasoning_tokens",
+        "cache_read_tokens", "cache_write_tokens",
+    )
+    terminal = [
+        event for event in events
+        if event.get("event_type") == "STAGE_STATUS"
+        and event.get("status") in {"SUCCEEDED", "FAILED"}
+    ]
+    rows: list[dict[str, Any]] = []
+    for event in terminal:
+        producer = event.get("producer") if isinstance(event.get("producer"), dict) else {}
+        for field in token_fields:
+            value = producer.get(field)
+            if value is not None and (type(value) is not int or value < 0):
+                raise ValueError(f"Run usage event {event.get('event_hash')} has an invalid {field} value.")
+        rows.append({
+            "stage_id": event.get("stage_id"),
+            "attempt": event.get("attempt"),
+            "status": event.get("status"),
+            "producer_kind": producer.get("kind", "UNSPECIFIED"),
+            "role": producer.get("role"),
+            "provider": producer.get("provider"),
+            "model": producer.get("model"),
+            "job_id": producer.get("job_id"),
+            "session_id": producer.get("session_id"),
+            "task_id": producer.get("task_id"),
+            **{field: producer.get(field) for field in token_fields},
+            "event_hash": event.get("event_hash"),
+        })
+
+    def grouped(key_fields: tuple[str, ...]) -> list[dict[str, Any]]:
+        groups: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+        for row in rows:
+            key = tuple(str(row.get(field) or "UNSPECIFIED") for field in key_fields)
+            groups.setdefault(key, []).append(row)
+        return [
+            {**dict(zip(key_fields, key)), **_usage_aggregate(group_rows)}
+            for key, group_rows in sorted(groups.items())
+        ]
+
+    running_events = sum(
+        1 for event in events
+        if event.get("event_type") == "STAGE_STATUS" and event.get("status") == "RUNNING"
+    )
+    skipped_events = sum(
+        1 for event in events
+        if event.get("event_type") == "STAGE_STATUS" and event.get("status") == "SKIPPED"
+    )
+    return {
+        "schema_version": RUN_SCHEMA_VERSION,
+        "run_id": manifest["run_id"],
+        "project_id": manifest["project_id"],
+        "workspace_root": str(root),
+        "generated_at": _now(),
+        "terminal_attempt_count": len(rows),
+        "running_event_count": running_events,
+        "skipped_stage_event_count": skipped_events,
+        "usage_summary": _usage_aggregate(rows),
+        "by_stage": grouped(("stage_id",)),
+        "by_producer_kind": grouped(("producer_kind",)),
+        "by_role": grouped(("role",)),
+        "by_provider_model": grouped(("provider", "model")),
+        "by_role_provider_model": grouped(("role", "provider", "model")),
+        "attempts": rows,
+        "accounting_policy": {
+            "included_events": "TERMINAL_SUCCEEDED_OR_FAILED_STAGE_ATTEMPTS_ONLY",
+            "excluded_events": ["RUNNING", "SKIPPED", "WORKER_AUTHORIZED"],
+            "missing_values": "NULL_AND_COUNTED_AS_MISSING_NOT_SILENTLY_COERCED_TO_ZERO",
+            "total_policy": "INPUT_PLUS_OUTPUT_ONLY; REASONING_AND_CACHE_COUNTS_REPORTED_SEPARATELY",
+            "source_scope": "ONLY_TOKEN_USAGE_REPORTED_TO_RUN_MANAGER; DOES_NOT_INCLUDE_UNRECORDED_SUPERVISOR_OR_EXTERNAL_AGENT_USAGE",
+        },
+        "source_of_truth": "HASH_CHAINED_RUN_EVENT_LEDGER",
+    }
+
+
 
 
 def _stage_input_snapshots(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
@@ -1236,10 +1758,12 @@ def authorize_worker(
     attempt = (latest.get("attempt", 0) if latest else 0) + 1
     if _latest_worker_authorization(events, stage_id, attempt) is not None:
         raise ValueError("A Worker authorization packet already exists for this attempt; do not silently re-authorize or duplicate dispatch.")
+    worker_task_id = f"DOR_{manifest['run_id']}_{stage_id}_ATTEMPT_{attempt:04d}"
     payload = {
         "event_type": "WORKER_AUTHORIZED",
         "stage_id": stage_id,
         "attempt": attempt,
+        "worker_task_id": worker_task_id,
         "authorized_by": authorized_by.strip(),
         "rationale": rationale.strip(),
         "worker": {
@@ -1256,37 +1780,44 @@ def authorize_worker(
         root / manifest["event_ledger_path"], manifest["run_id"], payload,
         expected_previous_event_hash,
     )
+    task_packet = {
+        "schema_version": "1.0",
+        "task_id": worker_task_id,
+        "project_id": manifest["project_id"],
+        "run_id": manifest["run_id"],
+        "stage_id": stage_id,
+        "attempt": attempt,
+        "authorization_event_hash": event["event_hash"],
+        "authorized_by": authorized_by.strip(),
+        "role": role.strip(),
+        "provider": provider.strip(),
+        "model": model.strip(),
+        "project_root": str(project),
+        "input_artifacts": input_artifacts,
+        "permitted_outputs": permitted_outputs,
+        "objective": stage["worker_task"]["objective"],
+        "permitted_actions": stage["worker_task"]["permitted_actions"],
+        "forbidden_actions": stage["worker_task"].get("forbidden_actions", []),
+        "max_context_tokens": stage["worker_task"].get("max_context_tokens"),
+        "max_output_tokens": stage["worker_task"].get("max_output_tokens"),
+        "constraints": [
+            "Read declared inputs only; do not crawl the workspace.",
+            "Do not modify source files, run manifests, event ledgers, workflow approval ledgers, or approved scientific artifacts.",
+            "Write new outputs only to the listed worker_staging paths; never overwrite an existing file.",
+            "Return job/session identifiers and token usage only when actually reported by the Worker Manager.",
+            "Worker completion is not a scientific approval; a human must review and promote any accepted result separately.",
+        ],
+    }
     return {
         "status": "worker_dispatch_authorized",
         "run_id": manifest["run_id"],
         "stage_id": stage_id,
         "attempt": attempt,
         "authorization_event_hash": event["event_hash"],
+        "task_packet_sha256": _hash_payload(task_packet),
         "authorized_by": authorized_by.strip(),
         "worker": payload["worker"],
-        "task_packet": {
-            "project_id": manifest["project_id"],
-            "run_id": manifest["run_id"],
-            "stage_id": stage_id,
-            "role": role.strip(),
-            "provider": provider.strip(),
-            "model": model.strip(),
-            "project_root": str(project),
-            "inputs": input_artifacts,
-            "permitted_outputs": permitted_outputs,
-            "objective": stage["worker_task"]["objective"],
-            "permitted_actions": stage["worker_task"]["permitted_actions"],
-            "forbidden_actions": stage["worker_task"].get("forbidden_actions", []),
-            "max_context_tokens": stage["worker_task"].get("max_context_tokens"),
-            "max_output_tokens": stage["worker_task"].get("max_output_tokens"),
-            "constraints": [
-                "Read declared inputs only; do not crawl the workspace.",
-                "Do not modify source files, run manifests, event ledgers, workflow approval ledgers, or approved scientific artifacts.",
-                "Write new outputs only to the listed worker_staging paths; never overwrite an existing file.",
-                "Return job/session identifiers and token usage only when actually reported by the Worker Manager.",
-                "Worker completion is not a scientific approval; a human must review and promote any accepted result separately.",
-            ],
-        },
+        "task_packet": task_packet,
     }
 
 
@@ -1307,7 +1838,7 @@ def record_stage_status(
     for value, label in ((input_tokens, "input_tokens"), (output_tokens, "output_tokens"),
                          (reasoning_tokens, "reasoning_tokens"), (cache_read_tokens, "cache_read_tokens"),
                          (cache_write_tokens, "cache_write_tokens")):
-        if value is not None and (not isinstance(value, int) or value < 0):
+        if value is not None and (type(value) is not int or value < 0):
             raise ValueError(f"{label} must be a non-negative integer when supplied.")
     root, manifest, plan, events = _manifest_context(manifest_path)
     stage = _stage_map(plan).get(stage_id)
@@ -1316,6 +1847,8 @@ def record_stage_status(
     if stage["executor"] != producer_kind:
         raise ValueError(f"Stage {stage_id} executor is {stage['executor']}, not {producer_kind}.")
     latest = _latest_stage_events(events).get(stage_id)
+    recorded_status = status
+    automatic_failure = False
     producer = {
         key: value for key, value in {
             "kind": producer_kind, "command": command, "role": role, "provider": provider,
@@ -1405,36 +1938,112 @@ def record_stage_status(
             if key in {"kind", "role", "provider", "model", "project_root"} and key in completed_producer and value != completed_producer[key]:
                 raise ValueError(f"Stage completion cannot change producer identity field {key}.")
             completed_producer[key] = value
+        recorded_status = status
+        terminal_reason = reason.strip() if isinstance(reason, str) and reason.strip() else None
         if status == "FAILED":
-            if not isinstance(reason, str) or not reason.strip():
+            if terminal_reason is None:
                 raise ValueError("FAILED stage status requires a non-empty reason.")
             outputs = []
             for output in stage["outputs"]:
                 path = _artifact_path(root, output)
-                if path.is_file():
+                if path.is_file() and not path.is_symlink():
                     outputs.append({"artifact_id": output["artifact_id"], "path": str(path), "sha256": sha256_file(path)})
             event_payload = {
                 "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "FAILED",
                 "attempt": latest["attempt"], "producer": completed_producer,
                 "input_artifacts": latest["input_artifacts"], "output_artifacts": outputs,
                 "gate_approval": latest.get("gate_approval"),
-                "reason": reason.strip(),
+                "reason": terminal_reason,
             }
+            if producer_kind == "worker":
+                archived_outputs, archive_manifest = _archive_failed_worker_outputs(
+                    root, manifest["run_id"], stage, latest["attempt"], terminal_reason,
+                )
+                event_payload["archived_outputs"] = archived_outputs
+                event_payload["archive_manifest"] = archive_manifest
         else:
             current_inputs = _stage_input_snapshots(root, manifest, plan, stage)
             if current_inputs != latest.get("input_artifacts"):
                 raise ValueError("Stage inputs changed while the stage was running; completion is rejected.")
-            output_snapshots = _snapshot_artifacts(root, manifest, plan, [item["artifact_id"] for item in stage["outputs"]])
-            for output in stage["outputs"]:
-                if output.get("kind", "derived") == "worker_staging" and latest["producer"]["kind"] != "worker":
-                    raise ValueError("Only the Worker may create worker_staging outputs.")
-            event_payload = {
-                "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "SUCCEEDED",
-                "attempt": latest["attempt"], "producer": completed_producer,
-                "input_artifacts": latest["input_artifacts"], "output_artifacts": output_snapshots,
-                "gate_approval": latest.get("gate_approval"),
-                "reason": None,
-            }
+            try:
+                output_snapshots = _snapshot_artifacts(
+                    root, manifest, plan, [item["artifact_id"] for item in stage["outputs"]]
+                )
+                for output in stage["outputs"]:
+                    if output.get("kind", "derived") == "worker_staging" and latest["producer"]["kind"] != "worker":
+                        raise ValueError("Only the Worker may create worker_staging outputs.")
+                if producer_kind == "worker":
+                    worker_result_outputs = [
+                        item for item in stage["outputs"]
+                        if item.get("artifact_id") == "worker_review_output"
+                    ]
+                    if worker_result_outputs:
+                        if len(worker_result_outputs) != 1:
+                            raise ValueError("Worker stage must declare exactly one worker_review_output artifact.")
+                        worker_result_path = _artifact_path(root, worker_result_outputs[0])
+                        if worker_result_path.is_symlink() or not worker_result_path.is_file():
+                            raise ValueError("Worker result must be a regular, non-symlink JSON file at the declared worker_review_output path.")
+                        worker_result_payload = _read_json(worker_result_path, "Worker result")
+                        validate_worker_result_payload(
+                            worker_result_payload, set(stage.get("inputs", []))
+                        )
+                        result_status = worker_result_payload.get("status")
+                        if result_status in {"blocked", "failed"}:
+                            raise ValueError(
+                                f"Worker returned terminal status={result_status}: "
+                                + str(worker_result_payload.get("summary", "")).strip()
+                            )
+                        result_task_id = worker_result_payload["task_id"]
+                        authorization = _latest_worker_authorization(
+                            events, stage_id, latest["attempt"]
+                        )
+                        expected_worker_task_id = (
+                            authorization.get("worker_task_id")
+                            if isinstance(authorization, dict) else None
+                        )
+                        if (isinstance(expected_worker_task_id, str)
+                                and result_task_id != expected_worker_task_id):
+                            raise ValueError(
+                                "Worker result task_id differs from the task_id in the exact Run authorization packet."
+                            )
+                        # The Worker Result task_id is the DoR authorization-packet
+                        # identity. producer.task_id remains the distinct external
+                        # task identifier returned by the host Worker Manager, if any.
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                if producer_kind != "worker":
+                    raise
+                terminal_reason = f"Worker result rejected before SUCCEEDED: {exc}"
+                output_snapshots = []
+                for output in stage["outputs"]:
+                    output_path = _artifact_path(root, output)
+                    if output_path.is_file() and not output_path.is_symlink():
+                        output_snapshots.append({
+                            "artifact_id": output["artifact_id"],
+                            "path": str(output_path),
+                            "sha256": sha256_file(output_path),
+                        })
+                archived_outputs, archive_manifest = _archive_failed_worker_outputs(
+                    root, manifest["run_id"], stage, latest["attempt"], terminal_reason,
+                )
+                event_payload = {
+                    "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "FAILED",
+                    "attempt": latest["attempt"], "producer": completed_producer,
+                    "input_artifacts": latest["input_artifacts"], "output_artifacts": output_snapshots,
+                    "gate_approval": latest.get("gate_approval"),
+                    "reason": terminal_reason,
+                    "archived_outputs": archived_outputs,
+                    "archive_manifest": archive_manifest,
+                }
+                recorded_status = "FAILED"
+                automatic_failure = True
+            else:
+                event_payload = {
+                    "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "SUCCEEDED",
+                    "attempt": latest["attempt"], "producer": completed_producer,
+                    "input_artifacts": latest["input_artifacts"], "output_artifacts": output_snapshots,
+                    "gate_approval": latest.get("gate_approval"),
+                    "reason": None,
+                }
     expected_previous_event_hash = events[-1]["event_hash"] if events else EVENT_GENESIS_HASH
     event = _append_event(
         root / manifest["event_ledger_path"], manifest["run_id"], event_payload,
@@ -1442,6 +2051,11 @@ def record_stage_status(
     )
     return {
         "recorded": True, "run_id": manifest["run_id"], "stage_id": stage_id,
-        "status": status, "attempt": event["attempt"], "event_hash": event["event_hash"],
+        "status": recorded_status, "attempt": event["attempt"], "event_hash": event["event_hash"],
         "event_count": event["sequence"],
+        **({"reason": terminal_reason} if recorded_status == "FAILED" else {}),
+        **({"automatic_failure": True} if automatic_failure else {}),
+        **({"archived_outputs": event_payload.get("archived_outputs", []),
+            "archive_manifest": event_payload.get("archive_manifest")}
+           if producer_kind == "worker" and recorded_status == "FAILED" else {}),
     }

@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_id": "REPLACE_WITH_ACTIVE_RUN_ID",
+  "project_id": "REPLACE_WITH_ACTIVE_PROJECT_ID",
+  "scope": "CONTROLLED_SINGLE_STUDY",
+  "applicability_status": "NOT_APPLICABLE",
+  "study_ids": [
+    "REPLACE_WITH_EXACT_STUDY_ID"
+  ],
+  "study_count": 1,
+  "canonical_bundle_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "modeling_task_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "cohort_feasibility_status": "NOT_APPLICABLE",
+  "cohort_feasibility_reason": "Only one eligible independent Study exists; the declared Study-level train/validation/test split cannot be constructed without creating pseudo-independent groups.",
+  "modeling_validation_status": "NOT_APPLICABLE",
+  "modeling_validation_reason": "One independent Study cannot support Study-held-out model validation, nested cross-Study reproducibility evaluation, or cross-Study interaction robustness assessment.",
+  "reviewer": "REPLACE_WITH_HUMAN_REVIEWER",
+  "reviewed_at": "2026-11-15T12:00:00+08:00",
+  "rationale": "This record limits the Run to source integrity, reviewed mapping, Canonical representation, reconciliation, and a bounded publication hand-off. No model metrics, cross-Study reproducibility claim, interaction, mechanism, or virtual prediction is claimed."
+}

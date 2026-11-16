@@ -434,7 +434,15 @@ def load_validated_adapter_handoff(handoff_path: Path) -> dict[str, Any]:
     package_root = Path(handoff.get("package_root", "")).resolve()
     validation = validate_adapter_package_files(manifest_path, package_root)
     if not validation.get("valid"):
-        raise ValueError("Adapter package no longer passes package validation.")
+        errors = validation.get("errors", [])
+        details = "; ".join(
+            f"{item.get('code', 'PACKAGE_VALIDATION_ERROR')}: {item.get('message', '')}"
+            for item in errors if isinstance(item, dict)
+        )
+        message = "Adapter package no longer passes package validation."
+        if details:
+            message = f"Adapter package no longer passes package validation: {details}"
+        raise ValueError(message)
     payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
     if handoff.get("package_id") != payload.get("package_id") or handoff.get("adapter") != payload.get("adapter"):
         raise ValueError("Adapter handoff identity does not match the package manifest.")

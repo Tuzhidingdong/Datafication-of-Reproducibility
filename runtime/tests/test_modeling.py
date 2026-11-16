@@ -1,5 +1,6 @@
 from __future__ import annotations
 import copy, csv, json, tempfile, unittest
+from unittest.mock import patch
 from pathlib import Path
 from dor.cohort import build_modeling_cohort_files
 from dor.modeling import run_baseline_models_files
@@ -69,6 +70,19 @@ class BaselineModelEngineTests(unittest.TestCase):
         self.assertTrue((out/"test_predictions.csv").is_file())
         self.assertTrue((out/"validation_model_comparison.csv").is_file())
         self.assertTrue((out/"modeling_run_manifest.json").is_file())
+
+    def test_non_converged_ridge_candidates_are_not_selected(self):
+        failed_fit = {"alpha": 1.0, "target_mean": 0.0, "target_scale": 1.0,
+                      "intercept_standardized": 0.0, "coefficients": [0.0, 0.0, 0.0],
+                      "converged": False, "iterations": 1}
+        with patch("dor.modeling._fit_ridge", return_value=failed_fit):
+            result = run_baseline_models_files(self.cohort_dir, self.task_path, self.root/"nonconverged_model")
+        report = result["report"]
+        self.assertEqual(report["selected_model"], "mean_baseline")
+        self.assertEqual(report["selected_candidate_id"], "mean_baseline")
+        ridge = [item for item in report["validation_comparison"] if item["candidate_model"] == "ridge_regression"]
+        self.assertTrue(ridge)
+        self.assertTrue(all(item["eligible_for_selection"] is False for item in ridge))
 
     def test_final_model_artifact_excludes_test_observations_from_fit(self):
         result=run_baseline_models_files(self.cohort_dir,self.task_path,self.root/"model")

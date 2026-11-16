@@ -1,0 +1,785 @@
+{
+  "schema_version": "1.0",
+  "project_id": "PROJECT_REPLACE_ME",
+  "source_roots": [
+    "D:/Research/Project/raw_sources",
+    "D:/Research/Project/configuration"
+  ],
+  "workflow_ledger_path": "D:/Research/Project/run_control/workflow_gate_ledger.jsonl",
+  "source_artifacts": [
+    {
+      "artifact_id": "adapter_package_manifest",
+      "path": "D:/Research/Project/raw_sources/adapter_package/adapter_manifest.json"
+    },
+    {
+      "artifact_id": "virtual_query_input",
+      "path": "D:/Research/Project/configuration/virtual_reproduction_query.json"
+    },
+    {
+      "artifact_id": "publication_plan_template",
+      "path": "D:/Research/Project/configuration/publication_package_plan.json"
+    }
+  ],
+  "stages": [
+    {
+      "stage_id": "adapter_package_validation",
+      "executor": "local",
+      "depends_on": [],
+      "inputs": [
+        "adapter_package_manifest"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "adapter_handoff",
+          "path": "00_adapter/adapter_handoff.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "source_audit",
+      "executor": "local",
+      "depends_on": [
+        "adapter_package_validation"
+      ],
+      "inputs": [
+        "adapter_handoff"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "dataset_manifest",
+          "path": "01_audit/dataset_manifest.json"
+        },
+        {
+          "artifact_id": "source_inventory",
+          "path": "01_audit/source_inventory.json"
+        },
+        {
+          "artifact_id": "data_audit_report",
+          "path": "01_audit/data_audit_report.md"
+        },
+        {
+          "artifact_id": "column_coverage",
+          "path": "01_audit/column_coverage.csv"
+        },
+        {
+          "artifact_id": "json_structure_paths",
+          "path": "01_audit/json_structure_paths.csv"
+        },
+        {
+          "artifact_id": "mapping_review_queue",
+          "path": "01_audit/mapping_review_queue.csv"
+        }
+      ]
+    },
+    {
+      "stage_id": "g0_review_packet",
+      "executor": "manual",
+      "depends_on": [
+        "source_audit",
+        "adapter_package_validation"
+      ],
+      "inputs": [
+        "dataset_manifest",
+        "source_inventory",
+        "data_audit_report",
+        "mapping_review_queue",
+        "adapter_handoff"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "g0_review_packet",
+          "path": "01_audit/g0_review_packet.json"
+        },
+        {
+          "artifact_id": "g0_review_packet_validation",
+          "path": "01_audit/g0_review_packet_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "mapping_preparation",
+      "executor": "manual",
+      "depends_on": [
+        "source_audit",
+        "g0_review_packet"
+      ],
+      "inputs": [
+        "source_inventory",
+        "g0_review_packet"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "mapping_plan",
+          "path": "02_mapping/mapping_plan.json"
+        },
+        {
+          "artifact_id": "build_spec",
+          "path": "02_mapping/canonical_build_spec.json"
+        }
+      ],
+      "required_gate": "G0"
+    },
+    {
+      "stage_id": "mapping_validation",
+      "executor": "local",
+      "depends_on": [
+        "source_audit",
+        "mapping_preparation"
+      ],
+      "inputs": [
+        "source_inventory",
+        "mapping_plan",
+        "build_spec"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "mapping_validation",
+          "path": "02_mapping/mapping_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "build_spec_validation",
+      "executor": "local",
+      "depends_on": [
+        "source_audit",
+        "mapping_preparation",
+        "mapping_validation"
+      ],
+      "inputs": [
+        "source_inventory",
+        "mapping_plan",
+        "build_spec",
+        "mapping_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "build_spec_validation",
+          "path": "02_mapping/build_spec_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "g1_review_packet",
+      "executor": "manual",
+      "depends_on": [
+        "source_audit",
+        "mapping_preparation",
+        "mapping_validation",
+        "build_spec_validation"
+      ],
+      "inputs": [
+        "source_inventory",
+        "mapping_plan",
+        "build_spec",
+        "mapping_validation",
+        "build_spec_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "g1_review_packet",
+          "path": "02_mapping/g1_review_packet.json"
+        },
+        {
+          "artifact_id": "g1_review_packet_validation",
+          "path": "02_mapping/g1_review_packet_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_build",
+      "executor": "local",
+      "depends_on": [
+        "adapter_package_validation",
+        "source_audit",
+        "mapping_preparation",
+        "mapping_validation",
+        "g1_review_packet"
+      ],
+      "required_gate": "G1",
+      "inputs": [
+        "adapter_handoff",
+        "source_inventory",
+        "mapping_plan",
+        "build_spec",
+        "mapping_validation",
+        "g1_review_packet"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "canonical_bundle",
+          "path": "03_canonical/canonical_bundle.json"
+        },
+        {
+          "artifact_id": "canonical_build_report",
+          "path": "03_canonical/build_report.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_bundle_validation",
+      "executor": "local",
+      "depends_on": [
+        "canonical_build"
+      ],
+      "inputs": [
+        "canonical_bundle"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "canonical_validation_report",
+          "path": "03_canonical/canonical_validation_report.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "canonical_reconciliation",
+      "executor": "local",
+      "depends_on": [
+        "canonical_build"
+      ],
+      "inputs": [
+        "canonical_bundle"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reconciliation_report",
+          "path": "04_reconciliation/reconciliation_report.json"
+        },
+        {
+          "artifact_id": "reconciliation_review_queue",
+          "path": "04_reconciliation/reconciliation_review_queue.csv"
+        }
+      ]
+    },
+    {
+      "stage_id": "reconciliation_decision_review",
+      "executor": "manual",
+      "depends_on": [
+        "canonical_reconciliation",
+        "canonical_build"
+      ],
+      "inputs": [
+        "canonical_bundle",
+        "reconciliation_report",
+        "reconciliation_review_queue"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reconciliation_decisions",
+          "path": "04_reconciliation/reconciliation_decisions.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "reconciliation_decision_validation",
+      "executor": "local",
+      "depends_on": [
+        "canonical_reconciliation",
+        "canonical_build",
+        "reconciliation_decision_review"
+      ],
+      "inputs": [
+        "canonical_bundle",
+        "reconciliation_report",
+        "reconciliation_decisions"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reconciliation_decision_validation",
+          "path": "04_reconciliation/reconciliation_decision_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "exploratory_discovery",
+      "executor": "local",
+      "depends_on": [
+        "canonical_build",
+        "canonical_bundle_validation"
+      ],
+      "inputs": [
+        "canonical_bundle"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "discovery_manifest",
+          "path": "04_discovery/discovery_manifest.json"
+        },
+        {
+          "artifact_id": "discovery_report",
+          "path": "04_discovery/discovery_report.json"
+        },
+        {
+          "artifact_id": "discovery_brief",
+          "path": "04_discovery/agent_research_brief.md"
+        },
+        {
+          "artifact_id": "target_support",
+          "path": "04_discovery/target_support.csv"
+        },
+        {
+          "artifact_id": "study_coverage",
+          "path": "04_discovery/study_coverage.csv"
+        },
+        {
+          "artifact_id": "condition_support",
+          "path": "04_discovery/condition_support.csv"
+        },
+        {
+          "artifact_id": "joint_support",
+          "path": "04_discovery/joint_support.csv"
+        }
+      ]
+    },
+    {
+      "stage_id": "research_scope_selection",
+      "executor": "manual",
+      "depends_on": [
+        "exploratory_discovery"
+      ],
+      "inputs": [
+        "discovery_report",
+        "discovery_brief",
+        "target_support",
+        "study_coverage",
+        "condition_support",
+        "joint_support"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "research_scope_record",
+          "path": "05_scope/research_scope_record.json"
+        },
+        {
+          "artifact_id": "modeling_task",
+          "path": "05_scope/modeling_task.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "g2_review_packet",
+      "executor": "manual",
+      "depends_on": [
+        "canonical_build",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "research_scope_selection",
+        "reconciliation_decision_validation",
+        "reconciliation_decision_review",
+        "exploratory_discovery"
+      ],
+      "inputs": [
+        "canonical_bundle",
+        "canonical_validation_report",
+        "reconciliation_report",
+        "reconciliation_review_queue",
+        "research_scope_record",
+        "modeling_task",
+        "reconciliation_decisions",
+        "reconciliation_decision_validation",
+        "discovery_report"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "g2_review_packet",
+          "path": "04_reconciliation/g2_review_packet.json"
+        },
+        {
+          "artifact_id": "g2_review_packet_validation",
+          "path": "04_reconciliation/g2_review_packet_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "single_study_scope_review",
+      "executor": "manual",
+      "depends_on": [
+        "g2_review_packet",
+        "canonical_build",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection"
+      ],
+      "inputs": [
+        "canonical_bundle",
+        "canonical_validation_report",
+        "reconciliation_report",
+        "reconciliation_decisions",
+        "research_scope_record",
+        "modeling_task"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "single_study_applicability_record",
+          "path": "05_scope/single_study_applicability_record.json"
+        }
+      ],
+      "required_gate": "G2"
+    },
+    {
+      "stage_id": "single_study_scope_validation",
+      "executor": "local",
+      "depends_on": [
+        "single_study_scope_review",
+        "canonical_build",
+        "research_scope_selection"
+      ],
+      "inputs": [
+        "single_study_applicability_record",
+        "canonical_bundle",
+        "modeling_task"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "single_study_applicability_validation",
+          "path": "05_scope/single_study_applicability_validation.json"
+        }
+      ],
+      "required_gate": "G2"
+    },
+    {
+      "stage_id": "single_study_na_artifacts",
+      "executor": "local",
+      "depends_on": [
+        "single_study_scope_validation",
+        "single_study_scope_review",
+        "canonical_build",
+        "research_scope_selection"
+      ],
+      "inputs": [
+        "single_study_applicability_record",
+        "single_study_applicability_validation",
+        "canonical_bundle",
+        "modeling_task"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "model_report",
+          "path": "06_modeling/not_applicable/model_report.json"
+        },
+        {
+          "artifact_id": "reproducibility_evaluation",
+          "path": "06_modeling/not_applicable/reproducibility_evaluation.json"
+        },
+        {
+          "artifact_id": "interaction_report",
+          "path": "06_modeling/not_applicable/interaction_discovery_report.json"
+        },
+        {
+          "artifact_id": "interaction_manifest",
+          "path": "06_modeling/not_applicable/interaction_discovery_manifest.json"
+        },
+        {
+          "artifact_id": "robustness_report",
+          "path": "06_modeling/not_applicable/interaction_robustness_report.json"
+        },
+        {
+          "artifact_id": "robustness_manifest",
+          "path": "06_modeling/not_applicable/interaction_robustness_manifest.json"
+        },
+        {
+          "artifact_id": "virtual_prediction",
+          "path": "06_modeling/not_applicable/virtual_prediction.json"
+        }
+      ],
+      "required_gate": "G2"
+    },
+    {
+      "stage_id": "g3_selection_packet",
+      "executor": "manual",
+      "depends_on": [
+        "single_study_na_artifacts",
+        "single_study_scope_review",
+        "single_study_scope_validation",
+        "canonical_build",
+        "research_scope_selection"
+      ],
+      "inputs": [
+        "single_study_applicability_record",
+        "single_study_applicability_validation",
+        "canonical_bundle",
+        "modeling_task",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_manifest",
+        "virtual_prediction"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "interaction_selection",
+          "path": "07_review/interaction_selection.json"
+        }
+      ],
+      "required_gate": "G2"
+    },
+    {
+      "stage_id": "independent_result_review",
+      "executor": "worker",
+      "depends_on": [
+        "g3_selection_packet",
+        "single_study_na_artifacts",
+        "single_study_scope_validation",
+        "single_study_scope_review",
+        "canonical_build",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection"
+      ],
+      "inputs": [
+        "single_study_applicability_record",
+        "single_study_applicability_validation",
+        "canonical_bundle",
+        "canonical_validation_report",
+        "reconciliation_report",
+        "reconciliation_decisions",
+        "research_scope_record",
+        "modeling_task",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_manifest",
+        "interaction_selection",
+        "virtual_prediction"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "worker_review_output",
+          "path": "worker_staging/independent_result_review/review.json",
+          "kind": "worker_staging"
+        }
+      ],
+      "required_gate": "G3",
+      "worker_task": {
+        "objective": "Independently review the controlled single-Study scope, exact source-to-canonical provenance, reconciliation decisions, and the explicit NOT_APPLICABLE boundaries. Confirm that exactly one eligible Study supports the declared scope; that no model, cross-Study reproducibility, interaction, mechanism, or virtual-prediction result is being claimed; and that the publication hand-off preserves the limitations. Report any unsupported claim or provenance gap. Do not fabricate analyses or infer source-document contents.",
+        "permitted_actions": [
+          "Read only the declared structured JSON artifacts and compact reports; original papers/SI and other raw assets are opaque provenance-only files and must never be opened.",
+          "Inspect applicability_status, reasons, exact IDs, hashes, reconciliation decisions, warnings, and limitations before detailed report sections.",
+          "Write one structured review JSON to the exact permitted staging path.",
+          "Use stable unique finding_id values and cite supporting_artifact_ids with exact JSON-path evidence locators.",
+          "Conform to schemas/worker_result.schema.json and templates/worker_result.example.json."
+        ],
+        "forbidden_actions": [
+          "Fit or rerun models, calculate predictive metrics, or fabricate model/prediction/interaction outputs.",
+          "Split rows or observations into pseudo-independent Studies.",
+          "Read, parse, render, OCR, index, search, summarize, or send original papers/SI to an LLM or Worker.",
+          "Modify source data, Canonical Bundle, reconciliation decisions, or approval records.",
+          "Approve G0-G4 or promote Worker findings."
+        ],
+        "max_context_tokens": 14000,
+        "max_output_tokens": 3000
+      }
+    },
+    {
+      "stage_id": "human_review_and_promotion",
+      "executor": "manual",
+      "depends_on": [
+        "independent_result_review",
+        "g3_selection_packet",
+        "single_study_scope_review",
+        "single_study_scope_validation",
+        "canonical_build",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection",
+        "single_study_na_artifacts"
+      ],
+      "inputs": [
+        "worker_review_output",
+        "single_study_applicability_record",
+        "single_study_applicability_validation",
+        "canonical_bundle",
+        "canonical_validation_report",
+        "reconciliation_report",
+        "reconciliation_decisions",
+        "research_scope_record",
+        "modeling_task",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_manifest",
+        "interaction_selection",
+        "virtual_prediction"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "reviewed_findings",
+          "path": "09_review/reviewed_findings.json"
+        },
+        {
+          "artifact_id": "reviewed_findings_validation",
+          "path": "09_review/reviewed_findings_validation.json"
+        }
+      ]
+    },
+    {
+      "stage_id": "publication_plan_preparation",
+      "executor": "manual",
+      "depends_on": [
+        "human_review_and_promotion",
+        "independent_result_review",
+        "g3_selection_packet",
+        "single_study_scope_validation",
+        "single_study_scope_review",
+        "canonical_build",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection",
+        "single_study_na_artifacts",
+        "adapter_package_validation",
+        "source_audit",
+        "mapping_preparation",
+        "mapping_validation",
+        "build_spec_validation",
+        "reconciliation_decision_validation",
+        "exploratory_discovery",
+        "g2_review_packet"
+      ],
+      "required_gate": "G3",
+      "inputs": [
+        "g2_review_packet",
+        "discovery_report",
+        "reconciliation_decision_validation",
+        "build_spec_validation",
+        "build_spec",
+        "mapping_validation",
+        "mapping_plan",
+        "source_inventory",
+        "dataset_manifest",
+        "adapter_handoff",
+        "publication_plan_template",
+        "single_study_applicability_record",
+        "single_study_applicability_validation",
+        "canonical_bundle",
+        "canonical_validation_report",
+        "reconciliation_report",
+        "reconciliation_decisions",
+        "research_scope_record",
+        "modeling_task",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_manifest",
+        "interaction_selection",
+        "virtual_prediction",
+        "worker_review_output",
+        "reviewed_findings",
+        "reviewed_findings_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "publication_plan",
+          "path": "10_publication/publication_package_plan.json",
+          "kind": "derived"
+        },
+        {
+          "artifact_id": "publication_plan_validation",
+          "path": "10_publication/publication_plan_validation.json",
+          "kind": "derived"
+        }
+      ]
+    },
+    {
+      "stage_id": "publication_package_assembly",
+      "executor": "local",
+      "depends_on": [
+        "human_review_and_promotion",
+        "independent_result_review",
+        "g3_selection_packet",
+        "single_study_scope_validation",
+        "single_study_scope_review",
+        "canonical_build",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection",
+        "single_study_na_artifacts",
+        "publication_plan_preparation",
+        "adapter_package_validation",
+        "source_audit",
+        "mapping_preparation",
+        "mapping_validation",
+        "build_spec_validation",
+        "reconciliation_decision_validation",
+        "exploratory_discovery",
+        "g2_review_packet"
+      ],
+      "inputs": [
+        "g2_review_packet",
+        "discovery_report",
+        "reconciliation_decision_validation",
+        "build_spec_validation",
+        "build_spec",
+        "mapping_validation",
+        "mapping_plan",
+        "source_inventory",
+        "dataset_manifest",
+        "adapter_handoff",
+        "publication_plan",
+        "publication_plan_validation",
+        "single_study_applicability_record",
+        "single_study_applicability_validation",
+        "canonical_bundle",
+        "canonical_validation_report",
+        "reconciliation_report",
+        "reconciliation_decisions",
+        "research_scope_record",
+        "modeling_task",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_manifest",
+        "interaction_selection",
+        "virtual_prediction",
+        "reviewed_findings",
+        "worker_review_output",
+        "reviewed_findings_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "publication_package_manifest",
+          "path": "10_publication/package/package_manifest.json"
+        },
+        {
+          "artifact_id": "publication_writing_guide",
+          "path": "10_publication/package/README_FOR_WRITING_SKILL.md"
+        }
+      ],
+      "required_gate": "G4"
+    },
+    {
+      "stage_id": "publication_package_audit",
+      "executor": "local",
+      "depends_on": [
+        "publication_package_assembly"
+      ],
+      "inputs": [
+        "publication_package_manifest",
+        "publication_writing_guide"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "publication_package_integrity_report",
+          "path": "10_publication/package_integrity_report.json"
+        }
+      ]
+    }
+  ],
+  "execution_profile": "CONTROLLED_SINGLE_STUDY",
+  "description": "Controlled single-Study workflow. Cross-Study cohort/model validation is explicitly NOT_APPLICABLE; all G0-G4 human decisions and independent Worker review remain required."
+}
