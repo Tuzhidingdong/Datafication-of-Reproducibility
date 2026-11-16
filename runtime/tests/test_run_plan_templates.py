@@ -372,6 +372,8 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "WORKER_REVIEW_RECORD",
             "HUMAN_DISPOSITION_RECORD",
             "HUMAN_DISPOSITION_VALIDATION",
+            "COHORT_REVIEW_RECORD",
+            "COHORT_REVIEW_VALIDATION",
         }.issubset(publication_ids))
         plan_items = {item["artifact_id"]: item for item in publication_plan["artifacts"]}
         self.assertNotIn("domain_profile", publication_plan)
@@ -398,6 +400,8 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 "WORKER_REVIEW_RECORD": "worker_review_output",
                 "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
                 "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+                "COHORT_REVIEW_RECORD": "cohort_review_record",
+                "COHORT_REVIEW_VALIDATION": "cohort_review_validation",
             }
             for package_id, run_artifact_id in source_bindings.items():
                 self.assertEqual(
@@ -480,15 +484,61 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 )
             )
             source_artifact_ids = {item["artifact_id"] for item in plan["source_artifacts"]}
-            self.assertIn("publication_plan", source_artifact_ids)
-            self.assertIn("publication_plan", stages["publication_package_assembly"]["inputs"])
-            self.assertNotIn("publication_plan_input", source_artifact_ids)
-            publication = stages["publication_package_assembly"]
+            self.assertIn("publication_plan_template", source_artifact_ids)
+            self.assertNotIn("publication_plan", source_artifact_ids)
+            preparation = stages["publication_plan_preparation"]
+            self.assertEqual(preparation["executor"], "manual")
+            self.assertEqual(preparation["required_gate"], "G3")
+            self.assertIn("publication_plan_template", preparation["inputs"])
             self.assertTrue({
+                "publication_plan", "publication_plan_validation",
+            } == {item["artifact_id"] for item in preparation["outputs"]})
+            publication = stages["publication_package_assembly"]
+            self.assertEqual(publication["required_gate"], "G4")
+            self.assertTrue({
+                "publication_plan", "publication_plan_validation",
                 "worker_review_output", "reviewed_findings",
-                "reviewed_findings_validation",
+                "reviewed_findings_validation", "cohort_review_record",
+                "cohort_review_validation",
             }.issubset(set(publication["inputs"])))
+            self.assertIn("publication_plan_preparation", publication["depends_on"])
             self.assertIn("independent_result_review", publication["depends_on"])
+
+    def test_all_four_run_plans_bind_a_late_publication_plan_stage(self):
+        cases = (
+            ("templates/run_plan.example.json", "STRUCTURED_DATASET", "FULL_ANALYSIS"),
+            ("templates/run_plan.canonical_adapter.example.json", "CANONICAL_BUNDLE", "FULL_ANALYSIS"),
+            ("templates/run_plan.single_study.example.json", "STRUCTURED_DATASET", "CONTROLLED_SINGLE_STUDY"),
+            ("templates/run_plan.canonical_adapter.single_study.example.json", "CANONICAL_BUNDLE", "CONTROLLED_SINGLE_STUDY"),
+        )
+        for path, route, profile in cases:
+            plan = self._load_plan(path)
+            stages = {item["stage_id"]: item for item in plan["stages"]}
+            with self.subTest(path=path):
+                self.assertIn(
+                    {"artifact_id": "publication_plan_template",
+                     "path": next(item["path"] for item in plan["source_artifacts"]
+                                  if item["artifact_id"] == "publication_plan_template")},
+                    plan["source_artifacts"],
+                )
+                preparation = stages["publication_plan_preparation"]
+                assembly = stages["publication_package_assembly"]
+                self.assertEqual(preparation["executor"], "manual")
+                self.assertEqual(preparation["required_gate"], "G3")
+                self.assertIn("publication_plan_template", preparation["inputs"])
+                self.assertEqual(
+                    {item["artifact_id"] for item in preparation["outputs"]},
+                    {"publication_plan", "publication_plan_validation"},
+                )
+                self.assertIn("publication_plan_preparation", assembly["depends_on"])
+                self.assertEqual(assembly["required_gate"], "G4")
+                self.assertTrue({
+                    "publication_plan", "publication_plan_validation",
+                }.issubset(set(assembly["inputs"])))
+                if profile == "FULL_ANALYSIS":
+                    self.assertTrue({
+                        "cohort_review_record", "cohort_review_validation",
+                    }.issubset(set(preparation["inputs"])))
 
     def test_both_run_plans_require_cohort_review_before_modelling(self):
         consumer_ids = {
