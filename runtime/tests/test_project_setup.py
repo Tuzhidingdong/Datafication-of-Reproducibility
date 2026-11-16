@@ -208,17 +208,37 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             project, handoff = self._structured_handoff(root)
             si = project / "raw_sources" / "paper_si.pdf"
             si.write_bytes(b"si provenance only")
+            primary = project / "raw_sources" / "paper.pdf"
+            primary.write_bytes(b"primary paper provenance only")
             result = initialize_project_run_plan(
                 handoff, project, root / "runs" / "single",
-                acceptance_sources=[f"paper-si=SUPPLEMENTARY_INFORMATION={si}"],
+                acceptance_sources=[
+                    f"paper=PRIMARY_PAPER={primary}",
+                    f"paper-si=SUPPLEMENTARY_INFORMATION={si}",
+                ],
             )
             plan = json.loads(Path(result["run_plan_path"]).read_text(encoding="utf-8"))
-            self.assertEqual(plan["acceptance_source_artifacts"], [{
-                "source_id": "paper-si",
-                "role": "SUPPLEMENTARY_INFORMATION",
-                "path": str(si.resolve()),
-            }])
+            self.assertEqual(
+                {item["role"] for item in plan["acceptance_source_artifacts"]},
+                {"PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"},
+            )
             self.assertTrue(any(si.resolve().parent == Path(item) for item in plan["source_roots"]))
+            self.assertTrue(any(primary.resolve().parent == Path(item) for item in plan["source_roots"]))
+
+    def test_single_study_acceptance_snapshot_requires_primary_and_si(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project, handoff = self._structured_handoff(root)
+            primary = project / "raw_sources" / "paper.pdf"
+            primary.write_bytes(b"primary paper")
+            with self.assertRaisesRegex(ValueError, "requires both PRIMARY_PAPER and SUPPLEMENTARY_INFORMATION"):
+                initialize_project_run_plan(
+                    handoff, project, root / "runs" / "single",
+                    acceptance_sources=[f"paper=PRIMARY_PAPER={primary}"],
+                )
+            self.assertFalse(
+                (project / "run_control" / "run_plan.structured_dataset.single_study.json").exists()
+            )
 
     def test_existing_plan_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as tmp:
