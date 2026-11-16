@@ -608,7 +608,7 @@ class StageEvidenceContractTests(unittest.TestCase):
             "excluded_sources": [],
         }, "sha256": "d" * 64}
         review = {
-            "schema_version": "1.0", "source_hashes": {"structured": "c" * 64},
+            "schema_version": "1.0", "source_hashes": {"paper": "a" * 64, "si": "b" * 64, "structured": "c" * 64},
             "reviewed_locators": [{"source_id": "structured", "locator_type": "csv_row",
                                    "locator": "row 2", "review_status": "STRUCTURED_RECORD_REVIEWED"}],
             "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",

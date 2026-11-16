@@ -955,6 +955,7 @@ class WorkflowGateTests(unittest.TestCase):
             if item["artifact_id"] != "single_study_applicability_record"
         ]
         self._write("reviewed_findings", reviewed)
+        self._refresh_g4_reviewed_findings_validation()
         by_id["reviewed_findings"]["sha256"] = sha256_file(self.files["reviewed_findings"])
         with self.assertRaisesRegex(ValueError, "bind exactly the artifacts supplied"):
             _validate_g4_reviewed_findings(list(by_id.values()), previous_gate)

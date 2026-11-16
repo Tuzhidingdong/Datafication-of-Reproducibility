@@ -745,7 +745,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "G0": ["source_inventory"],
             "G1": ["mapping_plan"],
             "G2": ["canonical_bundle"],
-            "G3": ["model_report"],
+            "G3": ["canonical_bundle"],
             "G4": ["model_report"],
         }
         events = {}
