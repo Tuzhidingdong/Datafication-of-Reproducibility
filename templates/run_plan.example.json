@@ -804,6 +804,7 @@
       ],
       "required_gate": "G3",
       "inputs": [
+        "model_artifact",
         "model_report",
         "reproducibility_evaluation",
         "interaction_report",
@@ -855,6 +856,7 @@
       "inputs": [
         "worker_review_output",
         "interaction_selection",
+        "model_artifact",
         "model_report",
         "reproducibility_evaluation",
         "interaction_report",
@@ -939,6 +941,7 @@
       "inputs": [
         "publication_plan",
         "publication_plan_validation",
+        "model_artifact",
         "model_report",
         "reproducibility_evaluation",
         "interaction_report",
