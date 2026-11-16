@@ -73,13 +73,33 @@ def _validate_id(value: str, label: str) -> str:
     return normalized
 
 
+def _parse_explicit_path(raw_path: str, label: str) -> Path:
+    value = raw_path.strip()
+    if not value:
+        raise ValueError(f"{label} path must be non-empty.")
+    expanded = Path(value).expanduser()
+    if not expanded.is_absolute():
+        normalized = value.replace("\\", "/")
+        windows_path = PureWindowsPath(normalized)
+        if (
+            windows_path.is_absolute()
+            or windows_path.drive
+            or any(part in {"", ".", ".."} for part in normalized.split("/"))
+        ):
+            raise ValueError(
+                f"{label} relative path cannot contain absolute/drive prefixes, "
+                f"empty, current-directory, or parent-directory components: {value!r}"
+            )
+    return expanded
+
+
 def _parse_source_binding(value: str) -> tuple[str, Path]:
     if "=" not in value:
         raise ValueError("--source must use SOURCE_ID=FILE_PATH syntax.")
     source_id, raw_path = value.split("=", 1)
     if not source_id.strip() or not raw_path.strip():
         raise ValueError("--source must contain a non-empty ID and file path.")
-    return _validate_id(source_id, "Source ID"), Path(raw_path).expanduser()
+    return _validate_id(source_id, "Source ID"), _parse_explicit_path(raw_path, "Source")
 
 
 def _parse_artifact_binding(value: str) -> tuple[str, str, Path]:
@@ -97,7 +117,7 @@ def _parse_artifact_binding(value: str) -> tuple[str, str, Path]:
             + ", ".join(sorted(_ARTIFACT_ROLES))
             + "."
         )
-    return artifact_id, role, Path(raw_path).expanduser()
+    return artifact_id, role, _parse_explicit_path(raw_path, "Artifact")
 
 
 def _resolve_input(raw_path: Path, package_root: Path, label: str) -> Path:
