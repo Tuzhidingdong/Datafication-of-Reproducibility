@@ -113,8 +113,14 @@ class ApplicationQuickStartIntegrationTests(unittest.TestCase):
             inventory = json.loads(
                 (run_root / "01_audit" / "source_inventory.json").read_text(encoding="utf-8")
             )
-            self.assertEqual(len(inventory["items"]), 1)
-            self.assertEqual(inventory["items"][0]["source_file"], "data/records.csv")
+            self.assertEqual(len(inventory["items"]), 2)
+            self.assertEqual(
+                {item["locator"] for item in inventory["items"]},
+                {"record_id", "value"},
+            )
+            self.assertTrue(
+                all(item["source_file"] == "data/records.csv" for item in inventory["items"])
+            )
 
             final_verification = self._json_result(
                 "run-verify",
