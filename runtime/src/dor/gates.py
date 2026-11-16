@@ -29,6 +29,7 @@ G4_REQUIRED_REVIEWED_ARTIFACTS = {
 }
 G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS = {
     *G4_REQUIRED_REVIEWED_ARTIFACTS,
+    "model_artifact",
     "cohort_review_record",
     "cohort_review_validation",
 }
