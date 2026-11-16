@@ -720,7 +720,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
 
     def bind_synthetic_gate_ledger(self):
         self.gate_ledger_path = self.root / "workflow_gates.jsonl"
-        self.gate_ledger_path.write_text("synthetic gate ledger snapshot\\n", encoding="utf-8")
+        self.gate_ledger_path.write_text("synthetic gate ledger snapshot\n", encoding="utf-8")
         self.gate_event_hashes = {gate: hashlib.sha256(gate.encode()).hexdigest()
                                   for gate in ("G0", "G1", "G2", "G3", "G4")}
         evidence_by_id = {
@@ -834,7 +834,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertTrue(self.validate()["valid"], self.validate()["issues"])
         previous_binding = json.loads(json.dumps(self.record["workflow_gate_ledger"]))
         self.gate_ledger_path.write_text(
-            self.gate_ledger_path.read_text(encoding="utf-8") + "synthetic appended event\\n",
+            self.gate_ledger_path.read_text(encoding="utf-8") + "synthetic appended event\n",
             encoding="utf-8",
         )
         revised_hashes = dict(previous_binding["gate_event_hashes"])
@@ -877,7 +877,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         run_event_path = self.manifest.parent / "run_events.jsonl"
         previous_events = [json.loads(line) for line in run_event_path.read_text(encoding="utf-8").splitlines() if line.strip()]
         new_event = {"event_hash": hashlib.sha256(b"synthetic run event extension").hexdigest()}
-        run_event_path.write_text(run_event_path.read_text(encoding="utf-8") + "synthetic appended event\\n", encoding="utf-8")
+        run_event_path.write_text(run_event_path.read_text(encoding="utf-8") + "synthetic appended event\n", encoding="utf-8")
         self.record["run_event_ledger"] = {
             "path": old_binding["path"],
             "sha256": self.sha(run_event_path),
@@ -913,7 +913,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.assertTrue(self.validate()["valid"], self.validate()["issues"])
         run_event_path = self.manifest.parent / "run_events.jsonl"
         with run_event_path.open("a", encoding="utf-8") as handle:
-            handle.write("synthetic later event\\n")
+            handle.write("synthetic later event\n")
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("RUN_EVENT_LEDGER_CHANGED", codes)
 
@@ -937,7 +937,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         self.write_record()
         self.assertTrue(self.validate()["valid"], self.validate()["issues"])
         with self.gate_ledger_path.open("a", encoding="utf-8") as handle:
-            handle.write("synthetic later G3 review\\n")
+            handle.write("synthetic later G3 review\n")
         codes = {item["code"] for item in self.validate()["issues"]}
         self.assertIn("WORKFLOW_GATE_LEDGER_CHANGED", codes)
 
@@ -997,7 +997,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
         validation_path = self.output_paths["single_study_applicability_validation"]
         validation = json.loads(validation_path.read_text(encoding="utf-8"))
         validation["modeling_task_sha256"] = "f" * 64
-        validation_path.write_text(json.dumps(validation, indent=2) + "\\n", encoding="utf-8")
+        validation_path.write_text(json.dumps(validation, indent=2) + "\n", encoding="utf-8")
         for stage in STAGE_ORDER:
             if stage in {"cohort_feasibility", "modeling_validation"}:
                 self.set_stage(
