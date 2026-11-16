@@ -974,6 +974,7 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
             "WORKER_REVIEW_RECORD": "worker_review_output",
             "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
             "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+            "MECHANISM_PLAN_001": "mechanism_plan",
             "MECHANISM_BRIDGE_001": "mechanism_evidence_bridge_report",
             "MECHANISM_FINDINGS_001": "mechanism_findings",
             "MECHANISM_LEDGER_001": "mechanism_evidence_ledger",
@@ -981,6 +982,7 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
             "MECHANISM_MANIFEST_001": "mechanism_evidence_bridge_manifest",
             "RESPONSE_SURFACE_REPORT_001": "interaction_response_surface_report",
             "RESPONSE_SURFACE_DATA_001": "interaction_response_surface",
+            "RESPONSE_SURFACE_MANIFEST_001": "interaction_response_surface_manifest",
             "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
             "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
         }
