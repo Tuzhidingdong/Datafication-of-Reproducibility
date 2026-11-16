@@ -158,6 +158,42 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
             raise ValueError(f"Source artifact {artifact_id} is outside all declared source_roots: {path}.")
         artifacts[artifact_id] = {"artifact_id": artifact_id, "path": str(path), "kind": "source"}
 
+    acceptance_source_defs = plan.get("acceptance_source_artifacts")
+    if acceptance_source_defs is not None:
+        if not isinstance(acceptance_source_defs, list) or not acceptance_source_defs:
+            raise ValueError("acceptance_source_artifacts, when supplied, must be a non-empty explicit array.")
+        acceptance_source_ids: set[str] = set()
+        acceptance_source_paths: set[str] = set()
+        allowed_source_roles = {
+            "PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION", "STRUCTURED_DATA", "OTHER",
+        }
+        for item in acceptance_source_defs:
+            if not isinstance(item, dict):
+                raise ValueError("Every acceptance_source_artifacts item must be an object.")
+            source_id, role, raw_path = item.get("source_id"), item.get("role"), item.get("path")
+            if not isinstance(source_id, str) or not _STAGE_ID.fullmatch(source_id):
+                raise ValueError(f"Invalid acceptance source_id: {source_id!r}.")
+            if source_id in acceptance_source_ids:
+                raise ValueError(f"Duplicate acceptance source_id: {source_id}.")
+            acceptance_source_ids.add(source_id)
+            if role not in allowed_source_roles:
+                raise ValueError(
+                    f"Acceptance source {source_id} role must be one of {sorted(allowed_source_roles)}."
+                )
+            if not isinstance(raw_path, str) or not Path(raw_path).expanduser().is_absolute():
+                raise ValueError(f"Acceptance source {source_id} path must be absolute.")
+            source_path = Path(raw_path).expanduser().resolve(strict=True)
+            if not source_path.is_file():
+                raise ValueError(f"Acceptance source {source_id} is not a file: {source_path}.")
+            if not any(source_path.is_relative_to(source_root) for source_root in roots):
+                raise ValueError(
+                    f"Acceptance source {source_id} is outside all declared source_roots: {source_path}."
+                )
+            normalized_source_path = str(source_path)
+            if normalized_source_path in acceptance_source_paths:
+                raise ValueError(f"Duplicate acceptance source path: {source_path}.")
+            acceptance_source_paths.add(normalized_source_path)
+
     stages_value = plan.get("stages")
     if not isinstance(stages_value, list) or not stages_value:
         raise ValueError("Run plan requires a non-empty explicit stages array.")
@@ -310,7 +346,10 @@ def _initialization_snapshot(manifest: Mapping[str, Any]) -> dict[str, Any]:
         "plan_path", "plan_sha256", "event_ledger_path", "workflow_ledger_path",
         "source_roots", "source_artifacts", "stage_order", "integrity_scope",
     )
-    return {key: manifest.get(key) for key in keys}
+    snapshot = {key: manifest.get(key) for key in keys}
+    if "acceptance_source_artifacts" in manifest:
+        snapshot["acceptance_source_artifacts"] = manifest.get("acceptance_source_artifacts")
+    return snapshot
 
 
 def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
@@ -349,6 +388,29 @@ def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[s
             raise ValueError("Run manifest source artifact definitions differ from the bound plan.")
     if len(manifest.get("source_artifacts", [])) != len(source_defs):
         raise ValueError("Run manifest source artifact set differs from the bound plan.")
+    plan_acceptance_sources = plan.get("acceptance_source_artifacts")
+    manifest_acceptance_sources = manifest.get("acceptance_source_artifacts")
+    if plan_acceptance_sources is None:
+        if manifest_acceptance_sources is not None:
+            raise ValueError("Run manifest declares acceptance sources absent from the bound Run Plan.")
+    else:
+        if not isinstance(manifest_acceptance_sources, list) or len(manifest_acceptance_sources) != len(plan_acceptance_sources):
+            raise ValueError("Run manifest acceptance source set differs from the bound Run Plan.")
+        expected_acceptance = {item["source_id"]: item for item in plan_acceptance_sources}
+        observed_acceptance = {
+            item.get("source_id"): item for item in manifest_acceptance_sources
+            if isinstance(item, dict) and isinstance(item.get("source_id"), str)
+        }
+        if set(observed_acceptance) != set(expected_acceptance):
+            raise ValueError("Run manifest acceptance source IDs differ from the bound Run Plan.")
+        for source_id, definition in expected_acceptance.items():
+            observed = observed_acceptance[source_id]
+            expected_path = str(Path(definition["path"]).expanduser().resolve(strict=True))
+            if (observed.get("role") != definition["role"]
+                    or observed.get("path") != expected_path
+                    or not isinstance(observed.get("sha256"), str)
+                    or not re.fullmatch(r"[0-9a-f]{64}", observed["sha256"])):
+                raise ValueError(f"Run manifest acceptance source definition differs from the bound plan: {source_id}.")
     event_path = _safe_relative_path(root, manifest.get("event_ledger_path"), "Run event ledger path")
     events = _load_events(event_path, manifest["run_id"])
     if not events or events[0].get("initialization") != _initialization_snapshot(manifest):
@@ -1052,6 +1114,15 @@ def initialize_run(plan_path: Path, run_root: Path, run_id: str | None = None) -
         source_artifacts.append({
             "artifact_id": item["artifact_id"], "path": str(path), "sha256": sha256_file(path),
         })
+    acceptance_source_artifacts = None
+    if "acceptance_source_artifacts" in plan:
+        acceptance_source_artifacts = []
+        for item in plan["acceptance_source_artifacts"]:
+            path = Path(item["path"]).expanduser().resolve(strict=True)
+            acceptance_source_artifacts.append({
+                "source_id": item["source_id"], "role": item["role"],
+                "path": str(path), "sha256": sha256_file(path),
+            })
     workflow_ledger = plan.get("workflow_ledger_path")
     if workflow_ledger:
         workflow_ledger = str(Path(workflow_ledger).expanduser().resolve(strict=False))
@@ -1071,6 +1142,8 @@ def initialize_run(plan_path: Path, run_root: Path, run_id: str | None = None) -
         "stage_order": _validate_plan(plan, run_root)[0],
         "integrity_scope": "INITIALIZATION_EVENT_BINDS_PLAN_AND_SOURCE_SNAPSHOTS_PLUS_APPEND_ONLY_EVENT_CHAIN_NOT_USER_AUTHENTICATION",
     }
+    if acceptance_source_artifacts is not None:
+        manifest["acceptance_source_artifacts"] = acceptance_source_artifacts
     _write_json_atomic(run_root / "run_manifest.json", manifest)
     initialization_payload = {
         "schema_version": RUN_SCHEMA_VERSION,
@@ -1114,6 +1187,18 @@ def verify_run(manifest_path: Path) -> dict[str, Any]:
             "expected_sha256": item["sha256"], "actual_sha256": actual,
             "status": "CURRENT" if actual == item["sha256"] else "STALE_OR_MISSING",
         })
+    acceptance_source_status = []
+    for item in manifest.get("acceptance_source_artifacts", []):
+        path = Path(item["path"])
+        try:
+            actual = sha256_file(path) if path.is_file() else None
+        except OSError:
+            actual = None
+        acceptance_source_status.append({
+            "source_id": item["source_id"], "role": item["role"], "path": item["path"],
+            "expected_sha256": item["sha256"], "actual_sha256": actual,
+            "status": "CURRENT" if actual == item["sha256"] else "STALE_OR_MISSING",
+        })
     resume = _resume_plan(root, manifest, plan, events)
     artifact_manifest = _artifact_manifest(root, manifest, plan, events)
     return {
@@ -1125,7 +1210,11 @@ def verify_run(manifest_path: Path) -> dict[str, Any]:
         "event_count": len(events),
         "last_event_hash": events[-1]["event_hash"] if events else EVENT_GENESIS_HASH,
         "source_artifacts": source_status,
-        "source_integrity": "CURRENT" if all(item["status"] == "CURRENT" for item in source_status) else "SOURCE_CHANGED_NEW_RUN_REQUIRED",
+        "acceptance_source_artifacts": acceptance_source_status,
+        "source_integrity": (
+            "CURRENT" if all(item["status"] == "CURRENT" for item in source_status + acceptance_source_status)
+            else "SOURCE_CHANGED_NEW_RUN_REQUIRED"
+        ),
         "artifact_manifest": artifact_manifest,
         "resume_plan": resume,
     }
