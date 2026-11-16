@@ -69,7 +69,7 @@ Before `run-init`, add the V1.0 provenance-only source list to the Run Plan's to
 
 After every Run stage is current or explicitly SKIPPED, prepare:
 - `templates/v1_source_selection_manifest.example.json` using the exact Acceptance source IDs, roles, paths, hashes, and sorted Study IDs in the completed Run.
-- `templates/v1_extraction_review_record.example.json` using the exact hash for every Acceptance source ID. Review the delivered structured CSV/JSON records and opaque upstream locators only. Use `UPSTREAM_EXTRACTION_UNVERIFIED` when upstream extraction fidelity cannot be verified within DoR; never dereference a paper/SI locator. Unresolved `REVIEW_REQUIRED` items block a PASS.
+- `templates/v1_extraction_review_record.example.json` using the exact hashes for selected sources only; excluded sources stay in the full source-selection partition with their exclusion reason and do not enter extraction review. Review the delivered structured CSV/JSON records and opaque upstream locators only. Use `UPSTREAM_EXTRACTION_UNVERIFIED` when upstream extraction fidelity cannot be verified within DoR; never dereference a paper/SI locator. Unresolved `REVIEW_REQUIRED` items block a PASS.
 
 Create the separate Acceptance draft and revision history with:
 
