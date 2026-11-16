@@ -881,9 +881,61 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
         if not path.is_relative_to(run_root) or sha256_file(path) != binding["sha256"]:
             raise ValueError(f"G4 {label} is outside the active Run or changed after validation.")
 
+    if not isinstance(plan, dict):
+        raise ValueError("G4 Publication Plan must be a JSON object.")
+    if not all(isinstance(plan.get(key), str) and plan[key].strip()
+               for key in ("project_id", "run_id", "package_version")):
+        raise ValueError("G4 Publication Plan requires project_id, run_id, and package_version.")
+    if report.get("run_id") != plan.get("run_id") or report.get("project_id") != plan.get("project_id"):
+        raise ValueError("G4 Publication Plan identity differs from the active validation report.")
+    if not isinstance(report.get("errors"), list) or report["errors"]:
+        raise ValueError("G4 Publication Plan validation report must contain an empty errors array.")
+
     entries = plan.get("artifacts")
-    if not isinstance(entries, list):
-        raise ValueError("G4 Publication Plan artifacts must be an array.")
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("G4 Publication Plan artifacts must be a non-empty array.")
+    package_ids: list[str] = []
+    for item in entries:
+        if not isinstance(item, dict):
+            raise ValueError("G4 Publication Plan contains a malformed artifact entry.")
+        package_id = item.get("artifact_id")
+        if not isinstance(package_id, str) or not package_id.strip():
+            raise ValueError("G4 Publication Plan contains an empty package artifact ID.")
+        package_ids.append(package_id)
+    if len(package_ids) != len(set(package_ids)):
+        raise ValueError("G4 Publication Plan contains duplicate package artifact IDs.")
+
+    required_common = {
+        "WORKER_REVIEW_RECORD", "HUMAN_DISPOSITION_RECORD",
+        "HUMAN_DISPOSITION_VALIDATION",
+    }
+    if "single_study_applicability_record" in by_id:
+        required_package_ids = required_common | {
+            "SINGLE_STUDY_APPLICABILITY_RECORD",
+            "SINGLE_STUDY_APPLICABILITY_VALIDATION",
+            "MODEL_NOT_APPLICABLE_RECORD",
+            "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",
+            "INTERACTION_NOT_APPLICABLE_RECORD",
+            "INTERACTION_NOT_APPLICABLE_MANIFEST",
+            "ROBUSTNESS_NOT_APPLICABLE_RECORD",
+            "ROBUSTNESS_NOT_APPLICABLE_MANIFEST",
+            "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD",
+            "INTERACTION_SELECTION",
+        }
+    else:
+        required_package_ids = required_common | {
+            "COHORT_REVIEW_RECORD", "COHORT_REVIEW_VALIDATION",
+            "MODEL_ARTIFACT_001", "MODEL_REPORT_001",
+            "REPRODUCIBILITY_EVALUATION_001", "INTERACTION_REPORT_001",
+            "INTERACTION_ROBUSTNESS_001", "INTERACTION_SELECTION_001",
+            "VIRTUAL_PREDICTION_001",
+        }
+    missing_package_ids = sorted(required_package_ids - set(package_ids))
+    if missing_package_ids:
+        raise ValueError(
+            "G4 Publication Plan is missing required delivery entries: "
+            + ", ".join(missing_package_ids)
+        )
     report_sources = report.get("source_artifacts")
     if not isinstance(report_sources, list):
         raise ValueError("G4 publication_plan_validation must contain source_artifacts.")
@@ -903,6 +955,13 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
         package_id = item.get("artifact_id")
         source_path = item.get("source_path")
         source_id = item.get("source_artifact_id")
+        status = item.get("status")
+        if status not in {"complete", "partial", "requires_review", "not_generated", "not_applicable"}:
+            raise ValueError(f"G4 Publication Plan {package_id} has an unsupported status.")
+        if status in {"complete", "partial"} and not isinstance(source_path, str):
+            raise ValueError(f"G4 Publication Plan {package_id} requires a source_path for status={status}.")
+        if status in {"not_generated", "not_applicable"} and (source_path is not None or source_id is not None):
+            raise ValueError(f"G4 Publication Plan {package_id} cannot bind a source for status={status}.")
         if source_path is None:
             if source_id is not None:
                 raise ValueError(f"G4 Publication Plan {package_id} has source_artifact_id without source_path.")
