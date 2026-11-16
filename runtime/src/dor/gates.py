@@ -1115,6 +1115,13 @@ def _validate_g4_publication_plan(
     }
     if "single_study_applicability_record" in by_id:
         required_package_ids = required_common | {
+            "ADAPTER_HANDOFF", "DATASET_MANIFEST", "SOURCE_INVENTORY",
+            "MAPPING_PLAN", "MAPPING_VALIDATION", "BUILD_SPEC",
+            "BUILD_SPEC_VALIDATION", "CANONICAL_BUNDLE",
+            "CANONICAL_VALIDATION", "RECONCILIATION_REPORT",
+            "RECONCILIATION_DECISIONS", "RECONCILIATION_VALIDATION",
+            "DISCOVERY_REPORT", "RESEARCH_SCOPE_RECORD", "MODELING_TASK",
+            "G2_REVIEW_PACKET",
             "SINGLE_STUDY_APPLICABILITY_RECORD",
             "SINGLE_STUDY_APPLICABILITY_VALIDATION",
             "MODEL_NOT_APPLICABLE_RECORD",
