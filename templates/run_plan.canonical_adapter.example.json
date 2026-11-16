@@ -16,7 +16,7 @@
       "path": "D:/Research/Project/configuration/virtual_reproduction_query.json"
     },
     {
-      "artifact_id": "publication_plan",
+      "artifact_id": "publication_plan_template",
       "path": "D:/Research/Project/configuration/publication_package_plan.json"
     }
   ],
@@ -826,6 +826,47 @@
       ]
     },
     {
+      "stage_id": "publication_plan_preparation",
+      "executor": "manual",
+      "depends_on": [
+        "baseline_model_fit",
+        "nested_reproducibility_evaluation",
+        "interaction_discovery",
+        "interaction_robustness",
+        "g3_selection_packet",
+        "virtual_condition_prediction",
+        "independent_result_review",
+        "human_review_and_promotion",
+        "cohort_review"
+      ],
+      "required_gate": null,
+      "inputs": [
+        "publication_plan_template",
+        "model_artifact",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "robustness_report",
+        "interaction_selection",
+        "virtual_prediction",
+        "worker_review_output",
+        "reviewed_findings",
+        "reviewed_findings_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "publication_plan",
+          "path": "10_publication/publication_package_plan.json",
+          "kind": "derived"
+        },
+        {
+          "artifact_id": "publication_plan_validation",
+          "path": "10_publication/publication_plan_validation.json",
+          "kind": "derived"
+        }
+      ]
+    },
+    {
       "stage_id": "publication_package_assembly",
       "executor": "local",
       "depends_on": [
@@ -837,11 +878,13 @@
         "virtual_condition_prediction",
         "human_review_and_promotion",
         "independent_result_review",
-        "cohort_review"
+        "cohort_review",
+        "publication_plan_preparation"
       ],
       "required_gate": "G4",
       "inputs": [
         "publication_plan",
+        "publication_plan_validation",
         "model_report",
         "reproducibility_evaluation",
         "interaction_report",
