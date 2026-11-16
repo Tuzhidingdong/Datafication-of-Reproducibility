@@ -475,7 +475,7 @@ class RunManagerTests(unittest.TestCase):
         )
         self.assertEqual(
             verified["acceptance_source_artifacts"][0]["status"],
-            "SOURCE_CHANGED_OR_MISSING",
+            "STALE_OR_MISSING",
         )
 
     def test_worker_requires_authorization_and_is_confined_to_staging(self):

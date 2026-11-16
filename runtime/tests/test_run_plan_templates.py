@@ -419,7 +419,7 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     run_artifact_id,
                 )
             optional_paths = {
-                "MECHANISM_PLAN_001": "07_review/mechanism_plan.json",
+                "MECHANISM_PLAN_001": "review/mechanism_plan.json",
                 "MECHANISM_BRIDGE_001": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
                 "MECHANISM_FINDINGS_001": "07_mechanism_bridge/mechanism_findings.json",
                 "MECHANISM_LEDGER_001": "07_mechanism_bridge/mechanism_evidence_ledger.csv",

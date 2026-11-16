@@ -746,7 +746,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "G1": ["mapping_plan"],
             "G2": ["canonical_bundle"],
             "G3": ["canonical_bundle"],
-            "G4": ["model_report"],
+            "G4": ["canonical_bundle"],
         }
         events = {}
         gate_artifacts = {}
