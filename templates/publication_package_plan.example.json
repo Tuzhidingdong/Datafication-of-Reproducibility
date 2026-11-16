@@ -36,6 +36,17 @@
       "source_artifact_id": "model_artifact"
     },
     {
+      "artifact_id": "MECHANISM_PLAN_001",
+      "path": "review/mechanism_plan.json",
+      "type": "review",
+      "description": "G3-bound plan for mechanism evidence analysis of the selected interaction.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods"
+      ]
+    },
+    {
       "artifact_id": "MECHANISM_BRIDGE_001",
       "path": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
       "type": "mechanism_evidence_bridge_report",
@@ -177,6 +188,17 @@
         "Results",
         "Discussion",
         "Supporting Information"
+      ]
+    },
+    {
+      "artifact_id": "RESPONSE_SURFACE_MANIFEST_001",
+      "path": "response_surface/interaction_response_surface_manifest.json",
+      "type": "manifest",
+      "description": "Input/output hash manifest for the generated interaction response surface.",
+      "status": "not_generated",
+      "linked_record_ids": [],
+      "manuscript_sections": [
+        "Methods"
       ]
     },
     {
