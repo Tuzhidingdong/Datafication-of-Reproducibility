@@ -9,7 +9,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from dor.run_manager import build_resume_plan, initialize_run, verify_run
-from dor.stage_runner import advance_run, execute_local_stage
+from dor.stage_runner import (
+    StageArgumentBindingError,
+    _bind_contract_arguments,
+    advance_run,
+    execute_local_stage,
+)
 
 
 class ContractBoundStageRunnerTests(unittest.TestCase):
@@ -101,6 +106,91 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
 
     def _bindings(self):
         return {"local_stage": {"runtime_command": "validate-bundle"}}
+
+    def _automatic_bindings(self):
+        return {
+            "local_stage": {
+                "runtime_command": "validate-bundle",
+                "argv_template": [
+                    "--input", {"artifact": "source_input"},
+                    "--out", {"artifact": "local_output"},
+                    "--project-id", {
+                        "json_value": {
+                            "artifact_id": "source_input",
+                            "pointer": "/project_id",
+                        }
+                    },
+                ],
+            }
+        }
+
+    def test_dry_run_derives_cli_arguments_from_run_artifacts(self):
+        with patch(
+            "dor.stage_runner.stage_action_bindings_for_plan",
+            return_value=self._automatic_bindings(),
+        ):
+            report = execute_local_stage(
+                self.manifest_path, "local_stage", dry_run=True,
+            )
+        argv = report["command_argv"]
+        self.assertEqual(argv[-6:], [
+            "--input", str(self.source.resolve()),
+            "--out", str(self.output.resolve()),
+            "--project-id", "P1",
+        ])
+        self.assertEqual(report["argument_source"], "EXECUTION_CONTRACT")
+        self.assertEqual(verify_run(self.manifest_path)["event_count"], 1)
+
+    def test_single_selection_binding_refuses_ambiguous_user_choice(self):
+        selection_path = self.root / "interaction_selection.json"
+        selection_path.write_text(
+            json.dumps({"selected_interaction_ids": ["INT_A", "INT_B"]}),
+            encoding="utf-8",
+        )
+        plan = {
+            "source_artifacts": [{
+                "artifact_id": "interaction_selection",
+                "path": str(selection_path.resolve()),
+            }],
+            "stages": [],
+        }
+        with self.assertRaisesRegex(StageArgumentBindingError, "exactly one selected value"):
+            _bind_contract_arguments(
+                [
+                    "--interaction-id",
+                    {"single_json_array_item": {
+                        "artifact_id": "interaction_selection",
+                        "pointer": "/selected_interaction_ids",
+                    }},
+                ],
+                self.run_root,
+                plan,
+            )
+
+    def test_advance_runs_without_any_argument_directory(self):
+        def fake_run(command, cwd, check, timeout, env):
+            self.assertIn("--project-id", command)
+            self.assertIn("P1", command)
+            self.output.parent.mkdir(parents=True, exist_ok=True)
+            self.output.write_text('{"status":"synthetic-success"}\\n', encoding="utf-8")
+            return subprocess.CompletedProcess(command, 0)
+
+        with (
+            patch(
+                "dor.stage_runner.stage_action_bindings_for_plan",
+                return_value=self._automatic_bindings(),
+            ),
+            patch("dor.stage_runner.subprocess.run", side_effect=fake_run),
+        ):
+            report = advance_run(self.manifest_path, max_local_stages=10)
+
+        self.assertEqual(report["status"], "PAUSED_FOR_HUMAN")
+        self.assertEqual(report["completed_local_stages"][0]["stage_id"], "local_stage")
+        self.assertEqual(
+            report["completed_local_stages"][0]["argument_source"],
+            "EXECUTION_CONTRACT",
+        )
+        self.assertTrue(self.output.is_file())
 
     def test_dry_run_returns_exact_argv_without_mutating_run(self):
         with patch("dor.stage_runner.stage_action_bindings_for_plan", return_value=self._bindings()):
