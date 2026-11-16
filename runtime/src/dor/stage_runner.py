@@ -80,6 +80,18 @@ def _runtime_environment() -> dict[str, str]:
     return environment
 
 
+def _format_archived_outputs(records: list[dict[str, Any]]) -> str:
+    """Render preserved output evidence as readable, directly searchable text."""
+    return "; ".join(
+        "artifact_id={artifact_id} path={archive_path} sha256={sha256}".format(
+            artifact_id=item["artifact_id"],
+            archive_path=item["archive_path"],
+            sha256=item.get("sha256") or "UNHASHED_NON_FILE",
+        )
+        for item in records
+    )
+
+
 def _archive_outputs(
     root: Path,
     stage: dict[str, Any],
@@ -243,9 +255,7 @@ def execute_local_stage(
         archived_after = _archive_outputs(root, stage, attempt, "failed")
         event_reason = failure_reason
         if archived_after:
-            event_reason += " Preserved partial outputs: " + json.dumps(
-                archived_after, ensure_ascii=False, separators=(",", ":")
-            )
+            event_reason += " Preserved partial outputs: " + _format_archived_outputs(archived_after)
         failed = record_stage_status(
             manifest_path,
             stage_id,
@@ -278,9 +288,7 @@ def execute_local_stage(
         archived_after = _archive_outputs(root, stage, attempt, "output-contract-failed")
         reason = f"Command exited 0 but the declared output contract was not met: {exc}"
         if archived_after:
-            reason += " Preserved partial outputs: " + json.dumps(
-                archived_after, ensure_ascii=False, separators=(",", ":")
-            )
+            reason += " Preserved partial outputs: " + _format_archived_outputs(archived_after)
         failed = record_stage_status(
             manifest_path,
             stage_id,
