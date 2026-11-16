@@ -377,6 +377,12 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
         }.issubset(publication_ids))
         plan_items = {item["artifact_id"]: item for item in publication_plan["artifacts"]}
         self.assertNotIn("domain_profile", publication_plan)
+        for item in publication_plan["artifacts"]:
+            if item.get("source_path") is not None:
+                self.assertTrue(
+                    isinstance(item.get("source_artifact_id"), str)
+                    and item["source_artifact_id"].strip()
+                )
         self.assertEqual(plan_items["DATA_DICTIONARY_001"]["status"], "not_generated")
         self.assertNotIn("source_path", plan_items["DATA_DICTIONARY_001"])
         for relative_path in (
@@ -407,6 +413,10 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 self.assertEqual(
                     plan_items[package_id]["source_path"],
                     output_paths[run_artifact_id],
+                )
+                self.assertEqual(
+                    plan_items[package_id]["source_artifact_id"],
+                    run_artifact_id,
                 )
             optional_paths = {
                 "MECHANISM_BRIDGE_001": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
@@ -515,12 +525,11 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             plan = self._load_plan(path)
             stages = {item["stage_id"]: item for item in plan["stages"]}
             with self.subTest(path=path):
-                self.assertIn(
-                    {"artifact_id": "publication_plan_template",
-                     "path": next(item["path"] for item in plan["source_artifacts"]
-                                  if item["artifact_id"] == "publication_plan_template")},
-                    plan["source_artifacts"],
+                publication_template = next(
+                    item for item in plan["source_artifacts"]
+                    if item["artifact_id"] == "publication_plan_template"
                 )
+                self.assertTrue(Path(publication_template["path"]).is_absolute())
                 preparation = stages["publication_plan_preparation"]
                 assembly = stages["publication_package_assembly"]
                 self.assertEqual(preparation["executor"], "manual")
