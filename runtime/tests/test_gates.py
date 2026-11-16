@@ -201,7 +201,13 @@ class WorkflowGateTests(unittest.TestCase):
     def _fake_manifest_context(self, manifest_path):
         run_root = Path(manifest_path).parent.resolve()
         manifest = json.loads((run_root / "run_manifest.json").read_text(encoding="utf-8"))
-        return run_root, manifest, {"stages": []}, []
+        plan = json.loads((run_root / "run_plan.json").read_text(encoding="utf-8"))
+        events = [
+            json.loads(line)
+            for line in (run_root / "run_events.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        return run_root, manifest, plan, events
 
     def tearDown(self):
         self.temp.cleanup()
@@ -327,7 +333,7 @@ class WorkflowGateTests(unittest.TestCase):
             [(item, self.files[item]) for item in ids],
         )
 
-    def _prepare_g4_publication_plan(self, by_id, source_map):
+    def _prepare_g4_publication_plan(self, by_id, source_map, g3_event_hash):
         publication_root = self.root / "10_publication"
         publication_root.mkdir(parents=True, exist_ok=True)
         plan_path = publication_root / "publication_package_plan.json"
@@ -387,8 +393,44 @@ class WorkflowGateTests(unittest.TestCase):
             "run_id": "RUN_GATE",
             "project_id": "PROJECT_TEST",
             "workspace_root": str(self.root.resolve()),
-            "stage_order": [],
+            "stage_order": ["publication_plan_preparation"],
         }, indent=2) + "\n", encoding="utf-8")
+        (self.root / "run_plan.json").write_text(json.dumps({
+            "schema_version": "1.0",
+            "stages": [{
+                "stage_id": "publication_plan_preparation",
+                "executor": "manual",
+                "required_gate": "G3",
+                "inputs": [],
+                "outputs": [
+                    {"artifact_id": "publication_plan", "path": "10_publication/publication_package_plan.json"},
+                    {"artifact_id": "publication_plan_validation", "path": "10_publication/publication_plan_validation.json"},
+                ],
+            }],
+        }, indent=2) + "\n", encoding="utf-8")
+        (self.root / "run_events.jsonl").write_text(json.dumps({
+            "event_type": "STAGE_STATUS",
+            "stage_id": "publication_plan_preparation",
+            "status": "SUCCEEDED",
+            "input_artifacts": [],
+            "output_artifacts": [
+                {
+                    "artifact_id": "publication_plan",
+                    "path": str(plan_path.resolve()),
+                    "sha256": sha256_file(plan_path),
+                },
+                {
+                    "artifact_id": "publication_plan_validation",
+                    "path": str(validation_path.resolve()),
+                    "sha256": sha256_file(validation_path),
+                },
+            ],
+            "gate_approval": {
+                "gate_id": "G3",
+                "status": "APPROVED",
+                "event_hash": g3_event_hash,
+            },
+        }, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
         by_id["publication_plan"] = {
             "artifact_id": "publication_plan",
             "path": str(plan_path.resolve()),
@@ -423,7 +465,18 @@ class WorkflowGateTests(unittest.TestCase):
             }
             for artifact_id, path in self.files.items()
         }
-        self._prepare_g4_publication_plan(by_id, source_map)
+        gate_events = [
+            json.loads(line)
+            for line in self.ledger.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        g3_event = next(
+            (item for item in reversed(gate_events) if item.get("gate_id") == "G3"),
+            None,
+        )
+        if g3_event is None:
+            raise AssertionError("The synthetic full-analysis G4 fixture requires a preceding G3 event.")
+        self._prepare_g4_publication_plan(by_id, source_map, g3_event["event_hash"])
         return [
             "publication_plan", "publication_plan_validation",
             "worker_review_output", "reviewed_findings",
@@ -712,13 +765,16 @@ class WorkflowGateTests(unittest.TestCase):
             "RESEARCH_SCOPE_RECORD": "research_scope_record",
             "MODELING_TASK": "modeling_task",
         }
-        self._prepare_g4_publication_plan(by_id, single_source_map)
+        self._prepare_g4_publication_plan(
+            by_id, single_source_map, "G3_SYNTHETIC_EVENT",
+        )
         previous_gate = {
             "gate_id": "G3",
             "event_hash": "G3_SYNTHETIC_EVENT",
             "artifacts": [
                 by_id["canonical_bundle"],
                 by_id["modeling_task"],
+                by_id["interaction_selection"],
             ],
         }
         return by_id, previous_gate
