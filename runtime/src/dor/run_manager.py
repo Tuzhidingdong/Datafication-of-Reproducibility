@@ -1819,36 +1819,100 @@ def record_stage_status(
             if key in {"kind", "role", "provider", "model", "project_root"} and key in completed_producer and value != completed_producer[key]:
                 raise ValueError(f"Stage completion cannot change producer identity field {key}.")
             completed_producer[key] = value
+        recorded_status = status
+        terminal_reason = reason.strip() if isinstance(reason, str) and reason.strip() else None
         if status == "FAILED":
-            if not isinstance(reason, str) or not reason.strip():
+            if terminal_reason is None:
                 raise ValueError("FAILED stage status requires a non-empty reason.")
             outputs = []
             for output in stage["outputs"]:
                 path = _artifact_path(root, output)
-                if path.is_file():
+                if path.is_file() and not path.is_symlink():
                     outputs.append({"artifact_id": output["artifact_id"], "path": str(path), "sha256": sha256_file(path)})
             event_payload = {
                 "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "FAILED",
                 "attempt": latest["attempt"], "producer": completed_producer,
                 "input_artifacts": latest["input_artifacts"], "output_artifacts": outputs,
                 "gate_approval": latest.get("gate_approval"),
-                "reason": reason.strip(),
+                "reason": terminal_reason,
             }
+            if producer_kind == "worker":
+                archived_outputs, archive_manifest = _archive_failed_worker_outputs(
+                    root, manifest["run_id"], stage, latest["attempt"], terminal_reason,
+                )
+                event_payload["archived_outputs"] = archived_outputs
+                event_payload["archive_manifest"] = archive_manifest
         else:
             current_inputs = _stage_input_snapshots(root, manifest, plan, stage)
             if current_inputs != latest.get("input_artifacts"):
                 raise ValueError("Stage inputs changed while the stage was running; completion is rejected.")
-            output_snapshots = _snapshot_artifacts(root, manifest, plan, [item["artifact_id"] for item in stage["outputs"]])
-            for output in stage["outputs"]:
-                if output.get("kind", "derived") == "worker_staging" and latest["producer"]["kind"] != "worker":
-                    raise ValueError("Only the Worker may create worker_staging outputs.")
-            event_payload = {
-                "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "SUCCEEDED",
-                "attempt": latest["attempt"], "producer": completed_producer,
-                "input_artifacts": latest["input_artifacts"], "output_artifacts": output_snapshots,
-                "gate_approval": latest.get("gate_approval"),
-                "reason": None,
-            }
+            try:
+                output_snapshots = _snapshot_artifacts(
+                    root, manifest, plan, [item["artifact_id"] for item in stage["outputs"]]
+                )
+                for output in stage["outputs"]:
+                    if output.get("kind", "derived") == "worker_staging" and latest["producer"]["kind"] != "worker":
+                        raise ValueError("Only the Worker may create worker_staging outputs.")
+                if producer_kind == "worker":
+                    worker_result_outputs = [
+                        item for item in stage["outputs"]
+                        if item.get("artifact_id") == "worker_review_output"
+                    ]
+                    if worker_result_outputs:
+                        if len(worker_result_outputs) != 1:
+                            raise ValueError("Worker stage must declare exactly one worker_review_output artifact.")
+                        worker_result_path = _artifact_path(root, worker_result_outputs[0])
+                        if worker_result_path.is_symlink() or not worker_result_path.is_file():
+                            raise ValueError("Worker result must be a regular, non-symlink JSON file at the declared worker_review_output path.")
+                        worker_result_payload = _read_json(worker_result_path, "Worker result")
+                        validate_worker_result_payload(
+                            worker_result_payload, set(stage.get("inputs", []))
+                        )
+                        result_status = worker_result_payload.get("status")
+                        if result_status in {"blocked", "failed"}:
+                            raise ValueError(
+                                f"Worker returned terminal status={result_status}: "
+                                + str(worker_result_payload.get("summary", "")).strip()
+                            )
+                        result_task_id = worker_result_payload["task_id"]
+                        recorded_task_id = completed_producer.get("task_id")
+                        if recorded_task_id is not None and recorded_task_id != result_task_id:
+                            raise ValueError("Worker result task_id differs from the task_id supplied by the host Worker Manager.")
+                        completed_producer["task_id"] = result_task_id
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                if producer_kind != "worker":
+                    raise
+                terminal_reason = f"Worker result rejected before SUCCEEDED: {exc}"
+                output_snapshots = []
+                for output in stage["outputs"]:
+                    output_path = _artifact_path(root, output)
+                    if output_path.is_file() and not output_path.is_symlink():
+                        output_snapshots.append({
+                            "artifact_id": output["artifact_id"],
+                            "path": str(output_path),
+                            "sha256": sha256_file(output_path),
+                        })
+                archived_outputs, archive_manifest = _archive_failed_worker_outputs(
+                    root, manifest["run_id"], stage, latest["attempt"], terminal_reason,
+                )
+                event_payload = {
+                    "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "FAILED",
+                    "attempt": latest["attempt"], "producer": completed_producer,
+                    "input_artifacts": latest["input_artifacts"], "output_artifacts": output_snapshots,
+                    "gate_approval": latest.get("gate_approval"),
+                    "reason": terminal_reason,
+                    "archived_outputs": archived_outputs,
+                    "archive_manifest": archive_manifest,
+                }
+                recorded_status = "FAILED"
+            else:
+                event_payload = {
+                    "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "SUCCEEDED",
+                    "attempt": latest["attempt"], "producer": completed_producer,
+                    "input_artifacts": latest["input_artifacts"], "output_artifacts": output_snapshots,
+                    "gate_approval": latest.get("gate_approval"),
+                    "reason": None,
+                }
     expected_previous_event_hash = events[-1]["event_hash"] if events else EVENT_GENESIS_HASH
     event = _append_event(
         root / manifest["event_ledger_path"], manifest["run_id"], event_payload,
@@ -1856,6 +1920,10 @@ def record_stage_status(
     )
     return {
         "recorded": True, "run_id": manifest["run_id"], "stage_id": stage_id,
-        "status": status, "attempt": event["attempt"], "event_hash": event["event_hash"],
+        "status": recorded_status, "attempt": event["attempt"], "event_hash": event["event_hash"],
         "event_count": event["sequence"],
+        **({"reason": terminal_reason} if recorded_status == "FAILED" else {}),
+        **({"archived_outputs": event_payload.get("archived_outputs", []),
+            "archive_manifest": event_payload.get("archive_manifest")}
+           if producer_kind == "worker" and recorded_status == "FAILED" else {}),
     }
