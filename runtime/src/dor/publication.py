@@ -115,6 +115,7 @@ def validate_publication_plan_files(
     """
     from dor.run_manager import (
         _latest_stage_events, _manifest_context, build_artifact_manifest,
+        build_resume_plan,
     )
 
     root, manifest, run_plan, events = _manifest_context(manifest_path)
@@ -366,9 +367,10 @@ def validate_publication_plan_files(
             except (OSError, ValueError, json.JSONDecodeError) as exc:
                 issues.append({"code": "INTERACTION_SELECTION_INVALID", "message": str(exc)})
         optional_active = bool(selected_ids)
+        resume_report = build_resume_plan(manifest_path)
         resume_actions = {
             item["stage_id"]: item["action"]
-            for item in artifact_manifest.get("resume_plan", {}).get("stages", [])
+            for item in resume_report.get("stages", [])
             if isinstance(item, dict) and isinstance(item.get("stage_id"), str)
         }
         for stage_id in ("mechanism_plan_preparation", "response_surface_generation", "mechanism_evidence_bridge"):
