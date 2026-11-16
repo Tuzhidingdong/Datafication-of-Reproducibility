@@ -234,6 +234,9 @@ def initialize_project_run_plan(
         raise ValueError("workflow ledger path must be absolute.")
 
     source_roots = [package_root.resolve(strict=True), publication_path.parent]
+    # Protect external provenance sources declared by the Adapter Manifest too;
+    # the package directory alone may not contain original paper/SI files.
+    source_roots.extend(Path(item["path"]).parent for item in refreshed.get("sources", []))
     if virtual_path is not None:
         source_roots.append(virtual_path.parent)
     source_roots.extend(Path(item["path"]).parent for item in acceptance_records)
