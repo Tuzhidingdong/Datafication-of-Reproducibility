@@ -765,7 +765,7 @@ class WorkflowGateTests(unittest.TestCase):
         def bind(artifact_id, payload):
             path = self.root / (artifact_id + ".json")
             path.write_text(
-                json.dumps(payload, indent=2) + "\\n", encoding="utf-8",
+                json.dumps(payload, indent=2) + "\n", encoding="utf-8",
             )
             self.files[artifact_id] = path
             return {
