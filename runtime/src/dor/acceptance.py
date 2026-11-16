@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ from typing import Any
 from dor.acceptance_ledger import validate_acceptance_ledger
 from dor.gates import GATE_ORDER, inspect_gate_ledger
 from dor.run_manager import _latest_stage_events, _manifest_context, verify_run
-from dor.stage_contracts import validate_stage_evidence
+from dor.stage_contracts import validate_stage_evidence, validate_stage_payload
 
 STAGE_ORDER = (
     "source_selection",
@@ -217,8 +218,11 @@ def initialize_acceptance_record(
     against the immutable source snapshot when their stages are marked PASS.
     """
     run_manifest_path = run_manifest_path.expanduser().resolve(strict=True)
-    output_path = output_path.expanduser().resolve(strict=False)
-    if output_path.exists() or output_path.is_symlink():
+    supplied_output_path = output_path.expanduser()
+    if supplied_output_path.is_symlink():
+        raise ValueError("Acceptance draft output must not be a symlink.")
+    output_path = supplied_output_path.resolve(strict=False)
+    if output_path.exists():
         raise FileExistsError(f"Refusing to overwrite an existing Acceptance draft: {output_path}.")
     root, manifest, plan, events = _manifest_context(run_manifest_path)
     run_report = verify_run(run_manifest_path)
@@ -356,14 +360,61 @@ def initialize_acceptance_record(
             "sha256": _sha256(evidence_path),
         }]
 
+    def require_valid_stage_payload(artifact_type: str, payload: dict[str, Any]) -> None:
+        issues = validate_stage_payload(
+            artifact_type, payload,
+            run_id=str(manifest["run_id"]),
+            project_id=str(manifest["project_id"]),
+            study_ids=set(study_ids),
+            source_snapshot=source_snapshot,
+        )
+        if issues:
+            summary = "; ".join(
+                f"{item.get('code')}: {item.get('message')}" for item in issues
+            )
+            raise ValueError(f"Post-Run {artifact_type} evidence is invalid: {summary}")
+
     stages = []
-    source_selection_evidence = (
-        external_evidence(source_selection_manifest, "acceptance_source_selection", "source_selection_manifest")
-        + [run_evidence("source_inventory", "source_inventory")]
+    source_selection_evidence = external_evidence(
+        source_selection_manifest, "acceptance_source_selection", "source_selection_manifest"
     )
+    selected_source_ids = None
+    if source_selection_manifest is not None:
+        source_selection_payload = _read_json(
+            Path(source_selection_evidence[0]["path"]), "Source selection manifest"
+        )
+        require_valid_stage_payload("source_selection_manifest", source_selection_payload)
+        selected_source_ids = {
+            item["source_id"] for item in source_selection_payload["selected_sources"]
+            if isinstance(item, dict) and isinstance(item.get("source_id"), str)
+        }
+    source_inventory_binding = run_evidence("source_inventory", "source_inventory")
+    if selected_source_ids is not None:
+        source_inventory_payload = _read_json(
+            Path(source_inventory_binding["path"]), "Run source inventory"
+        )
+        inventory_issues = validate_stage_payload(
+            "source_inventory", source_inventory_payload,
+            run_id=str(manifest["run_id"]),
+            project_id=str(manifest["project_id"]),
+            study_ids=set(study_ids),
+            source_snapshot=source_snapshot,
+            selected_source_ids=selected_source_ids,
+        )
+        if inventory_issues:
+            summary = "; ".join(
+                f"{item.get('code')}: {item.get('message')}" for item in inventory_issues
+            )
+            raise ValueError(f"Run source_inventory is not restricted to the selected sources: {summary}")
+    source_selection_evidence.append(source_inventory_binding)
     extraction_review_evidence = external_evidence(
         extraction_review_record, "acceptance_extraction_review", "extraction_review_record"
     )
+    if extraction_review_record is not None:
+        extraction_payload = _read_json(
+            Path(extraction_review_evidence[0]["path"]), "Extraction review record"
+        )
+        require_valid_stage_payload("extraction_review_record", extraction_payload)
     stage_evidence = {
         "source_selection": source_selection_evidence,
         "source_integrity": [{
@@ -478,9 +529,16 @@ def initialize_acceptance_record(
         record["workflow_gate_ledger"] = workflow_gate_binding
     output_path.parent.mkdir(parents=True, exist_ok=True)
     raw = (json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
-    temporary = output_path.with_name(output_path.name + ".tmp")
-    temporary.write_bytes(raw)
-    temporary.replace(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with output_path.open("xb") as handle:
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except FileExistsError as exc:
+        raise FileExistsError(
+            f"Refusing to overwrite an existing Acceptance draft: {output_path}."
+        ) from exc
     return {
         "status": "DRAFT_CREATED",
         "acceptance_id": record["acceptance_id"],
