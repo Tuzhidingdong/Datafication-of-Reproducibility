@@ -452,6 +452,31 @@ class RunManagerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "create a new run"):
             record_stage_status(self.manifest_path, "audit", "RUNNING", "local")
 
+    def test_missing_provenance_only_source_keeps_run_verifiable(self):
+        provenance = self.source_root / "primary-paper.pdf"
+        provenance.write_bytes(b"synthetic provenance-only bytes")
+        plan = json.loads(json.dumps(self.plan))
+        plan["acceptance_source_artifacts"] = [{
+            "source_id": "SOURCE_PRIMARY_PAPER",
+            "role": "PRIMARY_PAPER",
+            "path": str(provenance),
+        }]
+        plan_path = self.root / "provenance_run_plan.json"
+        run_root = self.root / "runs" / "RUN_PROVENANCE"
+        plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+        initialized = initialize_run(plan_path, run_root, "RUN_PROVENANCE")
+        provenance.unlink()
+
+        verified = verify_run(Path(initialized["manifest_path"]))
+        self.assertTrue(verified["valid_manifest_and_event_chain"])
+        self.assertEqual(
+            verified["source_integrity"], "SOURCE_CHANGED_NEW_RUN_REQUIRED"
+        )
+        self.assertEqual(
+            verified["acceptance_source_artifacts"][0]["status"],
+            "SOURCE_CHANGED_OR_MISSING",
+        )
+
     def test_worker_requires_authorization_and_is_confined_to_staging(self):
         self.run_to_mapping()
         with self.assertRaisesRegex(ValueError, "authorization packet"):
