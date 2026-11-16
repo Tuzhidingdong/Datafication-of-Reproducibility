@@ -766,7 +766,7 @@
         "cohort_review_validation"
       ],
       "worker_task": {
-        "objective": "Independently audit the declared Cohort review, model, reproducibility, interaction, robustness, selection, and virtual-prediction artifacts for leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks. Every finding must include a stable, unique finding_id; use the same ID throughout the review packet and do not merge distinct findings.",
+        "objective": "Independently audit the declared Cohort review, serialized model artifact and model report, reproducibility, interaction, robustness, selection, and virtual-prediction artifacts for model-file integrity, leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks. Every finding must include a stable, unique finding_id; use the same ID throughout the review packet and do not merge distinct findings.",
         "permitted_actions": [
           "Read only the declared compact JSON/report inputs; inspect summary/status/count/warning/claim-scope fields first, and open detailed report sections only when needed to substantiate a specific finding.",
           "Write one structured review JSON to the exact permitted staging path",
