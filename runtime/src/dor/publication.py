@@ -404,9 +404,13 @@ def validate_publication_plan_files(
                 })
     else:
         optional_groups = {
+            "mechanism_plan_preparation": {
+                "MECHANISM_PLAN_001": "mechanism_plan",
+            },
             "response_surface_generation": {
                 "RESPONSE_SURFACE_REPORT_001": "interaction_response_surface_report",
                 "RESPONSE_SURFACE_DATA_001": "interaction_response_surface",
+                "RESPONSE_SURFACE_MANIFEST_001": "interaction_response_surface_manifest",
                 "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
                 "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
             },
