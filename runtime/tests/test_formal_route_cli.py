@@ -137,7 +137,7 @@ class FormalRunPlanCliTests(unittest.TestCase):
         source_paths = {
             "adapter_package_manifest": manifest_path,
             "virtual_query_input": config_root / "virtual_reproduction_query.json",
-            "publication_plan": config_root / "publication_package_plan.json",
+            "publication_plan_template": config_root / "publication_package_plan.json",
         }
         for artifact in plan["source_artifacts"]:
             artifact["path"] = str(source_paths[artifact["artifact_id"]].resolve())
