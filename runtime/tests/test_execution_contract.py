@@ -209,6 +209,11 @@ class StageExecutionContractTests(unittest.TestCase):
         self.assertIn("profiles", schema["required"])
         self.assertIn("CONTROLLED_SINGLE_STUDY", contract["profiles"])
         self.assertIn("stage_execution_contract.json", pyproject)
+        worker_packet_schema = json.loads(
+            (ROOT / "schemas" / "run_worker_task_packet.schema.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("authorization_event_hash", worker_packet_schema["required"])
+        self.assertIn("task_id", worker_packet_schema["required"])
 
 
 if __name__ == "__main__":
