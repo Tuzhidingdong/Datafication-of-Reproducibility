@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from dor.acceptance_ledger import validate_acceptance_ledger
+from dor.gates import GATE_ORDER, inspect_gate_ledger
 from dor.run_manager import _latest_stage_events, _manifest_context, verify_run
 from dor.stage_contracts import validate_stage_evidence
 
@@ -293,11 +294,18 @@ def validate_acceptance_record(
         source_items = []
     source_ids: set[str] = set()
     source_roles: set[str] = set()
-    manifest_sources = {
-        item.get("artifact_id"): item
-        for item in manifest.get("source_artifacts", [])
-        if isinstance(item, dict) and isinstance(item.get("artifact_id"), str)
-    }
+    if isinstance(manifest.get("acceptance_source_artifacts"), list):
+        manifest_sources = {
+            item.get("source_id"): item
+            for item in manifest["acceptance_source_artifacts"]
+            if isinstance(item, dict) and isinstance(item.get("source_id"), str)
+        }
+    else:
+        manifest_sources = {
+            item.get("artifact_id"): item
+            for item in manifest.get("source_artifacts", [])
+            if isinstance(item, dict) and isinstance(item.get("artifact_id"), str)
+        }
     for item in source_items:
         if not isinstance(item, dict):
             issue("INVALID_SOURCE_ARTIFACT", "Every source artifact must be an object.")
@@ -416,9 +424,19 @@ def validate_acceptance_record(
             if not isinstance(artifact_type, str) or not artifact_type.strip():
                 issue("EVIDENCE_TYPE_MISSING", f"Evidence {artifact_id} in {stage_id} requires artifact_type.")
             path = _resolve_file(raw_path, record_path.parent)
+            external_acceptance_evidence = {
+                ("acceptance_source_selection", "source_selection_manifest"),
+                ("acceptance_extraction_review", "extraction_review_record"),
+            }
+            is_external_acceptance_evidence = (artifact_id, artifact_type) in external_acceptance_evidence
             bound_evidence = evidence_catalog.get(artifact_id)
+            if bound_evidence is None and is_external_acceptance_evidence:
+                # These records are authored during post-Run Acceptance, after
+                # the immutable source snapshot and explicit Study IDs exist.
+                # Their implementation-owned validators bind them to that snapshot.
+                bound_evidence = {"path": str(path), "sha256": expected}
             if bound_evidence is None:
-                issue("EVIDENCE_NOT_A_COMPLETED_RUN_ARTIFACT", f"Evidence {artifact_id} is not a source or successfully completed Run artifact.")
+                issue("EVIDENCE_NOT_A_COMPLETED_RUN_ARTIFACT", f"Evidence {artifact_id} is not a source, completed Run artifact, or permitted post-Run Acceptance record.")
             else:
                 bound_path = Path(bound_evidence.get("path", "")).expanduser().resolve(strict=False)
                 if path != bound_path:
@@ -426,7 +444,7 @@ def validate_acceptance_record(
                 if expected != bound_evidence.get("sha256"):
                     issue("EVIDENCE_HASH_NOT_BOUND_TO_RUN", f"Evidence {artifact_id} SHA-256 differs from its Run event/source snapshot.")
             run_artifact_is_current = True
-            if artifact_id != "run_manifest":
+            if artifact_id != "run_manifest" and not is_external_acceptance_evidence:
                 run_artifact = run_artifact_states.get(artifact_id)
                 if run_artifact is None:
                     run_artifact_is_current = False
@@ -487,12 +505,13 @@ def validate_acceptance_record(
                     "path": str(Path(typed_item["path"]).resolve(strict=False)),
                     "sha256": typed_item["sha256"],
                 }
-                prior_identity = accepted_gate_evidence.get(identity["artifact_id"])
-                if prior_identity is not None and prior_identity != identity:
-                    issue("ACCEPTANCE_EVIDENCE_IDENTITY_CONFLICT",
-                          f"Accepted evidence artifact_id {identity['artifact_id']} has conflicting path/hash identities across stages.")
-                else:
-                    accepted_gate_evidence[identity["artifact_id"]] = identity
+                if identity["artifact_id"] not in {"acceptance_source_selection", "acceptance_extraction_review"}:
+                    prior_identity = accepted_gate_evidence.get(identity["artifact_id"])
+                    if prior_identity is not None and prior_identity != identity:
+                        issue("ACCEPTANCE_EVIDENCE_IDENTITY_CONFLICT",
+                              f"Accepted evidence artifact_id {identity['artifact_id']} has conflicting path/hash identities across stages.")
+                    else:
+                        accepted_gate_evidence[identity["artifact_id"]] = identity
 
         checks = item.get("checks", [])
         if not isinstance(checks, list):
