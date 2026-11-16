@@ -302,21 +302,10 @@ def initialize_acceptance_record(
         raise ValueError(f"Unsupported Run execution_profile for Acceptance: {profile!r}.")
 
     declared_acceptance_sources = manifest.get("acceptance_source_artifacts")
-    if declared_acceptance_sources is None:
-        declared_acceptance_sources = [
-            {
-                "source_id": item.get("artifact_id"),
-                "role": "OTHER",
-                "path": item.get("path"),
-                "sha256": item.get("sha256"),
-            }
-            for item in manifest.get("source_artifacts", [])
-            if isinstance(item, dict)
-        ]
     if not isinstance(declared_acceptance_sources, list) or not declared_acceptance_sources:
         raise ValueError(
-            "The Run has no explicit acceptance_source_artifacts. Add the provenance-only source IDs, "
-            "roles, and paths to the Run Plan and initialize a new Run."
+            "The Run has no explicit acceptance_source_artifacts. V1.0 Acceptance requires "
+            "a provenance-only source ID/role/path snapshot in the Run Plan; initialize a new Run."
         )
     source_snapshot = []
     seen_source_ids: set[str] = set()
@@ -419,7 +408,23 @@ def initialize_acceptance_record(
         extraction_payload = _read_json(
             Path(extraction_review_evidence[0]["path"]), "Extraction review record"
         )
-        require_valid_stage_payload("extraction_review_record", extraction_payload)
+        if selected_source_ids is None:
+            raise ValueError("Extraction review cannot be initialized without the validated source-selection manifest.")
+        selected_source_snapshot = [
+            item for item in source_snapshot if item["source_id"] in selected_source_ids
+        ]
+        extraction_issues = validate_stage_payload(
+            "extraction_review_record", extraction_payload,
+            run_id=str(manifest["run_id"]),
+            project_id=str(manifest["project_id"]),
+            study_ids=set(study_ids),
+            source_snapshot=selected_source_snapshot,
+        )
+        if extraction_issues:
+            summary = "; ".join(
+                f"{item.get('code')}: {item.get('message')}" for item in extraction_issues
+            )
+            raise ValueError(f"Post-Run extraction_review_record is invalid for the selected source set: {summary}")
     stage_evidence = {
         "source_selection": source_selection_evidence,
         "source_integrity": [{
