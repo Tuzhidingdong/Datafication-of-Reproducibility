@@ -86,7 +86,21 @@
             }
           ],
           "activation": null,
-          "depends_on": []
+          "depends_on": [],
+          "argv_template": [
+            "--manifest",
+            {
+              "artifact": "adapter_package_manifest"
+            },
+            "--package-root",
+            {
+              "artifact_parent": "adapter_package_manifest"
+            },
+            "--out",
+            {
+              "artifact": "adapter_handoff"
+            }
+          ]
         },
         {
           "route": "CANONICAL_BUNDLE",
@@ -108,7 +122,25 @@
             }
           ],
           "activation": null,
-          "depends_on": []
+          "depends_on": [],
+          "argv_template": [
+            "--manifest",
+            {
+              "artifact": "adapter_package_manifest"
+            },
+            "--package-root",
+            {
+              "artifact_parent": "adapter_package_manifest"
+            },
+            "--out",
+            {
+              "artifact": "adapter_handoff"
+            },
+            "--dataset-manifest-out",
+            {
+              "artifact": "dataset_manifest"
+            }
+          ]
         }
       ]
     },
@@ -159,6 +191,16 @@
           "activation": null,
           "depends_on": [
             "adapter_package_validation"
+          ],
+          "argv_template": [
+            "--adapter-handoff",
+            {
+              "artifact": "adapter_handoff"
+            },
+            "--out",
+            {
+              "artifact_parent": "dataset_manifest"
+            }
           ]
         }
       ]
@@ -284,6 +326,20 @@
           "depends_on": [
             "source_audit",
             "mapping_preparation"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "mapping_plan"
+            },
+            "--inventory",
+            {
+              "artifact": "source_inventory"
+            },
+            "--out",
+            {
+              "artifact": "mapping_validation"
+            }
           ]
         },
         {
@@ -305,6 +361,20 @@
           "depends_on": [
             "adapter_artifact_materialization",
             "g0_review_packet"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "mapping_plan"
+            },
+            "--inventory",
+            {
+              "artifact": "source_inventory"
+            },
+            "--out",
+            {
+              "artifact": "mapping_validation"
+            }
           ]
         }
       ]
@@ -336,6 +406,24 @@
             "source_audit",
             "mapping_preparation",
             "mapping_validation"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "mapping_plan"
+            },
+            "--inventory",
+            {
+              "artifact": "source_inventory"
+            },
+            "--spec",
+            {
+              "artifact": "build_spec"
+            },
+            "--out",
+            {
+              "artifact": "build_spec_validation"
+            }
           ]
         },
         {
@@ -359,6 +447,24 @@
           "depends_on": [
             "adapter_artifact_materialization",
             "mapping_validation"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "mapping_plan"
+            },
+            "--inventory",
+            {
+              "artifact": "source_inventory"
+            },
+            "--spec",
+            {
+              "artifact": "build_spec"
+            },
+            "--out",
+            {
+              "artifact": "build_spec_validation"
+            }
           ]
         }
       ]
@@ -465,6 +571,31 @@
             "mapping_preparation",
             "mapping_validation",
             "g1_review_packet"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "mapping_plan"
+            },
+            "--inventory",
+            {
+              "artifact": "source_inventory"
+            },
+            "--spec",
+            {
+              "artifact": "build_spec"
+            },
+            "--source-root",
+            {
+              "json_value": {
+                "artifact_id": "adapter_handoff",
+                "pointer": "/package_root"
+              }
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "canonical_bundle"
+            }
           ]
         }
       ]
@@ -491,6 +622,16 @@
           "activation": null,
           "depends_on": [
             "canonical_build"
+          ],
+          "argv_template": [
+            "--input",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--out",
+            {
+              "artifact": "canonical_validation_report"
+            }
           ]
         },
         {
@@ -511,6 +652,16 @@
           "depends_on": [
             "adapter_artifact_materialization",
             "g1_review_packet"
+          ],
+          "argv_template": [
+            "--input",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--out",
+            {
+              "artifact": "canonical_validation_report"
+            }
           ]
         }
       ]
@@ -542,6 +693,16 @@
           "activation": null,
           "depends_on": [
             "canonical_build"
+          ],
+          "argv_template": [
+            "--input",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "reconciliation_report"
+            }
           ]
         },
         {
@@ -567,6 +728,16 @@
           "depends_on": [
             "adapter_artifact_materialization",
             "canonical_bundle_validation"
+          ],
+          "argv_template": [
+            "--input",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "reconciliation_report"
+            }
           ]
         }
       ]
@@ -647,6 +818,24 @@
             "canonical_reconciliation",
             "canonical_build",
             "reconciliation_decision_review"
+          ],
+          "argv_template": [
+            "--decisions",
+            {
+              "artifact": "reconciliation_decisions"
+            },
+            "--report",
+            {
+              "artifact": "reconciliation_report"
+            },
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--out",
+            {
+              "artifact": "reconciliation_decision_validation"
+            }
           ]
         },
         {
@@ -670,6 +859,24 @@
             "canonical_reconciliation",
             "adapter_artifact_materialization",
             "reconciliation_decision_review"
+          ],
+          "argv_template": [
+            "--decisions",
+            {
+              "artifact": "reconciliation_decisions"
+            },
+            "--report",
+            {
+              "artifact": "reconciliation_report"
+            },
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--out",
+            {
+              "artifact": "reconciliation_decision_validation"
+            }
           ]
         }
       ]
@@ -727,6 +934,16 @@
           "depends_on": [
             "canonical_build",
             "canonical_bundle_validation"
+          ],
+          "argv_template": [
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "discovery_manifest"
+            }
           ]
         },
         {
@@ -777,6 +994,16 @@
           "depends_on": [
             "adapter_artifact_materialization",
             "canonical_bundle_validation"
+          ],
+          "argv_template": [
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "discovery_manifest"
+            }
           ]
         }
       ]
@@ -970,6 +1197,20 @@
             "canonical_build",
             "research_scope_selection",
             "g2_review_packet"
+          ],
+          "argv_template": [
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "cohort_report"
+            }
           ]
         },
         {
@@ -1009,6 +1250,20 @@
             "research_scope_selection",
             "g2_review_packet",
             "adapter_artifact_materialization"
+          ],
+          "argv_template": [
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "cohort_report"
+            }
           ]
         }
       ]
@@ -1128,6 +1383,20 @@
             "cohort_build",
             "research_scope_selection",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "model_report"
+            }
           ]
         },
         {
@@ -1175,6 +1444,20 @@
             "cohort_build",
             "research_scope_selection",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "model_report"
+            }
           ]
         }
       ]
@@ -1229,6 +1512,20 @@
             "cohort_build",
             "research_scope_selection",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "reproducibility_evaluation"
+            }
           ]
         },
         {
@@ -1276,6 +1573,20 @@
             "cohort_build",
             "research_scope_selection",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "reproducibility_evaluation"
+            }
           ]
         }
       ]
@@ -1325,6 +1636,20 @@
             "cohort_build",
             "research_scope_selection",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "interaction_report"
+            }
           ]
         },
         {
@@ -1367,6 +1692,20 @@
             "cohort_build",
             "research_scope_selection",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "interaction_report"
+            }
           ]
         }
       ]
@@ -1411,6 +1750,20 @@
             "cohort_build",
             "research_scope_selection",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "robustness_report"
+            }
           ]
         },
         {
@@ -1448,6 +1801,20 @@
             "cohort_build",
             "research_scope_selection",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "robustness_report"
+            }
           ]
         }
       ]
@@ -1708,6 +2075,35 @@
             "interaction_discovery",
             "interaction_robustness",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--interaction-dir",
+            {
+              "artifact_parent": "interaction_report"
+            },
+            "--interaction-id",
+            {
+              "single_json_array_item": {
+                "artifact_id": "interaction_selection",
+                "pointer": "/selected_interaction_ids"
+              }
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "interaction_response_surface_report"
+            },
+            "--robustness-dir",
+            {
+              "artifact_parent": "robustness_report"
+            }
           ]
         },
         {
@@ -1769,6 +2165,35 @@
             "interaction_discovery",
             "interaction_robustness",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--interaction-dir",
+            {
+              "artifact_parent": "interaction_report"
+            },
+            "--interaction-id",
+            {
+              "single_json_array_item": {
+                "artifact_id": "interaction_selection",
+                "pointer": "/selected_interaction_ids"
+              }
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "interaction_response_surface_report"
+            },
+            "--robustness-dir",
+            {
+              "artifact_parent": "robustness_report"
+            }
           ]
         }
       ]
@@ -1842,6 +2267,40 @@
             "mechanism_plan_preparation",
             "response_surface_generation",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--interaction-dir",
+            {
+              "artifact_parent": "interaction_report"
+            },
+            "--plan",
+            {
+              "artifact": "mechanism_plan"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "mechanism_evidence_bridge_report"
+            },
+            "--robustness-dir",
+            {
+              "artifact_parent": "robustness_report"
+            },
+            "--response-surface-dir",
+            {
+              "artifact_parent": "interaction_response_surface_report"
+            }
           ]
         },
         {
@@ -1908,6 +2367,40 @@
             "mechanism_plan_preparation",
             "response_surface_generation",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--cohort-dir",
+            {
+              "artifact_parent": "modeling_cohort"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--interaction-dir",
+            {
+              "artifact_parent": "interaction_report"
+            },
+            "--plan",
+            {
+              "artifact": "mechanism_plan"
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "mechanism_evidence_bridge_report"
+            },
+            "--robustness-dir",
+            {
+              "artifact_parent": "robustness_report"
+            },
+            "--response-surface-dir",
+            {
+              "artifact_parent": "interaction_response_surface_report"
+            }
           ]
         }
       ]
@@ -1936,6 +2429,20 @@
           "activation": null,
           "depends_on": [
             "baseline_model_fit"
+          ],
+          "argv_template": [
+            "--model-run-dir",
+            {
+              "artifact_parent": "baseline_run_manifest"
+            },
+            "--query",
+            {
+              "artifact": "virtual_query_input"
+            },
+            "--out",
+            {
+              "artifact": "virtual_prediction"
+            }
           ]
         },
         {
@@ -1957,6 +2464,20 @@
           "activation": null,
           "depends_on": [
             "baseline_model_fit"
+          ],
+          "argv_template": [
+            "--model-run-dir",
+            {
+              "artifact_parent": "baseline_run_manifest"
+            },
+            "--query",
+            {
+              "artifact": "virtual_query_input"
+            },
+            "--out",
+            {
+              "artifact": "virtual_prediction"
+            }
           ]
         }
       ]
@@ -2350,6 +2871,20 @@
             "human_review_and_promotion",
             "independent_result_review",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "publication_plan"
+            },
+            "--workspace-root",
+            {
+              "run_root": true
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "publication_package_manifest"
+            }
           ]
         },
         {
@@ -2393,6 +2928,20 @@
             "human_review_and_promotion",
             "independent_result_review",
             "cohort_review"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "publication_plan"
+            },
+            "--workspace-root",
+            {
+              "run_root": true
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "publication_package_manifest"
+            }
           ]
         },
         {
@@ -2447,6 +2996,20 @@
             "reconciliation_decision_review",
             "research_scope_selection",
             "single_study_na_artifacts"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "publication_plan"
+            },
+            "--workspace-root",
+            {
+              "run_root": true
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "publication_package_manifest"
+            }
           ]
         },
         {
@@ -2501,6 +3064,20 @@
             "reconciliation_decision_review",
             "research_scope_selection",
             "single_study_na_artifacts"
+          ],
+          "argv_template": [
+            "--plan",
+            {
+              "artifact": "publication_plan"
+            },
+            "--workspace-root",
+            {
+              "run_root": true
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "publication_package_manifest"
+            }
           ]
         }
       ]
@@ -2528,6 +3105,16 @@
           "activation": null,
           "depends_on": [
             "publication_package_assembly"
+          ],
+          "argv_template": [
+            "--package-dir",
+            {
+              "artifact_parent": "publication_package_manifest"
+            },
+            "--out",
+            {
+              "artifact": "publication_package_integrity_report"
+            }
           ]
         },
         {
@@ -2548,6 +3135,16 @@
           "activation": null,
           "depends_on": [
             "publication_package_assembly"
+          ],
+          "argv_template": [
+            "--package-dir",
+            {
+              "artifact_parent": "publication_package_manifest"
+            },
+            "--out",
+            {
+              "artifact": "publication_package_integrity_report"
+            }
           ]
         },
         {
@@ -2569,6 +3166,16 @@
           "activation": null,
           "depends_on": [
             "publication_package_assembly"
+          ],
+          "argv_template": [
+            "--package-dir",
+            {
+              "artifact_parent": "publication_package_manifest"
+            },
+            "--out",
+            {
+              "artifact": "publication_package_integrity_report"
+            }
           ]
         },
         {
@@ -2590,6 +3197,16 @@
           "activation": null,
           "depends_on": [
             "publication_package_assembly"
+          ],
+          "argv_template": [
+            "--package-dir",
+            {
+              "artifact_parent": "publication_package_manifest"
+            },
+            "--out",
+            {
+              "artifact": "publication_package_integrity_report"
+            }
           ]
         }
       ]
@@ -2636,6 +3253,24 @@
           "activation": null,
           "depends_on": [
             "adapter_package_validation"
+          ],
+          "argv_template": [
+            "--adapter-handoff",
+            {
+              "artifact": "adapter_handoff"
+            },
+            "--role",
+            "source_inventory",
+            "--role",
+            "mapping_plan",
+            "--role",
+            "build_spec",
+            "--role",
+            "canonical_bundle",
+            "--out-dir",
+            {
+              "artifact_parent": "source_inventory"
+            }
           ]
         }
       ]
@@ -2733,6 +3368,28 @@
             "single_study_scope_review",
             "canonical_build",
             "research_scope_selection"
+          ],
+          "argv_template": [
+            "--record",
+            {
+              "artifact": "single_study_applicability_record"
+            },
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--manifest",
+            {
+              "run_root": true
+            },
+            "--out",
+            {
+              "artifact": "single_study_applicability_validation"
+            }
           ]
         },
         {
@@ -2757,6 +3414,28 @@
             "single_study_scope_review",
             "adapter_artifact_materialization",
             "research_scope_selection"
+          ],
+          "argv_template": [
+            "--record",
+            {
+              "artifact": "single_study_applicability_record"
+            },
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--manifest",
+            {
+              "run_root": true
+            },
+            "--out",
+            {
+              "artifact": "single_study_applicability_validation"
+            }
           ]
         }
       ]
@@ -2820,6 +3499,32 @@
             "single_study_scope_review",
             "canonical_build",
             "research_scope_selection"
+          ],
+          "argv_template": [
+            "--record",
+            {
+              "artifact": "single_study_applicability_record"
+            },
+            "--validation",
+            {
+              "artifact": "single_study_applicability_validation"
+            },
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--manifest",
+            {
+              "run_root": true
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "model_report"
+            }
           ]
         },
         {
@@ -2876,6 +3581,32 @@
             "single_study_scope_review",
             "adapter_artifact_materialization",
             "research_scope_selection"
+          ],
+          "argv_template": [
+            "--record",
+            {
+              "artifact": "single_study_applicability_record"
+            },
+            "--validation",
+            {
+              "artifact": "single_study_applicability_validation"
+            },
+            "--bundle",
+            {
+              "artifact": "canonical_bundle"
+            },
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--manifest",
+            {
+              "run_root": true
+            },
+            "--out-dir",
+            {
+              "artifact_parent": "model_report"
+            }
           ]
         }
       ]
