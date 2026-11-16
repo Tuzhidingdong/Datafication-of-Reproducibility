@@ -541,6 +541,11 @@ def _validate_event_semantics(
                 raise ValueError(f"Worker authorization lacks rationale at line {line_number}.")
             if event.get("task_spec") != stage.get("worker_task"):
                 raise ValueError(f"Worker authorization task specification differs from the run plan at line {line_number}.")
+            if "worker_task_id" in event and (
+                not isinstance(event["worker_task_id"], str)
+                or not event["worker_task_id"].strip()
+            ):
+                raise ValueError(f"Worker authorization task ID is invalid at line {line_number}.")
             validate_snapshots(event.get("input_artifacts"), stage["inputs"], "Worker authorization inputs", line_number)
             expected_outputs = [
                 {"artifact_id": item["artifact_id"], "path": str(_artifact_path(root, item)), "kind": item["kind"]}
@@ -1653,10 +1658,12 @@ def authorize_worker(
     attempt = (latest.get("attempt", 0) if latest else 0) + 1
     if _latest_worker_authorization(events, stage_id, attempt) is not None:
         raise ValueError("A Worker authorization packet already exists for this attempt; do not silently re-authorize or duplicate dispatch.")
+    worker_task_id = f"DOR_{manifest['run_id']}_{stage_id}_ATTEMPT_{attempt:04d}"
     payload = {
         "event_type": "WORKER_AUTHORIZED",
         "stage_id": stage_id,
         "attempt": attempt,
+        "worker_task_id": worker_task_id,
         "authorized_by": authorized_by.strip(),
         "rationale": rationale.strip(),
         "worker": {
@@ -1675,7 +1682,7 @@ def authorize_worker(
     )
     task_packet = {
         "schema_version": "1.0",
-        "task_id": f"DOR_{manifest['run_id']}_{stage_id}_ATTEMPT_{attempt:04d}",
+        "task_id": worker_task_id,
         "project_id": manifest["project_id"],
         "run_id": manifest["run_id"],
         "stage_id": stage_id,
