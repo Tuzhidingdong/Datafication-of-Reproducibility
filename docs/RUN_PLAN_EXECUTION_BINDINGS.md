@@ -16,9 +16,15 @@ Before choosing the formal Run Plan, determine the adapter route without auditin
 
 Keep this preflight file outside the protected adapter package and outside all declared source/artifact files. A preflight result is only a package-integrity and route-selection result. For a STRUCTURED_DATASET route, do not run source audit before formal Run initialization. For a CANONICAL_BUNDLE route, the optional pre-Run Discovery scan is permitted but remains exploratory and does not approve G0-G2.
 
-Select the matching Run Plan template and execution profile. Set its source roots, operational source artifact paths, workflow ledger path, and project/configuration paths from the active project configuration. The publication blueprint must be the immutable `publication_plan_template` source Artifact: use `templates/publication_package_plan.example.json` for full analysis, or the route-matching `templates/publication_package_plan.single_study.example.json` / `templates/publication_package_plan.canonical_adapter.single_study.example.json` for a controlled one-Study Run. The final `publication_plan` is created inside the Run only after G3, Worker review, and human disposition; do not point the Run Plan at a mutable final package plan.
+Generate the configured Run Plan from the preflight handoff. The default profile is `CONTROLLED_SINGLE_STUDY`; `init-run-plan` chooses the correct route/profile template, sets the protected source roots and exact source artifact paths, copies the matching Publication Plan blueprint into project configuration, and validates the generated plan before writing it:
 
-    dor run-init --plan <selected_run_plan.json> --run-root <new_run_root>
+    dor init-run-plan --adapter-handoff <project_root>/run_control/adapter_route_preflight.json --project-root <project_root> --run-root <new_run_root>
+
+For V1.0 Acceptance, add one explicit `--acceptance-source SOURCE_ID=ROLE=FILE_PATH` argument per provenance-only source. A controlled single-Study Acceptance needs the primary paper and its linked SI declared separately (unless the protocol explicitly records SI as not applicable). These sources are path/hash-only and never become computational Stage inputs. Choose `--profile FULL_ANALYSIS` only when the project has a suitable multi-Study design, and provide an existing `--virtual-query-input <path>`; do not create a placeholder query. If a project-owned Publication Plan blueprint already exists, supply it through `--publication-plan-template <path>` rather than overwriting it. The generated Run Plan is never overwritten; create a new output path/configuration when needed.
+
+Then initialize the Run from the generated plan:
+
+    dor run-init --plan <generated_run_plan.json> --run-root <new_run_root>
 
 Run Manager validates the declared source roots/artifacts and dependency graph, creates the Run workspace and `run_manifest.json`, and snapshots the exact plan/source inputs. Do not reuse an old Run root for a new plan. Verify initialization before stage execution:
 
@@ -28,19 +34,7 @@ The first formal stage regenerates the handoff into the Run workspace. Do not us
 
 ## Provenance-only sources for post-Run Acceptance
 
-When the project will use V1.0 controlled Acceptance, add an explicit top-level `acceptance_source_artifacts` array to the selected Run Plan before `dor run-init`. Keep it separate from the operational `source_artifacts` list: these provenance-only files are not inputs to local Stage commands and must never be passed to a Worker. Each entry requires a unique `source_id`, one role (`PRIMARY_PAPER`, `SUPPLEMENTARY_INFORMATION`, `STRUCTURED_DATA`, or `OTHER`), and an absolute path inside a declared `source_roots` directory. For a `CONTROLLED_SINGLE_STUDY` Acceptance, declare both a primary paper and its linked SI. The Run Manager snapshots paths and SHA-256 only; it never opens their contents.
-
-Example:
-
-```json
-{
-  "acceptance_source_artifacts": [
-    {"source_id": "SOURCE_PRIMARY_PAPER", "role": "PRIMARY_PAPER", "path": "/project/sources/paper.pdf"},
-    {"source_id": "SOURCE_SUPPLEMENTARY_INFORMATION", "role": "SUPPLEMENTARY_INFORMATION", "path": "/project/sources/paper_si.pdf"},
-    {"source_id": "SOURCE_STRUCTURED_DATA", "role": "STRUCTURED_DATA", "path": "/project/sources/paired_records.csv"}
-  ]
-}
-```
+When the project will use V1.0 controlled Acceptance, pass each provenance-only source to `dor init-run-plan` using a repeated `--acceptance-source SOURCE_ID=ROLE=FILE_PATH` argument. Keep these sources separate from operational `source_artifacts`: they are not inputs to local Stage commands and must never be passed to a Worker. Each entry requires a unique source ID and one role (`PRIMARY_PAPER`, `SUPPLEMENTARY_INFORMATION`, `STRUCTURED_DATA`, or `OTHER`). The helper adds each source's parent directory to the protected Run source roots and binds its absolute path into `acceptance_source_artifacts`. For a `CONTROLLED_SINGLE_STUDY` Acceptance, declare both a primary paper and its linked SI unless the protocol explicitly records SI as not applicable. The Run Manager snapshots paths and SHA-256 only; it never opens their contents. Do not hand-edit the generated Run Plan to add or alter these entries; create a new plan with the complete explicit source list instead.
 
 At Run initialization, the list is hash-bound into `run_manifest.json` and the first Run Event. `dor run-verify` and `dor run-artifacts` report its independent integrity state. Changing or removing any declared source means the old Run no longer represents the same source snapshot; do not accept it.
 
@@ -62,12 +56,7 @@ Only an explicitly reviewed PASS/CONDITIONAL_PASS record can be checkpointed. Ac
 
 ## Route selection
 
-Select exactly one template from the validated adapter handoff:
-
-- `STRUCTURED_DATASET`: `templates/run_plan.example.json`
-- `CANONICAL_BUNDLE`: `templates/run_plan.canonical_adapter.example.json`
-
-A valid handoff proves package integrity and route eligibility only. It never approves scientific mappings or a workflow gate.
+The validated handoff determines one of the two supported generic routes. `dor init-run-plan` selects the matching route/profile template without asking the operator to edit stage arrays. A valid handoff proves package integrity and route eligibility only; it never approves scientific mappings or a workflow gate. The four bundled templates remain implementation-owned contracts and should be changed only together with the execution-action registry and focused tests.
 
 ## Contract-bound stage execution
 
