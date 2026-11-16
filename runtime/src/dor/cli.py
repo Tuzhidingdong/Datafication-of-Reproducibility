@@ -38,7 +38,7 @@ from dor.run_manager import (
     authorize_worker, build_artifact_manifest, build_resume_plan, build_run_usage_report,
     initialize_run, record_stage_status, verify_run,
 )
-from dor.stage_runner import execute_local_stage
+from dor.stage_runner import advance_run, execute_local_stage
 
 def _write_json(path: Path | None, report: dict) -> str:
     rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
@@ -318,6 +318,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_execute.add_argument("--timeout-seconds", type=int, default=3600)
     run_execute.add_argument("--dry-run", action="store_true", help="Print the exact argv without changing the Run")
 
+    run_advance = subparsers.add_parser("run-advance", help="Execute configured local stages until a Gate, human, Worker, or missing-arguments boundary")
+    run_advance.add_argument("--manifest", type=Path, required=True)
+    run_advance.add_argument("--args-dir", type=Path, required=True, help="Directory containing <stage_id>.json CLI argument arrays")
+    run_advance.add_argument("--max-local-stages", type=int, default=10)
+    run_advance.add_argument("--timeout-seconds", type=int, default=3600)
+
     review_packet = subparsers.add_parser("validate-run-review-packet", help="Validate a G0-G2 review packet against the active Run inputs and hashes")
     review_packet.add_argument("--packet", type=Path, required=True)
     review_packet.add_argument("--manifest", type=Path, required=True)
@@ -477,6 +483,19 @@ def main() -> int:
             )
             print(_write_json(None, result), end="")
             return 0 if result["status"] in {"DRY_RUN", "SUCCEEDED"} else 2
+        if args.command == "run-advance":
+            result = advance_run(
+                args.manifest,
+                args.args_dir,
+                max_local_stages=args.max_local_stages,
+                timeout_seconds=args.timeout_seconds,
+            )
+            print(_write_json(None, result), end="")
+            return 0 if result["status"] in {
+                "COMPLETE", "PAUSED_FOR_GATE", "PAUSED_FOR_HUMAN",
+                "PAUSED_FOR_WORKER_AUTHORIZATION", "ARGUMENTS_REQUIRED",
+                "YIELDED_AFTER_LOCAL_STAGE_LIMIT",
+            } else 2
         if args.command == "run-artifacts":
             result = build_artifact_manifest(args.manifest)
             if args.out is not None:
