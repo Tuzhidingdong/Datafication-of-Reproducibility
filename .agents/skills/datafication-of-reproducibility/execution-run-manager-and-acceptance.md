@@ -14,16 +14,19 @@ Keep the original plan and raw sources unchanged. The runtime creates run_manife
 
 For a supported Structured Dataset or Canonical Bundle Run, do not manually wrap local CLI commands with separate `run-stage-record` calls. Use the contract-bound runner so the exact permitted subcommand and Run lifecycle are connected:
 
-1. Read `dor run-resume-plan --manifest run_manifest.json`; select the first actionable stage in dependency order and use its `action_binding` resolved input/output paths.
-2. Prepare a JSON file containing an array of individual CLI argument strings for that stage's bound Runtime command. Do not include a shell command, executable, or subcommand in the argument array.
-3. Preview with `dor run-stage-execute --manifest run_manifest.json --stage <stage_id> --args-file <stage_args.json> --dry-run`.
-4. Execute with the same command without `--dry-run`.
+1. Read `dor run-resume-plan --manifest run_manifest.json`; select the first actionable stage in dependency order and inspect its `action_binding` input/output paths.
+2. The Runtime builds the local command's argv automatically from the route/profile-specific `argv_template` in `runtime/src/dor/stage_execution_contract.json`. Artifact paths, output directories, the Run root, and explicitly declared JSON fields are resolved from the active Run; do not create per-stage argument JSON files for supported adapter Runs.
+3. Preview one stage without mutation when useful:
 
-For a contiguous segment of ready local stages, prepare `<stage_id>.json` argument arrays for the local stages under one directory and use:
+       dor run-stage-execute --manifest run_manifest.json --stage <stage_id> --dry-run
 
-    dor run-advance --manifest run_manifest.json --args-dir path/to/stage_arguments --max-local-stages 10
+4. Advance the Run:
 
-It runs local stages in dependency order and pauses at the first MANUAL stage, Worker authorization boundary, unapproved Gate, missing argument file, or failure. The returned report gives the next stage and its bound evidence paths. After completing and recording the human/Worker operation, invoke `run-advance` again. Inactive conditional stages are recorded as SKIPPED by the Runtime. Each call is limited to ten local stages by default.
+       dor run-advance --manifest run_manifest.json --max-local-stages 10
+
+The runner executes ready local stages in dependency order and pauses at the first MANUAL stage, Worker authorization boundary, unapproved Gate, unresolved user-choice value, or failure. Its report includes the generated argv for completed local stages, the next stage, and the bound evidence paths. After completing and recording a human/Worker operation, invoke `run-advance` again. Inactive conditional stages are recorded as SKIPPED by the Runtime. Each call is limited to ten local stages by default.
+
+The contract binding language is deliberately small and non-executable: it can resolve an Artifact path, an Artifact's parent directory, the active Run root, a scalar at a declared JSON pointer, or exactly one item from a selected-value array. If a required user choice is absent or ambiguous (for example, zero or multiple selected interaction IDs where one response surface is required), the runner returns `INPUT_REQUIRED` and does not launch the command. For custom, unbound Run Plans only, `--args-file` or `--args-dir` remains available as an explicit argv override.
 
 The Runtime runner obtains the CLI subcommand only from `stage_execution_contract.json`, never invokes a shell, records RUNNING before launch, and records SUCCEEDED only when every declared output exists and can be hashed. It records FAILED on non-zero exit, timeout, launch error, or missing output. Partial outputs are preserved under `.dor_attempt_archive/<stage_id>/`; they are not silently deleted. Re-read `run-resume-plan` after every stage because the next action may have changed. The runner injects the immutable Run's workflow-ledger and manifest arguments for commands that require them; do not pass or override those arguments.
 
