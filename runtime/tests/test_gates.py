@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from dor.builder import validate_build_spec_files
 from dor.gates import (
@@ -190,6 +191,17 @@ class WorkflowGateTests(unittest.TestCase):
         ):
             make_file(artifact_id, {})
         self._prepare_g3(["INT_1"], ["INT_1"])
+        self._run_context_patch = patch(
+            "dor.run_manager._manifest_context",
+            side_effect=self._fake_manifest_context,
+        )
+        self._run_context_patch.start()
+        self.addCleanup(self._run_context_patch.stop)
+
+    def _fake_manifest_context(self, manifest_path):
+        run_root = Path(manifest_path).parent.resolve()
+        manifest = json.loads((run_root / "run_manifest.json").read_text(encoding="utf-8"))
+        return run_root, manifest, {"stages": []}, []
 
     def tearDown(self):
         self.temp.cleanup()
@@ -316,8 +328,10 @@ class WorkflowGateTests(unittest.TestCase):
         )
 
     def _prepare_g4_publication_plan(self, by_id, source_map):
-        plan_path = self.root / "publication_plan.json"
-        validation_path = self.root / "publication_plan_validation.json"
+        publication_root = self.root / "10_publication"
+        publication_root.mkdir(parents=True, exist_ok=True)
+        plan_path = publication_root / "publication_package_plan.json"
+        validation_path = publication_root / "publication_plan_validation.json"
         entries = []
         report_sources = []
         for package_id, source_id in source_map.items():
@@ -368,6 +382,13 @@ class WorkflowGateTests(unittest.TestCase):
         }
         validation_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         self.files["publication_plan_validation"] = validation_path
+        (self.root / "run_manifest.json").write_text(json.dumps({
+            "schema_version": "1.0",
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "workspace_root": str(self.root.resolve()),
+            "stage_order": [],
+        }, indent=2) + "\n", encoding="utf-8")
         by_id["publication_plan"] = {
             "artifact_id": "publication_plan",
             "path": str(plan_path.resolve()),
@@ -693,10 +714,12 @@ class WorkflowGateTests(unittest.TestCase):
         }
         self._prepare_g4_publication_plan(by_id, single_source_map)
         previous_gate = {
+            "gate_id": "G3",
+            "event_hash": "G3_SYNTHETIC_EVENT",
             "artifacts": [
                 by_id["canonical_bundle"],
                 by_id["modeling_task"],
-            ]
+            ],
         }
         return by_id, previous_gate
 
