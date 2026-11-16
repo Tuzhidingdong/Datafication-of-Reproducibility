@@ -25,3 +25,27 @@ jobs:
         run: python -m unittest discover -s runtime/tests -v
       - name: Check repository JSON schema and packaged contract syntax
         run: python -c "import json, pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('schemas').glob('*.json')]; json.loads(pathlib.Path('runtime/src/dor/stage_execution_contract.json').read_text(encoding='utf-8'))"
+
+  application-smoke:
+    name: Structured-data application smoke
+    runs-on: ubuntu-slim
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install runtime
+        run: python -m pip install -e ./runtime
+      - name: Validate all supported route and profile contracts
+        run: |
+          dor validate-execution-contract --plan templates/run_plan.example.json
+          dor validate-execution-contract --plan templates/run_plan.canonical_adapter.example.json
+          dor validate-execution-contract --plan templates/run_plan.single_study.example.json
+          dor validate-execution-contract --plan templates/run_plan.canonical_adapter.single_study.example.json
+      - name: Test explicit Adapter Package initialization
+        run: python -m unittest discover -s runtime/tests -p "test_adapter_package.py" -v
+      - name: Test project Run Plan initialization
+        run: python -m unittest discover -s runtime/tests -p "test_project_setup.py" -v
+      - name: Test structured-data CLI Quick Start through G0
+        run: python -m unittest discover -s runtime/tests -p "test_application_quickstart.py" -v
