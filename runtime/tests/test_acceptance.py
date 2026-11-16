@@ -163,7 +163,12 @@ class AcceptanceValidatorTests(unittest.TestCase):
                 {"source_id": item["source_id"],
                  "locator_type": "pdf_page" if item["source_id"] != "paired" else "csv_row",
                  "locator": "page 1" if item["source_id"] != "paired" else "row 2",
-                 "review_status": "STRUCTURED_RECORD_REVIEWED"}
+                 "review_status": (
+                     "STRUCTURED_RECORD_REVIEWED"
+                     if item["role"] == "STRUCTURED_DATA"
+                     else ("UPSTREAM_EXTRACTION_UNVERIFIED"
+                           if item["role"] == "PRIMARY_PAPER" else "NOT_APPLICABLE")
+                 )}
                 for item in self.source_records
             ],
             "human_review": {
