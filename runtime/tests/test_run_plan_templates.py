@@ -584,6 +584,14 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     self.assertIn("cohort_review", stage["depends_on"])
                     self.assertIn("cohort_review_record", stage["inputs"])
                     self.assertIn("cohort_review_validation", stage["inputs"])
+                for stage_id in (
+                    "independent_result_review",
+                    "human_review_and_promotion",
+                    "publication_plan_preparation",
+                    "publication_package_assembly",
+                ):
+                    self.assertIn("model_artifact", stages[stage_id]["inputs"])
+                self.assertIn("serialized model artifact", stages["independent_result_review"]["worker_task"]["objective"].lower())
                 for stage in plan["stages"]:
                     for artifact_id in stage["inputs"]:
                         producer = producers.get(artifact_id)
