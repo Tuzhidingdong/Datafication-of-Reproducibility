@@ -469,7 +469,8 @@ def main() -> int:
                 args.out, ledger_path, args.actor, args.rationale,
             )
             result["acceptance_ledger_path"] = str(ledger_path.resolve(strict=False))
-            result["acceptance_ledger_status"] = ledger_report.get("status", "INITIALIZED")
+            result["acceptance_ledger_revision"] = ledger_report["revision"]
+            result["acceptance_ledger_event_hash"] = ledger_report["event_hash"]
             print(_write_json(None, result), end="")
             return 0
         if args.command == "run-init":
