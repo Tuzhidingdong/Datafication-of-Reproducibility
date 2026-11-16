@@ -73,6 +73,45 @@ def _select_route_variant(binding: dict[str, Any], route: str, profile: str) -> 
     )
 
 
+def _validate_argv_template(
+    stage_id: str, template: Any, available_artifact_ids: set[str],
+) -> None:
+    """Validate the small, non-executable argument-binding language in the contract."""
+    if not isinstance(template, list) or not template:
+        raise ValueError(f"Local Stage {stage_id} has no automatic argv_template.")
+    for index, token in enumerate(template):
+        if isinstance(token, str):
+            if not token:
+                raise ValueError(f"Stage {stage_id} argv_template token {index} is empty.")
+            continue
+        if not isinstance(token, dict) or len(token) != 1:
+            raise ValueError(f"Stage {stage_id} argv_template token {index} is malformed.")
+        operation, value = next(iter(token.items()))
+        if operation in {"artifact", "artifact_parent"}:
+            if not isinstance(value, str) or value not in available_artifact_ids:
+                raise ValueError(
+                    f"Stage {stage_id} argv_template references unknown Artifact {value!r}."
+                )
+        elif operation == "run_root":
+            if value is not True:
+                raise ValueError(f"Stage {stage_id} run_root binding must be true.")
+        elif operation in {"json_value", "single_json_array_item"}:
+            if (
+                not isinstance(value, dict)
+                or set(value) != {"artifact_id", "pointer"}
+                or value.get("artifact_id") not in available_artifact_ids
+                or not isinstance(value.get("pointer"), str)
+                or (value["pointer"] and not value["pointer"].startswith("/"))
+            ):
+                raise ValueError(
+                    f"Stage {stage_id} argv_template {operation} binding must name a known Artifact and JSON pointer."
+                )
+        else:
+            raise ValueError(
+                f"Stage {stage_id} argv_template uses unsupported binding operation {operation!r}."
+            )
+
+
 def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None:
     """Fail closed when a supported adapter Run Plan drifts from its action contract.
 
@@ -112,6 +151,17 @@ def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None
             raise RuntimeError(f"Duplicate Stage execution binding: {binding['stage_id']}.")
         by_id[binding["stage_id"]] = binding
 
+    available_artifact_ids = {
+        item.get("artifact_id") for item in plan.get("source_artifacts", [])
+        if isinstance(item, dict) and isinstance(item.get("artifact_id"), str)
+    }
+    available_artifact_ids.update(
+        output.get("artifact_id")
+        for stage in stages if isinstance(stage, dict)
+        for output in stage.get("outputs", []) if isinstance(output, dict)
+        and isinstance(output.get("artifact_id"), str)
+    )
+
     for stage in stages:
         stage_id = stage["stage_id"]
         binding = by_id.get(stage_id)
@@ -139,8 +189,12 @@ def validate_supported_run_plan_execution_contract(plan: dict[str, Any]) -> None
         if stage.get("activation") != variant.get("activation"):
             raise ValueError(f"Stage {stage_id} activation condition differs from its execution contract.")
 
-        if executor == "local" and not isinstance(binding.get("cli_command"), str):
-            raise ValueError(f"Local Stage {stage_id} has no Runtime CLI command.")
+        if executor == "local":
+            if not isinstance(binding.get("cli_command"), str):
+                raise ValueError(f"Local Stage {stage_id} has no Runtime CLI command.")
+            _validate_argv_template(
+                stage_id, variant.get("argv_template"), available_artifact_ids,
+            )
         if executor == "worker" and not all(
             isinstance(binding.get(key), str) and binding[key]
             for key in ("authorization_command", "host_action")
@@ -186,6 +240,7 @@ def stage_action_bindings_for_plan(plan: dict[str, Any]) -> dict[str, dict[str, 
             "validator_command": binding.get("validator_command"),
             "authorization_command": binding.get("authorization_command"),
             "host_action": binding.get("host_action"),
+            "argv_template": variant.get("argv_template"),
         }
     return result
 
