@@ -635,11 +635,12 @@ def _validate_event_semantics(
                     raise ValueError(f"FAILED event output list is invalid at line {line_number}.")
                 for item in output_items:
                     validate_snapshots([item], [item["artifact_id"]], "Failed-stage outputs", line_number)
-            if status == "FAILED" and stage.get("executor") == "worker":
+            if (status == "FAILED" and stage.get("executor") == "worker"
+                    and ("archived_outputs" in event or "archive_manifest" in event)):
                 archived_outputs = event.get("archived_outputs")
                 archive_manifest = event.get("archive_manifest")
                 if not isinstance(archived_outputs, list) or not isinstance(archive_manifest, dict):
-                    raise ValueError(f"Failed Worker attempt lacks its immutable output archive at line {line_number}.")
+                    raise ValueError(f"Failed Worker attempt has an incomplete immutable output archive at line {line_number}.")
                 archived_ids: set[str] = set()
                 allowed_archive_outputs = {item["artifact_id"]: item for item in stage["outputs"]}
                 expected_archive_prefix = (
@@ -1730,6 +1731,8 @@ def record_stage_status(
     if stage["executor"] != producer_kind:
         raise ValueError(f"Stage {stage_id} executor is {stage['executor']}, not {producer_kind}.")
     latest = _latest_stage_events(events).get(stage_id)
+    recorded_status = status
+    automatic_failure = False
     producer = {
         key: value for key, value in {
             "kind": producer_kind, "command": command, "role": role, "provider": provider,
@@ -1905,6 +1908,7 @@ def record_stage_status(
                     "archive_manifest": archive_manifest,
                 }
                 recorded_status = "FAILED"
+                automatic_failure = True
             else:
                 event_payload = {
                     "event_type": "STAGE_STATUS", "stage_id": stage_id, "status": "SUCCEEDED",
@@ -1923,6 +1927,7 @@ def record_stage_status(
         "status": recorded_status, "attempt": event["attempt"], "event_hash": event["event_hash"],
         "event_count": event["sequence"],
         **({"reason": terminal_reason} if recorded_status == "FAILED" else {}),
+        **({"automatic_failure": True} if automatic_failure else {}),
         **({"archived_outputs": event_payload.get("archived_outputs", []),
             "archive_manifest": event_payload.get("archive_manifest")}
            if producer_kind == "worker" and recorded_status == "FAILED" else {}),
