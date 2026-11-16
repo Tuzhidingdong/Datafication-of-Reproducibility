@@ -132,9 +132,14 @@ class WorkflowGateTests(unittest.TestCase):
             "limitations": ["Synthetic gate fixture."],
         })
         make_file("publication_plan", {"schema_version": "1.0", "artifacts": []})
+        make_file("publication_plan_validation", {"schema_version": "1.0", "valid": False})
+        make_file("model_artifact", {"schema_version": "1.0", "artifact_id": "MODEL_TEST"})
         make_file("model_report", {"task_id": "TASK_GATE", "selected_model": "TEST_MODEL"})
         make_file("reproducibility_evaluation", {"task_id": "TASK_GATE", "valid": True})
+        make_file("cohort_review_record", {"schema_version": "1.0", "decision": "APPROVE_MODELING"})
+        make_file("cohort_review_validation", {"schema_version": "1.0", "valid": True})
         make_file("virtual_prediction", {"task_id": "TASK_GATE", "status": "SYNTHETIC"})
+        make_file("reviewed_findings_validation", {"schema_version": "1.0", "valid": True})
         make_file("worker_review_output", {
             "schema_version": "1.0",
             "task_id": "WORKER_TASK_GATE",
@@ -310,11 +315,100 @@ class WorkflowGateTests(unittest.TestCase):
             [(item, self.files[item]) for item in ids],
         )
 
+    def _prepare_g4_publication_plan(self, by_id, source_map):
+        plan_path = self.root / "publication_plan.json"
+        validation_path = self.root / "publication_plan_validation.json"
+        entries = []
+        report_sources = []
+        for package_id, source_id in source_map.items():
+            source = by_id[source_id]
+            source_path = Path(source["path"]).resolve()
+            relative_source = source_path.relative_to(self.root.resolve()).as_posix()
+            entries.append({
+                "artifact_id": package_id,
+                "path": "artifacts/" + package_id.lower() + ".json",
+                "source_path": relative_source,
+                "source_artifact_id": source_id,
+                "type": "json",
+                "description": "Synthetic Run-bound G4 source fixture.",
+                "status": "complete",
+                "linked_record_ids": [],
+                "manuscript_sections": [],
+            })
+            report_sources.append({
+                "package_artifact_id": package_id,
+                "artifact_id": source_id,
+                "path": str(source_path),
+                "sha256": source["sha256"],
+            })
+        plan = {
+            "schema_version": "1.0",
+            "project_id": "PROJECT_TEST",
+            "run_id": "RUN_GATE",
+            "package_version": "TEST_1",
+            "artifacts": entries,
+        }
+        plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+        self.files["publication_plan"] = plan_path
+        report = {
+            "schema_version": "1.0",
+            "contract": "RUN_BOUND_PUBLICATION_PLAN",
+            "valid": True,
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "run_root": str(self.root.resolve()),
+            "plan": {
+                "path": str(plan_path.resolve()),
+                "sha256": sha256_file(plan_path),
+            },
+            "checked_source_count": len(report_sources),
+            "source_artifacts": report_sources,
+            "validation_report_path": str(validation_path.resolve()),
+            "errors": [],
+        }
+        validation_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        self.files["publication_plan_validation"] = validation_path
+        by_id["publication_plan"] = {
+            "artifact_id": "publication_plan",
+            "path": str(plan_path.resolve()),
+            "sha256": sha256_file(plan_path),
+        }
+        by_id["publication_plan_validation"] = {
+            "artifact_id": "publication_plan_validation",
+            "path": str(validation_path.resolve()),
+            "sha256": sha256_file(validation_path),
+        }
+
     def _g4_artifact_ids(self):
+        source_map = {
+            "MODEL_ARTIFACT_001": "model_artifact",
+            "MODEL_REPORT_001": "model_report",
+            "REPRODUCIBILITY_EVALUATION_001": "reproducibility_evaluation",
+            "INTERACTION_REPORT_001": "interaction_report",
+            "INTERACTION_ROBUSTNESS_001": "robustness_report",
+            "INTERACTION_SELECTION_001": "interaction_selection",
+            "VIRTUAL_PREDICTION_001": "virtual_prediction",
+            "COHORT_REVIEW_RECORD": "cohort_review_record",
+            "COHORT_REVIEW_VALIDATION": "cohort_review_validation",
+            "WORKER_REVIEW_RECORD": "worker_review_output",
+            "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
+            "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+        }
+        by_id = {
+            artifact_id: {
+                "artifact_id": artifact_id,
+                "path": str(path.resolve()),
+                "sha256": sha256_file(path),
+            }
+            for artifact_id, path in self.files.items()
+        }
+        self._prepare_g4_publication_plan(by_id, source_map)
         return [
-            "publication_plan", "worker_review_output", "reviewed_findings",
-            "model_report", "reproducibility_evaluation", "interaction_report",
-            "robustness_report", "interaction_selection", "virtual_prediction",
+            "publication_plan", "publication_plan_validation",
+            "worker_review_output", "reviewed_findings",
+            "model_report", "model_artifact", "reproducibility_evaluation",
+            "interaction_report", "robustness_report", "interaction_selection",
+            "virtual_prediction", "cohort_review_record", "cohort_review_validation",
         ]
 
     def _refresh_reviewed_artifact_bindings(self):
@@ -322,6 +416,7 @@ class WorkflowGateTests(unittest.TestCase):
         artifact_ids = [
             "model_report", "reproducibility_evaluation", "interaction_report",
             "robustness_report", "interaction_selection", "virtual_prediction",
+            "cohort_review_record", "cohort_review_validation",
         ]
         reviewed["reviewed_artifacts"] = [
             {
@@ -571,6 +666,32 @@ class WorkflowGateTests(unittest.TestCase):
             "overall_rationale": "The Worker review returned no findings requiring promotion.",
         }
         by_id["reviewed_findings"] = bind("reviewed_findings", reviewed)
+        by_id["reviewed_findings_validation"] = bind(
+            "reviewed_findings_validation",
+            {"schema_version": "1.0", "valid": True},
+        )
+        single_source_map = {
+            "SINGLE_STUDY_APPLICABILITY_RECORD": "single_study_applicability_record",
+            "SINGLE_STUDY_APPLICABILITY_VALIDATION": "single_study_applicability_validation",
+            "MODEL_NOT_APPLICABLE_RECORD": "model_report",
+            "REPRODUCIBILITY_NOT_APPLICABLE_RECORD": "reproducibility_evaluation",
+            "INTERACTION_NOT_APPLICABLE_RECORD": "interaction_report",
+            "INTERACTION_NOT_APPLICABLE_MANIFEST": "interaction_manifest",
+            "ROBUSTNESS_NOT_APPLICABLE_RECORD": "robustness_report",
+            "ROBUSTNESS_NOT_APPLICABLE_MANIFEST": "robustness_manifest",
+            "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD": "virtual_prediction",
+            "INTERACTION_SELECTION": "interaction_selection",
+            "WORKER_REVIEW_RECORD": "worker_review_output",
+            "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
+            "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+            "CANONICAL_BUNDLE": "canonical_bundle",
+            "CANONICAL_VALIDATION": "canonical_validation_report",
+            "RECONCILIATION_REPORT": "reconciliation_report",
+            "RECONCILIATION_DECISIONS": "reconciliation_decisions",
+            "RESEARCH_SCOPE_RECORD": "research_scope_record",
+            "MODELING_TASK": "modeling_task",
+        }
+        self._prepare_g4_publication_plan(by_id, single_source_map)
         previous_gate = {
             "artifacts": [
                 by_id["canonical_bundle"],
