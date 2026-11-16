@@ -107,7 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     adapter_initialize.add_argument("--artifact", action="append", default=[],
         help="Explicit package artifact as ARTIFACT_ID=ROLE=FILE_PATH; repeat as needed")
     adapter_initialize.add_argument("--out", type=Path, default=None,
-        help="New manifest path inside package-root; relative paths resolve from package-root; defaults to adapter_manifest.json")
+        help="New manifest filename directly inside package-root; relative paths resolve from package-root; defaults to adapter_manifest.json")
     project_run_plan = subparsers.add_parser(
         "init-run-plan",
         help="Create a validated project Run Plan from an Adapter handoff and a supported route/profile",
