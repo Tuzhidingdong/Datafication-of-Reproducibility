@@ -45,12 +45,12 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
 
        dor init-adapter-package --package-root <package_root> --adapter-id <preparation_process_id> --adapter-version <version> --source <source_id>=<source_file> --artifact <artifact_id>=standardized_dataset=<package_relative_csv_or_json>
 
-   Repeat \`--source\` and \`--artifact\` for each selected file. The package directory and artifact files must already exist. Source paths may be external; artifact paths must be inside the package root. This command records file identities and hashes only; it does not scan directories, convert files, infer field meanings, or read original-document contents. Then continue with \`dor prepare-adapter-handoff\` below.
+   Repeat `--source` and `--artifact` for each selected file. The package directory and artifact files must already exist. Source paths may be external; artifact paths must be inside the package root. This command records file identities and hashes only; it does not scan directories, convert files, infer field meanings, or read original-document contents. Then continue with `dor prepare-adapter-handoff` below.
 3. Resolve the route before creating a Run:
 
        dor prepare-adapter-handoff --manifest <package_root>/adapter_manifest.json --package-root <package_root> --out <project_root>/run_control/adapter_route_preflight.json
 
-   Use the handoff's `route` field, then select the execution profile. For a multi-Study analysis with sufficient independent Studies, use `templates/run_plan.example.json` (`STRUCTURED_DATASET`) or `templates/run_plan.canonical_adapter.example.json` (`CANONICAL_BUNDLE`). For a controlled one-Study pilot, use `templates/run_plan.single_study.example.json` or `templates/run_plan.canonical_adapter.single_study.example.json`; these preserve G0-G4 and Worker review while recording cross-Study modelling/interaction as explicit `NOT_APPLICABLE`, never as fabricated results.
+   Inspect the handoff's `route` field. The next command selects the matching official template automatically; do not copy or manually edit the stage graph. The default controlled one-Study profile preserves G0-G4 and Worker review while recording unsupported cross-Study modelling/interaction as explicit `NOT_APPLICABLE`, never as fabricated results.
 4. Generate a project-specific Run Plan from the validated handoff instead of editing the 22–31-stage template manually. The default is the conservative `CONTROLLED_SINGLE_STUDY` profile:
 
        dor init-run-plan --adapter-handoff <project_root>/run_control/adapter_route_preflight.json --project-root <project_root> --run-root <new_run_root>
