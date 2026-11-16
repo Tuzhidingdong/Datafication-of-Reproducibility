@@ -55,7 +55,10 @@ def _normalise_arguments(arguments: Sequence[str]) -> list[str]:
     if any(not isinstance(item, str) or not item for item in result):
         raise ValueError("Every CLI argument must be a non-empty string.")
     forbidden = {"--allow-untracked-legacy", "--workflow-ledger", "--run-manifest"}
-    supplied = forbidden.intersection(result)
+    supplied = {
+        item for item in result
+        if item in forbidden or any(item.startswith(option + "=") for option in forbidden)
+    }
     if supplied:
         raise ValueError(
             "The runner controls workflow trust arguments; do not supply "
