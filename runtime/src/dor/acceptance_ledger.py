@@ -573,11 +573,20 @@ def initialize_acceptance_ledger(record_path: Path, ledger_path: Path,
         if ledger_path.exists() or snapshots_dir.exists():
             raise ValueError("Acceptance ledger already exists; refusing to overwrite its history.")
         snapshots_dir.mkdir(parents=True, exist_ok=False)
-        event = _append_event(
-            ledger_path, snapshots_dir / "revision-000001.json", record, raw,
-            actor, rationale, "RECORD_CREATED", [], [], [], [], GENESIS_HASH, None, 1,
-            _hash_bytes(raw),
-        )
+        try:
+            event = _append_event(
+                ledger_path, snapshots_dir / "revision-000001.json", record, raw,
+                actor, rationale, "RECORD_CREATED", [], [], [], [], GENESIS_HASH, None, 1,
+                _hash_bytes(raw),
+            )
+        except BaseException:
+            # A failed first event must not leave an empty revision directory
+            # that prevents the caller from retrying initialization.
+            try:
+                snapshots_dir.rmdir()
+            except OSError:
+                pass
+            raise
     return {
         "valid": True, "acceptance_id": record.get("acceptance_id"),
         "revision": 1, "event_hash": event["event_hash"],
