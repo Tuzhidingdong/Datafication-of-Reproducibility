@@ -145,11 +145,14 @@ class FormalRunPlanCliTests(unittest.TestCase):
         write_json(plan_path, plan)
         return plan_path
 
-    def _record(self, manifest: Path, stage_id: str, status: str, command: str | None = None) -> None:
+    def _record(
+        self, manifest: Path, stage_id: str, status: str,
+        command: str | None = None, producer_kind: str = "local",
+    ) -> None:
         arguments = [
             "run-stage-record", "--manifest", str(manifest),
             "--stage", stage_id, "--status", status,
-            "--producer-kind", "local",
+            "--producer-kind", producer_kind,
         ]
         if command:
             arguments.extend(["--command", command])
@@ -258,7 +261,9 @@ class FormalRunPlanCliTests(unittest.TestCase):
                     ))
                     self.assertEqual(resume["next_actions"][0]["stage_id"], "g0_review_packet")
                     self.assertEqual(resume["next_actions"][0]["action"], "READY_TO_RUN")
-                    self._record(manifest, "g0_review_packet", "RUNNING")
+                    self._record(
+                        manifest, "g0_review_packet", "RUNNING", producer_kind="manual",
+                    )
 
                     if route == "STRUCTURED_DATASET":
                         g0_dir = run_root / "01_audit"
@@ -314,7 +319,9 @@ class FormalRunPlanCliTests(unittest.TestCase):
                     ))
                     self.assertTrue(validation["valid"], validation.get("errors"))
                     self.assertEqual(validation["checked_artifact_count"], len(input_paths))
-                    self._record(manifest, "g0_review_packet", "SUCCEEDED")
+                    self._record(
+                        manifest, "g0_review_packet", "SUCCEEDED", producer_kind="manual",
+                    )
 
                     verification = json.loads(self.run_cli(
                         "run-verify", "--manifest", str(manifest),
