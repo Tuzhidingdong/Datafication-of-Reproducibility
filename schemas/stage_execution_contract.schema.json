@@ -170,7 +170,26 @@
           }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "executor": {
+                "const": "local"
+              }
+            },
+            "required": [
+              "executor"
+            ]
+          },
+          "then": {
+            "required": [
+              "argv_template"
+            ]
+          }
+        }
+      ]
     },
     "stage": {
       "type": "object",
