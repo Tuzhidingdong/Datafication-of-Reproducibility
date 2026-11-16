@@ -410,7 +410,7 @@ class WorkflowGateTests(unittest.TestCase):
         self.g4_source_temp = tempfile.TemporaryDirectory(prefix="dor-g4-sources-")
         fixture_source_root = Path(self.g4_source_temp.name).resolve()
         fixture_source_path = fixture_source_root / "run_source.json"
-        fixture_source_path.write_text('{"fixture": true}\\n', encoding="utf-8")
+        fixture_source_path.write_text('{"fixture": true}\n', encoding="utf-8")
         source_snapshot = {
             "artifact_id": "g4_fixture_input",
             "path": str(fixture_source_path),
@@ -428,7 +428,7 @@ class WorkflowGateTests(unittest.TestCase):
             "source_roots": [str(fixture_source_root)],
             "source_artifacts": [source_snapshot],
             "stage_order": ["g4_source_fixture", "publication_plan_preparation"],
-        }, indent=2) + "\\n", encoding="utf-8")
+        }, indent=2) + "\n", encoding="utf-8")
         (self.root / "run_plan.json").write_text(json.dumps({
             "schema_version": "1.0",
             "project_id": "PROJECT_TEST",
@@ -457,7 +457,7 @@ class WorkflowGateTests(unittest.TestCase):
                     ],
                 },
             ],
-        }, indent=2) + "\\n", encoding="utf-8")
+        }, indent=2) + "\n", encoding="utf-8")
         run_events = [{
             "event_type": "STAGE_STATUS",
             "stage_id": "g4_source_fixture",
