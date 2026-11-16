@@ -844,12 +844,14 @@ class RunManagerTests(unittest.TestCase):
                     "path": "06_after_optional/result.json",
                 }],
             })
-        run_suffix = (
-            "PENDING_DEP" if include_unavailable_dependency
-            else ("SKIPPED_OUTPUT" if consume_optional_output else
-                  ("SKIPPED_DEP" if add_dependent_stage else "REACTIVATION"))
-        )
-        run_id = "RUN_CONDITIONAL_" + run_suffix
+        if include_unavailable_dependency:
+            run_id = "RUN_CONDITIONAL_WITH_PENDING_DEP"
+        elif consume_optional_output:
+            run_id = "RUN_CONDITIONAL_SKIPPED_OUTPUT"
+        elif add_dependent_stage:
+            run_id = "RUN_CONDITIONAL_SKIPPED_DEP"
+        else:
+            run_id = "RUN_CONDITIONAL_REACTIVATION"
         self.write_plan()
         self.run_root = self.root / "runs" / run_id
         self.manifest_path = self.run_root / "run_manifest.json"
