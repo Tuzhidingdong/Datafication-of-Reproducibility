@@ -15,13 +15,13 @@
     {
       "source_id": "SOURCE_PRIMARY_PAPER",
       "locator_type": "upstream_source_locator_reference",
-      "locator": "opaque locator values retained by the upstream structured extraction",
+      "locator": "opaque locator metadata retained by the upstream structured extraction; not dereferenced",
       "review_status": "UPSTREAM_EXTRACTION_UNVERIFIED"
     },
     {
       "source_id": "SOURCE_SUPPLEMENTARY_INFORMATION",
       "locator_type": "upstream_source_locator_reference",
-      "locator": "opaque locator values retained by the upstream structured extraction",
+      "locator": "no SI-derived structured locator is used in this pilot",
       "review_status": "NOT_APPLICABLE"
     }
   ],
