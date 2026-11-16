@@ -230,6 +230,15 @@ def initialize_acceptance_record(
     if output_path.exists():
         raise FileExistsError(f"Refusing to overwrite an existing Acceptance draft: {output_path}.")
     root, manifest, plan, events = _manifest_context(run_manifest_path)
+    protected_roots = [
+        root,
+        *(Path(item).expanduser().resolve(strict=True) for item in manifest.get("source_roots", [])),
+    ]
+    if any(output_path == protected or output_path.is_relative_to(protected) for protected in protected_roots):
+        raise ValueError(
+            "Acceptance draft and revision ledger must live outside the immutable Run workspace "
+            "and every protected source root."
+        )
     run_report = verify_run(run_manifest_path)
     if run_report.get("source_integrity") != "CURRENT":
         raise ValueError("Cannot initialize Acceptance: one or more Run source snapshots changed or are missing.")
@@ -346,6 +355,13 @@ def initialize_acceptance_record(
         evidence_path = supplied.resolve(strict=True)
         if not evidence_path.is_file():
             raise ValueError(f"Post-Run Acceptance evidence must be a regular file: {evidence_path}.")
+        if any(
+            evidence_path == protected or evidence_path.is_relative_to(protected)
+            for protected in protected_roots
+        ):
+            raise ValueError(
+                f"Post-Run Acceptance evidence must remain outside the immutable Run and protected source roots: {evidence_path}."
+            )
         _read_json(evidence_path, artifact_type)
         return [{
             "artifact_id": artifact_id,
