@@ -30,7 +30,7 @@ from dor.review import validate_run_review_packet_files, validate_reviewed_findi
 from dor.publication import build_publication_package_files, audit_publication_package_files
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
-from dor.acceptance import validate_acceptance_record
+from dor.acceptance import initialize_acceptance_record, validate_acceptance_record
 from dor.acceptance_ledger import (initialize_acceptance_ledger, record_acceptance_revision,
     recover_acceptance_record, inspect_acceptance_history, create_acceptance_checkpoint,
     verify_acceptance_checkpoint)
@@ -255,6 +255,19 @@ def build_parser() -> argparse.ArgumentParser:
     acceptance.add_argument("--ledger", type=Path, required=True, help="Append-only acceptance revision ledger JSONL")
     acceptance.add_argument("--out", type=Path, help="Optional validation report JSON")
 
+    acceptance_prepare = subparsers.add_parser(
+        "init-acceptance",
+        help="Create a post-Run Acceptance draft with exact Run evidence bindings; no scientific statuses are approved",
+    )
+    acceptance_prepare.add_argument("--manifest", type=Path, required=True, help="Completed Run Manager run_manifest.json")
+    acceptance_prepare.add_argument("--out", type=Path, required=True, help="New acceptance_record.json path; existing files are never overwritten")
+    acceptance_prepare.add_argument("--source-selection-manifest", type=Path, default=None,
+        help="Optional completed post-Run source_selection_manifest.json")
+    acceptance_prepare.add_argument("--extraction-review-record", type=Path, default=None,
+        help="Optional completed post-Run extraction_review_record.json")
+    acceptance_prepare.add_argument("--actor", required=True, help="Operator creating the draft and revision ledger")
+    acceptance_prepare.add_argument("--rationale", required=True, help="Reason for initializing the Acceptance draft")
+
     acceptance_init = subparsers.add_parser("init-acceptance-ledger", help="Create immutable revision history for a new acceptance record")
     acceptance_init.add_argument("--record", type=Path, required=True)
     acceptance_init.add_argument("--ledger", type=Path, required=True)
@@ -445,6 +458,20 @@ def main() -> int:
             result = validate_acceptance_record(args.record, args.run_manifest, args.ledger)
             print(_write_json(args.out, result), end="")
             return 0 if result["valid"] else 2
+        if args.command == "init-acceptance":
+            result = initialize_acceptance_record(
+                args.manifest, args.out,
+                source_selection_manifest=args.source_selection_manifest,
+                extraction_review_record=args.extraction_review_record,
+            )
+            ledger_path = args.out.with_name(args.out.stem + "_acceptance_events.jsonl")
+            ledger_report = initialize_acceptance_ledger(
+                args.out, ledger_path, args.actor, args.rationale,
+            )
+            result["acceptance_ledger_path"] = str(ledger_path.resolve(strict=False))
+            result["acceptance_ledger_status"] = ledger_report.get("status", "INITIALIZED")
+            print(_write_json(None, result), end="")
+            return 0
         if args.command == "run-init":
             result = initialize_run(args.plan, args.run_root, args.run_id)
             print(_write_json(None, result), end="")
