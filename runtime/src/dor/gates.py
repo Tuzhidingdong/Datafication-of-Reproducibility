@@ -911,7 +911,7 @@ def _validate_g4_publication_plan(
     try:
         from dor.run_manager import (
             _artifact_definitions, _artifact_path, _latest_stage_events,
-            _manifest_context, _stage_map,
+            _manifest_context, _stage_map, build_artifact_manifest,
         )
         active_root, run_manifest, run_plan, run_events = _manifest_context(manifest_path)
         if (active_root != run_root
@@ -923,6 +923,12 @@ def _validate_g4_publication_plan(
         run_stage_ids = set(run_manifest.get("stage_order", []))
         stage_map = _stage_map(run_plan)
         artifact_definitions, artifact_producers = _artifact_definitions(run_plan)
+        live_artifact_manifest = build_artifact_manifest(manifest_path)
+        live_artifacts_by_id = {
+            item.get("artifact_id"): item
+            for item in live_artifact_manifest.get("artifacts", [])
+            if isinstance(item, dict) and isinstance(item.get("artifact_id"), str)
+        }
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise ValueError("G4 could not independently verify the active Run state: " + str(exc)) from exc
 
@@ -1276,6 +1282,14 @@ def _validate_g4_publication_plan(
                 or producer_output.get("sha256") != digest):
             raise ValueError(
                 f"G4 Publication Plan source {source_id} differs from its successful producer event."
+            )
+        live_artifact = live_artifacts_by_id.get(source_id)
+        if (live_artifact is None or live_artifact.get("status") != "CURRENT"
+                or live_artifact.get("path") != str(declared_run_path)
+                or live_artifact.get("expected_sha256") != digest
+                or live_artifact.get("actual_sha256") != digest):
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} is not a current reusable Artifact in the active Run."
             )
 
         gate_source = by_id.get(source_id)
