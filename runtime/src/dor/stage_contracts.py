@@ -188,6 +188,7 @@ def _validate_run_manifest(payload: Any, run_id: str, project_id: str,
                 "artifact_id": item.get("source_id"),
                 "path": item.get("path"),
                 "sha256": item.get("sha256"),
+                "role": item.get("role"),
             }
             for item in acceptance_sources if isinstance(item, dict)
         ]
@@ -214,8 +215,9 @@ def _validate_run_manifest(payload: Any, run_id: str, project_id: str,
         if bound is None:
             continue
         if (Path(str(bound.get("path", ""))).expanduser().resolve(strict=False) != Path(str(item.get("path", ""))).expanduser().resolve(strict=False)
-                or bound.get("sha256") != item.get("sha256")):
-            errors.append(_error("RUN_MANIFEST_SOURCE_BINDING_MISMATCH", f"Run Manifest source {source_id} path/hash differs from source_snapshot.", "run_manifest"))
+                or bound.get("sha256") != item.get("sha256")
+                or ("role" in bound and bound.get("role") != item.get("role"))):
+            errors.append(_error("RUN_MANIFEST_SOURCE_BINDING_MISMATCH", f"Run Manifest source {source_id} role/path/hash differs from source_snapshot.", "run_manifest"))
     return errors
 
 
