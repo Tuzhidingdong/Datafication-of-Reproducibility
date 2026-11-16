@@ -217,6 +217,11 @@ def initialize_acceptance_record(
     records are accepted as separately hashed evidence and are content-validated
     against the immutable source snapshot when their stages are marked PASS.
     """
+    if source_selection_manifest is None or extraction_review_record is None:
+        raise ValueError(
+            "V1.0 Acceptance initialization requires both a source_selection_manifest "
+            "and an extraction_review_record bound to the Run's provenance-only source snapshot."
+        )
     run_manifest_path = run_manifest_path.expanduser().resolve(strict=True)
     supplied_output_path = output_path.expanduser()
     if supplied_output_path.is_symlink():
