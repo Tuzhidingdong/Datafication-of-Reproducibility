@@ -738,7 +738,10 @@ class WorkflowGateTests(unittest.TestCase):
         by_id, previous = self._single_study_gate_fixture()
         def bind(artifact_id, payload):
             path = self.root / (artifact_id + ".json")
-            self._write(artifact_id, payload)
+            path.write_text(
+                json.dumps(payload, indent=2) + "\\n", encoding="utf-8",
+            )
+            self.files[artifact_id] = path
             return {
                 "artifact_id": artifact_id,
                 "path": str(path.resolve()),
@@ -746,11 +749,12 @@ class WorkflowGateTests(unittest.TestCase):
             }
 
         for artifact_id in (
-            "canonical_validation_report",
-            "reconciliation_report",
-            "reconciliation_decisions",
-            "research_scope_record",
-            "publication_plan",
+            "adapter_handoff", "dataset_manifest", "source_inventory",
+            "mapping_plan", "mapping_validation", "build_spec",
+            "build_spec_validation", "canonical_validation_report",
+            "reconciliation_report", "reconciliation_decisions",
+            "reconciliation_decision_validation", "discovery_report",
+            "research_scope_record", "g2_review_packet", "publication_plan",
         ):
             by_id[artifact_id] = bind(artifact_id, {"schema_version": "1.0", "artifact_id": artifact_id})
 
@@ -813,6 +817,13 @@ class WorkflowGateTests(unittest.TestCase):
             {"schema_version": "1.0", "valid": True},
         )
         single_source_map = {
+            "ADAPTER_HANDOFF": "adapter_handoff",
+            "DATASET_MANIFEST": "dataset_manifest",
+            "SOURCE_INVENTORY": "source_inventory",
+            "MAPPING_PLAN": "mapping_plan",
+            "MAPPING_VALIDATION": "mapping_validation",
+            "BUILD_SPEC": "build_spec",
+            "BUILD_SPEC_VALIDATION": "build_spec_validation",
             "SINGLE_STUDY_APPLICABILITY_RECORD": "single_study_applicability_record",
             "SINGLE_STUDY_APPLICABILITY_VALIDATION": "single_study_applicability_validation",
             "MODEL_NOT_APPLICABLE_RECORD": "model_report",
@@ -830,7 +841,10 @@ class WorkflowGateTests(unittest.TestCase):
             "CANONICAL_VALIDATION": "canonical_validation_report",
             "RECONCILIATION_REPORT": "reconciliation_report",
             "RECONCILIATION_DECISIONS": "reconciliation_decisions",
+            "RECONCILIATION_VALIDATION": "reconciliation_decision_validation",
+            "DISCOVERY_REPORT": "discovery_report",
             "RESEARCH_SCOPE_RECORD": "research_scope_record",
+            "G2_REVIEW_PACKET": "g2_review_packet",
             "MODELING_TASK": "modeling_task",
         }
         self._prepare_g4_publication_plan(
