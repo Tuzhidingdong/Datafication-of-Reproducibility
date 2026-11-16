@@ -228,13 +228,18 @@ def execute_local_stage(
 
     if failure_reason is not None:
         archived_after = _archive_outputs(root, stage, attempt, "failed")
+        event_reason = failure_reason
+        if archived_after:
+            event_reason += " Preserved partial outputs: " + json.dumps(
+                archived_after, ensure_ascii=False, separators=(",", ":")
+            )
         failed = record_stage_status(
             manifest_path,
             stage_id,
             "FAILED",
             "local",
             command=producer_command,
-            reason=failure_reason,
+            reason=event_reason,
         )
         return {
             "status": "FAILED",
@@ -259,6 +264,10 @@ def execute_local_stage(
     except (OSError, ValueError, FileNotFoundError) as exc:
         archived_after = _archive_outputs(root, stage, attempt, "output-contract-failed")
         reason = f"Command exited 0 but the declared output contract was not met: {exc}"
+        if archived_after:
+            reason += " Preserved partial outputs: " + json.dumps(
+                archived_after, ensure_ascii=False, separators=(",", ":")
+            )
         failed = record_stage_status(
             manifest_path,
             stage_id,
