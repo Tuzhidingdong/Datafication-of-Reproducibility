@@ -48,7 +48,7 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
                 },
                 "evidence_type": "table_value", "extraction_status": "VERIFIED",
             }],
-        }, indent=2) + "\\n", encoding="utf-8")
+        }, indent=2) + "\n", encoding="utf-8")
         self.run_root = self.root / "runs" / "RUN_STAGE_RUNNER"
         self.plan_path = self.root / "run_plan.json"
         self.manifest_path = self.run_root / "run_manifest.json"
