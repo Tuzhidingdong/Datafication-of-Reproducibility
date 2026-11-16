@@ -114,8 +114,8 @@ def validate_publication_plan_files(
     prepared after optional G3 branches and human promotion have settled.
     """
     from dor.run_manager import (
-        _latest_stage_events, _manifest_context, build_artifact_manifest,
-        build_resume_plan,
+        _latest_stage_events, _manifest_context, _safe_relative_path,
+        build_artifact_manifest, build_resume_plan,
     )
 
     root, manifest, run_plan, events = _manifest_context(manifest_path)
@@ -137,7 +137,7 @@ def validate_publication_plan_files(
         raw = matches[0].get("path")
         if not isinstance(raw, str):
             raise ValueError("Publication Plan output path is malformed: " + artifact_id)
-        return (root / _relative_path(raw, "Run output " + artifact_id)).resolve(strict=False)
+        return _safe_relative_path(root, raw, "Run output " + artifact_id)
 
     supplied_plan = plan_path.expanduser()
     if supplied_plan.is_symlink() or not supplied_plan.is_file():
@@ -224,7 +224,8 @@ def validate_publication_plan_files(
                 "message": f"{package_id} source_path is invalid: {exc}",
             })
             continue
-        if source_path.is_symlink() or not source_path.is_file():
+        if (source_path.is_symlink() or not source_path.is_file()
+                or not source_path.is_relative_to(root)):
             issues.append({
                 "code": "SOURCE_FILE_INVALID",
                 "message": f"{package_id} source must be a regular, non-symlink Run file.",
