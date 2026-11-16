@@ -10,7 +10,7 @@ import json
 import os
 import re
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from dor.adapters import validate_adapter_package_files
@@ -101,7 +101,21 @@ def _parse_artifact_binding(value: str) -> tuple[str, str, Path]:
 
 
 def _resolve_input(raw_path: Path, package_root: Path, label: str) -> Path:
-    candidate = raw_path if raw_path.is_absolute() else package_root / raw_path
+    if raw_path.is_absolute():
+        candidate = raw_path
+    else:
+        normalized = str(raw_path).replace("\\", "/")
+        windows_path = PureWindowsPath(normalized)
+        if (
+            windows_path.is_absolute()
+            or windows_path.drive
+            or any(part in {"", ".", ".."} for part in normalized.split("/"))
+        ):
+            raise ValueError(
+                f"{label} relative path must stay inside package_root and cannot contain "
+                f"absolute, drive, empty, current-directory, or parent-directory components: {raw_path!s}"
+            )
+        candidate = package_root / Path(normalized)
     try:
         resolved = candidate.resolve(strict=True)
     except FileNotFoundError as exc:
@@ -110,6 +124,8 @@ def _resolve_input(raw_path: Path, package_root: Path, label: str) -> Path:
         ) from exc
     if not resolved.is_file():
         raise ValueError(f"{label} path is not a regular file: {resolved}")
+    if not raw_path.is_absolute() and not resolved.is_relative_to(package_root):
+        raise ValueError(f"{label} relative path escapes package_root: {raw_path!s}")
     return resolved
 
 
