@@ -178,18 +178,32 @@ def _validate_run_manifest(payload: Any, run_id: str, project_id: str,
         return [_error("RUN_MANIFEST_SHAPE_INVALID", "run_manifest must be a JSON object.", "run_manifest")]
     if payload.get("schema_version") != "1.0" or payload.get("run_id") != run_id or payload.get("project_id") != project_id:
         errors.append(_error("RUN_MANIFEST_IDENTITY_MISMATCH", "run_manifest schema/run/project identity does not match this acceptance.", "run_manifest"))
-    source_artifacts = payload.get("source_artifacts")
+    acceptance_sources = payload.get("acceptance_source_artifacts")
+    if acceptance_sources is not None:
+        if not isinstance(acceptance_sources, list):
+            errors.append(_error("RUN_MANIFEST_SOURCE_SET_MISMATCH", "run_manifest.acceptance_source_artifacts must be an array.", "run_manifest"))
+            acceptance_sources = []
+        source_entries = [
+            {
+                "artifact_id": item.get("source_id"),
+                "path": item.get("path"),
+                "sha256": item.get("sha256"),
+            }
+            for item in acceptance_sources if isinstance(item, dict)
+        ]
+    else:
+        source_entries = payload.get("source_artifacts")
     actual: dict[str, dict[str, Any]] = {}
-    if not isinstance(source_artifacts, list):
-        errors.append(_error("RUN_MANIFEST_SOURCE_SET_MISMATCH", "run_manifest.source_artifacts must be an array.", "run_manifest"))
-        source_artifacts = []
-    for index, artifact in enumerate(source_artifacts):
+    if not isinstance(source_entries, list):
+        errors.append(_error("RUN_MANIFEST_SOURCE_SET_MISMATCH", "Run Manifest acceptance/source artifact set must be an array.", "run_manifest"))
+        source_entries = []
+    for index, artifact in enumerate(source_entries):
         if not isinstance(artifact, dict) or not _nonempty(artifact.get("artifact_id")):
-            errors.append(_error("RUN_MANIFEST_SOURCE_ENTRY_INVALID", f"source_artifacts[{index}] requires an explicit artifact_id.", "run_manifest"))
+            errors.append(_error("RUN_MANIFEST_SOURCE_ENTRY_INVALID", f"source_artifacts[{index}] requires an explicit source/artifact ID.", "run_manifest"))
             continue
         artifact_id = artifact["artifact_id"]
         if artifact_id in actual:
-            errors.append(_error("RUN_MANIFEST_SOURCE_ID_DUPLICATE", f"run_manifest contains duplicate source artifact_id {artifact_id}.", "run_manifest"))
+            errors.append(_error("RUN_MANIFEST_SOURCE_ID_DUPLICATE", f"run_manifest contains duplicate source artifact ID {artifact_id}.", "run_manifest"))
             continue
         actual[artifact_id] = artifact
     expected = {item.get("source_id"): item for item in source_snapshot if isinstance(item, dict)}
