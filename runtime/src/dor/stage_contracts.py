@@ -229,6 +229,12 @@ def _validate_extraction_review(payload: Any, source_snapshot: list[dict[str, An
     expected = {item.get("source_id"): item.get("sha256") for item in source_snapshot if isinstance(item, dict)}
     if not isinstance(hashes, dict) or hashes != expected:
         errors.append(_error("EXTRACTION_SOURCE_HASH_BINDING_MISMATCH", "source_hashes must exactly match the selected source IDs and SHA-256 values.", "extraction_review_record"))
+    locator_source_ids: set[str] = set()
+    structured_sources_with_review: set[str] = set()
+    source_roles = {
+        item.get("source_id"): item.get("role")
+        for item in source_snapshot if isinstance(item, dict)
+    }
     locators = payload.get("reviewed_locators")
     if not isinstance(locators, list) or not locators:
         errors.append(_error("EXTRACTION_LOCATORS_MISSING", "reviewed_locators must be a non-empty array.", "extraction_review_record"))
@@ -237,12 +243,32 @@ def _validate_extraction_review(payload: Any, source_snapshot: list[dict[str, An
             if not isinstance(locator, dict) or any(not _nonempty(locator.get(key)) for key in ("source_id", "locator_type", "locator", "review_status")):
                 errors.append(_error("EXTRACTION_LOCATOR_INCOMPLETE", f"reviewed_locators[{index}] requires source_id, locator_type, locator, and review_status.", "extraction_review_record"))
                 continue
-            if locator["source_id"] not in expected:
-                errors.append(_error("EXTRACTION_LOCATOR_SOURCE_UNKNOWN", f"reviewed_locators[{index}] references an unselected source_id.", "extraction_review_record"))
-            if locator["review_status"] not in {"STRUCTURED_RECORD_REVIEWED", "UPSTREAM_EXTRACTION_UNVERIFIED", "REVIEW_REQUIRED", "NOT_APPLICABLE"}:
+            source_id = locator["source_id"]
+            status = locator["review_status"]
+            role = source_roles.get(source_id)
+            if source_id not in expected:
+                errors.append(_error("EXTRACTION_LOCATOR_SOURCE_UNKNOWN", f"reviewed_locators[{index}] references a source outside the selected source set.", "extraction_review_record"))
+            else:
+                locator_source_ids.add(source_id)
+            if status not in {"STRUCTURED_RECORD_REVIEWED", "UPSTREAM_EXTRACTION_UNVERIFIED", "REVIEW_REQUIRED", "NOT_APPLICABLE"}:
                 errors.append(_error("EXTRACTION_REVIEW_STATUS_INVALID", f"reviewed_locators[{index}] has an unsupported review_status for structured-data-only review.", "extraction_review_record"))
-            elif locator["review_status"] == "REVIEW_REQUIRED":
+            elif status == "REVIEW_REQUIRED":
                 errors.append(_error("EXTRACTION_LOCATOR_REVIEW_REQUIRED", f"reviewed_locators[{index}] remains unresolved and blocks extraction_review PASS.", "extraction_review_record"))
+            if role in {"PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"} and status == "STRUCTURED_RECORD_REVIEWED":
+                errors.append(_error(
+                    "ORIGINAL_DOCUMENT_CONTENT_REVIEW_FORBIDDEN",
+                    f"Source {source_id} is provenance-only; paper/SI content must never be marked as inspected or reviewed.",
+                    "extraction_review_record",
+                ))
+            if role == "STRUCTURED_DATA" and status == "STRUCTURED_RECORD_REVIEWED":
+                structured_sources_with_review.add(source_id)
+    for source_id, role in source_roles.items():
+        if role == "STRUCTURED_DATA" and source_id in expected and source_id not in structured_sources_with_review:
+            errors.append(_error(
+                "STRUCTURED_SOURCE_REVIEW_MISSING",
+                f"Selected structured source {source_id} needs at least one reviewed row/field locator.",
+                "extraction_review_record",
+            ))
     review = payload.get("human_review")
     if not isinstance(review, dict) or not all(_nonempty(review.get(key)) for key in ("reviewer", "reviewed_at", "decision")):
         errors.append(_error("EXTRACTION_HUMAN_REVIEW_MISSING", "human_review requires reviewer, reviewed_at, and decision.", "extraction_review_record"))
