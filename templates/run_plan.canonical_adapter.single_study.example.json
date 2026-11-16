@@ -588,7 +588,7 @@
         "research_scope_selection",
         "single_study_na_artifacts"
       ],
-      "required_gate": null,
+      "required_gate": "G3",
       "inputs": [
         "publication_plan_template",
         "single_study_applicability_record",
