@@ -164,6 +164,10 @@ class StageExecutionContractTests(unittest.TestCase):
             bindings = stage_action_bindings_for_plan(plan)
             with self.subTest(path=relative_path):
                 preparation = bindings["publication_plan_preparation"]
+                preparation_stage = next(
+                    item for item in plan["stages"]
+                    if item["stage_id"] == "publication_plan_preparation"
+                )
                 assembly = bindings["publication_package_assembly"]
                 self.assertEqual(preparation["route"], expected_route)
                 self.assertEqual(preparation["execution_profile"], expected_profile or "FULL_ANALYSIS")
@@ -185,12 +189,12 @@ class StageExecutionContractTests(unittest.TestCase):
                     self.assertTrue({
                         "mechanism_plan_preparation", "response_surface_generation",
                         "mechanism_evidence_bridge",
-                    }.issubset(set(preparation["depends_on"])))
+                    }.issubset(set(preparation_stage["depends_on"])))
                     self.assertFalse({
                         "mechanism_plan", "interaction_response_surface_report",
                         "interaction_response_surface_manifest",
                         "mechanism_evidence_bridge_report",
-                    }.intersection(set(preparation["inputs"])))
+                    }.intersection(set(preparation_stage["inputs"])))
 
         parser = build_parser()
         validation_args = parser.parse_args([

@@ -38,7 +38,7 @@ class ApplicationQuickStartIntegrationTests(unittest.TestCase):
             dataset = package / "data" / "records.csv"
             paper = project / "raw_sources" / "paper.pdf"
             dataset.parent.mkdir(parents=True)
-            paper.parent.mkdir(parents=True)
+            paper.parent.mkdir(parents=True, exist_ok=True)
             dataset.write_text(
                 "record_id,value\nREC_001,1.0\nREC_002,2.0\n",
                 encoding="utf-8",

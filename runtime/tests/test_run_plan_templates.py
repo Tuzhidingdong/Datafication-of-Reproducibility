@@ -307,7 +307,7 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                                              "worker_review_record": "worker_review_output",
                                              "human_disposition_record": "reviewed_findings",
                                              "human_disposition_validation": "reviewed_findings_validation",
-                                         }[artifact_id.lower()])
+                                         }[artifact_id.lower()]]
                 for artifact_id in (
                     "MODEL_NOT_APPLICABLE_RECORD",
                     "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",

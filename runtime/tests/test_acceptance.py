@@ -745,7 +745,7 @@ class AcceptanceValidatorTests(unittest.TestCase):
             "G0": ["source_inventory"],
             "G1": ["mapping_plan"],
             "G2": ["canonical_bundle"],
-            "G3": ["cohort_report"],
+            "G3": ["model_report"],
             "G4": ["model_report"],
         }
         events = {}
@@ -989,7 +989,11 @@ class AcceptanceValidatorTests(unittest.TestCase):
             if stage in {"cohort_feasibility", "modeling_validation"}:
                 self.set_stage(
                     stage, "NOT_APPLICABLE",
-                    not_applicable_reason="Single Study cannot support Study-held-out validation.",
+                    not_applicable_reason=(
+                        "One independent Study cannot form independent train/validation/test Study partitions."
+                        if stage == "cohort_feasibility"
+                        else "One independent Study cannot support Study-held-out model or nested reproducibility validation."
+                    ),
                 )
             else:
                 self.set_stage(stage, "PASS")
@@ -1007,7 +1011,11 @@ class AcceptanceValidatorTests(unittest.TestCase):
             if stage in {"cohort_feasibility", "modeling_validation"}:
                 self.set_stage(
                     stage, "NOT_APPLICABLE",
-                    not_applicable_reason="Single Study cannot support Study-held-out validation.",
+                    not_applicable_reason=(
+                        "One independent Study cannot form independent train/validation/test Study partitions."
+                        if stage == "cohort_feasibility"
+                        else "One independent Study cannot support Study-held-out model or nested reproducibility validation."
+                    ),
                 )
             else:
                 self.set_stage(stage, "PASS")

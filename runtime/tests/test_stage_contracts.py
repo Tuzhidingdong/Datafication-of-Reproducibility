@@ -26,18 +26,21 @@ class StageEvidenceContractTests(unittest.TestCase):
         snapshot = [
             {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
             {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+            {"source_id": "structured", "role": "STRUCTURED_DATA", "path": "/data/records.csv", "sha256": "c" * 64},
+            {"source_id": "notes", "role": "OTHER", "path": "/data/notes.txt", "sha256": "d" * 64},
         ]
         payload = {
-            "schema_version": "1.0", "selection_rationale": "Selected the primary article for this scope.",
+            "schema_version": "1.0", "selection_rationale": "Selected the complete one-study provenance pair and its structured data.",
             "scope_statement": "One-study extraction pilot.", "study_ids": ["S1"],
-            "selected_sources": [{
-                "source_id": "paper", "role": "PRIMARY_PAPER",
-                "path": "/data/paper.pdf", "sha256": "a" * 64,
-            }],
+            "selected_sources": [
+                {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
+                {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+                {"source_id": "structured", "role": "STRUCTURED_DATA", "path": "/data/records.csv", "sha256": "c" * 64},
+            ],
             "excluded_sources": [{
-                "source_id": "si", "role": "SUPPLEMENTARY_INFORMATION",
-                "path": "/data/paper_si.pdf", "sha256": "b" * 64,
-                "reason": "Supplementary file is outside this extraction scope.",
+                "source_id": "notes", "role": "OTHER",
+                "path": "/data/notes.txt", "sha256": "d" * 64,
+                "reason": "Non-source administrative notes are outside the extraction scope.",
             }],
         }
         errors = validate_stage_payload(
@@ -594,18 +597,20 @@ class StageEvidenceContractTests(unittest.TestCase):
         snapshot = [
             {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
             {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+            {"source_id": "structured", "role": "STRUCTURED_DATA", "path": "/data/records.csv", "sha256": "c" * 64},
         ]
         selection = {"payload": {
-            "selected_sources": [{"source_id": "paper", "role": "PRIMARY_PAPER",
-                                  "path": "/data/paper.pdf", "sha256": "a" * 64}],
-            "excluded_sources": [{"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION",
-                                  "path": "/data/paper_si.pdf", "sha256": "b" * 64,
-                                  "reason": "Outside the selected scope."}],
-        }, "sha256": "c" * 64}
+            "selected_sources": [
+                {"source_id": "paper", "role": "PRIMARY_PAPER", "path": "/data/paper.pdf", "sha256": "a" * 64},
+                {"source_id": "si", "role": "SUPPLEMENTARY_INFORMATION", "path": "/data/paper_si.pdf", "sha256": "b" * 64},
+                {"source_id": "structured", "role": "STRUCTURED_DATA", "path": "/data/records.csv", "sha256": "c" * 64},
+            ],
+            "excluded_sources": [],
+        }, "sha256": "d" * 64}
         review = {
-            "schema_version": "1.0", "source_hashes": {"paper": "a" * 64},
-            "reviewed_locators": [{"source_id": "paper", "locator_type": "pdf_page",
-                                   "locator": "page 1", "review_status": "STRUCTURED_RECORD_REVIEWED"}],
+            "schema_version": "1.0", "source_hashes": {"structured": "c" * 64},
+            "reviewed_locators": [{"source_id": "structured", "locator_type": "csv_row",
+                                   "locator": "row 2", "review_status": "STRUCTURED_RECORD_REVIEWED"}],
             "human_review": {"reviewer": "reviewer", "reviewed_at": "2026-01-01T00:00:00Z",
                              "decision": "ACCEPTED_WITH_LIMITATIONS"},
         }

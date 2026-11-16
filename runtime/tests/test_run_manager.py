@@ -4,6 +4,7 @@ import argparse
 import contextlib
 import io
 import json
+import hashlib
 import sys
 import tempfile
 from unittest.mock import patch
@@ -357,7 +358,7 @@ class RunManagerTests(unittest.TestCase):
         (self.run_root / "01_audit/source_inventory.json").write_text("tampered\n", encoding="utf-8")
         refreshed = build_artifact_manifest(self.manifest_path)
         by_id = {item["artifact_id"]: item for item in refreshed["artifacts"]}
-        self.assertEqual(by_id["source_inventory"]["status"], "STALE_OR_MISSING")
+        self.assertEqual(by_id["source_inventory"]["status"], "SOURCE_CHANGED_OR_MISSING")
 
     def test_run_usage_aggregates_only_terminal_stage_attempts(self):
         record_stage_status(

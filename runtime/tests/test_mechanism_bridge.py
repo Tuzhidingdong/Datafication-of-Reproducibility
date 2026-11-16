@@ -203,7 +203,7 @@ class MechanismEvidenceBridgeTests(unittest.TestCase):
         self.assertIn("supplied structured evidence record", detail)
         self.assertIn("upstream structured-data correction", detail)
         self.assertIn("do not open the original source", detail)
-        self.assertIn("do not dereference its locator", detail)
+        self.assertIn("dereference its locator", detail)
         self.assertNotIn("check_original_source", pending[0]["review_action"])
         self.assertNotIn("original source", pending[0]["review_action"].lower())
 

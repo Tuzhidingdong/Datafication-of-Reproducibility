@@ -31,7 +31,7 @@ class V1AcceptanceContractTests(unittest.TestCase):
         self.assertIn("Run Manager and controlled acceptance", skill)
         self.assertIn("execution-run-manager-and-acceptance.md", skill)
         required = [
-            "dor init-acceptance-ledger",
+            "dor init-acceptance --manifest",
             "dor record-acceptance-revision",
             "dor acceptance-history",
             "dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --ledger acceptance_events.jsonl",
@@ -45,6 +45,7 @@ class V1AcceptanceContractTests(unittest.TestCase):
         for text in required:
             with self.subTest(required=text):
                 self.assertIn(text, phase_references)
+        self.assertNotIn("dor init-acceptance-ledger", phase_references)
         stale_command = "dor validate-acceptance --record acceptance_record.json --run-manifest run_manifest.json --out"
         self.assertNotIn(stale_command, skill + phase_references)
 

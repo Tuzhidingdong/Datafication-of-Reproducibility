@@ -337,6 +337,17 @@ class WorkflowGateTests(unittest.TestCase):
             [(item, self.files[item]) for item in ids],
         )
 
+    def _refresh_g4_reviewed_findings_validation(self):
+        report = json.loads(self.files["reviewed_findings_validation"].read_text(encoding="utf-8"))
+        reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
+        worker = json.loads(self.files["worker_review_output"].read_text(encoding="utf-8"))
+        report["record"]["sha256"] = sha256_file(self.files["reviewed_findings"])
+        report["worker_output"]["sha256"] = sha256_file(self.files["worker_review_output"])
+        report["worker_output"]["finding_count"] = len(worker.get("findings", []))
+        report["promotion_decision"] = reviewed["promotion_decision"]
+        report["expected_promotion_decision"] = reviewed["promotion_decision"]
+        self._write("reviewed_findings_validation", report)
+
     def _prepare_g4_publication_plan(self, by_id, source_map, g3_event_hash):
         publication_root = self.root / "10_publication"
         publication_root.mkdir(parents=True, exist_ok=True)
@@ -450,7 +461,7 @@ class WorkflowGateTests(unittest.TestCase):
                     "executor": "manual",
                     "required_gate": "G3",
                     "depends_on": ["g4_source_fixture"],
-                    "inputs": [],
+                    "inputs": ["g4_fixture_input"],
                     "outputs": [
                         {"artifact_id": "publication_plan", "path": "10_publication/publication_package_plan.json"},
                         {"artifact_id": "publication_plan_validation", "path": "10_publication/publication_plan_validation.json"},
@@ -473,7 +484,7 @@ class WorkflowGateTests(unittest.TestCase):
             "status": "SUCCEEDED",
             "attempt": 1,
             "event_hash": "SYNTHETIC_PUBLICATION_PREP_EVENT",
-            "input_artifacts": [],
+            "input_artifacts": [source_snapshot],
             "output_artifacts": [
                 {
                     "artifact_id": "publication_plan",
@@ -703,6 +714,8 @@ class WorkflowGateTests(unittest.TestCase):
         by_id = {
             "single_study_applicability_record": record_binding,
             "single_study_applicability_validation": validation_binding,
+            "canonical_bundle": bundle_binding,
+            "modeling_task": task_binding,
         }
         for artifact_id, type_name in (
             ("model_report", "model_report"),
@@ -1116,6 +1129,7 @@ class WorkflowGateTests(unittest.TestCase):
         reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
         reviewed["worker_output"]["sha256"] = sha256_file(self.files["worker_review_output"])
         self._write("reviewed_findings", reviewed)
+        self._refresh_g4_reviewed_findings_validation()
         with self.assertRaisesRegex(ValueError, "requires exact evidence locators"):
             self._record("G4", self._g4_artifact_ids())
 
@@ -1125,6 +1139,7 @@ class WorkflowGateTests(unittest.TestCase):
         reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
         reviewed["findings"] = []
         self._write("reviewed_findings", reviewed)
+        self._refresh_g4_reviewed_findings_validation()
         with self.assertRaisesRegex(ValueError, "cover every Worker finding exactly once"):
             self._record("G4", self._g4_artifact_ids())
 
@@ -1134,6 +1149,7 @@ class WorkflowGateTests(unittest.TestCase):
         reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
         reviewed["promotion_decision"] = "DO_NOT_PROMOTE"
         self._write("reviewed_findings", reviewed)
+        self._refresh_g4_reviewed_findings_validation()
         with self.assertRaisesRegex(ValueError, "inconsistent with the individual human finding dispositions"):
             self._record("G4", self._g4_artifact_ids())
 

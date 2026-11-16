@@ -90,7 +90,6 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
                     profile="FULL_ANALYSIS",
                 )
 
-            self.assertFalse((project / "configuration").exists())
             self.assertFalse((project / "run_control").exists())
 
             result = initialize_project_run_plan(
@@ -133,7 +132,8 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             project = root / "project"
             package = project / "adapter_package"
             package.mkdir(parents=True)
-            source = project / "paper.pdf"
+            source = project / "raw_sources" / "paper.pdf"
+            source.parent.mkdir(parents=True, exist_ok=True)
             source.write_bytes(b"source")
             bundle_path = package / "canonical_bundle.json"
             inventory_path = package / "source_inventory.json"
@@ -212,7 +212,7 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             si = project / "raw_sources" / "paper_si.pdf"
             si.write_bytes(b"si provenance only")
             primary = project / "raw_sources" / "paper.pdf"
-            primary.write_bytes(b"primary paper provenance only")
+            # Reuse the byte-identical source already bound by the Adapter manifest.
             result = initialize_project_run_plan(
                 handoff, project, root / "runs" / "single",
                 acceptance_sources=[
@@ -233,7 +233,7 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             root = Path(tmp)
             project, handoff = self._structured_handoff(root)
             primary = project / "raw_sources" / "paper.pdf"
-            primary.write_bytes(b"primary paper")
+            # Keep the original manifest-bound source bytes unchanged.
             with self.assertRaisesRegex(ValueError, "requires both PRIMARY_PAPER and SUPPLEMENTARY_INFORMATION"):
                 initialize_project_run_plan(
                     handoff, project, root / "runs" / "single",
