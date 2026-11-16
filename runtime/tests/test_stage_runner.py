@@ -144,6 +144,12 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
         archived = Path(report["archived_after"][0]["archive_path"])
         self.assertTrue(archived.is_file())
+        events = [
+            json.loads(line)
+            for line in (self.run_root / "run_events.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        self.assertIn("Preserved partial outputs", events[-1]["reason"])
+        self.assertIn(str(archived), events[-1]["reason"])
         state = next(item for item in build_resume_plan(self.manifest_path)["stages"] if item["stage_id"] == "local_stage")
         self.assertEqual(state["action"], "RETRY_REQUIRED")
 
