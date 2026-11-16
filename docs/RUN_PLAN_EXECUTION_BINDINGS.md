@@ -26,6 +26,40 @@ Run Manager validates the declared source roots/artifacts and dependency graph, 
 
 The first formal stage regenerates the handoff into the Run workspace. Do not use the preflight handoff as a Run output or copy it into the protected adapter package.
 
+## Provenance-only sources for post-Run Acceptance
+
+When the project will use V1.0 controlled Acceptance, add an explicit top-level `acceptance_source_artifacts` array to the selected Run Plan before `dor run-init`. Keep it separate from the operational `source_artifacts` list: these provenance-only files are not inputs to local Stage commands and must never be passed to a Worker. Each entry requires a unique `source_id`, one role (`PRIMARY_PAPER`, `SUPPLEMENTARY_INFORMATION`, `STRUCTURED_DATA`, or `OTHER`), and an absolute path inside a declared `source_roots` directory. For a `CONTROLLED_SINGLE_STUDY` Acceptance, declare both a primary paper and its linked SI. The Run Manager snapshots paths and SHA-256 only; it never opens their contents.
+
+Example:
+
+```json
+{
+  "acceptance_source_artifacts": [
+    {"source_id": "SOURCE_PRIMARY_PAPER", "role": "PRIMARY_PAPER", "path": "/project/sources/paper.pdf"},
+    {"source_id": "SOURCE_SUPPLEMENTARY_INFORMATION", "role": "SUPPLEMENTARY_INFORMATION", "path": "/project/sources/paper_si.pdf"},
+    {"source_id": "SOURCE_STRUCTURED_DATA", "role": "STRUCTURED_DATA", "path": "/project/sources/paired_records.csv"}
+  ]
+}
+```
+
+At Run initialization, the list is hash-bound into `run_manifest.json` and the first Run Event. `dor run-verify` and `dor run-artifacts` report its independent integrity state. Changing or removing any declared source means the old Run no longer represents the same source snapshot; do not accept it.
+
+After the Run has reached a terminal state (every stage current or explicitly SKIPPED), prepare:
+- `templates/v1_source_selection_manifest.example.json` — partition every Acceptance source ID into selected or excluded exactly once, with reasons for exclusions and the sorted Study IDs from the exact Run Canonical Bundle.
+- `templates/v1_extraction_review_record.example.json` — bind all Acceptance source hashes and review only structured data rows/fields plus opaque upstream locator metadata. Never dereference an original paper/SI locator.
+
+Create the project-level Acceptance draft and its revision ledger:
+
+    dor init-acceptance --manifest <run_root>/run_manifest.json --out <acceptance_root>/acceptance_record.json --source-selection-manifest <acceptance_root>/source_selection_manifest.json --extraction-review-record <acceptance_root>/extraction_review_record.json --actor "<reviewer>" --rationale "Initialize acceptance for the completed Run"
+
+The initializer fails closed if any Run stage is unresolved, a required Run artifact is stale, the single-Study profile lacks primary-paper/SI roles, the source-selection partition differs from the Run snapshot, the source inventory contains an excluded source, or the extraction-review hashes/locators are invalid. It derives `study_ids` from the Canonical Bundle, creates all eight Acceptance stages as `NOT_STARTED`, and records the current Run Event Ledger and G0-G4 Gate Ledger bindings. It does not approve or pass any Acceptance stage. The sibling `acceptance_record_acceptance_events.jsonl` and immutable revision directory are initialized in the same CLI operation.
+
+Complete the human Acceptance stages in fixed order, recording each edit through `dor record-acceptance-revision`; then run:
+
+    dor validate-acceptance --record <acceptance_root>/acceptance_record.json --run-manifest <run_root>/run_manifest.json --ledger <acceptance_root>/acceptance_record_acceptance_events.jsonl --out <acceptance_root>/acceptance_validation_report.json
+
+Only an explicitly reviewed PASS/CONDITIONAL_PASS record can be checkpointed. Acceptance remains a separate post-Run artifact; never add it to the immutable Run DAG because that would change the Run Event Ledger tip it records.
+
 ## Route selection
 
 Select exactly one template from the validated adapter handoff:
