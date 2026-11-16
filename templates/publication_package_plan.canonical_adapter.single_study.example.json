@@ -17,7 +17,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "adapter_handoff"
     },
     {
       "artifact_id": "DATASET_MANIFEST",
@@ -30,7 +31,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "dataset_manifest"
     },
     {
       "artifact_id": "SOURCE_INVENTORY",
@@ -43,7 +45,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "source_inventory"
     },
     {
       "artifact_id": "MAPPING_PLAN",
@@ -56,7 +59,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "mapping_plan"
     },
     {
       "artifact_id": "MAPPING_VALIDATION",
@@ -69,7 +73,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "mapping_validation"
     },
     {
       "artifact_id": "BUILD_SPEC",
@@ -82,7 +87,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "build_spec"
     },
     {
       "artifact_id": "BUILD_SPEC_VALIDATION",
@@ -95,7 +101,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "build_spec_validation"
     },
     {
       "artifact_id": "CANONICAL_BUNDLE",
@@ -109,7 +116,8 @@
         "Methods",
         "Results",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "canonical_bundle"
     },
     {
       "artifact_id": "CANONICAL_VALIDATION",
@@ -122,7 +130,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "canonical_validation_report"
     },
     {
       "artifact_id": "RECONCILIATION_REPORT",
@@ -136,7 +145,8 @@
         "Results",
         "Discussion",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reconciliation_report"
     },
     {
       "artifact_id": "RECONCILIATION_DECISIONS",
@@ -150,7 +160,8 @@
         "Results",
         "Discussion",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reconciliation_decisions"
     },
     {
       "artifact_id": "RECONCILIATION_VALIDATION",
@@ -163,7 +174,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reconciliation_decision_validation"
     },
     {
       "artifact_id": "DISCOVERY_REPORT",
@@ -176,7 +188,8 @@
       "manuscript_sections": [
         "Results",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "discovery_report"
     },
     {
       "artifact_id": "RESEARCH_SCOPE_RECORD",
@@ -189,7 +202,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "research_scope_record"
     },
     {
       "artifact_id": "MODELING_TASK",
@@ -202,7 +216,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "modeling_task"
     },
     {
       "artifact_id": "G2_REVIEW_PACKET",
@@ -214,7 +229,8 @@
       "linked_record_ids": [],
       "manuscript_sections": [
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "g2_review_packet"
     },
     {
       "artifact_id": "SINGLE_STUDY_APPLICABILITY_RECORD",
@@ -228,7 +244,8 @@
         "Methods",
         "Limitations",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "single_study_applicability_record"
     },
     {
       "artifact_id": "SINGLE_STUDY_APPLICABILITY_VALIDATION",
@@ -241,7 +258,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "single_study_applicability_validation"
     },
     {
       "artifact_id": "MODEL_NOT_APPLICABLE_RECORD",
@@ -255,7 +273,8 @@
         "Methods",
         "Limitations",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "model_report"
     },
     {
       "artifact_id": "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",
@@ -269,7 +288,8 @@
         "Methods",
         "Limitations",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reproducibility_evaluation"
     },
     {
       "artifact_id": "INTERACTION_NOT_APPLICABLE_RECORD",
@@ -283,7 +303,8 @@
         "Methods",
         "Limitations",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "interaction_report"
     },
     {
       "artifact_id": "INTERACTION_NOT_APPLICABLE_MANIFEST",
@@ -296,7 +317,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "interaction_manifest"
     },
     {
       "artifact_id": "ROBUSTNESS_NOT_APPLICABLE_RECORD",
@@ -310,7 +332,8 @@
         "Methods",
         "Limitations",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "robustness_report"
     },
     {
       "artifact_id": "ROBUSTNESS_NOT_APPLICABLE_MANIFEST",
@@ -323,7 +346,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "robustness_manifest"
     },
     {
       "artifact_id": "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD",
@@ -337,7 +361,8 @@
         "Methods",
         "Limitations",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "virtual_prediction"
     },
     {
       "artifact_id": "INTERACTION_SELECTION",
@@ -351,7 +376,8 @@
         "Methods",
         "Limitations",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "interaction_selection"
     },
     {
       "artifact_id": "WORKER_REVIEW_RECORD",
@@ -365,7 +391,8 @@
         "Results",
         "Limitations",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "worker_review_output"
     },
     {
       "artifact_id": "HUMAN_DISPOSITION_RECORD",
@@ -379,7 +406,8 @@
         "Results",
         "Discussion",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reviewed_findings"
     },
     {
       "artifact_id": "HUMAN_DISPOSITION_VALIDATION",
@@ -392,7 +420,8 @@
       "manuscript_sections": [
         "Methods",
         "Supporting Information"
-      ]
+      ],
+      "source_artifact_id": "reviewed_findings_validation"
     },
     {
       "artifact_id": "FIGURE_DATA_SOURCE_001",
