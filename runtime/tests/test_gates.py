@@ -27,6 +27,7 @@ class WorkflowGateTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.ledger = self.root / "workflow_gate_ledger.jsonl"
         self.files: dict[str, Path] = {}
+        self.g4_source_temp: tempfile.TemporaryDirectory | None = None
 
         def make_file(artifact_id: str, value: dict):
             path = self.root / (artifact_id + ".json")
@@ -212,6 +213,8 @@ class WorkflowGateTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+        if self.g4_source_temp is not None:
+            self.g4_source_temp.cleanup()
 
     def _write(self, artifact_id: str, value: dict):
         self.files[artifact_id].write_text(
@@ -404,22 +407,42 @@ class WorkflowGateTests(unittest.TestCase):
                 "path": str(source_path),
                 "sha256": by_id[source_id]["sha256"],
             })
+        self.g4_source_temp = tempfile.TemporaryDirectory(prefix="dor-g4-sources-")
+        fixture_source_root = Path(self.g4_source_temp.name).resolve()
+        fixture_source_path = fixture_source_root / "run_source.json"
+        fixture_source_path.write_text('{"fixture": true}\\n', encoding="utf-8")
+        source_snapshot = {
+            "artifact_id": "g4_fixture_input",
+            "path": str(fixture_source_path),
+            "sha256": sha256_file(fixture_source_path),
+        }
         (self.root / "run_manifest.json").write_text(json.dumps({
             "schema_version": "1.0",
             "run_id": "RUN_GATE",
             "project_id": "PROJECT_TEST",
             "workspace_root": str(self.root.resolve()),
+            "plan_path": "run_plan.json",
+            "plan_sha256": "synthetic-plan-hash",
+            "event_ledger_path": "run_events.jsonl",
+            "workflow_ledger_path": None,
+            "source_roots": [str(fixture_source_root)],
+            "source_artifacts": [source_snapshot],
             "stage_order": ["g4_source_fixture", "publication_plan_preparation"],
-        }, indent=2) + "\n", encoding="utf-8")
+        }, indent=2) + "\\n", encoding="utf-8")
         (self.root / "run_plan.json").write_text(json.dumps({
             "schema_version": "1.0",
-            "source_artifacts": [],
+            "project_id": "PROJECT_TEST",
+            "source_roots": [str(fixture_source_root)],
+            "source_artifacts": [{
+                "artifact_id": "g4_fixture_input",
+                "path": str(fixture_source_path),
+            }],
             "stages": [
                 {
                     "stage_id": "g4_source_fixture",
                     "executor": "manual",
                     "depends_on": [],
-                    "inputs": [],
+                    "inputs": ["g4_fixture_input"],
                     "outputs": source_output_definitions,
                 },
                 {
@@ -434,18 +457,22 @@ class WorkflowGateTests(unittest.TestCase):
                     ],
                 },
             ],
-        }, indent=2) + "\n", encoding="utf-8")
+        }, indent=2) + "\\n", encoding="utf-8")
         run_events = [{
             "event_type": "STAGE_STATUS",
             "stage_id": "g4_source_fixture",
             "status": "SUCCEEDED",
-            "input_artifacts": [],
+            "attempt": 1,
+            "event_hash": "SYNTHETIC_SOURCE_STAGE_EVENT",
+            "input_artifacts": [source_snapshot],
             "output_artifacts": source_output_bindings,
             "gate_approval": None,
         }, {
             "event_type": "STAGE_STATUS",
             "stage_id": "publication_plan_preparation",
             "status": "SUCCEEDED",
+            "attempt": 1,
+            "event_hash": "SYNTHETIC_PUBLICATION_PREP_EVENT",
             "input_artifacts": [],
             "output_artifacts": [
                 {
