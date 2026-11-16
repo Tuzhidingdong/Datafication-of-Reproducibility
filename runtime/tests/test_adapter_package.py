@@ -126,6 +126,30 @@ class AdapterPackageInitializerTests(unittest.TestCase):
                 )
             self.assertFalse((package / "adapter_manifest.json").exists())
 
+    def test_relative_paths_cannot_escape_package_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            package.mkdir()
+            source = root / "source.txt"
+            external_data = root / "data.csv"
+            source.write_text("source", encoding="utf-8")
+            external_data.write_text("id,value\nA,1\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "relative path"):
+                initialize_adapter_package(
+                    package, "manual", "1.0",
+                    ["source=../source.txt"],
+                    ["dataset=standardized_dataset=data.csv"],
+                )
+            with self.assertRaisesRegex(ValueError, "relative path"):
+                initialize_adapter_package(
+                    package, "manual", "1.0",
+                    [f"source={source}"],
+                    ["dataset=standardized_dataset=../data.csv"],
+                )
+            self.assertFalse((package / "adapter_manifest.json").exists())
+
     def test_standardized_dataset_must_be_csv_or_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
