@@ -8,6 +8,7 @@ from pathlib import Path
 from dor.adapter_handoff import prepare_adapter_handoff_files
 from dor.adapter_package import initialize_adapter_package
 from dor.project_setup import initialize_project_run_plan
+from dor.cli import build_parser
 
 
 def write_json(path: Path, payload) -> None:
@@ -73,6 +74,8 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertIn("dor run-init", result["run_init_command"])
             self.assertTrue(any(Path(item) == (project / "raw_sources" / "adapter_package").resolve()
                                 for item in plan["source_roots"]))
+            self.assertTrue(any(Path(item) == (project / "raw_sources").resolve()
+                                for item in plan["source_roots"]))
 
     def test_full_analysis_requires_explicit_virtual_query_and_includes_it(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -120,6 +123,59 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
                     handoff, project, root / "runs" / "stale",
                 )
             self.assertFalse((project / "run_control" / "run_plan.structured_dataset.single_study.json").exists())
+
+    def test_canonical_route_succeeds_when_all_required_roles_are_declared(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = root / "project"
+            package = project / "adapter_package"
+            package.mkdir(parents=True)
+            source = project / "paper.pdf"
+            source.write_bytes(b"source")
+            bundle_path = package / "canonical_bundle.json"
+            inventory_path = package / "source_inventory.json"
+            mapping_path = package / "mapping_plan.json"
+            spec_path = package / "build_spec.json"
+            write_json(bundle_path, canonical_bundle())
+            write_json(inventory_path, {"schema_version": "1.0", "items": []})
+            write_json(mapping_path, {"schema_version": "1.0", "rules": []})
+            write_json(spec_path, {"schema_version": "1.0"})
+            artifacts = [
+                f"bundle=canonical_bundle={bundle_path}",
+                f"inventory=source_inventory={inventory_path}",
+                f"mapping=mapping_plan={mapping_path}",
+                f"spec=build_spec={spec_path}",
+            ]
+            manifest = initialize_adapter_package(
+                package, "external-bundle-adapter", "1.0",
+                [f"paper={source}"], artifacts,
+            )["manifest_path"]
+            handoff = root / "preflight.json"
+            prepare_adapter_handoff_files(Path(manifest), package, handoff)
+
+            result = initialize_project_run_plan(
+                handoff, project, root / "runs" / "canonical",
+            )
+            plan = json.loads(Path(result["run_plan_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(result["route"], "CANONICAL_BUNDLE")
+            self.assertEqual(result["profile"], "CONTROLLED_SINGLE_STUDY")
+            self.assertIn("adapter_artifact_materialization", {
+                item["stage_id"] for item in plan["stages"]
+            })
+
+    def test_cli_exposes_project_run_plan_setup(self):
+        args = build_parser().parse_args([
+            "init-run-plan",
+            "--adapter-handoff", "preflight/adapter_handoff.json",
+            "--project-root", "project",
+            "--run-root", "runs/run-001",
+            "--profile", "FULL_ANALYSIS",
+            "--virtual-query-input", "project/configuration/query.json",
+            "--acceptance-source", "paper=PRIMARY_PAPER=project/paper.pdf",
+        ])
+        self.assertEqual(args.command, "init-run-plan")
+        self.assertEqual(args.profile, "FULL_ANALYSIS")
+        self.assertEqual(args.acceptance_source, ["paper=PRIMARY_PAPER=project/paper.pdf"])
 
     def test_canonical_route_requires_all_four_provenance_roles(self):
         with tempfile.TemporaryDirectory() as tmp:
