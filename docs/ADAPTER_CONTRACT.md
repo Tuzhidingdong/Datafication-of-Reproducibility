@@ -62,6 +62,13 @@ The handoff is read-only and does not parse unsupported source formats. An exter
 
 A passing handoff confirms delivery integrity and, for a Canonical Bundle, structural/reference validity only. It does not approve upstream extraction fidelity, source-content correspondence, entity grain, scientific semantics, mappings, unit compatibility, or suitability for any analysis.
 
+Create a project-specific Run Plan without manually editing the stage graph:
+
+    dor init-run-plan --adapter-handoff path/to/adapter_route_preflight.json --project-root path/to/project --run-root path/to/new_run
+
+The command revalidates the preflight handoff against the live Adapter Manifest and all declared file hashes, selects the correct route template, and defaults to `CONTROLLED_SINGLE_STUDY`. It copies the matching Publication Plan blueprint into project configuration, fills the absolute source roots/manifest/ledger paths, and validates the complete plan with the same Run Manager validator used by `dor run-init`. For `FULL_ANALYSIS`, explicitly supply an existing `--virtual-query-input`; the command does not create query placeholders. Optional V1.0 provenance sources must be supplied explicitly through repeated `--acceptance-source SOURCE_ID=ROLE=FILE_PATH` arguments. The command creates a new plan only; it does not initialize a Run, dispatch a Worker, or approve a Gate. Keep the requested Run workspace outside every protected source root.
+
+
 For a formal Run using a prebuilt Canonical Bundle, create the package snapshot alongside the handoff:
 
     dor prepare-adapter-handoff --manifest path/to/adapter_manifest.json --package-root path/to/package --out path/to/run/00_adapter/adapter_handoff.json --dataset-manifest-out path/to/run/00_adapter/dataset_manifest.json
