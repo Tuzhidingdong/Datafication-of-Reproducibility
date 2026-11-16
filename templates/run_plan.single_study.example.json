@@ -190,6 +190,7 @@
       "stage_id": "canonical_build",
       "executor": "local",
       "depends_on": [
+        "adapter_package_validation",
         "source_audit",
         "mapping_preparation",
         "mapping_validation",
