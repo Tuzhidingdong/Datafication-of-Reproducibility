@@ -203,6 +203,297 @@ def _validate_single_study_na_evidence(
               f"{stage_id} not_applicable_reason must match the exact reason in the bound applicability record.")
 
 
+def initialize_acceptance_record(
+    run_manifest_path: Path,
+    output_path: Path,
+    *,
+    source_selection_manifest: Path | None = None,
+    extraction_review_record: Path | None = None,
+) -> dict[str, Any]:
+    """Create a post-Run Acceptance draft with evidence bound to a completed Run.
+
+    Scientific decisions remain NOT_STARTED. The two post-Run source-review
+    records are accepted as separately hashed evidence and are content-validated
+    against the immutable source snapshot when their stages are marked PASS.
+    """
+    run_manifest_path = run_manifest_path.expanduser().resolve(strict=True)
+    output_path = output_path.expanduser().resolve(strict=False)
+    if output_path.exists() or output_path.is_symlink():
+        raise FileExistsError(f"Refusing to overwrite an existing Acceptance draft: {output_path}.")
+    root, manifest, plan, events = _manifest_context(run_manifest_path)
+    run_report = verify_run(run_manifest_path)
+    if run_report.get("source_integrity") != "CURRENT":
+        raise ValueError("Cannot initialize Acceptance: one or more Run source snapshots changed or are missing.")
+    resume = run_report.get("resume_plan", {})
+    unresolved = [
+        item for item in resume.get("stages", [])
+        if item.get("action") not in {"REUSE", "SKIPPED"}
+    ]
+    if unresolved or resume.get("next_actions"):
+        blocked = [
+            f"{item.get('stage_id')}={item.get('action')}"
+            for item in unresolved
+        ]
+        raise ValueError(
+            "Acceptance is post-Run and requires every Run stage to be current or explicitly skipped. "
+            + ("Unresolved stages: " + ", ".join(blocked) if blocked else "The Run still has next actions.")
+        )
+
+    artifact_rows = run_report.get("artifact_manifest", {}).get("artifacts", [])
+    artifact_by_id = {
+        item.get("artifact_id"): item for item in artifact_rows
+        if isinstance(item, dict) and isinstance(item.get("artifact_id"), str)
+    }
+
+    def run_evidence(artifact_id: str, artifact_type: str) -> dict[str, str]:
+        item = artifact_by_id.get(artifact_id)
+        if item is None or item.get("status") != "CURRENT":
+            status = item.get("status") if isinstance(item, dict) else "NOT_DECLARED"
+            raise ValueError(
+                f"Cannot initialize Acceptance evidence {artifact_id} ({artifact_type}): "
+                f"Run artifact status is {status}; complete/rebuild the Run before acceptance."
+            )
+        return {
+            "artifact_id": artifact_id,
+            "artifact_type": artifact_type,
+            "path": str(Path(item["path"]).expanduser().resolve(strict=True)),
+            "sha256": item["expected_sha256"],
+        }
+
+    canonical_item = artifact_by_id.get("canonical_bundle")
+    if canonical_item is None or canonical_item.get("status") != "CURRENT":
+        raise ValueError("The completed Run has no current canonical_bundle artifact.")
+    canonical_payload = _read_json(Path(canonical_item["path"]), "Run Canonical Bundle")
+    studies = canonical_payload.get("studies")
+    if not isinstance(studies, list) or not studies:
+        raise ValueError("The Run Canonical Bundle contains no explicit Studies.")
+    study_ids = []
+    for item in studies:
+        study_id = item.get("study_id") if isinstance(item, dict) else None
+        if not isinstance(study_id, str) or not study_id.strip():
+            raise ValueError("Every Canonical Bundle Study must have an explicit non-empty study_id.")
+        study_ids.append(study_id)
+    if len(study_ids) != len(set(study_ids)):
+        raise ValueError("The Canonical Bundle contains duplicate Study IDs.")
+    study_ids = sorted(study_ids)
+
+    profile = plan.get("execution_profile", "FULL_ANALYSIS")
+    if profile == "CONTROLLED_SINGLE_STUDY":
+        if len(study_ids) != 1:
+            raise ValueError("CONTROLLED_SINGLE_STUDY Acceptance requires exactly one explicit Canonical Bundle Study.")
+        scope = "CONTROLLED_SINGLE_STUDY"
+    elif profile == "FULL_ANALYSIS":
+        if len(study_ids) < 2:
+            raise ValueError(
+                "A FULL_ANALYSIS Run cannot be relabelled as single-Study Acceptance. "
+                "Initialize a new Run with the CONTROLLED_SINGLE_STUDY profile instead."
+            )
+        scope = "MULTI_STUDY_PILOT"
+    else:
+        raise ValueError(f"Unsupported Run execution_profile for Acceptance: {profile!r}.")
+
+    declared_acceptance_sources = manifest.get("acceptance_source_artifacts")
+    if declared_acceptance_sources is None:
+        declared_acceptance_sources = [
+            {
+                "source_id": item.get("artifact_id"),
+                "role": "OTHER",
+                "path": item.get("path"),
+                "sha256": item.get("sha256"),
+            }
+            for item in manifest.get("source_artifacts", [])
+            if isinstance(item, dict)
+        ]
+    if not isinstance(declared_acceptance_sources, list) or not declared_acceptance_sources:
+        raise ValueError(
+            "The Run has no explicit acceptance_source_artifacts. Add the provenance-only source IDs, "
+            "roles, and paths to the Run Plan and initialize a new Run."
+        )
+    source_snapshot = []
+    seen_source_ids: set[str] = set()
+    source_roles: set[str] = set()
+    for item in declared_acceptance_sources:
+        if not isinstance(item, dict):
+            raise ValueError("Run acceptance source snapshot contains a malformed item.")
+        source_id, role, raw_path, expected = (
+            item.get("source_id"), item.get("role"), item.get("path"), item.get("sha256")
+        )
+        if not all(isinstance(value, str) and value.strip() for value in (source_id, role, raw_path, expected)):
+            raise ValueError("Every acceptance source requires source_id, role, path, and SHA-256.")
+        if source_id in seen_source_ids:
+            raise ValueError(f"Duplicate acceptance source_id: {source_id}.")
+        seen_source_ids.add(source_id)
+        source_roles.add(role)
+        source_path = Path(raw_path).expanduser().resolve(strict=True)
+        actual = _sha256(source_path)
+        if actual != expected:
+            raise ValueError(f"Acceptance source changed after Run initialization: {source_id}.")
+        source_snapshot.append({
+            "source_id": source_id, "role": role, "path": str(source_path), "sha256": expected,
+        })
+    if scope == "CONTROLLED_SINGLE_STUDY":
+        for required_role in ("PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"):
+            if required_role not in source_roles:
+                raise ValueError(
+                    f"CONTROLLED_SINGLE_STUDY Acceptance requires an explicit {required_role} "
+                    "entry in acceptance_source_artifacts."
+                )
+
+    def external_evidence(raw_path: Path | None, artifact_id: str, artifact_type: str):
+        if raw_path is None:
+            return []
+        supplied = raw_path.expanduser()
+        if supplied.is_symlink():
+            raise ValueError(f"Post-Run Acceptance evidence must not be a symlink: {supplied}.")
+        evidence_path = supplied.resolve(strict=True)
+        if not evidence_path.is_file():
+            raise ValueError(f"Post-Run Acceptance evidence must be a regular file: {evidence_path}.")
+        _read_json(evidence_path, artifact_type)
+        return [{
+            "artifact_id": artifact_id,
+            "artifact_type": artifact_type,
+            "path": str(evidence_path),
+            "sha256": _sha256(evidence_path),
+        }]
+
+    stages = []
+    source_selection_evidence = (
+        external_evidence(source_selection_manifest, "acceptance_source_selection", "source_selection_manifest")
+        + [run_evidence("source_inventory", "source_inventory")]
+    )
+    extraction_review_evidence = external_evidence(
+        extraction_review_record, "acceptance_extraction_review", "extraction_review_record"
+    )
+    stage_evidence = {
+        "source_selection": source_selection_evidence,
+        "source_integrity": [{
+            "artifact_id": "run_manifest",
+            "artifact_type": "run_manifest",
+            "path": str(run_manifest_path),
+            "sha256": _sha256(run_manifest_path),
+        }],
+        "extraction_review": extraction_review_evidence,
+        "semantic_mapping": [run_evidence("mapping_plan", "mapping_plan")],
+        "canonical_reconciliation": [
+            run_evidence("canonical_bundle", "canonical_bundle"),
+            run_evidence("reconciliation_report", "reconciliation_report"),
+            run_evidence("reconciliation_decisions", "reconciliation_decisions"),
+        ],
+    }
+    if scope == "CONTROLLED_SINGLE_STUDY":
+        na_evidence = [
+            run_evidence("single_study_applicability_record", "single_study_applicability_record"),
+            run_evidence("single_study_applicability_validation", "single_study_applicability_validation"),
+            run_evidence("canonical_bundle", "canonical_bundle"),
+            run_evidence("modeling_task", "modeling_task"),
+        ]
+        stage_evidence["cohort_feasibility"] = na_evidence
+        stage_evidence["modeling_validation"] = na_evidence
+    else:
+        stage_evidence["cohort_feasibility"] = [
+            run_evidence("modeling_task", "modeling_task"),
+            run_evidence("cohort_report", "cohort_report"),
+            run_evidence("split_manifest", "split_manifest"),
+            run_evidence("cohort_manifest", "modeling_cohort_manifest"),
+            run_evidence("modeling_cohort", "modeling_cohort_csv"),
+        ]
+        stage_evidence["modeling_validation"] = [
+            run_evidence("model_report", "model_report"),
+            run_evidence("model_artifact", "model_artifact"),
+            run_evidence("baseline_run_manifest", "modeling_run_manifest"),
+            run_evidence("reproducibility_evaluation", "reproducibility_evaluation"),
+            run_evidence("reproducibility_manifest", "reproducibility_evaluation_manifest"),
+        ]
+    stage_evidence["publication_handoff"] = [
+        run_evidence("publication_package_manifest", "publication_package_manifest"),
+        run_evidence("publication_package_integrity_report", "publication_integrity_report"),
+    ]
+    for stage_id in STAGE_ORDER:
+        stages.append({
+            "stage_id": stage_id,
+            "status": "NOT_STARTED",
+            "evidence": stage_evidence.get(stage_id, []),
+            "limitations": [],
+            "checks": [],
+        })
+
+    event_path = (root / manifest["event_ledger_path"]).resolve(strict=True)
+    workflow_gate_binding = None
+    workflow_ledger_path = manifest.get("workflow_ledger_path")
+    if isinstance(workflow_ledger_path, str) and workflow_ledger_path.strip():
+        gate_path = Path(workflow_ledger_path).expanduser().resolve(strict=True)
+        gate_report = inspect_gate_ledger(gate_path)
+        gate_event_hashes = {
+            gate_id: gate_report["gates"][gate_id].get("event_hash")
+            for gate_id in GATE_ORDER
+        }
+        gate_artifacts = {}
+        for gate_id in GATE_ORDER:
+            event = gate_report.get("events", {}).get(gate_id)
+            normalized = []
+            event_artifacts = event.get("artifacts", []) if isinstance(event, dict) else []
+            for item in event_artifacts:
+                if not isinstance(item, dict):
+                    continue
+                normalized.append({
+                    "artifact_id": item["artifact_id"],
+                    "path": str(Path(item["path"]).expanduser().resolve(strict=False)),
+                    "sha256": item["sha256"],
+                })
+            gate_artifacts[gate_id] = normalized
+        workflow_gate_binding = {
+            "path": str(gate_path),
+            "sha256": _sha256(gate_path),
+            "gate_event_hashes": gate_event_hashes,
+            "gate_artifacts": gate_artifacts,
+        }
+
+    record = {
+        "schema_version": "1.0",
+        "acceptance_id": f"ACCEPTANCE_{manifest['run_id']}",
+        "project_id": manifest["project_id"],
+        "scope": scope,
+        "run_id": manifest["run_id"],
+        "run_manifest_sha256": _sha256(run_manifest_path),
+        "source_snapshot": {
+            "study_count": len(study_ids),
+            "study_ids": study_ids,
+            "artifacts": source_snapshot,
+        },
+        "stages": stages,
+        "final_assessment": {
+            "decision": "NOT_ASSESSED",
+            "assessed_by": "NOT_YET_REVIEWED",
+            "rationale": "Draft initialized from the completed, hash-verified Run. No scientific acceptance decision has been made.",
+            "blocking_issue_ids": [],
+        },
+        "run_event_ledger": {
+            "path": str(event_path),
+            "sha256": _sha256(event_path),
+            "event_count": len(events),
+            "last_event_hash": events[-1]["event_hash"] if events else None,
+        },
+    }
+    if workflow_gate_binding is not None:
+        record["workflow_gate_ledger"] = workflow_gate_binding
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    raw = (json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
+    temporary = output_path.with_name(output_path.name + ".tmp")
+    temporary.write_bytes(raw)
+    temporary.replace(output_path)
+    return {
+        "status": "DRAFT_CREATED",
+        "acceptance_id": record["acceptance_id"],
+        "scope": scope,
+        "study_ids": study_ids,
+        "record_path": str(output_path),
+        "source_selection_evidence_bound": bool(source_selection_evidence and source_selection_evidence[0].get("artifact_id") == "acceptance_source_selection"),
+        "extraction_review_evidence_bound": bool(extraction_review_evidence),
+        "scientific_decision": "NOT_ASSESSED",
+        "next_required_action": "Complete the post-Run source-selection and extraction-review evidence, then review each fixed Acceptance stage and initialize the Acceptance revision ledger.",
+    }
+
+
 def validate_acceptance_record(
     record_path: Path, run_manifest_path: Path, ledger_path: Path | None = None,
 ) -> dict[str, Any]:
