@@ -825,7 +825,7 @@ def _archive_failed_worker_outputs(
             "reason": reason,
             "archived_outputs": archived,
         }
-        raw = (json.dumps(manifest, indent=2, ensure_ascii=False, allow_nan=False) + "\\n").encode("utf-8")
+        raw = (json.dumps(manifest, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
         with manifest_path.open("xb") as handle:
             handle.write(raw)
             handle.flush()
