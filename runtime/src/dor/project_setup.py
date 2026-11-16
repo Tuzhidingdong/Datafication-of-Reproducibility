@@ -152,6 +152,41 @@ def initialize_project_run_plan(
     root = project_root.expanduser().resolve(strict=True)
     if not root.is_dir():
         raise ValueError(f"Project root is not a directory: {root}")
+
+    if profile == "FULL_ANALYSIS":
+        if virtual_query_input is None:
+            raise ValueError(
+                "FULL_ANALYSIS requires --virtual-query-input. Do not create a placeholder query."
+            )
+        virtual_path = virtual_query_input.expanduser().resolve(strict=True)
+        if not virtual_path.is_file():
+            raise ValueError(f"Virtual reproduction query must be a file: {virtual_path}")
+    else:
+        if virtual_query_input is not None:
+            raise ValueError(
+                "CONTROLLED_SINGLE_STUDY does not consume a virtual query; omit --virtual-query-input."
+            )
+        virtual_path = None
+
+    acceptance_records = [
+        _parse_acceptance_source(item) for item in (acceptance_sources or [])
+    ]
+    acceptance_ids = [item["source_id"] for item in acceptance_records]
+    if len(acceptance_ids) != len(set(acceptance_ids)):
+        raise ValueError("Acceptance source IDs must be unique.")
+    if profile == "CONTROLLED_SINGLE_STUDY" and acceptance_records:
+        supplied_roles = {item["role"] for item in acceptance_records}
+        required_roles = {"PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"}
+        missing_roles = sorted(required_roles - supplied_roles)
+        if missing_roles:
+            raise ValueError(
+                "A controlled single-Study V1.0 Acceptance source snapshot requires both "
+                "PRIMARY_PAPER and SUPPLEMENTARY_INFORMATION; missing: "
+                + ", ".join(missing_roles)
+                + ". Add the linked source files explicitly or omit --acceptance-source "
+                "only when this Run will not be used for V1.0 Acceptance."
+            )
+
     config_root = root / "configuration"
     control_root = root / "run_control"
     config_root.mkdir(parents=True, exist_ok=True)
@@ -191,40 +226,6 @@ def initialize_project_run_plan(
         else:
             shutil.copyfile(bundled_publication_template, publication_path)
             publication_created = True
-
-    if profile == "FULL_ANALYSIS":
-        if virtual_query_input is None:
-            raise ValueError(
-                "FULL_ANALYSIS requires --virtual-query-input. Do not create a placeholder query."
-            )
-        virtual_path = virtual_query_input.expanduser().resolve(strict=True)
-        if not virtual_path.is_file():
-            raise ValueError(f"Virtual reproduction query must be a file: {virtual_path}")
-    else:
-        if virtual_query_input is not None:
-            raise ValueError(
-                "CONTROLLED_SINGLE_STUDY does not consume a virtual query; omit --virtual-query-input."
-            )
-        virtual_path = None
-
-    acceptance_records = [
-        _parse_acceptance_source(item) for item in (acceptance_sources or [])
-    ]
-    acceptance_ids = [item["source_id"] for item in acceptance_records]
-    if len(acceptance_ids) != len(set(acceptance_ids)):
-        raise ValueError("Acceptance source IDs must be unique.")
-    if profile == "CONTROLLED_SINGLE_STUDY" and acceptance_records:
-        supplied_roles = {item["role"] for item in acceptance_records}
-        required_roles = {"PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"}
-        missing_roles = sorted(required_roles - supplied_roles)
-        if missing_roles:
-            raise ValueError(
-                "A controlled single-Study V1.0 Acceptance source snapshot requires both "
-                "PRIMARY_PAPER and SUPPLEMENTARY_INFORMATION; missing: "
-                + ", ".join(missing_roles)
-                + ". Add the linked source files explicitly or omit --acceptance-source "
-                "only when this Run will not be used for V1.0 Acceptance."
-            )
 
     run_template = json.loads(run_template_path.read_text(encoding="utf-8"))
     if not isinstance(run_template, dict):
