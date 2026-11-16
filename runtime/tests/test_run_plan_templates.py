@@ -1,6 +1,6 @@
 import json
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from dor.publication import _validate_plan
 
@@ -531,7 +531,10 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     item for item in plan["source_artifacts"]
                     if item["artifact_id"] == "publication_plan_template"
                 )
-                self.assertTrue(Path(publication_template["path"]).is_absolute())
+                self.assertTrue(
+                    Path(publication_template["path"]).is_absolute()
+                    or PureWindowsPath(publication_template["path"]).is_absolute()
+                )
                 preparation = stages["publication_plan_preparation"]
                 assembly = stages["publication_package_assembly"]
                 self.assertEqual(preparation["executor"], "manual")
