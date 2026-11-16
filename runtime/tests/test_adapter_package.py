@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -242,13 +243,37 @@ class AdapterPackageInitializerTests(unittest.TestCase):
                             ["paper=paper.pdf"],
                             [f"dataset=standardized_dataset={invalid}"],
                         )
-            with self.assertRaisesRegex(ValueError, "relative path"):
+            with self.assertRaises(ValueError) as exc:
                 initialize_adapter_package(
                     package,
                     "manual",
                     "1.0",
                     ["paper=paper.pdf"],
                     ["dataset=standardized_dataset=C:\\\\data\\\\records.csv"],
+                )
+            msg = str(exc.exception)
+            self.assertTrue(
+                "relative path" in msg or "inside package_root" in msg,
+                msg,
+            )
+            self.assertFalse((package / "adapter_manifest.json").exists())
+
+    @unittest.skipUnless(os.name == "nt", "Windows absolute path regression")
+    def test_windows_absolute_artifact_path_outside_package_root_is_rejected_before_resolve(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            package.mkdir()
+            (package / "paper.pdf").write_bytes(b"paper")
+            (package / "records.csv").write_text("id,value\nA,1\n", encoding="utf-8")
+            outside = Path("C:\\data\\records.csv")
+            with self.assertRaisesRegex(ValueError, "inside package_root"):
+                initialize_adapter_package(
+                    package,
+                    "manual",
+                    "1.0",
+                    ["paper=paper.pdf"],
+                    [f"dataset=standardized_dataset={outside}"],
                 )
             self.assertFalse((package / "adapter_manifest.json").exists())
 

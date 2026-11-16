@@ -123,7 +123,13 @@ def _parse_artifact_binding(value: str) -> tuple[str, str, Path]:
     return artifact_id, role, _parse_explicit_path(raw_path, "Artifact")
 
 
-def _resolve_input(raw_path: Path, package_root: Path, label: str) -> Path:
+def _resolve_input(
+    raw_path: Path,
+    package_root: Path,
+    label: str,
+    *,
+    allow_external_absolute: bool = False,
+) -> Path:
     if raw_path.is_absolute():
         candidate = raw_path
     else:
@@ -139,6 +145,19 @@ def _resolve_input(raw_path: Path, package_root: Path, label: str) -> Path:
                 f"absolute, drive, empty, current-directory, or parent-directory components: {raw_path!s}"
             )
         candidate = package_root / Path(normalized)
+
+    # Package artifacts must resolve inside package_root. Reject out-of-root
+    # absolute artifact paths before strict existence resolution so missing
+    # external locations do not leak as FileNotFoundError on Windows.
+    if raw_path.is_absolute() and not allow_external_absolute:
+        candidate_resolved = candidate.resolve(strict=False)
+        root_resolved = package_root.resolve(strict=False)
+        if not candidate_resolved.is_relative_to(root_resolved):
+            raise ValueError(
+                f"{label} must be inside package_root; "
+                "only provenance sources may be external."
+            )
+
     try:
         resolved = candidate.resolve(strict=True)
     except FileNotFoundError as exc:
@@ -149,11 +168,18 @@ def _resolve_input(raw_path: Path, package_root: Path, label: str) -> Path:
         raise ValueError(f"{label} path is not a regular file: {resolved}")
     if not raw_path.is_absolute() and not resolved.is_relative_to(package_root):
         raise ValueError(f"{label} relative path escapes package_root: {raw_path!s}")
+    if raw_path.is_absolute() and not allow_external_absolute and not resolved.is_relative_to(package_root):
+        raise ValueError(
+            f"{label} must be inside package_root; "
+            "only provenance sources may be external."
+        )
     return resolved
 
 
 def _source_descriptor(source_id: str, raw_path: Path, package_root: Path) -> dict[str, Any]:
-    resolved = _resolve_input(raw_path, package_root, f"Source {source_id}")
+    resolved = _resolve_input(
+        raw_path, package_root, f"Source {source_id}", allow_external_absolute=True
+    )
     try:
         stored_path = resolved.relative_to(package_root).as_posix()
     except ValueError:
@@ -174,7 +200,9 @@ def _artifact_descriptor(
     raw_path: Path,
     package_root: Path,
 ) -> dict[str, Any]:
-    resolved = _resolve_input(raw_path, package_root, f"Artifact {artifact_id}")
+    resolved = _resolve_input(
+        raw_path, package_root, f"Artifact {artifact_id}", allow_external_absolute=False
+    )
     try:
         stored_path = resolved.relative_to(package_root).as_posix()
     except ValueError as exc:
