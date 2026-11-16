@@ -213,7 +213,10 @@ def validate_publication_plan_files(
             continue
         try:
             relative_source = _relative_path(source_path_value, package_id + ".source_path")
-            source_path = (root / relative_source).resolve(strict=True)
+            unresolved_source = root / relative_source
+            if unresolved_source.is_symlink():
+                raise ValueError(f"{package_id} source must not be a symbolic link.")
+            source_path = unresolved_source.resolve(strict=True)
         except (OSError, ValueError) as exc:
             issues.append({
                 "code": "SOURCE_PATH_INVALID",
