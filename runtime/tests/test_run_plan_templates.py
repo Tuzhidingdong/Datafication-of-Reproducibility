@@ -553,6 +553,23 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     self.assertTrue({
                         "cohort_review_record", "cohort_review_validation",
                     }.issubset(set(preparation["inputs"])))
+                else:
+                    lineage_inputs = {
+                        "adapter_handoff", "dataset_manifest", "source_inventory",
+                        "mapping_plan", "mapping_validation", "build_spec",
+                        "build_spec_validation", "reconciliation_decision_validation",
+                        "discovery_report", "g2_review_packet",
+                    }
+                    self.assertTrue(lineage_inputs.issubset(set(preparation["inputs"])))
+                    self.assertTrue(lineage_inputs.issubset(set(assembly["inputs"])))
+                    producers = {
+                        output["artifact_id"]: stage["stage_id"]
+                        for stage in plan["stages"]
+                        for output in stage["outputs"]
+                    }
+                    for consumer in (preparation, assembly):
+                        for artifact_id in lineage_inputs:
+                            self.assertIn(producers[artifact_id], consumer["depends_on"])
 
     def test_both_run_plans_require_cohort_review_before_modelling(self):
         consumer_ids = {
