@@ -38,6 +38,7 @@ from dor.run_manager import (
     authorize_worker, build_artifact_manifest, build_resume_plan, build_run_usage_report,
     initialize_run, record_stage_status, verify_run,
 )
+from dor.stage_runner import execute_local_stage
 
 def _write_json(path: Path | None, report: dict) -> str:
     rendered=json.dumps(report,indent=2,ensure_ascii=False)+"\n"
@@ -310,6 +311,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_usage.add_argument("--manifest", type=Path, required=True)
     run_usage.add_argument("--out", type=Path, default=None)
 
+    run_execute = subparsers.add_parser("run-stage-execute", help="Execute one contract-bound local stage and record RUNNING/SUCCEEDED/FAILED automatically")
+    run_execute.add_argument("--manifest", type=Path, required=True)
+    run_execute.add_argument("--stage", dest="stage_id", required=True)
+    run_execute.add_argument("--args-file", type=Path, required=True, help="JSON array of individual CLI argument strings for the bound Runtime command")
+    run_execute.add_argument("--timeout-seconds", type=int, default=3600)
+    run_execute.add_argument("--dry-run", action="store_true", help="Print the exact argv without changing the Run")
+
     review_packet = subparsers.add_parser("validate-run-review-packet", help="Validate a G0-G2 review packet against the active Run inputs and hashes")
     review_packet.add_argument("--packet", type=Path, required=True)
     review_packet.add_argument("--manifest", type=Path, required=True)
@@ -456,6 +464,19 @@ def main() -> int:
             result = build_run_usage_report(args.manifest)
             print(_write_json(args.out, result), end="")
             return 0
+        if args.command == "run-stage-execute":
+            try:
+                cli_arguments = json.loads(args.args_file.read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError(f"Could not read --args-file as a JSON array: {exc}") from exc
+            if not isinstance(cli_arguments, list):
+                raise ValueError("--args-file must contain a JSON array of CLI argument strings.")
+            result = execute_local_stage(
+                args.manifest, args.stage_id, cli_arguments,
+                timeout_seconds=args.timeout_seconds, dry_run=args.dry_run,
+            )
+            print(_write_json(None, result), end="")
+            return 0 if result["status"] in {"DRY_RUN", "SUCCEEDED"} else 2
         if args.command == "run-artifacts":
             result = build_artifact_manifest(args.manifest)
             if args.out is not None:
