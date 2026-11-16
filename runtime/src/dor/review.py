@@ -179,8 +179,15 @@ def validate_run_review_packet_files(
         issues.append({"code": "PROJECT_ID_MISMATCH", "message": "Packet project_id differs from the active Run."})
     if not _aware_timestamp(packet.get("prepared_at")):
         issues.append({"code": "INVALID_TIMESTAMP", "message": "prepared_at must be a timezone-aware ISO-8601 timestamp."})
-    if run_report.get("source_integrity") != "CURRENT":
-        issues.append({"code": "SOURCE_INTEGRITY_CHANGED", "message": "A protected source changed after Run initialization."})
+    operational_sources = run_report.get("source_artifacts", [])
+    if not operational_sources or any(
+        not isinstance(item, dict) or item.get("status") != "CURRENT"
+        for item in operational_sources
+    ):
+        issues.append({
+            "code": "OPERATIONAL_SOURCE_INTEGRITY_CHANGED",
+            "message": "An operational Run source changed after initialization; provenance-only Acceptance sources are checked separately.",
+        })
 
     bindings = packet.get("artifact_bindings")
     if not isinstance(bindings, list) or not bindings:
@@ -309,8 +316,15 @@ def validate_reviewed_findings_files(
         issues.append({"code": "INVALID_TIMESTAMP", "message": "reviewed_at must be timezone-aware ISO-8601."})
     if not isinstance(record.get("overall_rationale"), str) or not record["overall_rationale"].strip():
         issues.append({"code": "OVERALL_RATIONALE_REQUIRED", "message": "overall_rationale must be non-empty."})
-    if run_report.get("source_integrity") != "CURRENT":
-        issues.append({"code": "SOURCE_INTEGRITY_CHANGED", "message": "A protected source changed after Run initialization."})
+    operational_sources = run_report.get("source_artifacts", [])
+    if not operational_sources or any(
+        not isinstance(item, dict) or item.get("status") != "CURRENT"
+        for item in operational_sources
+    ):
+        issues.append({
+            "code": "OPERATIONAL_SOURCE_INTEGRITY_CHANGED",
+            "message": "An operational Run source changed after initialization; provenance-only Acceptance sources are checked separately.",
+        })
 
     expected_inputs = set(stage.get("inputs", []))
     if _WORKER_ID not in expected_inputs:
