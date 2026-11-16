@@ -2875,7 +2875,10 @@
             "virtual_condition_prediction",
             "independent_result_review",
             "human_review_and_promotion",
-            "cohort_review"
+            "cohort_review",
+            "mechanism_plan_preparation",
+            "response_surface_generation",
+            "mechanism_evidence_bridge"
           ]
         },
         {
@@ -2919,7 +2922,10 @@
             "virtual_condition_prediction",
             "independent_result_review",
             "human_review_and_promotion",
-            "cohort_review"
+            "cohort_review",
+            "mechanism_plan_preparation",
+            "response_surface_generation",
+            "mechanism_evidence_bridge"
           ]
         },
         {
