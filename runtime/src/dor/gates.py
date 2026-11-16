@@ -1744,10 +1744,20 @@ def record_gate_decision(
     bindings = _artifact_bindings(artifact_specs)
     ids = {item["artifact_id"] for item in bindings}
     if decision == "APPROVE":
-        missing = REQUIRED_ARTIFACTS[gate_id] - ids
+        required_artifacts = REQUIRED_ARTIFACTS[gate_id]
+        reviewed_artifacts: set[str] = set()
+        if gate_id == "G4":
+            single_study_profile = "single_study_applicability_record" in ids
+            if single_study_profile:
+                required_artifacts = G4_SINGLE_STUDY_REQUIRED_ARTIFACTS
+                reviewed_artifacts = G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
+            else:
+                required_artifacts = G4_FULL_ANALYSIS_REQUIRED_ARTIFACTS
+                reviewed_artifacts = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
+        missing = required_artifacts - ids
         if missing:
             raise ValueError(f"Gate {gate_id} requires artifact IDs: {', '.join(sorted(missing))}.")
-        if gate_id == "G4" and not G4_REVIEWABLE_ARTIFACTS.issubset(ids):
+        if gate_id == "G4" and not reviewed_artifacts.issubset(ids):
             raise ValueError(
                 "G4 requires the complete profile-specific Worker reviewed-artifact set declared by the active workflow."
             )
