@@ -27,7 +27,10 @@ from dor.mechanism_bridge import build_mechanism_evidence_bridge_files
 from dor.reconciliation import reconcile_bundle_file, validate_reconciliation_decisions_files
 from dor.research_scope import validate_research_scope_files
 from dor.review import validate_run_review_packet_files, validate_reviewed_findings_files
-from dor.publication import build_publication_package_files, audit_publication_package_files
+from dor.publication import (
+    build_publication_package_files, audit_publication_package_files,
+    validate_publication_plan_files,
+)
 from dor.virtual_reproduction import predict_virtual_condition_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
 from dor.acceptance import initialize_acceptance_record, validate_acceptance_record
@@ -224,8 +227,18 @@ def build_parser() -> argparse.ArgumentParser:
     mechanism.add_argument("--out-dir", type=Path, required=True, help="New or empty derived mechanism bridge output directory")
     mechanism.add_argument("--robustness-dir", type=Path, default=None, help="Optional hash-verified repeated-seed robustness output")
     mechanism.add_argument("--response-surface-dir", type=Path, default=None, help="Optional hash-verified descriptive response-surface output")
+    publication_plan_validation = subparsers.add_parser(
+        "validate-publication-plan",
+        help="Validate the final Publication Plan against current Run Artifacts before G4 review",
+    )
+    publication_plan_validation.add_argument("--plan", type=Path, required=True)
+    publication_plan_validation.add_argument("--manifest", type=Path, required=True)
+    publication_plan_validation.add_argument("--out", type=Path, required=True,
+        help="Exact Run output path for publication_plan_validation.json")
+
     package = subparsers.add_parser("build-publication-package", help="Assemble an explicitly curated, hash-verified Writing Skill package")
-    package.add_argument("--plan", type=Path, required=True, help="Explicit publication_package_plan.json")
+    package.add_argument("--plan", type=Path, required=True, help="Final Run-bound publication_package_plan.json")
+    package.add_argument("--validation", type=Path, required=True, help="Exact publication_plan_validation.json approved at G4")
     package.add_argument("--workspace-root", type=Path, required=True, help="Workspace root for declared relative source paths")
     package.add_argument("--out-dir", type=Path, required=True, help="New or empty publication package directory")
     package_audit = subparsers.add_parser("audit-publication-package", help="Verify publication package paths, completeness states, and SHA-256 hashes")
@@ -730,9 +743,18 @@ def main() -> int:
                 "review_state":report["review_state"],
                 "claim_scope":report["claim_scope"]},ensure_ascii=False,indent=2))
             return 0
+        if args.command == "validate-publication-plan":
+            report = validate_publication_plan_files(args.plan, args.manifest, args.out)
+            print(_write_json(None, report), end="")
+            return 0 if report["valid"] else 2
         if args.command == "build-publication-package":
-            _enforce_gate(args,"G4",{"publication_plan":args.plan})
-            result=build_publication_package_files(args.plan,args.workspace_root,args.out_dir)
+            _enforce_gate(args, "G4", {
+                "publication_plan": args.plan,
+                "publication_plan_validation": args.validation,
+            })
+            result = build_publication_package_files(
+                args.plan, args.workspace_root, args.out_dir, args.validation,
+            )
             print(json.dumps({"status":"completed","output_dir":result["output_dir"],
                 "artifact_count":result["artifact_count"],"copied_artifact_count":result["copied_artifact_count"],
                 "completeness":result["manifest"]["completeness"]},ensure_ascii=False,indent=2))
