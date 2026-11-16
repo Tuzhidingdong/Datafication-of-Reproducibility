@@ -229,7 +229,7 @@ class RunManagerTests(unittest.TestCase):
             "artifacts": [],
             "warnings": [],
             "unresolved_questions": [],
-        }, indent=2) + "\\n", encoding="utf-8")
+        }, indent=2) + "\n", encoding="utf-8")
         failed_attempt = record_stage_status(
             manifest_path, "independent_review", "SUCCEEDED", "worker",
             **worker_kwargs, job_id="synthetic-job-failed",
