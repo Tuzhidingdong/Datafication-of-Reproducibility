@@ -65,6 +65,11 @@ G4_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
     "worker_review_output", "reviewed_findings",
     *G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS,
 }
+G4_FULL_ANALYSIS_REQUIRED_ARTIFACTS = {
+    "publication_plan", "publication_plan_validation",
+    "worker_review_output", "reviewed_findings",
+    *G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS,
+}
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory", "g0_review_packet", "g0_review_packet_validation"},
     "G1": {"mapping_plan", "mapping_validation", "source_inventory", "build_spec", "build_spec_validation", "g1_review_packet", "g1_review_packet_validation"},
