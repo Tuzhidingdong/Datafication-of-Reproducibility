@@ -1,0 +1,184 @@
+from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from dor.adapter_handoff import prepare_adapter_handoff_files
+from dor.adapter_package import initialize_adapter_package
+from dor.project_setup import initialize_project_run_plan
+
+
+def write_json(path: Path, payload) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def canonical_bundle() -> dict:
+    return {
+        "schema_version": "1.0",
+        "project_id": "project-setup-test",
+        "mapping_version": "external-test-1",
+        "studies": [],
+        "systems": [],
+        "conditions": [],
+        "experiments": [],
+        "observations": [],
+        "comparisons": [],
+        "evidence": [],
+    }
+
+
+class ProjectRunPlanSetupTests(unittest.TestCase):
+    def _structured_handoff(self, root: Path) -> tuple[Path, Path]:
+        project = root / "project"
+        package = project / "raw_sources" / "adapter_package"
+        source = project / "raw_sources" / "paper.pdf"
+        dataset = package / "data" / "records.csv"
+        source.parent.mkdir(parents=True)
+        dataset.parent.mkdir(parents=True)
+        source.write_bytes(b"provenance-only source")
+        dataset.write_text("record_id,value\nA,1\nB,2\n", encoding="utf-8")
+        manifest = initialize_adapter_package(
+            package, "manual-structured-input", "1.0",
+            [f"paper={source}"],
+            [f"records=standardized_dataset={dataset}"],
+        )["manifest_path"]
+        handoff = root / "preflight" / "adapter_handoff.json"
+        prepare_adapter_handoff_files(Path(manifest), package, handoff)
+        return project, handoff
+
+    def test_single_study_setup_selects_structured_route_and_validates_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project, handoff = self._structured_handoff(root)
+            run_root = root / "runs" / "single-study-001"
+
+            result = initialize_project_run_plan(
+                handoff, project, run_root,
+            )
+
+            plan_path = Path(result["run_plan_path"])
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+            self.assertTrue(result["valid"])
+            self.assertEqual(result["route"], "STRUCTURED_DATASET")
+            self.assertEqual(result["profile"], "CONTROLLED_SINGLE_STUDY")
+            self.assertEqual(plan["execution_profile"], "CONTROLLED_SINGLE_STUDY")
+            self.assertNotIn("virtual_query_input", {item["artifact_id"] for item in plan["source_artifacts"]})
+            self.assertIn("adapter_package_manifest", {item["artifact_id"] for item in plan["source_artifacts"]})
+            self.assertIn("publication_plan_template", {item["artifact_id"] for item in plan["source_artifacts"]})
+            self.assertTrue(Path(result["publication_plan_template"]).is_file())
+            self.assertTrue(Path(result["workflow_ledger_path"]).is_absolute())
+            self.assertIn("dor run-init", result["run_init_command"])
+            self.assertTrue(any(Path(item) == (project / "raw_sources" / "adapter_package").resolve()
+                                for item in plan["source_roots"]))
+
+    def test_full_analysis_requires_explicit_virtual_query_and_includes_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project, handoff = self._structured_handoff(root)
+            query = project / "configuration" / "virtual_query.json"
+            write_json(query, {"schema_version": "1.0", "query_id": "explicit-test"})
+
+            with self.assertRaisesRegex(ValueError, "requires --virtual-query-input"):
+                initialize_project_run_plan(
+                    handoff, project, root / "runs" / "missing-query",
+                    profile="FULL_ANALYSIS",
+                )
+
+            result = initialize_project_run_plan(
+                handoff, project, root / "runs" / "full-analysis",
+                profile="FULL_ANALYSIS",
+                virtual_query_input=query,
+            )
+            plan = json.loads(Path(result["run_plan_path"]).read_text(encoding="utf-8"))
+            source_artifacts = {item["artifact_id"]: item["path"] for item in plan["source_artifacts"]}
+            self.assertEqual(source_artifacts["virtual_query_input"], str(query.resolve()))
+            self.assertNotIn("execution_profile", plan)
+
+    def test_single_study_rejects_unused_virtual_query(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project, handoff = self._structured_handoff(root)
+            query = project / "configuration" / "query.json"
+            write_json(query, {"query": "not used"})
+            with self.assertRaisesRegex(ValueError, "does not consume a virtual query"):
+                initialize_project_run_plan(
+                    handoff, project, root / "runs" / "single",
+                    virtual_query_input=query,
+                )
+
+    def test_stale_preflight_handoff_is_rejected_before_plan_creation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project, handoff = self._structured_handoff(root)
+            dataset = project / "raw_sources" / "adapter_package" / "data" / "records.csv"
+            dataset.write_text("record_id,value\nA,999\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
+                initialize_project_run_plan(
+                    handoff, project, root / "runs" / "stale",
+                )
+            self.assertFalse((project / "run_control" / "run_plan.structured_dataset.single_study.json").exists())
+
+    def test_canonical_route_requires_all_four_provenance_roles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = root / "project"
+            package = project / "adapter_package"
+            package.mkdir(parents=True)
+            source = project / "source.pdf"
+            source.write_bytes(b"source")
+            bundle_path = package / "canonical_bundle.json"
+            write_json(bundle_path, canonical_bundle())
+            artifacts = [
+                "bundle=canonical_bundle=" + str(bundle_path),
+            ]
+            manifest = initialize_adapter_package(
+                package, "external-bundle-adapter", "1.0",
+                [f"paper={source}"], artifacts,
+            )["manifest_path"]
+            handoff = root / "preflight.json"
+            prepare_adapter_handoff_files(Path(manifest), package, handoff)
+
+            with self.assertRaisesRegex(ValueError, "require exactly one artifact for role"):
+                initialize_project_run_plan(
+                    handoff, project, root / "runs" / "canonical",
+                )
+
+    def test_acceptance_sources_are_explicitly_bound_and_included_in_roots(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project, handoff = self._structured_handoff(root)
+            si = project / "raw_sources" / "paper_si.pdf"
+            si.write_bytes(b"si provenance only")
+            result = initialize_project_run_plan(
+                handoff, project, root / "runs" / "single",
+                acceptance_sources=[f"paper-si=SUPPLEMENTARY_INFORMATION={si}"],
+            )
+            plan = json.loads(Path(result["run_plan_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(plan["acceptance_source_artifacts"], [{
+                "source_id": "paper-si",
+                "role": "SUPPLEMENTARY_INFORMATION",
+                "path": str(si.resolve()),
+            }])
+            self.assertTrue(any(si.resolve().parent == Path(item) for item in plan["source_roots"]))
+
+    def test_existing_plan_is_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project, handoff = self._structured_handoff(root)
+            output = project / "run_control" / "existing-plan.json"
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text('{"preserve": true}\n', encoding="utf-8")
+            before = output.read_bytes()
+            with self.assertRaises(FileExistsError):
+                initialize_project_run_plan(
+                    handoff, project, root / "runs" / "single",
+                    output_path=output,
+                )
+            self.assertEqual(output.read_bytes(), before)
+
+
+if __name__ == "__main__":
+    unittest.main()
