@@ -119,7 +119,10 @@ def _absolute_existing_directory(raw: Any, label: str) -> Path:
     return resolved
 
 
-def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[list[str], dict[str, dict[str, Any]], dict[str, str]]:
+def _validate_plan(
+    plan: dict[str, Any], run_root: Path | None = None, *,
+    allow_missing_acceptance_sources: bool = False,
+) -> tuple[list[str], dict[str, dict[str, Any]], dict[str, str]]:
     if plan.get("schema_version") != RUN_SCHEMA_VERSION:
         raise ValueError(f"Run plan schema_version must be {RUN_SCHEMA_VERSION}.")
     project_id = plan.get("project_id")
@@ -183,8 +186,12 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
                 )
             if not isinstance(raw_path, str) or not Path(raw_path).expanduser().is_absolute():
                 raise ValueError(f"Acceptance source {source_id} path must be absolute.")
-            source_path = Path(raw_path).expanduser().resolve(strict=True)
-            if not source_path.is_file():
+            source_path = Path(raw_path).expanduser().resolve(
+                strict=not allow_missing_acceptance_sources,
+            )
+            if not allow_missing_acceptance_sources and not source_path.is_file():
+                raise ValueError(f"Acceptance source {source_id} is not a file: {source_path}.")
+            if allow_missing_acceptance_sources and source_path.exists() and not source_path.is_file():
                 raise ValueError(f"Acceptance source {source_id} is not a file: {source_path}.")
             if not any(source_path.is_relative_to(source_root) for source_root in roots):
                 raise ValueError(
@@ -377,7 +384,7 @@ def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[s
     if plan_hash != manifest.get("plan_sha256"):
         raise ValueError("Run plan SHA-256 differs from the immutable run-init snapshot.")
     plan = _read_json(plan_path, "Bound run plan")
-    order, source_defs, producer_by_artifact = _validate_plan(plan, root)
+    order, source_defs, producer_by_artifact = _validate_plan(plan, root, allow_missing_acceptance_sources=True)
     if plan.get("project_id") != manifest.get("project_id"):
         raise ValueError("Run manifest project_id differs from its bound run plan.")
     if manifest.get("plan_path") != "run_plan.json" or manifest.get("event_ledger_path") != "run_events.jsonl":
@@ -415,7 +422,15 @@ def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[s
             raise ValueError("Run manifest acceptance source IDs differ from the bound Run Plan.")
         for source_id, definition in expected_acceptance.items():
             observed = observed_acceptance[source_id]
-            expected_path = str(Path(definition["path"]).expanduser().resolve(strict=True))
+            declared_path = Path(definition["path"]).expanduser()
+            try:
+                expected_path = str(declared_path.resolve(strict=True))
+            except (FileNotFoundError, NotADirectoryError):
+                # The initialization event is the immutable authority for the
+                # originally resolved target. Preserve Run inspection when a
+                # provenance-only paper/SI file has since been moved/deleted;
+                # verify_run will report its live hash state as missing.
+                expected_path = observed.get("path")
             if (observed.get("role") != definition["role"]
                     or observed.get("path") != expected_path
                     or not isinstance(observed.get("sha256"), str)
