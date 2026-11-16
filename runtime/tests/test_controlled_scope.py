@@ -26,7 +26,7 @@ class ControlledSingleStudyApplicabilityTests(unittest.TestCase):
         self.validation_path = self.run_root / "05_scope" / "single_study_applicability_validation.json"
         self.output_dir = self.run_root / "06_modeling" / "not_applicable"
         self.manifest_path = self.run_root / "run_manifest.json"
-        self.manifest_path.write_text("{}\\n", encoding="utf-8")
+        self.manifest_path.write_text("{}\n", encoding="utf-8")
 
         bundle = fixture_bundle()
         bundle["studies"] = [item for item in bundle["studies"] if item["study_id"] == "ST1"]
@@ -109,7 +109,7 @@ class ControlledSingleStudyApplicabilityTests(unittest.TestCase):
     @staticmethod
     def _write_json(path: Path, payload: dict) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     def test_exact_single_eligible_study_validates_and_generates_only_na_records(self):
         result = validate_single_study_applicability_files(
