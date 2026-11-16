@@ -547,6 +547,7 @@
           "executor": "local",
           "required_gate": "G1",
           "inputs": [
+            "adapter_handoff",
             "source_inventory",
             "mapping_plan",
             "build_spec",
