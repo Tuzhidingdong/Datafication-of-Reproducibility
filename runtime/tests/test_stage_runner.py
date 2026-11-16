@@ -18,7 +18,37 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
         self.source_root = self.root / "sources"
         self.source_root.mkdir()
         self.source = self.source_root / "input.json"
-        self.source.write_text(json.dumps({"records": [{"id": "SYN_1"}]}), encoding="utf-8")
+        self.source.write_text(json.dumps({
+            "schema_version": "1.0",
+            "project_id": "P1",
+            "mapping_version": "map-v1",
+            "studies": [{"study_id": "ST1", "doi": "10.1000/example", "source_locators": []}],
+            "systems": [{"system_id": "SY1", "study_ids": ["ST1"], "system_type": "generic_system"}],
+            "conditions": [{
+                "condition_id": "CO1", "system_ids": ["SY1"], "condition_type": "feature_01",
+                "raw_value": 25, "raw_unit": "unit_01", "value_state": "REPORTED",
+            }],
+            "experiments": [{
+                "experiment_id": "EX1", "study_id": "ST1", "system_id": "SY1",
+                "condition_ids": ["CO1"],
+            }],
+            "observations": [{
+                "observation_id": "OB1", "experiment_id": "EX1", "target_id": "TARGET_01",
+                "raw_value": 120, "raw_unit": "unit_02", "value_state": "REPORTED",
+                "evidence_ids": ["EV1"],
+            }],
+            "comparisons": [],
+            "evidence": [{
+                "evidence_id": "EV1", "study_id": "ST1",
+                "source_locator": {
+                    "source_file": "opaque-synthetic-source.bin",
+                    "source_sha256": "a" * 64,
+                    "locator_type": "pdf_page",
+                    "locator": "p.4",
+                },
+                "evidence_type": "table_value", "extraction_status": "VERIFIED",
+            }],
+        }, indent=2) + "\\n", encoding="utf-8")
         self.run_root = self.root / "runs" / "RUN_STAGE_RUNNER"
         self.plan_path = self.root / "run_plan.json"
         self.manifest_path = self.run_root / "run_manifest.json"
@@ -125,6 +155,21 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
         state = next(item for item in build_resume_plan(self.manifest_path)["stages"] if item["stage_id"] == "local_stage")
         self.assertEqual(state["action"], "REUSE")
         self.assertEqual(state["status"], "SUCCEEDED")
+
+    def test_real_child_cli_executes_bound_command_and_records_output(self):
+        with patch(
+            "dor.stage_runner.stage_action_bindings_for_plan",
+            return_value={"local_stage": {"runtime_command": "validate-bundle"}},
+        ):
+            report = execute_local_stage(
+                self.manifest_path,
+                "local_stage",
+                ["--input", str(self.source), "--out", str(self.output)],
+            )
+        self.assertEqual(report["status"], "SUCCEEDED")
+        validation = json.loads(self.output.read_text(encoding="utf-8"))
+        self.assertTrue(validation["valid"])
+        self.assertEqual(verify_run(self.manifest_path)["valid_manifest_and_event_chain"], True)
 
     def test_failed_command_archives_partial_outputs_and_allows_retry(self):
         def fake_run(command, cwd, check, timeout, env):
