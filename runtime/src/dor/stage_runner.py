@@ -138,10 +138,128 @@ def _archive_outputs(
     return records
 
 
+class StageArgumentBindingError(ValueError):
+    """A contract-bound stage needs an explicit input before it can run."""
+
+    def __init__(self, message: str, status: str = "INPUT_REQUIRED"):
+        super().__init__(message)
+        self.status = status
+
+
+def _artifact_definitions(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    definitions = {
+        item["artifact_id"]: {**item, "kind": "source"}
+        for item in plan.get("source_artifacts", [])
+    }
+    for stage in plan.get("stages", []):
+        for output in stage.get("outputs", []):
+            definitions[output["artifact_id"]] = output
+    return definitions
+
+
+def _json_pointer_value(document: Any, pointer: str) -> tuple[bool, Any]:
+    if pointer == "":
+        return True, document
+    current = document
+    for raw_token in pointer[1:].split("/"):
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, dict):
+            if token not in current:
+                return False, None
+            current = current[token]
+        elif isinstance(current, list):
+            if not token.isdigit() or (len(token) > 1 and token.startswith("0")):
+                return False, None
+            index = int(token)
+            if index >= len(current):
+                return False, None
+            current = current[index]
+        else:
+            return False, None
+    return True, current
+
+
+def _artifact_json_value(
+    root: Path, definitions: dict[str, dict[str, Any]],
+    artifact_id: str, pointer: str,
+) -> Any:
+    definition = definitions.get(artifact_id)
+    if definition is None:
+        raise ValueError(f"Argument binding references unknown Artifact {artifact_id!r}.")
+    path = _artifact_path(root, definition)
+    try:
+        document = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise StageArgumentBindingError(
+            f"Stage input Artifact {artifact_id!r} must contain readable JSON before this command can be assembled: {exc}"
+        ) from exc
+    found, value = _json_pointer_value(document, pointer)
+    if not found:
+        raise StageArgumentBindingError(
+            f"Stage input {artifact_id!r} does not contain the required JSON field {pointer!r}."
+        )
+    return value
+
+
+def _bind_contract_arguments(
+    template: Any, root: Path, plan: dict[str, Any],
+) -> list[str]:
+    if not isinstance(template, list) or not template:
+        raise StageArgumentBindingError(
+            "This local Stage has no automatic argv_template; supply an explicit argument file for this custom Stage.",
+            status="ARGUMENTS_REQUIRED",
+        )
+    definitions = _artifact_definitions(plan)
+    arguments: list[str] = []
+    for index, token in enumerate(template):
+        if isinstance(token, str):
+            if not token:
+                raise ValueError(f"Automatic argument template contains an empty token at index {index}.")
+            arguments.append(token)
+            continue
+        if not isinstance(token, dict) or len(token) != 1:
+            raise ValueError(f"Automatic argument template token {index} is malformed.")
+        operation, value = next(iter(token.items()))
+        if operation in {"artifact", "artifact_parent"}:
+            if not isinstance(value, str) or value not in definitions:
+                raise ValueError(f"Automatic argument template references unknown Artifact {value!r}.")
+            path = _artifact_path(root, definitions[value])
+            resolved = path if operation == "artifact" else path.parent
+            arguments.append(str(resolved))
+        elif operation == "run_root":
+            if value is not True:
+                raise ValueError("run_root argument binding must be true.")
+            arguments.append(str(root))
+        elif operation in {"json_value", "single_json_array_item"}:
+            if not isinstance(value, dict):
+                raise ValueError(f"Automatic {operation} binding is malformed.")
+            artifact_id = value.get("artifact_id")
+            pointer = value.get("pointer")
+            if not isinstance(artifact_id, str) or not isinstance(pointer, str):
+                raise ValueError(f"Automatic {operation} binding requires artifact_id and pointer.")
+            selected = _artifact_json_value(root, definitions, artifact_id, pointer)
+            if operation == "single_json_array_item":
+                if not isinstance(selected, list) or len(selected) != 1:
+                    count = len(selected) if isinstance(selected, list) else "not an array"
+                    raise StageArgumentBindingError(
+                        f"Stage requires exactly one selected value at {artifact_id}:{pointer}; found {count}. "
+                        "Review the selection record and choose exactly one item before continuing."
+                    )
+                selected = selected[0]
+            if not isinstance(selected, str) or not selected.strip():
+                raise StageArgumentBindingError(
+                    f"Required value at {artifact_id}:{pointer} must be a non-empty string."
+                )
+            arguments.append(selected)
+        else:
+            raise ValueError(f"Unsupported automatic argument binding operation: {operation!r}.")
+    return arguments
+
+
 def execute_local_stage(
     manifest_path: Path,
     stage_id: str,
-    arguments: Sequence[str],
+    arguments: Sequence[str] | None = None,
     timeout_seconds: int = 3600,
     dry_run: bool = False,
 ) -> dict[str, Any]:
@@ -184,7 +302,14 @@ def execute_local_stage(
     if any(character.isspace() for character in runtime_command):
         raise ValueError(f"Invalid Runtime CLI command binding for stage {stage_id}.")
 
-    cli_arguments = _normalise_arguments(arguments)
+    argument_source = "EXPLICIT"
+    if arguments is None:
+        cli_arguments = _bind_contract_arguments(
+            binding.get("argv_template"), root, plan,
+        )
+        argument_source = "EXECUTION_CONTRACT"
+    else:
+        cli_arguments = _normalise_arguments(arguments)
     workflow_ledger = manifest.get("workflow_ledger_path")
     if runtime_command in _GATED_COMMANDS or runtime_command in _EXPLICIT_LEDGER_COMMANDS:
         if not workflow_ledger:
@@ -206,6 +331,7 @@ def execute_local_stage(
             "command_argv": command,
             "cwd": str(root),
             "timeout_seconds": timeout_seconds,
+            "argument_source": argument_source,
             "outputs": [
                 {"artifact_id": item["artifact_id"], "path": str(_artifact_path(root, item))}
                 for item in stage["outputs"]
@@ -315,6 +441,8 @@ def execute_local_stage(
         "stage_id": stage_id,
         "attempt": attempt,
         "return_code": 0,
+        "argument_source": argument_source,
+        "command_argv": command,
         "archived_before": archived_before,
         "event_hash": succeeded["event_hash"],
         "next_actions": build_resume_plan(manifest_path)["next_actions"],
@@ -323,7 +451,7 @@ def execute_local_stage(
 
 def advance_run(
     manifest_path: Path,
-    arguments_dir: Path,
+    arguments_dir: Path | None = None,
     max_local_stages: int = 10,
     timeout_seconds: int = 3600,
 ) -> dict[str, Any]:
@@ -335,9 +463,11 @@ def advance_run(
     """
     if type(max_local_stages) is not int or max_local_stages < 1:
         raise ValueError("max_local_stages must be a positive integer.")
-    arguments_root = arguments_dir.expanduser().resolve(strict=True)
-    if not arguments_root.is_dir():
-        raise NotADirectoryError(f"Stage arguments path must be a directory: {arguments_root}")
+    arguments_root = None
+    if arguments_dir is not None:
+        arguments_root = arguments_dir.expanduser().resolve(strict=True)
+        if not arguments_root.is_dir():
+            raise NotADirectoryError(f"Stage arguments path must be a directory: {arguments_root}")
 
     completed: list[dict[str, Any]] = []
     for _ in range(max_local_stages):
@@ -435,50 +565,55 @@ def advance_run(
                 "reason": f"Unsupported stage executor: {executor}.",
             }
 
-        args_path = arguments_root / f"{stage_id}.json"
-        if not args_path.is_file():
+        args_path = arguments_root / f"{stage_id}.json" if arguments_root is not None else None
+        arguments = None
+        if args_path is not None and args_path.is_file():
+            try:
+                arguments = json.loads(args_path.read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError) as exc:
+                return {
+                    "status": "INVALID_ARGUMENTS_FILE",
+                    "run_id": manifest["run_id"],
+                    "completed_local_stages": completed,
+                    "stage_id": stage_id,
+                    "arguments_file": str(args_path),
+                    "reason": str(exc),
+                }
+            if not isinstance(arguments, list) or any(not isinstance(item, str) for item in arguments):
+                return {
+                    "status": "INVALID_ARGUMENTS_FILE",
+                    "run_id": manifest["run_id"],
+                    "completed_local_stages": completed,
+                    "stage_id": stage_id,
+                    "arguments_file": str(args_path),
+                    "reason": "Arguments file must contain a JSON array of strings.",
+                }
+        try:
+            result = execute_local_stage(
+                manifest_path,
+                stage_id,
+                arguments,
+                timeout_seconds=timeout_seconds,
+            )
+        except StageArgumentBindingError as exc:
             return {
-                "status": "ARGUMENTS_REQUIRED",
+                "status": exc.status,
                 "run_id": manifest["run_id"],
                 "completed_local_stages": completed,
                 "stage_id": stage_id,
                 "action": next_action["action"],
+                "reason": str(exc),
                 "action_binding": action_binding,
-                "arguments_file": str(args_path),
                 "required_inputs": action_binding.get("input_artifacts", []) if action_binding else [],
                 "required_outputs": action_binding.get("output_artifacts", []) if action_binding else [],
             }
-        try:
-            arguments = json.loads(args_path.read_text(encoding="utf-8-sig"))
-        except (OSError, json.JSONDecodeError) as exc:
-            return {
-                "status": "INVALID_ARGUMENTS_FILE",
-                "run_id": manifest["run_id"],
-                "completed_local_stages": completed,
-                "stage_id": stage_id,
-                "arguments_file": str(args_path),
-                "reason": str(exc),
-            }
-        if not isinstance(arguments, list):
-            return {
-                "status": "INVALID_ARGUMENTS_FILE",
-                "run_id": manifest["run_id"],
-                "completed_local_stages": completed,
-                "stage_id": stage_id,
-                "arguments_file": str(args_path),
-                "reason": "Arguments file must contain a JSON array of strings.",
-            }
-        result = execute_local_stage(
-            manifest_path,
-            stage_id,
-            arguments,
-            timeout_seconds=timeout_seconds,
-        )
         completed.append({
             "stage_id": stage_id,
             "status": result["status"],
             "attempt": result.get("attempt"),
             "event_hash": result.get("event_hash"),
+            "command_argv": result.get("command_argv"),
+            "argument_source": result.get("argument_source"),
         })
         if result["status"] != "SUCCEEDED":
             return {
