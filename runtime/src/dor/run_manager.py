@@ -309,6 +309,15 @@ def _validate_plan(plan: dict[str, Any], run_root: Path | None = None) -> tuple[
             "worker_task": worker_task, "activation": activation,
         }
 
+    acceptance_id_collisions = acceptance_source_ids.intersection(
+        set(artifacts) | set(producer_by_artifact)
+    ) if acceptance_source_defs is not None else set()
+    if acceptance_id_collisions:
+        raise ValueError(
+            "Acceptance source IDs must be distinct from Run Artifact IDs: "
+            + ", ".join(sorted(acceptance_id_collisions)) + "."
+        )
+
     for stage_id, stage in stages.items():
         unknown = set(stage["depends_on"]) - set(stages)
         if unknown:
@@ -1292,6 +1301,29 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
     for item in artifacts:
         counts[item["status"]] = counts.get(item["status"], 0) + 1
     source_states = [item["status"] for item in artifacts if item["kind"] == "source"]
+    acceptance_source_artifacts = []
+    for source in manifest.get("acceptance_source_artifacts", []):
+        path = Path(source["path"])
+        try:
+            actual = sha256_file(path) if path.is_file() else None
+        except OSError:
+            actual = None
+        acceptance_source_artifacts.append({
+            "source_id": source["source_id"],
+            "role": source["role"],
+            "path": source["path"],
+            "expected_sha256": source["sha256"],
+            "actual_sha256": actual,
+            "status": "CURRENT" if actual == source["sha256"] else "SOURCE_CHANGED_OR_MISSING",
+        })
+    all_source_states = source_states + [
+        item["status"] for item in acceptance_source_artifacts
+    ]
+    acceptance_source_counts: dict[str, int] = {}
+    for item in acceptance_source_artifacts:
+        acceptance_source_counts[item["status"]] = (
+            acceptance_source_counts.get(item["status"], 0) + 1
+        )
     return {
         "schema_version": RUN_SCHEMA_VERSION,
         "run_id": manifest["run_id"],
@@ -1303,7 +1335,9 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
         "last_event_hash": events[-1]["event_hash"] if events else EVENT_GENESIS_HASH,
         "artifact_count": len(artifacts),
         "status_counts": counts,
-        "source_integrity": "CURRENT" if all(item == "CURRENT" for item in source_states) else "SOURCE_CHANGED_NEW_RUN_REQUIRED",
+        "source_integrity": "CURRENT" if all(item == "CURRENT" for item in all_source_states) else "SOURCE_CHANGED_NEW_RUN_REQUIRED",
+        "acceptance_source_artifacts": acceptance_source_artifacts,
+        "acceptance_source_status_counts": acceptance_source_counts,
         "artifacts": artifacts,
         "source_of_truth": "RUN_PLAN_SOURCE_SNAPSHOTS_AND_HASH_CHAINED_RUN_EVENTS; THIS_MANIFEST_IS_A_REGENERABLE_VIEW",
     }
