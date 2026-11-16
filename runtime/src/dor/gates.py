@@ -855,6 +855,11 @@ def _validate_g4_publication_plan(
     validation_binding = _require_gate_binding(by_id, "publication_plan_validation", "G4")
     plan = _read_json_binding(plan_binding, "G4 publication_plan")
     report = _read_json_binding(validation_binding, "G4 publication_plan_validation")
+    try:
+        from dor.publication import _validate_plan
+        _validate_plan(plan)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("G4 Publication Plan fails its structural contract: " + str(exc)) from exc
 
     if report.get("schema_version") != "1.0" or report.get("contract") != "RUN_BOUND_PUBLICATION_PLAN":
         raise ValueError("G4 publication_plan_validation has an unsupported contract.")
