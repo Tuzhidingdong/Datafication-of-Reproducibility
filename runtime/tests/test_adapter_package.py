@@ -173,6 +173,40 @@ class AdapterPackageInitializerTests(unittest.TestCase):
                 )
             self.assertFalse((package / "adapter_manifest.json").exists())
 
+    def test_raw_relative_path_syntax_is_rejected_before_path_normalization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            (package / "data").mkdir(parents=True)
+            (package / "data" / "records.csv").write_text(
+                "id,value\nA,1\n", encoding="utf-8"
+            )
+            (package / "paper.pdf").write_bytes(b"paper")
+            invalid_paths = [
+                "data/./records.csv",
+                "data//records.csv",
+                "data\\\\records.csv" if False else "data\\\\records.csv",
+            ]
+            for invalid in invalid_paths:
+                with self.subTest(path=invalid):
+                    with self.assertRaisesRegex(ValueError, "relative path"):
+                        initialize_adapter_package(
+                            package,
+                            "manual",
+                            "1.0",
+                            ["paper=paper.pdf"],
+                            [f"dataset=standardized_dataset={invalid}"],
+                        )
+            with self.assertRaisesRegex(ValueError, "relative path"):
+                initialize_adapter_package(
+                    package,
+                    "manual",
+                    "1.0",
+                    ["paper=paper.pdf"],
+                    ["dataset=standardized_dataset=C:\\\\data\\\\records.csv"],
+                )
+            self.assertFalse((package / "adapter_manifest.json").exists())
+
     def test_standardized_dataset_must_be_csv_or_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
