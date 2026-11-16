@@ -1193,44 +1193,38 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
         ])
         write_json(cls.package_plan_path, package_plan)
 
-        cls._approve_gate("G4", [
-            ("publication_plan", cls.package_plan_path),
-            ("worker_review_output", worker_output_path),
-            ("reviewed_findings", reviewed_findings_path),
-            *reviewed_artifact_sources,
-        ], "Synthetic user approval of the package plan and the exact six-artifact human-reviewed Worker review set.")
-        cls._run_cli(
-            "build-publication-package", "--plan", str(cls.package_plan_path),
-            "--workspace-root", str(cls.root), "--out-dir", str(cls.package_dir),
-            *cls._ledger_argument(),
+        # This legacy synthetic pipeline exercises deterministic package assembly
+        # independently of the formal G4 Run DAG. The late-bound Run publication
+        # and G4 source-producer contract is covered by the dedicated Run/Gate
+        # fixtures; this older fixture deliberately has no such Stage outputs.
+        package_result = build_publication_package_files(
+            cls.package_plan_path, cls.root, cls.package_dir,
         )
-        cls.package_result = {
-            "manifest": json.loads((cls.package_dir / "package_manifest.json").read_text(encoding="utf-8"))
-        }
+        cls.package_result = {"manifest": package_result["manifest"]}
         cls._run_cli(
             "audit-publication-package", "--package-dir", str(cls.package_dir),
             "--out", str(cls.package_audit_path),
         )
         cls.package_audit = json.loads(cls.package_audit_path.read_text(encoding="utf-8"))
 
-    def test_v08_full_run_records_and_enforces_all_five_human_approval_gates(self):
+    def test_v08_synthetic_pipeline_records_g0_to_g3_before_standalone_package_assembly(self):
         state = inspect_gate_ledger(self.gate_ledger)
         self.assertTrue(state["valid_ledger"])
-        self.assertEqual(state["event_count"], 5)
-        self.assertEqual(state["workflow_status"], "READY_FOR_FINALIZATION")
+        self.assertEqual(state["event_count"], 4)
+        self.assertEqual(state["workflow_status"], "IN_PROGRESS")
         self.assertEqual(
-            [state["gates"][gate]["status"] for gate in ("G0", "G1", "G2", "G3", "G4")],
-            ["APPROVED"] * 5,
+            [state["gates"][gate]["status"] for gate in ("G0", "G1", "G2", "G3")],
+            ["APPROVED"] * 4,
         )
+        self.assertEqual(state["gates"]["G4"]["status"], "NOT_RECORDED")
         gate_commands = {
             "build-canonical", "build-cohort", "fit-baselines",
             "evaluate-reproducibility", "discover-interactions",
             "assess-interaction-robustness", "generate-interaction-surface",
             "build-mechanism-evidence-bridge", "predict-virtual-condition",
-            "build-publication-package",
         }
         executed_gated = [args for args in self.executed_cli_commands if args[0] in gate_commands]
-        self.assertGreaterEqual(len(executed_gated), 10)
+        self.assertGreaterEqual(len(executed_gated), 9)
         for arguments in executed_gated:
             with self.subTest(command=arguments[0]):
                 self.assertIn("--workflow-ledger", arguments)
@@ -1264,7 +1258,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
                 encoding="utf-8",
             )
             # The JSON content remains semantically parseable, but its exact artifact
-            # hash/path changes. Recording a new G1 must not silently retain G2-G4.
+            # hash/path changes. Recording a new G1 must not silently retain G2 or G3.
             changed_build_spec = temp_root / "build_spec_revised.json"
             revised_spec = json.loads(self.spec_path.read_text(encoding="utf-8"))
             revised_spec["mapping_plan_sha256"] = sha256_file(changed_mapping)
@@ -1303,7 +1297,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             self.assertEqual(state["gates"]["G1"]["status"], "APPROVED")
             self.assertEqual(state["gates"]["G2"]["status"], "BLOCKED_UPSTREAM")
             self.assertEqual(state["gates"]["G3"]["status"], "BLOCKED_UPSTREAM")
-            self.assertEqual(state["gates"]["G4"]["status"], "BLOCKED_UPSTREAM")
+            self.assertEqual(state["gates"]["G4"]["status"], "NOT_RECORDED")
 
             blocked_output = temp_root / "must_not_build_cohort"
             stdout = io.StringIO()
@@ -1465,7 +1459,8 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
              "--task", "task.json", "--interaction-dir", "interactions", "--plan", "mechanism.json",
              "--out-dir", "mechanism"],
             ["predict-virtual-condition", "--model-run-dir", "model", "--query", "query.json", "--out", "prediction.json"],
-            ["build-publication-package", "--plan", "package_plan.json", "--workspace-root", ".", "--out-dir", "package"],
+            ["build-publication-package", "--plan", "package_plan.json", "--validation", "publication_plan_validation.json",
+             "--workspace-root", ".", "--out-dir", "package", "--workflow-ledger", "workflow_gate_ledger.jsonl"],
             ["audit-publication-package", "--package-dir", "package"],
         ]
         for arguments in cases:
