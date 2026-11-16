@@ -1070,7 +1070,22 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
     for stage_id in order:
         stage = stages[stage_id]
         dependencies = stage["depends_on"]
-        dependency_actions = [actions[item] for item in dependencies]
+        consumed_inputs = set(stage["inputs"])
+        unresolved_dependencies: list[str] = []
+        for dependency_id in dependencies:
+            dependency_action = actions[dependency_id]
+            if dependency_action == "REUSE":
+                continue
+            dependency_outputs = {
+                item["artifact_id"] for item in stages[dependency_id].get("outputs", [])
+            }
+            # A conditionally inactive stage is a satisfied control dependency
+            # only when this consumer does not require any of its outputs.
+            # If even one output is listed as an input, the downstream stage
+            # remains blocked until the producer is active and reusable.
+            if dependency_action == "SKIPPED" and not (dependency_outputs & consumed_inputs):
+                continue
+            unresolved_dependencies.append(dependency_id)
         current_event = latest.get(stage_id)
         reasons: list[str] = []
         changed_source_inputs = []
@@ -1119,9 +1134,12 @@ def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                 action = "ACTIVE"
 
             if action == "ACTIVE":
-                if any(item != "REUSE" for item in dependency_actions):
+                if unresolved_dependencies:
                     action = "INVALIDATED_BY_UPSTREAM" if current_event and current_event.get("status") == "SUCCEEDED" else "WAITING_FOR_DEPENDENCIES"
-                    reasons.append("One or more declared dependencies are not currently reusable.")
+                    reasons.append(
+                        "One or more declared dependencies are not reusable or safely skipped: "
+                        + ", ".join(unresolved_dependencies) + "."
+                    )
                 elif not _required_gate_is_current(stage, gate_snapshot):
                     action = "BLOCKED_GATE"
                     reasons.append(f"Required gate {stage.get('required_gate')} is not currently approved.")
