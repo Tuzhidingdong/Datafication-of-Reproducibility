@@ -100,7 +100,7 @@ It produces aggregate-only profiles and candidate signals. The same canonical da
 
 ## Run Manager
 
-The Runtime provides explicit project run workspaces, a hash-chained run event ledger, stage-attempt recording, bounded Worker authorization packets, dependency-aware resume planning, condition-driven stages with hash-bound SKIPPED events, and regenerable artifact inventories. Run plans declare every source, artifact, stage, dependency, and activation input. The Run Manager does not crawl workspaces, execute stages, dispatch Workers, or create scientific approvals. See docs/V0.9_RUN_MANAGER.md and docs/RUN_PLAN_EXECUTION_BINDINGS.md.
+The Runtime provides explicit project Run workspaces, immutable plan/source snapshots, a hash-chained Run Event Ledger, contract-bound local Stage execution via `dor run-advance`, bounded Worker authorization packets, dependency-aware resume planning, condition-driven stages with hash-bound SKIPPED events, and regenerable artifact inventories. Supported local commands and argv are taken only from the route/profile execution contract; the Runner never invokes a shell. Manual stages remain human-operated, and Worker execution remains an explicit host Worker Manager action after authorization. The Run Manager does not crawl workspaces or create scientific approvals. Optional provenance-only `acceptance_source_artifacts` are separately hash-bound for post-Run Acceptance and are never computational Stage inputs. See docs/V0.9_RUN_MANAGER.md and docs/RUN_PLAN_EXECUTION_BINDINGS.md.
 
 ## Controlled acceptance
 
