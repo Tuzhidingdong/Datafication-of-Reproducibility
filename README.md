@@ -45,7 +45,7 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
        dor prepare-adapter-handoff --manifest <package_root>/adapter_manifest.json --package-root <package_root> --out <project_root>/run_control/adapter_route_preflight.json
 
    Use the handoff's `route` field, then select the execution profile. For a multi-Study analysis with sufficient independent Studies, use `templates/run_plan.example.json` (`STRUCTURED_DATASET`) or `templates/run_plan.canonical_adapter.example.json` (`CANONICAL_BUNDLE`). For a controlled one-Study pilot, use `templates/run_plan.single_study.example.json` or `templates/run_plan.canonical_adapter.single_study.example.json`; these preserve G0-G4 and Worker review while recording cross-Study modelling/interaction as explicit `NOT_APPLICABLE`, never as fabricated results.
-4. Configure the selected template from the active project. Set its `source_roots`, `workflow_ledger_path`, and exact absolute paths for `adapter_package_manifest`, `virtual_query_input`, and `publication_plan`. Do not reuse a prior Run workspace.
+4. Configure the selected template from the active project. Set its `source_roots`, `workflow_ledger_path`, and exact absolute paths for `adapter_package_manifest`, `virtual_query_input`, and `publication_plan`. For V1.0 Acceptance, also declare a separate top-level `acceptance_source_artifacts` list with provenance-only source IDs, roles, and absolute paths (primary paper, linked SI, and selected structured sources). These paths are hash-snapshotted only; their contents are never opened by DoR or passed to a Worker. Do not reuse a prior Run workspace.
 5. Preflight and initialize a new Run:
 
        dor validate-execution-contract --plan <configured_run_plan.json>
@@ -58,6 +58,13 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
 
        dor run-artifacts --manifest <run_root>/run_manifest.json --out <run_root>/artifact_manifest.json
        dor run-usage --manifest <run_root>/run_manifest.json --out <run_root>/run_usage_report.json
+
+8. After all Run stages are current or explicitly SKIPPED, prepare the V1.0 source-selection and structured extraction-review records from the exact Run source snapshot, then initialize the separate Acceptance record and revision ledger:
+
+       dor init-acceptance --manifest <run_root>/run_manifest.json --out <acceptance_root>/acceptance_record.json --source-selection-manifest <acceptance_root>/source_selection_manifest.json --extraction-review-record <acceptance_root>/extraction_review_record.json --actor "<reviewer>" --rationale "Initialize acceptance for the completed Run"
+       dor validate-acceptance --record <acceptance_root>/acceptance_record.json --run-manifest <run_root>/run_manifest.json --ledger <acceptance_root>/acceptance_record_acceptance_events.jsonl --out <acceptance_root>/acceptance_validation_report.json
+
+The initializer derives Study IDs from the Run Canonical Bundle, binds the final Run Event and G0-G4 Gate ledgers, validates the two post-Run evidence files against the immutable provenance-only source snapshot, and leaves all scientific Acceptance stages NOT_STARTED. Human review, revision registration, final decision, and detached checkpoint remain required. See [V1.0 Controlled Acceptance](docs/V1.0_CONTROLLED_ACCEPTANCE.md).
 
 For a controlled one-Study pilot, also choose the matching Publication Plan template: `templates/publication_package_plan.single_study.example.json` for Structured Dataset or `templates/publication_package_plan.canonical_adapter.single_study.example.json` for Canonical Bundle. Bind the active Run/Project IDs and exact selected-source hashes before Run initialization.
 
