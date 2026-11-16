@@ -195,8 +195,8 @@ def initialize_adapter_package(
 ) -> dict[str, Any]:
     """Create a manifest from explicitly supplied source and artifact files.
 
-    Relative input paths resolve from the caller's current working directory.
-    Artifact paths must resolve inside package_root. Source paths may be external.
+    Relative input paths resolve from package_root; external provenance sources must use absolute paths.
+    Artifact paths must resolve inside package_root.
     The manifest is created exclusively and is never overwritten.
     """
     root = package_root.expanduser().resolve(strict=True)
