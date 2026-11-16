@@ -45,7 +45,7 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
 
        dor init-adapter-package --package-root <package_root> --adapter-id <preparation_process_id> --adapter-version <version> --source <source_id>=<source_file> --artifact <artifact_id>=standardized_dataset=<package_relative_csv_or_json>
 
-   Repeat `--source` and `--artifact` for each selected file. The package directory and files must already exist. Relative paths resolve from the package root; use an absolute path for an external provenance source. Artifact paths must resolve inside the package root. This command records file identities and hashes only; it does not scan directories, convert files, infer field meanings, or read original-document contents. Then continue with `dor prepare-adapter-handoff` below.
+   Repeat `--source` and `--artifact` for each selected file. The package directory and files must already exist. Relative paths for sources, artifacts, and `--out` resolve from the package root; use an absolute path for an external provenance source. Artifact paths must resolve inside the package root. This command records file identities and hashes only; it does not scan directories, convert files, infer field meanings, or read original-document contents. Then continue with `dor prepare-adapter-handoff` below.
 3. Resolve the route before creating a Run:
 
        dor prepare-adapter-handoff --manifest <package_root>/adapter_manifest.json --package-root <package_root> --out <project_root>/run_control/adapter_route_preflight.json
