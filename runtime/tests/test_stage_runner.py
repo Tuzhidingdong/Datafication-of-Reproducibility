@@ -146,7 +146,7 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
 
         def fake_run(command, cwd, check, timeout):
             self.output.parent.mkdir(parents=True, exist_ok=True)
-            self.output.write_text('{"status":"synthetic-success"}\\n', encoding="utf-8")
+            self.output.write_text('{"status":"synthetic-success"}\n', encoding="utf-8")
             return subprocess.CompletedProcess(command, 0)
 
         with (
