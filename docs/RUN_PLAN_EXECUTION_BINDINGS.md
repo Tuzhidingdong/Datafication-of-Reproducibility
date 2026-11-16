@@ -65,6 +65,12 @@ On a non-zero exit, timeout, launch error, or missing declared output, the runne
 
 The runner deliberately refuses to execute MANUAL and WORKER stages. A MANUAL stage remains a human task: prepare the declared records, run the listed validator where applicable, then record the human stage as RUNNING/SUCCEEDED. A WORKER stage still requires `dor run-worker-authorize` and an explicit host Worker Manager dispatch; after the Worker writes only to its permitted staging path, record its terminal state and usage. Worker completion never substitutes for human review or G0-G4 approval. The queue should be re-read after every stage because upstream outputs, Gate decisions, and invalidations can change the next action.
 
+For a contiguous execution segment, prepare one `<stage_id>.json` argument-array file for each local CLI stage in a single arguments directory, then run:
+
+    dor run-advance --manifest <run_root>/run_manifest.json --args-dir <run_control>/stage_arguments --max-local-stages 10
+
+This advances ready local stages in dependency order, automatically records inactive conditional stages as SKIPPED, and stops at the first human task, Worker authorization boundary, unapproved Gate, missing argument file, or execution failure. A missing argument file is reported with the stage's bound input/output paths; create that file from the current action binding and invoke `run-advance` again. After a human or Worker action is completed and recorded, invoke it again to continue. The default limit is ten local stages per call to keep each execution segment bounded.
+
 ## STRUCTURED_DATASET route
 
 | Run Plan stage | Runtime command / action | Output contract |
