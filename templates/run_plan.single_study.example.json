@@ -16,7 +16,7 @@
       "path": "D:/Research/Project/configuration/virtual_reproduction_query.json"
     },
     {
-      "artifact_id": "publication_plan",
+      "artifact_id": "publication_plan_template",
       "path": "D:/Research/Project/configuration/publication_package_plan.json"
     }
   ],
@@ -623,8 +623,8 @@
       ]
     },
     {
-      "stage_id": "publication_package_assembly",
-      "executor": "local",
+      "stage_id": "publication_plan_preparation",
+      "executor": "manual",
       "depends_on": [
         "human_review_and_promotion",
         "independent_result_review",
@@ -638,8 +638,62 @@
         "research_scope_selection",
         "single_study_na_artifacts"
       ],
+      "required_gate": null,
+      "inputs": [
+        "publication_plan_template",
+        "single_study_applicability_record",
+        "single_study_applicability_validation",
+        "canonical_bundle",
+        "canonical_validation_report",
+        "reconciliation_report",
+        "reconciliation_decisions",
+        "research_scope_record",
+        "modeling_task",
+        "model_report",
+        "reproducibility_evaluation",
+        "interaction_report",
+        "interaction_manifest",
+        "robustness_report",
+        "robustness_manifest",
+        "interaction_selection",
+        "virtual_prediction",
+        "worker_review_output",
+        "reviewed_findings",
+        "reviewed_findings_validation"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "publication_plan",
+          "path": "10_publication/publication_package_plan.json",
+          "kind": "derived"
+        },
+        {
+          "artifact_id": "publication_plan_validation",
+          "path": "10_publication/publication_plan_validation.json",
+          "kind": "derived"
+        }
+      ]
+    },
+    {
+      "stage_id": "publication_package_assembly",
+      "executor": "local",
+      "depends_on": [
+        "human_review_and_promotion",
+        "independent_result_review",
+        "g3_selection_packet",
+        "single_study_scope_validation",
+        "single_study_scope_review",
+        "canonical_build",
+        "canonical_bundle_validation",
+        "canonical_reconciliation",
+        "reconciliation_decision_review",
+        "research_scope_selection",
+        "single_study_na_artifacts",
+        "publication_plan_preparation"
+      ],
       "inputs": [
         "publication_plan",
+        "publication_plan_validation",
         "single_study_applicability_record",
         "single_study_applicability_validation",
         "canonical_bundle",
