@@ -669,10 +669,12 @@ def _validate_event_semantics(
                             or archive_path.is_symlink() or not archive_path.is_file()
                             or sha256_file(archive_path) != digest):
                         raise ValueError(f"Failed Worker archived output is missing, linked, or hash-mismatched at line {line_number}.")
+                failed_output_ids = {item["artifact_id"] for item in output_items}
+                if archived_ids != failed_output_ids:
+                    raise ValueError(f"Failed Worker archive does not cover exactly the recorded partial outputs at line {line_number}.")
                 archive_manifest_path = archive_manifest.get("path")
                 archive_manifest_hash = archive_manifest.get("sha256")
-                if (not isinstance(archive_manifest_path, str)
-                        or not archive_manifest_path.startswith(expected_archive_prefix)
+                if (archive_manifest_path != expected_archive_prefix + "archive_manifest.json"
                         or not isinstance(archive_manifest_hash, str)
                         or not re.fullmatch(r"[a-f0-9]{64}", archive_manifest_hash)):
                     raise ValueError(f"Failed Worker archive manifest binding is malformed at line {line_number}.")
