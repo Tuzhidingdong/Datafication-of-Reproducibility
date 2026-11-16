@@ -175,7 +175,7 @@ class RunManagerTests(unittest.TestCase):
             ],
         }
         plan_path.parent.mkdir(parents=True, exist_ok=True)
-        plan_path.write_text(json.dumps(plan, indent=2) + "\\n", encoding="utf-8")
+        plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
         initialize_run(plan_path, run_root, "RUN_LIFECYCLE")
 
         def record_local(stage_id, artifact_id, payload):
@@ -184,7 +184,7 @@ class RunManagerTests(unittest.TestCase):
                           if item["artifact_id"] == artifact_id)
             path = run_root / output["path"]
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(payload, indent=2) + "\\n", encoding="utf-8")
+            path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
             record_stage_status(manifest_path, stage_id, "SUCCEEDED", "local")
 
         record_local("intake", "audit_report", {
@@ -243,7 +243,7 @@ class RunManagerTests(unittest.TestCase):
             "artifacts": [],
             "warnings": [],
             "unresolved_questions": [],
-        }, indent=2) + "\\n", encoding="utf-8")
+        }, indent=2) + "\n", encoding="utf-8")
         record_stage_status(
             manifest_path, "independent_review", "SUCCEEDED", "worker",
             **worker_kwargs, job_id="synthetic-job-success",
@@ -260,7 +260,7 @@ class RunManagerTests(unittest.TestCase):
             "decision": "NO_FINDINGS_TO_PROMOTE",
             "reviewer": "human-operator",
             "worker_output_sha256": sha256_file(worker_output),
-        }, indent=2) + "\\n", encoding="utf-8")
+        }, indent=2) + "\n", encoding="utf-8")
         record_stage_status(manifest_path, "human_review", "SUCCEEDED", "manual")
 
         record_stage_status(manifest_path, "publication_delivery", "RUNNING", "local",
@@ -273,7 +273,7 @@ class RunManagerTests(unittest.TestCase):
             "artifact_ids": [
                 "audit_report", "analysis_report", "worker_review_output", "reviewed_findings",
             ],
-        }, indent=2) + "\\n", encoding="utf-8")
+        }, indent=2) + "\n", encoding="utf-8")
         record_stage_status(manifest_path, "publication_delivery", "SUCCEEDED", "local")
 
         verified = verify_run(manifest_path)
@@ -601,7 +601,7 @@ class RunManagerTests(unittest.TestCase):
             for output in self.stage("mapping")["outputs"]:
                 path = gated_manifest.parent / output["path"]
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text("{}\\n", encoding="utf-8")
+                path.write_text("{}\n", encoding="utf-8")
             record_stage_status(gated_manifest, "mapping", "SUCCEEDED", "local")
 
         revised_snapshot = json.loads(json.dumps(first_snapshot))
