@@ -268,8 +268,11 @@ def initialize_adapter_package(
         if requested_output.is_absolute()
         else root / requested_output
     ).resolve(strict=False)
-    if not output.is_relative_to(root):
-        raise ValueError("Adapter manifest output must be inside package_root.")
+    if output.parent != root:
+        raise ValueError(
+            "Adapter manifest must be written directly inside package_root because "
+            "the formal Run action derives package_root from the manifest's parent directory."
+        )
     if output in {
         (root / item["path"]).resolve(strict=False)
         for item in artifact_records
