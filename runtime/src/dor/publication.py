@@ -444,14 +444,6 @@ def validate_publication_plan_files(
             for item in resume_report.get("stages", [])
             if isinstance(item, dict) and isinstance(item.get("stage_id"), str)
         }
-        for stage_id in ("mechanism_plan_preparation", "response_surface_generation", "mechanism_evidence_bridge"):
-            if stage_id in run_plan_stages:
-                expected_action = "REUSE" if optional_active else "SKIPPED"
-                if resume_actions.get(stage_id) != expected_action:
-                    issues.append({
-                        "code": "OPTIONAL_STAGE_STATE_MISMATCH",
-                        "message": f"{stage_id} must be {expected_action} for the exact G3 interaction selection; found {resume_actions.get(stage_id)}.",
-                    })
         for stage_id, package_map in optional_groups.items():
             if stage_id not in run_plan_stages:
                 continue
@@ -470,7 +462,9 @@ def validate_publication_plan_files(
                             "code": "OPTIONAL_OUTPUT_NOT_PACKAGED",
                             "message": f"G3 selected an interaction; package {package_id} must include current Run Artifact {run_artifact_id}.",
                         })
-                elif entry is None or entry.get("status") != "not_generated" or entry.get("source_path") is not None:
+                elif (entry is None or entry.get("status") != "not_generated"
+                      or entry.get("source_path") is not None
+                      or entry.get("source_artifact_id") is not None):
                     issues.append({
                         "code": "OPTIONAL_OUTPUT_SHOULD_BE_NOT_GENERATED",
                         "message": f"G3 selected no interaction; package {package_id} must remain not_generated without a source_path.",
