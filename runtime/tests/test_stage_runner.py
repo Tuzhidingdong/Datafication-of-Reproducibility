@@ -27,6 +27,7 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
             "project_id": "PROJECT_STAGE_RUNNER",
             "source_roots": [str(self.source_root.resolve())],
             "source_artifacts": [{"artifact_id": "source_input", "path": str(self.source.resolve())}],
+            "workflow_ledger_path": str((self.root / "workflow_gate_ledger.jsonl").resolve()),
             "stages": [
                 {
                     "stage_id": "local_stage",
@@ -81,6 +82,23 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
         self.assertEqual(report["status"], "DRY_RUN")
         self.assertEqual(report["command_argv"][-4:], ["--input", str(self.source), "--out", str(self.output)])
         self.assertEqual(verify_run(self.manifest_path)["event_count"], 1)
+
+    def test_gated_cli_arguments_are_bound_to_this_run_automatically(self):
+        with patch(
+            "dor.stage_runner.stage_action_bindings_for_plan",
+            return_value={"local_stage": {"runtime_command": "fit-baselines"}},
+        ):
+            report = execute_local_stage(
+                self.manifest_path,
+                "local_stage",
+                ["--cohort-dir", "cohort", "--task", "task.json", "--out-dir", "model_output"],
+                dry_run=True,
+            )
+        argv = report["command_argv"]
+        self.assertEqual(argv[-4:], [
+            "--workflow-ledger", str(self.root / "workflow_gate_ledger.jsonl"),
+            "--run-manifest", str(self.manifest_path.resolve()),
+        ])
 
     def test_success_executes_bound_cli_and_records_stage_automatically(self):
         def fake_run(command, cwd, check, timeout):
