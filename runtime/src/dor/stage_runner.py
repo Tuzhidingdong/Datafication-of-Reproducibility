@@ -68,6 +68,18 @@ def _normalise_arguments(arguments: Sequence[str]) -> list[str]:
     return result
 
 
+def _runtime_environment() -> dict[str, str]:
+    """Make the exact Runtime package loaded by this process importable to the child."""
+    environment = os.environ.copy()
+    runtime_src = str(Path(__file__).resolve().parent.parent)
+    existing = environment.get("PYTHONPATH")
+    entries = [runtime_src]
+    if existing:
+        entries.extend(item for item in existing.split(os.pathsep) if item and item != runtime_src)
+    environment["PYTHONPATH"] = os.pathsep.join(entries)
+    return environment
+
+
 def _archive_outputs(
     root: Path,
     stage: dict[str, Any],
@@ -210,6 +222,7 @@ def execute_local_stage(
             cwd=str(root),
             check=False,
             timeout=timeout_seconds,
+            env=_runtime_environment(),
         )
         return_code = int(completed.returncode)
         failure_reason = (
