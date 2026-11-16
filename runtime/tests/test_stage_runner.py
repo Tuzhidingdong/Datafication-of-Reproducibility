@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from dor.run_manager import build_resume_plan, initialize_run, verify_run
-from dor.stage_runner import execute_local_stage
+from dor.stage_runner import advance_run, execute_local_stage
 
 
 class ContractBoundStageRunnerTests(unittest.TestCase):
@@ -134,6 +134,41 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
             execute_local_stage(self.manifest_path, "manual_stage", [])
         with self.assertRaisesRegex(ValueError, "worker executed"):
             execute_local_stage(self.manifest_path, "worker_stage", [])
+
+    def test_advance_runs_local_stage_then_pauses_for_human_boundary(self):
+        arguments_dir = self.run_root / "stage_arguments"
+        arguments_dir.mkdir()
+        args_file = arguments_dir / "local_stage.json"
+        args_file.write_text(
+            json.dumps(["--input", str(self.source), "--out", str(self.output)]),
+            encoding="utf-8",
+        )
+
+        def fake_run(command, cwd, check, timeout):
+            self.output.parent.mkdir(parents=True, exist_ok=True)
+            self.output.write_text('{"status":"synthetic-success"}\\n', encoding="utf-8")
+            return subprocess.CompletedProcess(command, 0)
+
+        with (
+            patch("dor.stage_runner.stage_action_bindings_for_plan", return_value=self._bindings()),
+            patch("dor.stage_runner.subprocess.run", side_effect=fake_run),
+        ):
+            report = advance_run(self.manifest_path, arguments_dir)
+
+        self.assertEqual(report["status"], "PAUSED_FOR_HUMAN")
+        self.assertEqual(report["completed_local_stages"][0]["stage_id"], "local_stage")
+        self.assertEqual(report["stage_id"], "manual_stage")
+        self.assertTrue(self.output.is_file())
+        self.assertEqual(verify_run(self.manifest_path)["valid_manifest_and_event_chain"], True)
+
+    def test_advance_stops_for_missing_local_arguments_without_starting_stage(self):
+        arguments_dir = self.run_root / "empty_stage_arguments"
+        arguments_dir.mkdir()
+        report = advance_run(self.manifest_path, arguments_dir)
+        self.assertEqual(report["status"], "ARGUMENTS_REQUIRED")
+        self.assertEqual(report["stage_id"], "local_stage")
+        self.assertFalse(self.output.exists())
+        self.assertEqual(verify_run(self.manifest_path)["event_count"], 1)
 
 
 if __name__ == "__main__":
