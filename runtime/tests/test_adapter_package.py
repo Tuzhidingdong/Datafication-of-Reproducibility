@@ -105,7 +105,7 @@ class AdapterPackageInitializerTests(unittest.TestCase):
                 "manual",
                 "1.0",
                 ["paper=paper.pdf"],
-                ["records=standardized_dataset=data\\\\records.csv"],
+                ["records=standardized_dataset=data\\records.csv"],
             )
 
             manifest = json.loads(
