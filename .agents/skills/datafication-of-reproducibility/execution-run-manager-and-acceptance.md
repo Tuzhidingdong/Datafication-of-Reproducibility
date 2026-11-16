@@ -10,11 +10,18 @@ Initialize a new independent run workspace with:
 
 Keep the original plan and raw sources unchanged. The runtime creates run_manifest.json and run_events.jsonl and binds the run to the exact plan and source hashes. Never reuse a run after a source file changes; create a new run.
 
-Record each explicitly planned stage with dor run-stage-record:
-- Record RUNNING immediately before starting the local/manual operation, or after the user-authorized Worker packet is created and before dispatch.
-- Record SUCCEEDED only when every declared output exists and the exact inputs remain unchanged.
-- Record FAILED with a concrete reason on failure.
-- Include Worker job/session IDs and token counts only when returned by the existing Worker Manager. Unknown usage stays unknown.
+### Contract-bound local stage execution (mandatory for supported adapter Runs)
+
+For a supported Structured Dataset or Canonical Bundle Run, do not manually wrap local CLI commands with separate `run-stage-record` calls. Use the contract-bound runner so the exact permitted subcommand and Run lifecycle are connected:
+
+1. Read `dor run-resume-plan --manifest run_manifest.json`; select the first actionable stage in dependency order and use its `action_binding` resolved input/output paths.
+2. Prepare a JSON file containing an array of individual CLI argument strings for that stage's bound Runtime command. Do not include a shell command, executable, or subcommand in the argument array.
+3. Preview with `dor run-stage-execute --manifest run_manifest.json --stage <stage_id> --args-file <stage_args.json> --dry-run`.
+4. Execute with the same command without `--dry-run`.
+
+The Runtime runner obtains the CLI subcommand only from `stage_execution_contract.json`, never invokes a shell, records RUNNING before launch, and records SUCCEEDED only when every declared output exists and can be hashed. It records FAILED on non-zero exit, timeout, launch error, or missing output. Partial outputs are preserved under `.dor_attempt_archive/<stage_id>/`; they are not silently deleted. Re-read `run-resume-plan` after every stage because the next action may have changed. The runner injects the immutable Run's workflow-ledger and manifest arguments for commands that require them; do not pass or override those arguments.
+
+Use `run-stage-record` only for explicitly completed MANUAL or WORKER operations, not as a substitute for executing a local CLI stage. Human stages must be completed by a human and validated using the stage's declared validator. Worker stages still require `run-worker-authorize`, an explicit host Worker Manager dispatch, returned job/session/usage data, and a separate human review/promotion stage. Include Worker token counts only when returned by the existing Worker Manager; unknown usage stays unknown.
 
 For a Worker stage, first present role, provider, model, active project root, task inputs/hashes, staging outputs, and restrictions to the user. Wait for explicit authorization, then run dor run-worker-authorize. This command emits a bounded task packet and records the authorization; it does not dispatch a Worker. Invoke the existing Worker Manager only after that authorization. Never silently choose or start a Worker. Workers may write only new files under worker_staging/<stage_id>/; they cannot write into protected sources, ledgers, manifests, or approved artifacts. A human review/promotion stage must separately approve and materialize accepted outputs.
 
