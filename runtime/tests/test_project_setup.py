@@ -90,6 +90,9 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
                     profile="FULL_ANALYSIS",
                 )
 
+            self.assertFalse((project / "configuration").exists())
+            self.assertFalse((project / "run_control").exists())
+
             result = initialize_project_run_plan(
                 handoff, project, root / "runs" / "full-analysis",
                 profile="FULL_ANALYSIS",
@@ -239,6 +242,8 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertFalse(
                 (project / "run_control" / "run_plan.structured_dataset.single_study.json").exists()
             )
+            self.assertFalse((project / "configuration").exists())
+            self.assertFalse((project / "run_control").exists())
 
     def test_existing_plan_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as tmp:
