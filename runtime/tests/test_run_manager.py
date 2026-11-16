@@ -310,6 +310,12 @@ class RunManagerTests(unittest.TestCase):
         artifacts = build_artifact_manifest(manifest_path)
         statuses = {item["artifact_id"]: item["status"] for item in artifacts["artifacts"]}
         self.assertEqual(statuses["publication_manifest"], "CURRENT")
+        self.assertEqual(artifacts["archived_attempt_count"], 1)
+        self.assertEqual(artifacts["archived_attempts"][0]["stage_id"], "independent_review")
+        self.assertEqual(artifacts["archived_attempts"][0]["attempt"], 1)
+        self.assertEqual(artifacts["archived_attempts"][0]["status"], "CURRENT")
+        self.assertFalse(artifacts["archived_attempts"][0]["reusable_as_stage_outputs"])
+        self.assertEqual(artifacts["archived_attempts"][0]["archived_outputs"][0]["status"], "CURRENT")
         self.assertEqual(statuses["worker_review_output"], "CURRENT")
         usage = build_run_usage_report(manifest_path)
         self.assertEqual(usage["terminal_attempt_count"], 6)
