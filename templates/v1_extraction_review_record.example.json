@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "source_hashes": {
+    "SOURCE_PRIMARY_PAPER": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "SOURCE_SUPPLEMENTARY_INFORMATION": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "SOURCE_STRUCTURED_DATA": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "reviewed_locators": [
+    {
+      "source_id": "SOURCE_STRUCTURED_DATA",
+      "locator_type": "csv_row_and_columns",
+      "locator": "rows 2-18; columns temperature, concentration, response",
+      "review_status": "STRUCTURED_RECORD_REVIEWED"
+    },
+    {
+      "source_id": "SOURCE_PRIMARY_PAPER",
+      "locator_type": "upstream_source_locator_reference",
+      "locator": "opaque locator values retained by the upstream structured extraction",
+      "review_status": "UPSTREAM_EXTRACTION_UNVERIFIED"
+    },
+    {
+      "source_id": "SOURCE_SUPPLEMENTARY_INFORMATION",
+      "locator_type": "upstream_source_locator_reference",
+      "locator": "opaque locator values retained by the upstream structured extraction",
+      "review_status": "NOT_APPLICABLE"
+    }
+  ],
+  "human_review": {
+    "reviewer": "REPLACE_WITH_REVIEWER",
+    "reviewed_at": "2026-01-01T00:00:00Z",
+    "decision": "ACCEPTED_WITH_LIMITATIONS"
+  }
+}
