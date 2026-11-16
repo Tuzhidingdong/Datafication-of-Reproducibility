@@ -397,6 +397,8 @@ def execute_local_stage(
             "attempt": attempt,
             "return_code": return_code,
             "reason": failure_reason,
+            "argument_source": argument_source,
+            "command_argv": command,
             "archived_before": archived_before,
             "archived_after": archived_after,
             "event_hash": failed["event_hash"],
@@ -430,6 +432,8 @@ def execute_local_stage(
             "attempt": attempt,
             "return_code": 0,
             "reason": reason,
+            "argument_source": argument_source,
+            "command_argv": command,
             "archived_before": archived_before,
             "archived_after": archived_after,
             "event_hash": failed["event_hash"],
@@ -455,11 +459,11 @@ def advance_run(
     max_local_stages: int = 10,
     timeout_seconds: int = 3600,
 ) -> dict[str, Any]:
-    """Run consecutive configured local stages until a human/Worker/Gate boundary.
+    """Run consecutive local stages until a human/Worker/Gate/input boundary.
 
-    Per-stage argv arrays are read from <arguments_dir>/<stage_id>.json.
-    Missing arguments, approval boundaries, and human/Worker stages are
-    returned as actionable pauses rather than guessed or bypassed.
+    Supported adapter Runs derive argv from the execution contract. An optional
+    arguments directory can override argv for custom or explicitly exceptional stages.
+    Missing or ambiguous user-choice values are returned as actionable pauses.
     """
     if type(max_local_stages) is not int or max_local_stages < 1:
         raise ValueError("max_local_stages must be a positive integer.")
@@ -588,6 +592,26 @@ def advance_run(
                     "arguments_file": str(args_path),
                     "reason": "Arguments file must contain a JSON array of strings.",
                 }
+        if arguments is None and not (
+            isinstance(action_binding, dict)
+            and isinstance(action_binding.get("argv_template"), list)
+            and action_binding.get("argv_template")
+        ):
+            return {
+                "status": "ARGUMENTS_REQUIRED",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "stage_id": stage_id,
+                "action": next_action["action"],
+                "arguments_file": str(args_path) if args_path is not None else None,
+                "reason": (
+                    "This custom/unbound Stage has no automatic argv_template. "
+                    "Supply an explicit per-stage argv override before execution."
+                ),
+                "action_binding": action_binding,
+                "required_inputs": action_binding.get("input_artifacts", []) if action_binding else [],
+                "required_outputs": action_binding.get("output_artifacts", []) if action_binding else [],
+            }
         try:
             result = execute_local_stage(
                 manifest_path,
