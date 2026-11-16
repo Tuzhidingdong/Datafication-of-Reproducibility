@@ -94,7 +94,7 @@ class ApplicationQuickStartIntegrationTests(unittest.TestCase):
                 "run-verify",
                 "--manifest", str(run_manifest),
             )
-            self.assertTrue(verified["valid"], msg=json.dumps(verified, indent=2))
+            self.assertTrue(verified["valid_manifest_and_event_chain"], msg=json.dumps(verified, indent=2))
 
             advanced = self._json_result(
                 "run-advance",
@@ -102,6 +102,10 @@ class ApplicationQuickStartIntegrationTests(unittest.TestCase):
                 "--max-local-stages", "10",
             )
             self.assertEqual(advanced["status"], "PAUSED_FOR_HUMAN", msg=json.dumps(advanced, indent=2))
+            self.assertEqual(
+                [item["stage_id"] for item in advanced["completed_local_stages"]],
+                ["adapter_package_validation", "source_audit"],
+            )
             self.assertTrue((run_root / "00_adapter" / "adapter_handoff.json").is_file())
             self.assertTrue((run_root / "01_audit" / "source_inventory.json").is_file())
             self.assertTrue((run_root / "01_audit" / "data_audit_report.md").is_file())
@@ -116,14 +120,20 @@ class ApplicationQuickStartIntegrationTests(unittest.TestCase):
                 "run-verify",
                 "--manifest", str(run_manifest),
             )
-            self.assertTrue(final_verification["valid"], msg=json.dumps(final_verification, indent=2))
-            stage_states = {
-                item["stage_id"]: item["state"]
-                for item in final_verification["resume_plan"]["stages"]
+            self.assertTrue(final_verification["valid_manifest_and_event_chain"], msg=json.dumps(final_verification, indent=2))
+            events = [
+                json.loads(line)
+                for line in (run_root / "run_events.jsonl").read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            stage_statuses = {
+                (event["stage_id"], event["status"])
+                for event in events
+                if event.get("event_type") == "STAGE_STATUS"
             }
-            self.assertEqual(stage_states["adapter_package_validation"], "SUCCEEDED")
-            self.assertEqual(stage_states["source_audit"], "SUCCEEDED")
-            self.assertEqual(stage_states["g0_review_packet"], "WAITING_FOR_HUMAN")
+            self.assertIn(("adapter_package_validation", "SUCCEEDED"), stage_statuses)
+            self.assertIn(("source_audit", "SUCCEEDED"), stage_statuses)
+            self.assertFalse(any(event.get("stage_id") == "g0_review_packet" for event in events))
 
 
 if __name__ == "__main__":
