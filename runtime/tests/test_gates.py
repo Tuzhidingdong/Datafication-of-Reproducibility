@@ -489,9 +489,9 @@ class WorkflowGateTests(unittest.TestCase):
     def _refresh_reviewed_artifact_bindings(self):
         reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
         artifact_ids = [
-            "model_report", "reproducibility_evaluation", "interaction_report",
-            "robustness_report", "interaction_selection", "virtual_prediction",
-            "cohort_review_record", "cohort_review_validation",
+            "model_artifact", "model_report", "reproducibility_evaluation",
+            "interaction_report", "robustness_report", "interaction_selection",
+            "virtual_prediction", "cohort_review_record", "cohort_review_validation",
         ]
         reviewed["reviewed_artifacts"] = [
             {
