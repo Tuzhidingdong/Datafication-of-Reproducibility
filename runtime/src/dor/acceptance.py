@@ -527,7 +527,6 @@ def initialize_acceptance_record(
     }
     if workflow_gate_binding is not None:
         record["workflow_gate_ledger"] = workflow_gate_binding
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     raw = (json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     try:
