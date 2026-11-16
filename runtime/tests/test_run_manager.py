@@ -217,7 +217,7 @@ class RunManagerTests(unittest.TestCase):
         failed_worker_output.parent.mkdir(parents=True, exist_ok=True)
         failed_worker_output.write_text(json.dumps({
             "schema_version": "1.0",
-            "task_id": "synthetic-failed-task",
+            "task_id": "DOR_RUN_LIFECYCLE_independent_review_ATTEMPT_0001",
             "status": "completed",
             "summary": "This packet deliberately omits required findings and must be rejected.",
             "artifacts": [],
@@ -226,7 +226,7 @@ class RunManagerTests(unittest.TestCase):
         }, indent=2) + "\\n", encoding="utf-8")
         failed_attempt = record_stage_status(
             manifest_path, "independent_review", "SUCCEEDED", "worker",
-            **worker_kwargs, job_id="synthetic-job-failed", task_id="synthetic-failed-task",
+            **worker_kwargs, job_id="synthetic-job-failed",
             input_tokens=80, output_tokens=20,
         )
         self.assertEqual(failed_attempt["status"], "FAILED")
@@ -253,7 +253,7 @@ class RunManagerTests(unittest.TestCase):
         worker_output.parent.mkdir(parents=True, exist_ok=True)
         worker_output.write_text(json.dumps({
             "schema_version": "1.0",
-            "task_id": "synthetic-task-success",
+            "task_id": "DOR_RUN_LIFECYCLE_independent_review_ATTEMPT_0002",
             "status": "completed",
             "summary": "The synthetic inputs are traceable and contain no unresolved blocker.",
             "findings": [],
@@ -264,7 +264,7 @@ class RunManagerTests(unittest.TestCase):
         record_stage_status(
             manifest_path, "independent_review", "SUCCEEDED", "worker",
             **worker_kwargs, job_id="synthetic-job-success",
-            session_id="synthetic-session-success", task_id="synthetic-task-success",
+            session_id="synthetic-session-success",
             input_tokens=200, output_tokens=50, reasoning_tokens=30,
             cache_read_tokens=40, cache_write_tokens=5,
         )
