@@ -2837,7 +2837,7 @@
         {
           "route": "STRUCTURED_DATASET",
           "executor": "manual",
-          "required_gate": null,
+          "required_gate": "G3",
           "inputs": [
             "publication_plan_template",
             "model_artifact",
@@ -2849,7 +2849,9 @@
             "virtual_prediction",
             "worker_review_output",
             "reviewed_findings",
-            "reviewed_findings_validation"
+            "reviewed_findings_validation",
+            "cohort_review_record",
+            "cohort_review_validation"
           ],
           "outputs": [
             {
@@ -2879,7 +2881,7 @@
         {
           "route": "CANONICAL_BUNDLE",
           "executor": "manual",
-          "required_gate": null,
+          "required_gate": "G3",
           "inputs": [
             "publication_plan_template",
             "model_artifact",
@@ -2891,7 +2893,9 @@
             "virtual_prediction",
             "worker_review_output",
             "reviewed_findings",
-            "reviewed_findings_validation"
+            "reviewed_findings_validation",
+            "cohort_review_record",
+            "cohort_review_validation"
           ],
           "outputs": [
             {
@@ -2922,7 +2926,7 @@
           "route": "STRUCTURED_DATASET",
           "profile": "CONTROLLED_SINGLE_STUDY",
           "executor": "manual",
-          "required_gate": null,
+          "required_gate": "G3",
           "inputs": [
             "publication_plan_template",
             "single_study_applicability_record",
@@ -2976,7 +2980,7 @@
           "route": "CANONICAL_BUNDLE",
           "profile": "CONTROLLED_SINGLE_STUDY",
           "executor": "manual",
-          "required_gate": null,
+          "required_gate": "G3",
           "inputs": [
             "publication_plan_template",
             "single_study_applicability_record",
