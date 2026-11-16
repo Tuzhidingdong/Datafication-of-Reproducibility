@@ -62,12 +62,12 @@ G3_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
 }
 G4_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
     "publication_plan", "publication_plan_validation",
-    "worker_review_output", "reviewed_findings",
+    "worker_review_output", "reviewed_findings", "reviewed_findings_validation",
     *G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS,
 }
 G4_FULL_ANALYSIS_REQUIRED_ARTIFACTS = {
     "publication_plan", "publication_plan_validation",
-    "worker_review_output", "reviewed_findings",
+    "worker_review_output", "reviewed_findings", "reviewed_findings_validation",
     *G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS,
 }
 REQUIRED_ARTIFACTS = {
