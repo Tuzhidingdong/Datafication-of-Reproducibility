@@ -180,6 +180,10 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
                 "dor.stage_runner.stage_action_bindings_for_plan",
                 return_value=self._automatic_bindings(),
             ),
+            patch(
+                "dor.run_manager.stage_action_bindings_for_plan",
+                return_value=self._automatic_bindings(),
+            ),
             patch("dor.stage_runner.subprocess.run", side_effect=fake_run),
         ):
             report = advance_run(self.manifest_path, max_local_stages=10)
