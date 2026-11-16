@@ -1298,6 +1298,62 @@ def _validate_g4_publication_plan(
                         f"G4 no-interaction branch requires {package_id} to remain not_generated without a source."
                     )
 
+    # Mandatory package entries must be backed by their exact Run Artifact,
+    # even when an otherwise schema-valid entry tries to hide behind a review state.
+    for package_id in required_package_ids:
+        entry = next((item for item in entries if item.get("artifact_id") == package_id), None)
+        expected_source_id = expected_package_sources.get(package_id)
+        binding = reported_by_package.get(package_id)
+        if (entry is None or expected_source_id is None
+                or entry.get("source_artifact_id") != expected_source_id
+                or not isinstance(entry.get("source_path"), str)
+                or binding is None or binding.get("artifact_id") != expected_source_id):
+            raise ValueError(
+                f"G4 required publication entry {package_id} must be sourced from Run Artifact {expected_source_id}."
+            )
+
+    if "single_study_applicability_record" not in by_id:
+        optional_package_groups = {
+            "mechanism_plan_preparation": {"MECHANISM_PLAN_001": "mechanism_plan"},
+            "response_surface_generation": {
+                "RESPONSE_SURFACE_REPORT_001": "interaction_response_surface_report",
+                "RESPONSE_SURFACE_DATA_001": "interaction_response_surface",
+                "RESPONSE_SURFACE_MANIFEST_001": "interaction_response_surface_manifest",
+                "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
+                "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
+            },
+            "mechanism_evidence_bridge": {
+                "MECHANISM_BRIDGE_001": "mechanism_evidence_bridge_report",
+                "MECHANISM_FINDINGS_001": "mechanism_findings",
+                "MECHANISM_LEDGER_001": "mechanism_evidence_ledger",
+                "MECHANISM_REVIEW_QUEUE_001": "mechanism_review_queue",
+                "MECHANISM_MANIFEST_001": "mechanism_evidence_bridge_manifest",
+            },
+        }
+        for optional_stage_id, package_map in optional_package_groups.items():
+            if optional_stage_id not in run_stage_ids:
+                continue
+            for package_id, source_id in package_map.items():
+                entry = next((item for item in entries if item.get("artifact_id") == package_id), None)
+                binding = reported_by_package.get(package_id)
+                if selected_ids:
+                    if (entry is None
+                            or entry.get("status") not in {"complete", "partial", "requires_review"}
+                            or entry.get("source_artifact_id") != source_id
+                            or not isinstance(entry.get("source_path"), str)
+                            or binding is None or binding.get("artifact_id") != source_id):
+                        raise ValueError(
+                            f"G4 selected interaction requires package entry {package_id} "
+                            f"to include Run Artifact {source_id}."
+                        )
+                elif (entry is None or entry.get("status") != "not_generated"
+                      or entry.get("source_path") is not None
+                      or entry.get("source_artifact_id") is not None
+                      or binding is not None):
+                    raise ValueError(
+                        f"G4 no-interaction branch requires {package_id} to remain not_generated without a source."
+                    )
+
     if set(reported_by_package) != expected_package_ids:
         raise ValueError("G4 publication_plan_validation source set differs from the final Publication Plan.")
     if report.get("checked_source_count") != len(expected_package_ids):
