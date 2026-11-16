@@ -912,7 +912,7 @@ def _validate_g4_publication_plan(
         latest_stage_events = _latest_stage_events(run_events)
         run_stage_ids = set(run_manifest.get("stage_order", []))
         stage_map = _stage_map(run_plan)
-        artifact_definitions, _ = _artifact_definitions(run_plan)
+        artifact_definitions, artifact_producers = _artifact_definitions(run_plan)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise ValueError("G4 could not independently verify the active Run state: " + str(exc)) from exc
 
@@ -1237,6 +1237,37 @@ def _validate_g4_publication_plan(
                 or report_source.get("path") != str(source_file)
                 or report_source.get("sha256") != digest):
             raise ValueError(f"G4 Publication Plan source {package_id} differs from its validation binding.")
+
+        definition = artifact_definitions.get(source_id)
+        producer_stage_id = artifact_producers.get(source_id)
+        if definition is None or producer_stage_id is None:
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} is not a derived Artifact in the active Run Plan."
+            )
+        declared_run_path = _artifact_path(run_root, definition)
+        if source_file != declared_run_path:
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} differs from its declared Run Artifact path."
+            )
+        producer_event = latest_stage_events.get(producer_stage_id)
+        if producer_event is None or producer_event.get("status") != "SUCCEEDED":
+            observed = producer_event.get("status") if producer_event else "NOT_STARTED"
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} producer {producer_stage_id} "
+                f"must be SUCCEEDED; found {observed}."
+            )
+        producer_output = next(
+            (item for item in producer_event.get("output_artifacts", [])
+             if isinstance(item, dict) and item.get("artifact_id") == source_id),
+            None,
+        )
+        if (producer_output is None
+                or producer_output.get("path") != str(declared_run_path)
+                or producer_output.get("sha256") != digest):
+            raise ValueError(
+                f"G4 Publication Plan source {source_id} differs from its successful producer event."
+            )
+
         gate_source = by_id.get(source_id)
         if gate_source is None:
             raise ValueError(f"G4 Gate event must bind Publication Plan source Run Artifact {source_id}.")
