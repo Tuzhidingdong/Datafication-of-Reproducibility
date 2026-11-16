@@ -100,18 +100,21 @@ def _parse_artifact_binding(value: str) -> tuple[str, str, Path]:
     return artifact_id, role, Path(raw_path).expanduser()
 
 
-def _resolve_input(raw_path: Path, label: str) -> Path:
+def _resolve_input(raw_path: Path, package_root: Path, label: str) -> Path:
+    candidate = raw_path if raw_path.is_absolute() else package_root / raw_path
     try:
-        resolved = raw_path.resolve(strict=True)
+        resolved = candidate.resolve(strict=True)
     except FileNotFoundError as exc:
-        raise FileNotFoundError(f"{label} file does not exist: {raw_path}") from exc
+        raise FileNotFoundError(
+            f"{label} file does not exist (relative paths resolve from package_root): {candidate}"
+        ) from exc
     if not resolved.is_file():
         raise ValueError(f"{label} path is not a regular file: {resolved}")
     return resolved
 
 
 def _source_descriptor(source_id: str, raw_path: Path, package_root: Path) -> dict[str, Any]:
-    resolved = _resolve_input(raw_path, f"Source {source_id}")
+    resolved = _resolve_input(raw_path, package_root, f"Source {source_id}")
     try:
         stored_path = resolved.relative_to(package_root).as_posix()
     except ValueError:
@@ -132,7 +135,7 @@ def _artifact_descriptor(
     raw_path: Path,
     package_root: Path,
 ) -> dict[str, Any]:
-    resolved = _resolve_input(raw_path, f"Artifact {artifact_id}")
+    resolved = _resolve_input(raw_path, package_root, f"Artifact {artifact_id}")
     try:
         stored_path = resolved.relative_to(package_root).as_posix()
     except ValueError as exc:
