@@ -941,7 +941,18 @@ def _validate_g4_publication_plan(
                     f"{expected_status} for the G3 interaction selection; found {observed}."
                 )
             approval = event.get("gate_approval")
-            if (not isinstance(approval, dict)
+            required_gate = stage.get("required_gate")
+            if expected_status == "SKIPPED":
+                if approval is not None:
+                    raise ValueError(
+                        f"G4 skipped conditional stage {optional_stage_id} must not claim a Gate approval."
+                    )
+            elif required_gate is None:
+                if approval is not None:
+                    raise ValueError(
+                        f"G4 conditional stage {optional_stage_id} has an unexpected Gate approval."
+                    )
+            elif (not isinstance(approval, dict)
                     or approval.get("gate_id") != "G3"
                     or approval.get("status") != "APPROVED"
                     or approval.get("event_hash") != previous_gate_event.get("event_hash")):
@@ -968,6 +979,20 @@ def _validate_g4_publication_plan(
                             or sha256_file(path) != binding.get("sha256")):
                         raise ValueError(
                             f"G4 conditional output {output['artifact_id']} is missing or changed after its successful Run event."
+                        )
+                if optional_stage_id == "mechanism_plan_preparation":
+                    g3_mechanism_plan = next(
+                        (item for item in previous_gate_event.get("artifacts", [])
+                         if item.get("artifact_id") == "mechanism_plan"),
+                        None,
+                    )
+                    recorded_plan = recorded_outputs.get("mechanism_plan", {})
+                    plan_path = _artifact_path(run_root, stage["outputs"][0])
+                    if (g3_mechanism_plan is None
+                            or g3_mechanism_plan.get("path") != str(plan_path)
+                            or g3_mechanism_plan.get("sha256") != recorded_plan.get("sha256")):
+                        raise ValueError(
+                            "G4 mechanism_plan_preparation output differs from the mechanism_plan approved at G3."
                         )
 
     if not isinstance(plan, dict):
