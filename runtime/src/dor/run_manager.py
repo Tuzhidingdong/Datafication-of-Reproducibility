@@ -21,6 +21,7 @@ from dor.execution_contract import (
     validate_supported_run_plan_execution_contract,
 )
 from dor.mapping import sha256_file
+from dor.worker_result import validate_worker_result_payload
 
 RUN_SCHEMA_VERSION = "1.0"
 EVENT_GENESIS_HASH = "0" * 64
@@ -710,6 +711,79 @@ def _artifact_path(root: Path, definition: Mapping[str, Any]) -> Path:
     if definition.get("kind") == "source":
         return Path(definition["path"]).expanduser().resolve(strict=False)
     return _safe_relative_path(root, definition["path"], f"Artifact {definition['artifact_id']} path")
+
+
+def _archive_failed_worker_outputs(
+    root: Path, stage: Mapping[str, Any], attempt: int, reason: str,
+) -> tuple[list[dict[str, str]], dict[str, str]]:
+    """Move failed Worker staging files into an immutable per-attempt archive."""
+    archive_base = root / ".dor_attempt_archive"
+    stage_archive = archive_base / str(stage["stage_id"])
+    attempt_archive = stage_archive / f"attempt-{attempt:04d}"
+    for directory in (archive_base, stage_archive):
+        if directory.is_symlink():
+            raise ValueError(f"Worker failure archive directory must not be a symlink: {directory}.")
+    if attempt_archive.exists() or attempt_archive.is_symlink():
+        raise FileExistsError(f"Worker failure archive already exists; refusing overwrite: {attempt_archive}.")
+    attempt_archive.mkdir(parents=True, exist_ok=False)
+    archived: list[dict[str, str]] = []
+    moved: list[tuple[Path, Path]] = []
+    manifest_path = attempt_archive / "archive_manifest.json"
+    try:
+        for output in stage.get("outputs", []):
+            source = _artifact_path(root, output)
+            if not source.exists() and not source.is_symlink():
+                continue
+            if source.is_symlink() or not source.is_file():
+                raise ValueError(
+                    f"Worker staging output must be a regular non-symlink file before archiving: {source}."
+                )
+            source_hash = sha256_file(source)
+            relative_output = Path(str(output["path"]))
+            destination = attempt_archive / relative_output
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.exists() or destination.is_symlink():
+                raise FileExistsError(f"Worker archive destination already exists: {destination}.")
+            os.replace(source, destination)
+            moved.append((source, destination))
+            archived.append({
+                "artifact_id": str(output["artifact_id"]),
+                "original_path": str(source),
+                "archive_path": destination.relative_to(root).as_posix(),
+                "sha256": source_hash,
+            })
+        manifest = {
+            "schema_version": "1.0",
+            "run_id": None,
+            "stage_id": stage["stage_id"],
+            "attempt": attempt,
+            "recorded_at": _now(),
+            "reason": reason,
+            "archived_outputs": archived,
+        }
+        raw = (json.dumps(manifest, indent=2, ensure_ascii=False, allow_nan=False) + "\\n").encode("utf-8")
+        with manifest_path.open("xb") as handle:
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+        manifest_binding = {
+            "path": manifest_path.relative_to(root).as_posix(),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }
+        return archived, manifest_binding
+    except BaseException:
+        for source, destination in reversed(moved):
+            if destination.exists() and not source.exists():
+                source.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(destination, source)
+        for current, directories, files in os.walk(attempt_archive, topdown=False):
+            current_path = Path(current)
+            for filename in files:
+                (current_path / filename).unlink(missing_ok=True)
+            for directory in directories:
+                (current_path / directory).rmdir()
+        attempt_archive.rmdir()
+        raise
 
 
 def _json_pointer_lookup(document: Any, pointer: str) -> tuple[bool, Any]:
