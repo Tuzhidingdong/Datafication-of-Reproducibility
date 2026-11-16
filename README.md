@@ -51,8 +51,16 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
        dor prepare-adapter-handoff --manifest <package_root>/adapter_manifest.json --package-root <package_root> --out <project_root>/run_control/adapter_route_preflight.json
 
    Use the handoff's `route` field, then select the execution profile. For a multi-Study analysis with sufficient independent Studies, use `templates/run_plan.example.json` (`STRUCTURED_DATASET`) or `templates/run_plan.canonical_adapter.example.json` (`CANONICAL_BUNDLE`). For a controlled one-Study pilot, use `templates/run_plan.single_study.example.json` or `templates/run_plan.canonical_adapter.single_study.example.json`; these preserve G0-G4 and Worker review while recording cross-Study modelling/interaction as explicit `NOT_APPLICABLE`, never as fabricated results.
-4. Configure the selected Run Plan from the active project. Set its `source_roots`, `workflow_ledger_path`, and exact absolute paths for `adapter_package_manifest`, `virtual_query_input`, and `publication_plan_template`. Use `templates/publication_package_plan.example.json` as the full-analysis blueprint, or the matching `templates/publication_package_plan.single_study.example.json` / `templates/publication_package_plan.canonical_adapter.single_study.example.json` for a controlled one-Study run. The blueprint is an immutable Run input; the final Run-bound Publication Plan is prepared only after G3, Worker review, and human disposition. For V1.0 Acceptance, also declare a separate top-level `acceptance_source_artifacts` list with provenance-only source IDs, roles, and absolute paths (primary paper, linked SI, and selected structured sources). These paths are hash-snapshotted only; their contents are never opened by DoR or passed to a Worker. Do not reuse a prior Run workspace.
-5. Preflight and initialize a new Run:
+4. Generate a project-specific Run Plan from the validated handoff instead of editing the 22–31-stage template manually. The default is the conservative `CONTROLLED_SINGLE_STUDY` profile:
+
+       dor init-run-plan --adapter-handoff <project_root>/run_control/adapter_route_preflight.json --project-root <project_root> --run-root <new_run_root>
+
+   This selects the correct Structured Dataset or Canonical Bundle template, copies its matching Publication Plan blueprint into project configuration, sets exact source roots and manifest paths, and validates the result with the Runtime's own Run Plan validator. It does not approve scientific scope or create Gate decisions. For a multi-Study analysis whose independent Study structure is already established, explicitly choose `FULL_ANALYSIS` and provide the existing virtual query:
+
+       dor init-run-plan --adapter-handoff <project_root>/run_control/adapter_route_preflight.json --project-root <project_root> --run-root <new_run_root> --profile FULL_ANALYSIS --virtual-query-input <project_root>/configuration/virtual_reproduction_query.json
+
+   For V1.0 Acceptance, supply each provenance-only source explicitly with repeated `--acceptance-source SOURCE_ID=ROLE=FILE_PATH` arguments; roles are `PRIMARY_PAPER`, `SUPPLEMENTARY_INFORMATION`, `STRUCTURED_DATA`, or `OTHER`. The files are hash-snapshotted only; their contents are never opened by DoR or passed to a Worker. A project-owned Publication Plan blueprint can be supplied with `--publication-plan-template`. The Run Plan is never overwritten; use a new output path for a new configuration. The Run workspace must remain outside all protected source roots.
+5. Preflight and initialize the generated Run Plan:
 
        dor validate-execution-contract --plan <configured_run_plan.json>
        dor run-init --plan <configured_run_plan.json> --run-root <new_run_root>
