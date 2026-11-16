@@ -26,6 +26,11 @@ G4_REQUIRED_REVIEWED_ARTIFACTS = {
     "interaction_selection",
     "virtual_prediction",
 }
+G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS = {
+    *G4_REQUIRED_REVIEWED_ARTIFACTS,
+    "cohort_review_record",
+    "cohort_review_validation",
+}
 G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS = {
     "single_study_applicability_record",
     "single_study_applicability_validation",
@@ -54,7 +59,8 @@ G3_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
     "virtual_prediction",
 }
 G4_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
-    "publication_plan", "worker_review_output", "reviewed_findings",
+    "publication_plan", "publication_plan_validation",
+    "worker_review_output", "reviewed_findings",
     *G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS,
 }
 REQUIRED_ARTIFACTS = {
@@ -66,11 +72,12 @@ REQUIRED_ARTIFACTS = {
         "robustness_report", "robustness_manifest", "interaction_selection",
     },
     "G4": {
-        "publication_plan", "worker_review_output", "reviewed_findings",
-        *G4_REQUIRED_REVIEWED_ARTIFACTS,
+        "publication_plan", "publication_plan_validation",
+        "worker_review_output", "reviewed_findings",
+        *G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS,
     },
 }
-G4_REVIEWABLE_ARTIFACTS = G4_REQUIRED_REVIEWED_ARTIFACTS
+G4_REVIEWABLE_ARTIFACTS = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
 
 
 # These sets mirror the two supported generic Run Plan entry routes. They are
@@ -836,6 +843,100 @@ def _validate_g3_selection(
             raise ValueError("G3 mechanism_plan interaction_id is not in selected_interaction_ids.")
 
 
+
+def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
+    """Recheck the exact late-bound Publication Plan and every source it packages."""
+    plan_binding = _require_gate_binding(by_id, "publication_plan", "G4")
+    validation_binding = _require_gate_binding(by_id, "publication_plan_validation", "G4")
+    plan = _read_json_binding(plan_binding, "G4 publication_plan")
+    report = _read_json_binding(validation_binding, "G4 publication_plan_validation")
+
+    if report.get("schema_version") != "1.0" or report.get("contract") != "RUN_BOUND_PUBLICATION_PLAN":
+        raise ValueError("G4 publication_plan_validation has an unsupported contract.")
+    if report.get("valid") is not True:
+        raise ValueError("G4 publication_plan_validation must declare valid=true.")
+    if report.get("plan") != {
+        "path": plan_binding["path"],
+        "sha256": plan_binding["sha256"],
+    }:
+        raise ValueError("G4 publication_plan_validation does not bind the exact Gate-bound plan path and SHA-256.")
+    if report.get("validation_report_path") != validation_binding["path"]:
+        raise ValueError("G4 publication_plan_validation report path differs from the Gate-bound report.")
+    if (plan.get("run_id") != report.get("run_id")
+            or plan.get("project_id") != report.get("project_id")):
+        raise ValueError("G4 Publication Plan identity differs from its validation report.")
+
+    run_root_value = report.get("run_root")
+    if not isinstance(run_root_value, str) or not run_root_value.strip():
+        raise ValueError("G4 publication_plan_validation must identify run_root.")
+    run_root = Path(run_root_value).expanduser().resolve(strict=True)
+    if not run_root.is_dir():
+        raise ValueError("G4 Publication Plan run_root must be a directory.")
+    for label, binding in (
+        ("publication_plan", plan_binding),
+        ("publication_plan_validation", validation_binding),
+    ):
+        path = Path(binding["path"]).expanduser().resolve(strict=True)
+        if not path.is_relative_to(run_root) or sha256_file(path) != binding["sha256"]:
+            raise ValueError(f"G4 {label} is outside the active Run or changed after validation.")
+
+    entries = plan.get("artifacts")
+    if not isinstance(entries, list):
+        raise ValueError("G4 Publication Plan artifacts must be an array.")
+    report_sources = report.get("source_artifacts")
+    if not isinstance(report_sources, list):
+        raise ValueError("G4 publication_plan_validation must contain source_artifacts.")
+    reported_by_package: dict[str, dict[str, Any]] = {}
+    for item in report_sources:
+        if not isinstance(item, dict):
+            raise ValueError("G4 Publication Plan source binding is malformed.")
+        package_id = item.get("package_artifact_id")
+        if not isinstance(package_id, str) or not package_id.strip() or package_id in reported_by_package:
+            raise ValueError("G4 Publication Plan source bindings require unique package_artifact_id values.")
+        reported_by_package[package_id] = item
+
+    expected_package_ids: set[str] = set()
+    for item in entries:
+        if not isinstance(item, dict):
+            raise ValueError("G4 Publication Plan contains a malformed artifact entry.")
+        package_id = item.get("artifact_id")
+        source_path = item.get("source_path")
+        source_id = item.get("source_artifact_id")
+        if source_path is None:
+            if source_id is not None:
+                raise ValueError(f"G4 Publication Plan {package_id} has source_artifact_id without source_path.")
+            continue
+        if not isinstance(package_id, str) or not isinstance(source_id, str) or not source_id.strip():
+            raise ValueError("Every sourced G4 Publication Plan entry requires package artifact_id and source_artifact_id.")
+        expected_package_ids.add(package_id)
+        relative = Path(source_path)
+        if (relative.is_absolute() or re.match(r"^[A-Za-z]:", source_path)
+                or "\\" in source_path or any(part in {"", ".", ".."} for part in relative.parts)
+                or relative.as_posix() != source_path):
+            raise ValueError(f"G4 Publication Plan source_path is not a safe Run-relative path: {source_path!r}.")
+        source_file = (run_root / relative).resolve(strict=True)
+        if source_file.is_symlink() or not source_file.is_file() or not source_file.is_relative_to(run_root):
+            raise ValueError(f"G4 Publication Plan source is not a regular file inside the Run: {source_file}.")
+        digest = sha256_file(source_file)
+        report_source = reported_by_package.get(package_id)
+        if report_source is None:
+            raise ValueError(f"G4 publication_plan_validation omits package source {package_id}.")
+        if (report_source.get("artifact_id") != source_id
+                or report_source.get("path") != str(source_file)
+                or report_source.get("sha256") != digest):
+            raise ValueError(f"G4 Publication Plan source {package_id} differs from its validation binding.")
+        gate_source = by_id.get(source_id)
+        if gate_source is None:
+            raise ValueError(f"G4 Gate event must bind Publication Plan source Run Artifact {source_id}.")
+        if gate_source["path"] != str(source_file) or gate_source["sha256"] != digest:
+            raise ValueError(f"G4 Gate binding for {source_id} differs from the exact Publication Plan source.")
+
+    if set(reported_by_package) != expected_package_ids:
+        raise ValueError("G4 publication_plan_validation source set differs from the final Publication Plan.")
+    if report.get("checked_source_count") != len(expected_package_ids):
+        raise ValueError("G4 publication_plan_validation checked_source_count is inconsistent.")
+
+
 def _validate_g4_reviewed_findings(
     bindings: list[dict[str, str]],
     previous_gate_event: Mapping[str, Any] | None = None,
@@ -1057,6 +1158,7 @@ def _validate_g4_reviewed_findings(
     )
     if not consistent:
         raise ValueError("G4 promotion_decision is inconsistent with the individual human finding dispositions.")
+    _validate_g4_publication_plan(by_id)
 
 def _validate_approval_artifacts(
     gate_id: str,
