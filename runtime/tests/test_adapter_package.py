@@ -64,6 +64,32 @@ class AdapterPackageInitializerTests(unittest.TestCase):
             )
             self.assertEqual(inventory["items"][0]["source_file"], "data/experiments.csv")
 
+    def test_relative_source_and_artifact_paths_resolve_from_package_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            (package / "data").mkdir(parents=True)
+            (package / "source").mkdir()
+            (package / "source" / "paper.pdf").write_bytes(b"provenance")
+            (package / "data" / "records.csv").write_text(
+                "record_id,value\nA,1\n", encoding="utf-8"
+            )
+
+            result = initialize_adapter_package(
+                package,
+                "manual",
+                "1.0",
+                ["paper=source/paper.pdf"],
+                ["records=standardized_dataset=data/records.csv"],
+            )
+
+            manifest = json.loads(
+                (package / "adapter_manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(result["valid"])
+            self.assertEqual(manifest["sources"][0]["path"], "source/paper.pdf")
+            self.assertEqual(manifest["artifacts"][0]["path"], "data/records.csv")
+
     def test_package_id_defaults_to_safe_directory_name(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
