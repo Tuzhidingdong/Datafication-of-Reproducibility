@@ -261,9 +261,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     acceptance_prepare.add_argument("--manifest", type=Path, required=True, help="Completed Run Manager run_manifest.json")
     acceptance_prepare.add_argument("--out", type=Path, required=True, help="New acceptance_record.json path; existing files are never overwritten")
-    acceptance_prepare.add_argument("--source-selection-manifest", type=Path, default=None,
+    acceptance_prepare.add_argument("--source-selection-manifest", type=Path, required=True,
         help="Optional completed post-Run source_selection_manifest.json")
-    acceptance_prepare.add_argument("--extraction-review-record", type=Path, default=None,
+    acceptance_prepare.add_argument("--extraction-review-record", type=Path, required=True,
         help="Optional completed post-Run extraction_review_record.json")
     acceptance_prepare.add_argument("--actor", required=True, help="Operator creating the draft and revision ledger")
     acceptance_prepare.add_argument("--rationale", required=True, help="Reason for initializing the Acceptance draft")
