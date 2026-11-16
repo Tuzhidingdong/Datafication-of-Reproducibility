@@ -635,6 +635,59 @@ def _validate_event_semantics(
                     raise ValueError(f"FAILED event output list is invalid at line {line_number}.")
                 for item in output_items:
                     validate_snapshots([item], [item["artifact_id"]], "Failed-stage outputs", line_number)
+            if status == "FAILED" and stage.get("executor") == "worker":
+                archived_outputs = event.get("archived_outputs")
+                archive_manifest = event.get("archive_manifest")
+                if not isinstance(archived_outputs, list) or not isinstance(archive_manifest, dict):
+                    raise ValueError(f"Failed Worker attempt lacks its immutable output archive at line {line_number}.")
+                archived_ids: set[str] = set()
+                allowed_archive_outputs = {item["artifact_id"]: item for item in stage["outputs"]}
+                expected_archive_prefix = (
+                    f".dor_attempt_archive/{stage_id}/attempt-{event['attempt']:04d}/"
+                )
+                for archived_item in archived_outputs:
+                    required_archive_fields = {"artifact_id", "original_path", "archive_path", "sha256"}
+                    if (not isinstance(archived_item, dict)
+                            or set(archived_item) != required_archive_fields):
+                        raise ValueError(f"Failed Worker archive entry is malformed at line {line_number}.")
+                    artifact_id = archived_item.get("artifact_id")
+                    definition = allowed_archive_outputs.get(artifact_id)
+                    if definition is None or artifact_id in archived_ids:
+                        raise ValueError(f"Failed Worker archive has an unknown/duplicate Artifact ID at line {line_number}.")
+                    archived_ids.add(artifact_id)
+                    expected_original = str(_artifact_path(root, definition))
+                    if archived_item.get("original_path") != expected_original:
+                        raise ValueError(f"Failed Worker archive original path differs from its declared output at line {line_number}.")
+                    archive_relative = archived_item.get("archive_path")
+                    if (not isinstance(archive_relative, str)
+                            or not archive_relative.startswith(expected_archive_prefix)):
+                        raise ValueError(f"Failed Worker archive path is outside its per-attempt archive at line {line_number}.")
+                    archive_path = _safe_relative_path(root, archive_relative, "Worker archived output")
+                    digest = archived_item.get("sha256")
+                    if (not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest)
+                            or archive_path.is_symlink() or not archive_path.is_file()
+                            or sha256_file(archive_path) != digest):
+                        raise ValueError(f"Failed Worker archived output is missing, linked, or hash-mismatched at line {line_number}.")
+                archive_manifest_path = archive_manifest.get("path")
+                archive_manifest_hash = archive_manifest.get("sha256")
+                if (not isinstance(archive_manifest_path, str)
+                        or not archive_manifest_path.startswith(expected_archive_prefix)
+                        or not isinstance(archive_manifest_hash, str)
+                        or not re.fullmatch(r"[a-f0-9]{64}", archive_manifest_hash)):
+                    raise ValueError(f"Failed Worker archive manifest binding is malformed at line {line_number}.")
+                archive_manifest_file = _safe_relative_path(root, archive_manifest_path, "Worker archive manifest")
+                if (archive_manifest_file.is_symlink() or not archive_manifest_file.is_file()
+                        or sha256_file(archive_manifest_file) != archive_manifest_hash):
+                    raise ValueError(f"Failed Worker archive manifest is missing or hash-mismatched at line {line_number}.")
+                archive_payload = _read_json(archive_manifest_file, "Worker failure archive manifest")
+                if (archive_payload.get("run_id") != event["run_id"]
+                        or archive_payload.get("stage_id") != stage_id
+                        or archive_payload.get("attempt") != event["attempt"]
+                        or archive_payload.get("reason") != event.get("reason")
+                        or archive_payload.get("archived_outputs") != archived_outputs):
+                    raise ValueError(f"Failed Worker archive manifest content differs from its event at line {line_number}.")
+            elif "archived_outputs" in event or "archive_manifest" in event:
+                raise ValueError(f"Only failed Worker attempts may declare an output archive at line {line_number}.")
             started_producer = latest.get("producer", {})
             completed_producer = event.get("producer", {})
             for key, value in started_producer.items():
@@ -714,7 +767,7 @@ def _artifact_path(root: Path, definition: Mapping[str, Any]) -> Path:
 
 
 def _archive_failed_worker_outputs(
-    root: Path, stage: Mapping[str, Any], attempt: int, reason: str,
+    root: Path, run_id: str, stage: Mapping[str, Any], attempt: int, reason: str,
 ) -> tuple[list[dict[str, str]], dict[str, str]]:
     """Move failed Worker staging files into an immutable per-attempt archive."""
     archive_base = root / ".dor_attempt_archive"
@@ -754,7 +807,7 @@ def _archive_failed_worker_outputs(
             })
         manifest = {
             "schema_version": "1.0",
-            "run_id": None,
+            "run_id": run_id,
             "stage_id": stage["stage_id"],
             "attempt": attempt,
             "recorded_at": _now(),
