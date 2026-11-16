@@ -37,7 +37,7 @@ When an upstream process has already prepared structured CSV/JSON files and thei
 
     dor init-adapter-package --package-root <package_root> --adapter-id <preparation_process_id> --adapter-version <version> --source <source_id>=<source_file> --artifact <artifact_id>=standardized_dataset=<package_relative_csv_or_json>
 
-Repeat `--source` and `--artifact` for every file that belongs in the package. The package root and all artifact files must already exist. Artifact paths must resolve inside the package root; source paths may be external and are stored as resolved absolute paths when they are outside the package. The output defaults to `<package_root>/adapter_manifest.json`; an existing manifest is never overwritten.
+Repeat `--source` and `--artifact` for every file that belongs in the package. The package root and all referenced files must already exist. Relative paths resolve from the package root. Absolute source paths may refer to external provenance files; absolute artifact paths are accepted only when they resolve inside the package root. The output defaults to `<package_root>/adapter_manifest.json`; an existing manifest is never overwritten.
 
 This helper is a manifest initializer, not a domain adapter. It hashes only the explicitly supplied files and validates the resulting manifest. It does not crawl directories, convert or parse source files, infer scientific fields or mappings, inspect original papers/SI, or certify extraction fidelity. The supplied `adapter_id` and version identify the upstream preparation process; they must not falsely imply that DoR performed the preparation.
 
