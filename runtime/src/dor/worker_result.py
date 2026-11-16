@@ -29,8 +29,10 @@ def validate_worker_result_payload(
         raise ValueError("Worker result task_id must be non-empty.")
     if not isinstance(result.get("status"), str) or result["status"] not in {"completed", "partial", "blocked", "failed"}:
         raise ValueError("Worker result status is invalid.")
-    if not isinstance(result.get("summary"), str):
-        raise ValueError("Worker result summary must be a string.")
+    if not isinstance(result.get("summary"), str) or not result["summary"].strip():
+        raise ValueError("Worker result summary must be a non-empty string.")
+    if "recommended_next_action" in result and not isinstance(result["recommended_next_action"], str):
+        raise ValueError("Worker result recommended_next_action must be a string.")
     for name in ("warnings", "unresolved_questions"):
         if not isinstance(result.get(name), list) or any(not isinstance(x, str) for x in result[name]):
             raise ValueError("Worker result " + name + " must be an array of strings.")
