@@ -1744,7 +1744,7 @@ def record_gate_decision(
             raise ValueError(f"Gate {gate_id} requires artifact IDs: {', '.join(sorted(missing))}.")
         if gate_id == "G4" and not G4_REVIEWABLE_ARTIFACTS.issubset(ids):
             raise ValueError(
-                "G4 requires the complete six-artifact input set supplied to independent_result_review."
+                "G4 requires the complete profile-specific Worker reviewed-artifact set declared by the active workflow."
             )
     ledger_path = ledger_path.expanduser().resolve()
     lock_path = ledger_path.with_name(ledger_path.name + ".lock")
