@@ -206,7 +206,7 @@ For the Canonical Bundle route, substitute the exact Run-bound materialized `can
 
 For the post-Run V1.0 Acceptance Record, both `cohort_feasibility` and `modeling_validation` may be `NOT_APPLICABLE` only with a scientific reason. Each stage must cite the same `single_study_applicability_record` and `single_study_applicability_validation`, plus the exact Run-bound `canonical_bundle` and `modeling_task`. The Acceptance validator checks their live hashes, Run/Project identity, one Study ID, and stage-specific reason. The final decision must be `CONDITIONAL_PASS` when every applicable stage passes; do not issue a full `PASS` for a one-Study pilot.
 
-Before the V1.0 controlled single-Study acceptance, add the primary paper and linked SI as separate opaque provenance-only `source_artifacts` in the Run Plan so their paths and hashes are part of the Run source snapshot. Map these exact source IDs to `PRIMARY_PAPER` and `SUPPLEMENTARY_INFORMATION` in the Acceptance Record. Do not open or pass their contents to a Worker; only existence, filesystem metadata, and byte-level SHA-256 are allowed.
+Before the V1.0 controlled single-Study Run, add the primary paper and linked SI as separate opaque provenance-only `acceptance_source_artifacts` in the Run Plan so their paths and hashes are part of the immutable Run source snapshot without making them computational Stage inputs. Select their exact source IDs in the post-Run source-selection manifest and retain their roles as `PRIMARY_PAPER` and `SUPPLEMENTARY_INFORMATION`. Do not open or pass their contents to a Worker; only existence, filesystem metadata, and byte-level SHA-256 are allowed.
 
 ## Exact G0-G4 approval artifact bindings
 
