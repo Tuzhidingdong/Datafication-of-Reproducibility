@@ -15,6 +15,7 @@ from dor.gates import (
     require_selected_interaction_id,
     _require_gate_binding,
     _validate_single_study_na_bundle,
+    _validate_g4_publication_plan,
     _validate_g4_reviewed_findings,
 )
 from dor.mapping import sha256_file, validate_mapping_plan
@@ -875,12 +876,87 @@ class WorkflowGateTests(unittest.TestCase):
             self._record_g2()
         self.assertEqual(inspect_gate_ledger(self.ledger)["event_count"], 2)
 
-    def test_g4_requires_all_six_worker_review_inputs(self):
+    def test_g4_requires_all_full_analysis_worker_review_inputs(self):
         self._complete_to_g2()
         self._record_g3()
         incomplete = [item for item in self._g4_artifact_ids() if item != "virtual_prediction"]
         with self.assertRaisesRegex(ValueError, "requires artifact IDs"):
             self._record("G4", incomplete)
+
+    def test_g4_rejects_package_source_not_produced_at_the_declared_run_artifact_path(self):
+        self._complete_to_g2()
+        self._record_g3()
+        artifact_ids = self._g4_artifact_ids()
+        by_id = {
+            artifact_id: {
+                "artifact_id": artifact_id,
+                "path": str(self.files[artifact_id].resolve()),
+                "sha256": sha256_file(self.files[artifact_id]),
+            }
+            for artifact_id in artifact_ids
+        }
+        gate_events = [
+            json.loads(line)
+            for line in self.ledger.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        g3_event = next(
+            event for event in reversed(gate_events) if event.get("gate_id") == "G3"
+        )
+
+        plan_path = self.files["publication_plan"]
+        validation_path = self.files["publication_plan_validation"]
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        source_entry = next(
+            item for item in plan["artifacts"]
+            if item["artifact_id"] == "MODEL_ARTIFACT_001"
+        )
+        alternate_path = self.root / "alternate_model_artifact.json"
+        alternate_path.write_bytes(self.files["model_artifact"].read_bytes())
+        source_entry["source_path"] = alternate_path.relative_to(self.root).as_posix()
+        plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+
+        report = json.loads(validation_path.read_text(encoding="utf-8"))
+        report["plan"]["sha256"] = sha256_file(plan_path)
+        source_report = next(
+            item for item in report["source_artifacts"]
+            if item["package_artifact_id"] == "MODEL_ARTIFACT_001"
+        )
+        source_report["path"] = str(alternate_path.resolve())
+        source_report["sha256"] = sha256_file(alternate_path)
+        validation_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+
+        by_id["publication_plan"]["sha256"] = sha256_file(plan_path)
+        by_id["publication_plan_validation"]["sha256"] = sha256_file(validation_path)
+        by_id["model_artifact"] = {
+            "artifact_id": "model_artifact",
+            "path": str(alternate_path.resolve()),
+            "sha256": sha256_file(alternate_path),
+        }
+
+        run_events_path = self.root / "run_events.jsonl"
+        run_events = [
+            json.loads(line)
+            for line in run_events_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        prep_event = next(
+            event for event in run_events
+            if event.get("stage_id") == "publication_plan_preparation"
+        )
+        for output in prep_event["output_artifacts"]:
+            if output["artifact_id"] == "publication_plan":
+                output["sha256"] = sha256_file(plan_path)
+            elif output["artifact_id"] == "publication_plan_validation":
+                output["sha256"] = sha256_file(validation_path)
+        run_events_path.write_text(
+            "".join(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n"
+                    for event in run_events),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "differs from its declared Run Artifact path"):
+            _validate_g4_publication_plan(by_id, g3_event)
 
     def test_g4_rejects_worker_findings_without_traceable_evidence(self):
         self._complete_to_g2()
