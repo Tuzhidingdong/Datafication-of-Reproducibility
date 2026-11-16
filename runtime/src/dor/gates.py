@@ -899,7 +899,8 @@ def _validate_g4_publication_plan(
         raise ValueError("G4 Publication Plan verification requires the exact approved G3 event.")
     try:
         from dor.run_manager import (
-            _artifact_path, _latest_stage_events, _manifest_context, _stage_map,
+            _artifact_definitions, _artifact_path, _latest_stage_events,
+            _manifest_context, _stage_map,
         )
         active_root, run_manifest, run_plan, run_events = _manifest_context(manifest_path)
         if (active_root != run_root
@@ -910,10 +911,64 @@ def _validate_g4_publication_plan(
         latest_stage_events = _latest_stage_events(run_events)
         run_stage_ids = set(run_manifest.get("stage_order", []))
         stage_map = _stage_map(run_plan)
+        artifact_definitions, _ = _artifact_definitions(run_plan)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise ValueError("G4 could not independently verify the active Run state: " + str(exc)) from exc
 
+    preparation_stage = stage_map.get("publication_plan_preparation")
+    if preparation_stage is None or preparation_stage.get("executor") != "manual":
+        raise ValueError("The active Run must declare publication_plan_preparation as a manual Stage.")
+    expected_plan_path = _artifact_path(run_root, artifact_definitions["publication_plan"])
+    expected_validation_path = _artifact_path(run_root, artifact_definitions["publication_plan_validation"])
+    if plan_path != expected_plan_path or validation_path != expected_validation_path:
+        raise ValueError("G4 Publication Plan files differ from the exact declared Run Stage outputs.")
+    preparation_event = latest_stage_events.get("publication_plan_preparation")
+    if preparation_event is None or preparation_event.get("status") != "SUCCEEDED":
+        observed = preparation_event.get("status") if preparation_event else "NOT_STARTED"
+        raise ValueError(f"G4 publication_plan_preparation must be SUCCEEDED; found {observed}.")
+    preparation_approval = preparation_event.get("gate_approval")
+    if (not isinstance(preparation_approval, dict)
+            or preparation_approval.get("gate_id") != "G3"
+            or preparation_approval.get("status") != "APPROVED"
+            or preparation_approval.get("event_hash") != previous_gate_event.get("event_hash")):
+        raise ValueError("Publication Plan preparation was not completed under the exact current G3 approval.")
+    preparation_inputs = {
+        item.get("artifact_id"): item
+        for item in preparation_event.get("input_artifacts", [])
+        if isinstance(item, dict)
+    }
+    declared_preparation_inputs = set(preparation_stage.get("inputs", []))
+    if set(preparation_inputs) != declared_preparation_inputs:
+        raise ValueError("Publication Plan preparation did not bind every declared Run input.")
+    for artifact_id in declared_preparation_inputs:
+        path = _artifact_path(run_root, artifact_definitions[artifact_id])
+        binding = preparation_inputs[artifact_id]
+        if (not path.is_file() or path.is_symlink()
+                or sha256_file(path) != binding.get("sha256")):
+            raise ValueError(f"Publication Plan preparation input {artifact_id} changed after the Stage event.")
+    preparation_outputs = {
+        item.get("artifact_id"): item
+        for item in preparation_event.get("output_artifacts", [])
+        if isinstance(item, dict)
+    }
+    for artifact_id, path in (
+        ("publication_plan", plan_path),
+        ("publication_plan_validation", validation_path),
+    ):
+        binding = preparation_outputs.get(artifact_id)
+        if binding is None or binding.get("sha256") != sha256_file(path):
+            raise ValueError(f"Publication Plan preparation output {artifact_id} differs from its successful Stage event.")
+
     selection_binding = _require_gate_binding(by_id, "interaction_selection", "G4")
+    g3_selection_binding = next(
+        (item for item in previous_gate_event.get("artifacts", [])
+         if item.get("artifact_id") == "interaction_selection"),
+        None,
+    )
+    if (g3_selection_binding is None
+            or g3_selection_binding.get("path") != selection_binding.get("path")
+            or g3_selection_binding.get("sha256") != selection_binding.get("sha256")):
+        raise ValueError("G4 interaction_selection must be the exact file approved by G3.")
     selection = _read_json_binding(selection_binding, "G4 interaction_selection")
     if (not Path(selection_binding["path"]).is_file()
             or sha256_file(Path(selection_binding["path"])) != selection_binding["sha256"]):
@@ -972,6 +1027,24 @@ def _validate_g4_publication_plan(
                     raise ValueError(
                         f"G4 conditional stage {optional_stage_id} does not bind every declared output."
                     )
+                recorded_inputs = {
+                    item.get("artifact_id"): item
+                    for item in event.get("input_artifacts", [])
+                    if isinstance(item, dict)
+                }
+                declared_inputs = set(stage.get("inputs", []))
+                if set(recorded_inputs) != declared_inputs:
+                    raise ValueError(
+                        f"G4 conditional stage {optional_stage_id} does not bind every declared input."
+                    )
+                for artifact_id in declared_inputs:
+                    path = _artifact_path(run_root, artifact_definitions[artifact_id])
+                    binding = recorded_inputs[artifact_id]
+                    if (not path.is_file() or path.is_symlink()
+                            or sha256_file(path) != binding.get("sha256")):
+                        raise ValueError(
+                            f"G4 conditional input {artifact_id} is missing or changed after stage {optional_stage_id}."
+                        )
                 for output in stage.get("outputs", []):
                     path = _artifact_path(run_root, output)
                     binding = recorded_outputs[output["artifact_id"]]
@@ -1168,6 +1241,62 @@ def _validate_g4_publication_plan(
             raise ValueError(f"G4 Gate event must bind Publication Plan source Run Artifact {source_id}.")
         if gate_source["path"] != str(source_file) or gate_source["sha256"] != digest:
             raise ValueError(f"G4 Gate binding for {source_id} differs from the exact Publication Plan source.")
+
+    # Every mandatory delivery entry must be connected to its declared Run
+    # Artifact, not merely present as an unsourced placeholder in the plan.
+    for package_id in required_package_ids:
+        entry = next((item for item in entries if item.get("artifact_id") == package_id), None)
+        expected_source_id = expected_package_sources.get(package_id)
+        binding = reported_by_package.get(package_id)
+        if (entry is None or expected_source_id is None
+                or entry.get("source_artifact_id") != expected_source_id
+                or not isinstance(entry.get("source_path"), str)
+                or binding is None or binding.get("artifact_id") != expected_source_id):
+            raise ValueError(
+                f"G4 required publication entry {package_id} must be sourced from Run Artifact {expected_source_id}."
+            )
+
+    if "single_study_applicability_record" not in by_id:
+        optional_package_groups = {
+            "mechanism_plan_preparation": {"MECHANISM_PLAN_001": "mechanism_plan"},
+            "response_surface_generation": {
+                "RESPONSE_SURFACE_REPORT_001": "interaction_response_surface_report",
+                "RESPONSE_SURFACE_DATA_001": "interaction_response_surface",
+                "RESPONSE_SURFACE_MANIFEST_001": "interaction_response_surface_manifest",
+                "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
+                "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
+            },
+            "mechanism_evidence_bridge": {
+                "MECHANISM_BRIDGE_001": "mechanism_evidence_bridge_report",
+                "MECHANISM_FINDINGS_001": "mechanism_findings",
+                "MECHANISM_LEDGER_001": "mechanism_evidence_ledger",
+                "MECHANISM_REVIEW_QUEUE_001": "mechanism_review_queue",
+                "MECHANISM_MANIFEST_001": "mechanism_evidence_bridge_manifest",
+            },
+        }
+        for optional_stage_id, package_map in optional_package_groups.items():
+            if optional_stage_id not in run_stage_ids:
+                continue
+            for package_id, source_id in package_map.items():
+                entry = next((item for item in entries if item.get("artifact_id") == package_id), None)
+                binding = reported_by_package.get(package_id)
+                if selected_ids:
+                    if (entry is None
+                            or entry.get("status") not in {"complete", "partial", "requires_review"}
+                            or entry.get("source_artifact_id") != source_id
+                            or not isinstance(entry.get("source_path"), str)
+                            or binding is None or binding.get("artifact_id") != source_id):
+                        raise ValueError(
+                            f"G4 selected interaction requires package entry {package_id} "
+                            f"to include Run Artifact {source_id}."
+                        )
+                elif (entry is None or entry.get("status") != "not_generated"
+                      or entry.get("source_path") is not None
+                      or entry.get("source_artifact_id") is not None
+                      or binding is not None):
+                    raise ValueError(
+                        f"G4 no-interaction branch requires {package_id} to remain not_generated without a source."
+                    )
 
     if set(reported_by_package) != expected_package_ids:
         raise ValueError("G4 publication_plan_validation source set differs from the final Publication Plan.")
