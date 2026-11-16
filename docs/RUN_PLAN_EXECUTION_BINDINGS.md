@@ -35,6 +35,36 @@ Select exactly one template from the validated adapter handoff:
 
 A valid handoff proves package integrity and route eligibility only. It never approves scientific mappings or a workflow gate.
 
+## Contract-bound stage execution
+
+Use Run Manager's action list as the execution queue. The Runtime now executes a declared local CLI stage and records its lifecycle in one operation; operators no longer need to issue separate `run-stage-record RUNNING` and `run-stage-record SUCCEEDED` commands for local work.
+
+1. Inspect the queue and resolved paths:
+
+       dor run-resume-plan --manifest <run_root>/run_manifest.json
+
+2. Prepare a JSON array containing the argument tokens for the next local stage's contract-bound Runtime command. Each item is one argument; do not put a shell command or the `dor` executable in the file. Use the exact paths shown by the action binding. For example, an adapter handoff argument file can look like:
+
+       [
+         "--manifest",
+         "D:/Research/Project/raw_sources/adapter_package/adapter_manifest.json",
+         "--package-root",
+         "D:/Research/Project/raw_sources/adapter_package",
+         "--out",
+         "<run_root>/00_adapter/adapter_handoff.json"
+       ]
+
+3. Preview, then execute the local stage:
+
+       dor run-stage-execute --manifest <run_root>/run_manifest.json --stage adapter_package_validation --args-file <run_control>/adapter_package_validation.args.json --dry-run
+       dor run-stage-execute --manifest <run_root>/run_manifest.json --stage adapter_package_validation --args-file <run_control>/adapter_package_validation.args.json
+
+The runner obtains the allowed CLI subcommand from the checked-in execution contract. It invokes that subcommand with an argv array (never a shell), records RUNNING before launch, and records SUCCEEDED only after all declared output artifacts exist and can be hashed. It automatically supplies the Run's configured workflow ledger and exact manifest to commands that require them; callers must not override those trust-bound arguments. The command's working directory is the active Run workspace, so relative output paths resolve within that Run.
+
+On a non-zero exit, timeout, launch error, or missing declared output, the runner records FAILED. Any partial files at declared output paths are preserved under `.dor_attempt_archive/<stage_id>/`; they are not silently deleted or left to block the next attempt. Before a retry or rebuild, pre-existing declared outputs are also archived with a manifest. Inspect archived results when diagnosing a failed stage; they are not current Run artifacts.
+
+The runner deliberately refuses to execute MANUAL and WORKER stages. A MANUAL stage remains a human task: prepare the declared records, run the listed validator where applicable, then record the human stage as RUNNING/SUCCEEDED. A WORKER stage still requires `dor run-worker-authorize` and an explicit host Worker Manager dispatch; after the Worker writes only to its permitted staging path, record its terminal state and usage. Worker completion never substitutes for human review or G0-G4 approval. The queue should be re-read after every stage because upstream outputs, Gate decisions, and invalidations can change the next action.
+
 ## STRUCTURED_DATASET route
 
 | Run Plan stage | Runtime command / action | Output contract |
