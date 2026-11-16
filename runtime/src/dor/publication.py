@@ -447,6 +447,8 @@ def build_publication_package_files(
             "type": item["type"],
             "description": item["description"],
             "status": status,
+            **({"source_artifact_id": item["source_artifact_id"]}
+               if isinstance(item.get("source_artifact_id"), str) else {}),
             "linked_record_ids": item.get("linked_record_ids", []),
             "manuscript_sections": item.get("manuscript_sections", [])
         }
