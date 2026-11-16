@@ -46,7 +46,7 @@ At Run initialization, the list is hash-bound into `run_manifest.json` and the f
 
 After the Run has reached a terminal state (every stage current or explicitly SKIPPED), prepare:
 - `templates/v1_source_selection_manifest.example.json` — partition every Acceptance source ID into selected or excluded exactly once, with reasons for exclusions and the sorted Study IDs from the exact Run Canonical Bundle.
-- `templates/v1_extraction_review_record.example.json` — bind all Acceptance source hashes and review only structured data rows/fields plus opaque upstream locator metadata. Never dereference an original paper/SI locator.
+- `templates/v1_extraction_review_record.example.json` — bind exactly the hashes for `selected_sources`; excluded sources remain in the source-selection partition with reasons and are not reviewed. Review only structured data rows/fields plus opaque upstream locator metadata. Never dereference an original paper/SI locator.
 
 Create the project-level Acceptance draft and its revision ledger:
 
