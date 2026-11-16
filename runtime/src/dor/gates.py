@@ -1382,15 +1382,54 @@ def _validate_g4_reviewed_findings(
         expected_reviewed_artifacts = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
     worker_binding = _require_gate_binding(by_id, "worker_review_output", "G4")
     reviewed_binding = _require_gate_binding(by_id, "reviewed_findings", "G4")
+    validation_binding = _require_gate_binding(by_id, "reviewed_findings_validation", "G4")
     worker_result = _read_json_binding(worker_binding, "G4 worker_review_output")
     reviewed = _read_json_binding(reviewed_binding, "G4 reviewed_findings")
+    validation_report = _read_json_binding(
+        validation_binding, "G4 reviewed_findings_validation",
+    )
     for label, binding in (
         ("worker_review_output", worker_binding),
         ("reviewed_findings", reviewed_binding),
+        ("reviewed_findings_validation", validation_binding),
     ):
         bound_path = Path(binding["path"])
-        if not bound_path.is_file() or sha256_file(bound_path) != binding["sha256"]:
+        if not bound_path.is_file() or bound_path.is_symlink() or sha256_file(bound_path) != binding["sha256"]:
             raise ValueError(f"G4 {label} changed after the Gate artifact hash was recorded.")
+
+    if (validation_report.get("schema_version") != "1.0"
+            or validation_report.get("contract") != "REVIEWED_WORKER_FINDINGS"
+            or validation_report.get("valid") is not True
+            or validation_report.get("errors") != []
+            or validation_report.get("stage_id") != "human_review_and_promotion"):
+        raise ValueError("G4 reviewed_findings_validation must be a valid, error-free promotion-stage report.")
+    if (validation_report.get("run_id") != reviewed.get("run_id")
+            or validation_report.get("project_id") != reviewed.get("project_id")
+            or validation_report.get("validation_report_path") != validation_binding["path"]):
+        raise ValueError("G4 reviewed_findings_validation Run/Project identity or report path is inconsistent.")
+    record_report_binding = validation_report.get("record")
+    if (not isinstance(record_report_binding, dict)
+            or record_report_binding.get("path") != reviewed_binding["path"]
+            or record_report_binding.get("sha256") != reviewed_binding["sha256"]):
+        raise ValueError("G4 reviewed_findings_validation does not bind the exact human disposition record.")
+    report_worker_binding = validation_report.get("worker_output")
+    if (not isinstance(report_worker_binding, dict)
+            or report_worker_binding.get("artifact_id") != "worker_review_output"
+            or report_worker_binding.get("path") != worker_binding["path"]
+            or report_worker_binding.get("sha256") != worker_binding["sha256"]
+            or report_worker_binding.get("worker_status") != worker_result.get("status")):
+        raise ValueError("G4 reviewed_findings_validation does not bind the exact Worker output.")
+    report_run_root = validation_report.get("run_root")
+    if not isinstance(report_run_root, str) or not report_run_root.strip():
+        raise ValueError("G4 reviewed_findings_validation must identify the active Run root.")
+    try:
+        resolved_run_root = Path(report_run_root).expanduser().resolve(strict=True)
+        if not Path(reviewed_binding["path"]).expanduser().resolve(strict=True).is_relative_to(resolved_run_root):
+            raise ValueError("G4 reviewed_findings_validation record is outside the active Run.")
+        if not Path(validation_binding["path"]).expanduser().resolve(strict=True).is_relative_to(resolved_run_root):
+            raise ValueError("G4 reviewed_findings_validation report is outside the active Run.")
+    except OSError as exc:
+        raise ValueError("G4 reviewed_findings_validation Run root cannot be verified.") from exc
 
     worker_required = {
         "schema_version", "task_id", "status", "summary", "findings",
@@ -1514,6 +1553,8 @@ def _validate_g4_reviewed_findings(
         path = Path(binding["path"])
         if not path.is_file() or sha256_file(path) != binding["sha256"]:
             raise ValueError(f"G4 reviewed artifact {artifact_id} changed after human review.")
+    if validation_report.get("reviewed_artifact_count") != len(expected_reviewed_artifacts):
+        raise ValueError("G4 reviewed_findings_validation reviewed_artifact_count differs from the active Worker input set.")
     if reviewed_ids != expected_reviewed_artifacts:
         missing = sorted(expected_reviewed_artifacts - reviewed_ids)
         unexpected = sorted(reviewed_ids - expected_reviewed_artifacts)
@@ -1588,6 +1629,12 @@ def _validate_g4_reviewed_findings(
     )
     if not consistent:
         raise ValueError("G4 promotion_decision is inconsistent with the individual human finding dispositions.")
+    if (validation_report.get("promotion_decision") != decision
+            or validation_report.get("expected_promotion_decision") != decision):
+        raise ValueError("G4 reviewed_findings_validation promotion decision differs from the exact human disposition record.")
+    reported_worker = validation_report.get("worker_output", {})
+    if reported_worker.get("finding_count") != len(worker_findings):
+        raise ValueError("G4 reviewed_findings_validation Worker finding count is inconsistent.")
     _validate_g4_publication_plan(by_id, previous_gate_event)
 
 def _validate_approval_artifacts(
