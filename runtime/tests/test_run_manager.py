@@ -811,7 +811,10 @@ class RunManagerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only to worker_staging"):
             initialize_run(bad_path, self.root / "runs" / "BAD", "BAD")
 
-    def _initialize_conditional_plan(self, include_unavailable_dependency=False):
+    def _initialize_conditional_plan(
+        self, include_unavailable_dependency=False, add_dependent_stage=False,
+        consume_optional_output=False,
+    ):
         conditional = {
             "stage_id": "optional_analysis",
             "executor": "local",
@@ -828,16 +831,29 @@ class RunManagerTests(unittest.TestCase):
             }],
         }
         self.plan["stages"].append(conditional)
+        if add_dependent_stage:
+            self.plan["stages"].append({
+                "stage_id": "after_optional",
+                "executor": "local",
+                "depends_on": ["optional_analysis"],
+                "inputs": (
+                    ["optional_analysis_output"] if consume_optional_output else ["raw_records"]
+                ),
+                "outputs": [{
+                    "artifact_id": "after_optional_output",
+                    "path": "06_after_optional/result.json",
+                }],
+            })
+        run_suffix = (
+            "PENDING_DEP" if include_unavailable_dependency
+            else ("SKIPPED_OUTPUT" if consume_optional_output else
+                  ("SKIPPED_DEP" if add_dependent_stage else "REACTIVATION"))
+        )
+        run_id = "RUN_CONDITIONAL_" + run_suffix
         self.write_plan()
-        self.run_root = self.root / "runs" / (
-            "RUN_CONDITIONAL_WITH_PENDING_DEP" if include_unavailable_dependency else "RUN_CONDITIONAL_REACTIVATION"
-        )
+        self.run_root = self.root / "runs" / run_id
         self.manifest_path = self.run_root / "run_manifest.json"
-        initialize_run(
-            self.plan_path,
-            self.run_root,
-            "RUN_CONDITIONAL_WITH_PENDING_DEP" if include_unavailable_dependency else "RUN_CONDITIONAL_REACTIVATION",
-        )
+        initialize_run(self.plan_path, self.run_root, run_id)
 
     def _write_audit_outputs_with_selection(self, selected_ids):
         self.write_outputs("audit")
@@ -877,6 +893,36 @@ class RunManagerTests(unittest.TestCase):
             for item in build_resume_plan(self.manifest_path)["stages"]
         }
         self.assertEqual(actions["optional_analysis"], "SKIPPED")
+
+    def test_skipped_control_dependency_allows_downstream_stage_without_its_outputs(self):
+        self._initialize_conditional_plan(add_dependent_stage=True)
+        self._run_audit_with_selection([])
+        record_stage_status(
+            self.manifest_path, "optional_analysis", "SKIPPED", "local",
+            reason="No interaction was selected.",
+        )
+        actions = {
+            item["stage_id"]: item["action"]
+            for item in build_resume_plan(self.manifest_path)["stages"]
+        }
+        self.assertEqual(actions["optional_analysis"], "SKIPPED")
+        self.assertEqual(actions["after_optional"], "READY_TO_RUN")
+
+    def test_skipped_control_dependency_still_blocks_a_consumer_of_its_outputs(self):
+        self._initialize_conditional_plan(
+            add_dependent_stage=True, consume_optional_output=True,
+        )
+        self._run_audit_with_selection([])
+        record_stage_status(
+            self.manifest_path, "optional_analysis", "SKIPPED", "local",
+            reason="No interaction was selected.",
+        )
+        actions = {
+            item["stage_id"]: item["action"]
+            for item in build_resume_plan(self.manifest_path)["stages"]
+        }
+        self.assertEqual(actions["optional_analysis"], "SKIPPED")
+        self.assertEqual(actions["after_optional"], "WAITING_FOR_DEPENDENCIES")
 
     def test_running_conditional_stage_cannot_be_closed_as_skipped(self):
         self._initialize_conditional_plan()
