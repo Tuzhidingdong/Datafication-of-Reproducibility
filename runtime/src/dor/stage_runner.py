@@ -286,3 +286,180 @@ def execute_local_stage(
         "event_hash": succeeded["event_hash"],
         "next_actions": build_resume_plan(manifest_path)["next_actions"],
     }
+
+
+def advance_run(
+    manifest_path: Path,
+    arguments_dir: Path,
+    max_local_stages: int = 10,
+    timeout_seconds: int = 3600,
+) -> dict[str, Any]:
+    """Run consecutive configured local stages until a human/Worker/Gate boundary.
+
+    Per-stage argv arrays are read from <arguments_dir>/<stage_id>.json.
+    Missing arguments, approval boundaries, and human/Worker stages are
+    returned as actionable pauses rather than guessed or bypassed.
+    """
+    if type(max_local_stages) is not int or max_local_stages < 1:
+        raise ValueError("max_local_stages must be a positive integer.")
+    arguments_root = arguments_dir.expanduser().resolve(strict=True)
+    if not arguments_root.is_dir():
+        raise NotADirectoryError(f"Stage arguments path must be a directory: {arguments_root}")
+
+    completed: list[dict[str, Any]] = []
+    for _ in range(max_local_stages):
+        root, manifest, plan, _events = _manifest_context(manifest_path)
+        resume = build_resume_plan(manifest_path)
+        next_actions = resume.get("next_actions", [])
+        if not next_actions:
+            gate_blockers = [
+                item for item in resume["stages"]
+                if item["action"] == "BLOCKED_GATE"
+            ]
+            if gate_blockers:
+                blocker = gate_blockers[0]
+                stage = _stage_map(plan)[blocker["stage_id"]]
+                return {
+                    "status": "PAUSED_FOR_GATE",
+                    "run_id": manifest["run_id"],
+                    "completed_local_stages": completed,
+                    "required_gate": stage.get("required_gate"),
+                    "stage_id": blocker["stage_id"],
+                    "reasons": blocker.get("reasons", []),
+                    "action_binding": blocker.get("action_binding"),
+                }
+            unresolved = [
+                item for item in resume["stages"]
+                if item["action"] not in {"REUSE", "SKIPPED"}
+            ]
+            if not unresolved:
+                return {
+                    "status": "COMPLETE",
+                    "run_id": manifest["run_id"],
+                    "completed_local_stages": completed,
+                    "next_actions": [],
+                }
+            return {
+                "status": "BLOCKED",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "unresolved_stages": unresolved,
+            }
+
+        next_action = next_actions[0]
+        stage_id = next_action["stage_id"]
+        stage = _stage_map(plan)[stage_id]
+        executor = stage.get("executor", "local")
+        if next_action["action"] == "SKIP_REQUIRED":
+            skipped = record_stage_status(
+                manifest_path,
+                stage_id,
+                "SKIPPED",
+                executor,
+                reason="Run Manager evaluated the declared stage activation condition as INACTIVE.",
+            )
+            completed.append({
+                "stage_id": stage_id,
+                "status": "SKIPPED",
+                "event_hash": skipped["event_hash"],
+            })
+            continue
+
+        action_binding = next_action.get("action_binding")
+        if executor == "manual":
+            return {
+                "status": "PAUSED_FOR_HUMAN",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "stage_id": stage_id,
+                "required_gate": stage.get("required_gate"),
+                "action": next_action["action"],
+                "reasons": next_action.get("reasons", []),
+                "action_binding": action_binding,
+                "required_inputs": action_binding.get("input_artifacts", []) if action_binding else [],
+                "required_outputs": action_binding.get("output_artifacts", []) if action_binding else [],
+            }
+        if executor == "worker":
+            return {
+                "status": "PAUSED_FOR_WORKER_AUTHORIZATION",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "stage_id": stage_id,
+                "required_gate": stage.get("required_gate"),
+                "action": next_action["action"],
+                "reasons": next_action.get("reasons", []),
+                "action_binding": action_binding,
+                "worker_task": stage.get("worker_task"),
+                "authorization_required": True,
+                "dispatch_performed": False,
+            }
+        if executor != "local":
+            return {
+                "status": "BLOCKED",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "stage_id": stage_id,
+                "reason": f"Unsupported stage executor: {executor}.",
+            }
+
+        args_path = arguments_root / f"{stage_id}.json"
+        if not args_path.is_file():
+            return {
+                "status": "ARGUMENTS_REQUIRED",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "stage_id": stage_id,
+                "action": next_action["action"],
+                "action_binding": action_binding,
+                "arguments_file": str(args_path),
+                "required_inputs": action_binding.get("input_artifacts", []) if action_binding else [],
+                "required_outputs": action_binding.get("output_artifacts", []) if action_binding else [],
+            }
+        try:
+            arguments = json.loads(args_path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return {
+                "status": "INVALID_ARGUMENTS_FILE",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "stage_id": stage_id,
+                "arguments_file": str(args_path),
+                "reason": str(exc),
+            }
+        if not isinstance(arguments, list):
+            return {
+                "status": "INVALID_ARGUMENTS_FILE",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "stage_id": stage_id,
+                "arguments_file": str(args_path),
+                "reason": "Arguments file must contain a JSON array of strings.",
+            }
+        result = execute_local_stage(
+            manifest_path,
+            stage_id,
+            arguments,
+            timeout_seconds=timeout_seconds,
+        )
+        completed.append({
+            "stage_id": stage_id,
+            "status": result["status"],
+            "attempt": result.get("attempt"),
+            "event_hash": result.get("event_hash"),
+        })
+        if result["status"] != "SUCCEEDED":
+            return {
+                "status": "LOCAL_STAGE_FAILED",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "failed_stage": result,
+            }
+
+    latest = build_resume_plan(manifest_path)
+    return {
+        "status": "YIELDED_AFTER_LOCAL_STAGE_LIMIT",
+        "run_id": latest["run_id"],
+        "completed_local_stages": completed,
+        "next_actions": latest["next_actions"],
+        "max_local_stages": max_local_stages,
+    }
