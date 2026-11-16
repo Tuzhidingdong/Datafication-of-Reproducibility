@@ -260,6 +260,13 @@ def validate_publication_plan_files(
     }
     if single_study_profile:
         required_package_ids.update({
+            "ADAPTER_HANDOFF", "DATASET_MANIFEST", "SOURCE_INVENTORY",
+            "MAPPING_PLAN", "MAPPING_VALIDATION", "BUILD_SPEC",
+            "BUILD_SPEC_VALIDATION", "CANONICAL_BUNDLE",
+            "CANONICAL_VALIDATION", "RECONCILIATION_REPORT",
+            "RECONCILIATION_DECISIONS", "RECONCILIATION_VALIDATION",
+            "DISCOVERY_REPORT", "RESEARCH_SCOPE_RECORD", "MODELING_TASK",
+            "G2_REVIEW_PACKET",
             "SINGLE_STUDY_APPLICABILITY_RECORD",
             "SINGLE_STUDY_APPLICABILITY_VALIDATION",
             "MODEL_NOT_APPLICABLE_RECORD",
