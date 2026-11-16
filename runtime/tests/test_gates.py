@@ -381,7 +381,7 @@ class WorkflowGateTests(unittest.TestCase):
     def _single_study_gate_fixture(self):
         def write(artifact_id, payload):
             path = self.root / (artifact_id + ".json")
-            path.write_text(json.dumps(payload, indent=2) + "\\n", encoding="utf-8")
+            path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
             self.files[artifact_id] = path
             return {"artifact_id": artifact_id, "path": str(path.resolve()), "sha256": sha256_file(path)}
 
@@ -600,7 +600,7 @@ class WorkflowGateTests(unittest.TestCase):
         bundle_binding = next(item for item in previous["artifacts"] if item["artifact_id"] == "canonical_bundle")
         bundle = json.loads(Path(bundle_binding["path"]).read_text(encoding="utf-8"))
         bundle["studies"].append({"study_id": "STUDY_2"})
-        Path(bundle_binding["path"]).write_text(json.dumps(bundle, indent=2) + "\\n", encoding="utf-8")
+        Path(bundle_binding["path"]).write_text(json.dumps(bundle, indent=2) + "\n", encoding="utf-8")
         bundle_binding["sha256"] = sha256_file(Path(bundle_binding["path"]))
         record = json.loads(self.files["single_study_applicability_record"].read_text(encoding="utf-8"))
         record["canonical_bundle_sha256"] = bundle_binding["sha256"]
