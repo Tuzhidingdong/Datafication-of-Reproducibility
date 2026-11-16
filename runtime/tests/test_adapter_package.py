@@ -130,12 +130,33 @@ class AdapterPackageInitializerTests(unittest.TestCase):
                 "1.0",
                 ["paper=paper.txt"],
                 ["records=standardized_dataset=records.csv"],
-                manifest_path=Path("metadata/adapter_manifest.json"),
+                manifest_path=Path("custom_adapter_manifest.json"),
             )
 
-            expected = package / "metadata" / "adapter_manifest.json"
+            expected = package / "custom_adapter_manifest.json"
             self.assertEqual(Path(result["manifest_path"]), expected.resolve())
             self.assertTrue(expected.is_file())
+
+    def test_manifest_output_must_be_directly_inside_package_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "package"
+            package.mkdir()
+            source = package / "paper.txt"
+            data = package / "records.csv"
+            source.write_text("provenance", encoding="utf-8")
+            data.write_text("id,value\\nA,1\\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "directly inside package_root"):
+                initialize_adapter_package(
+                    package,
+                    "manual",
+                    "1.0",
+                    ["paper=paper.txt"],
+                    ["records=standardized_dataset=records.csv"],
+                    manifest_path=Path("metadata/adapter_manifest.json"),
+                )
+            self.assertFalse((package / "metadata" / "adapter_manifest.json").exists())
 
     def test_package_id_defaults_to_safe_directory_name(self):
         with tempfile.TemporaryDirectory() as tmp:
