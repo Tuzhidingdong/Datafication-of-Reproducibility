@@ -96,7 +96,7 @@ class AdapterPackageInitializerTests(unittest.TestCase):
             package = root / "package"
             (package / "data").mkdir(parents=True)
             (package / "data" / "records.csv").write_text(
-                "id,value\\nA,1\\n", encoding="utf-8"
+                "id,value\nA,1\n", encoding="utf-8"
             )
             (package / "paper.pdf").write_bytes(b"paper")
 
@@ -145,7 +145,7 @@ class AdapterPackageInitializerTests(unittest.TestCase):
             source = package / "paper.txt"
             data = package / "records.csv"
             source.write_text("provenance", encoding="utf-8")
-            data.write_text("id,value\\nA,1\\n", encoding="utf-8")
+            data.write_text("id,value\nA,1\n", encoding="utf-8")
 
             with self.assertRaisesRegex(ValueError, "directly inside package_root"):
                 initialize_adapter_package(
