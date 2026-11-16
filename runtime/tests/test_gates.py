@@ -820,6 +820,24 @@ class WorkflowGateTests(unittest.TestCase):
         }
         return by_id, previous_gate
 
+    def test_single_study_g4_requires_only_its_profile_specific_review_set(self):
+        by_id, _previous_gate = self._single_study_g4_fixture()
+        bindings = [
+            (artifact_id, Path(item["path"]))
+            for artifact_id, item in by_id.items()
+            if artifact_id != "virtual_prediction"
+        ]
+        with self.assertRaisesRegex(
+            ValueError,
+            "Gate G4 requires artifact IDs: virtual_prediction",
+        ):
+            record_gate_decision(
+                self.ledger, "G4", "APPROVE", "human-reviewer",
+                "Synthetic profile-specific Gate precondition check.",
+                bindings,
+            )
+        self.assertFalse(self.ledger.exists())
+
     def test_single_study_g4_accepts_exact_worker_review_set_and_na_evidence(self):
         by_id, previous_gate = self._single_study_g4_fixture()
         _validate_g4_reviewed_findings(list(by_id.values()), previous_gate)
@@ -915,11 +933,11 @@ class WorkflowGateTests(unittest.TestCase):
             self._record_g2()
         self.assertEqual(inspect_gate_ledger(self.ledger)["event_count"], 2)
 
-    def test_g4_requires_all_full_analysis_worker_review_inputs(self):
+    def test_g4_full_analysis_requires_serialized_model_and_all_review_inputs(self):
         self._complete_to_g2()
         self._record_g3()
-        incomplete = [item for item in self._g4_artifact_ids() if item != "virtual_prediction"]
-        with self.assertRaisesRegex(ValueError, "requires artifact IDs"):
+        incomplete = [item for item in self._g4_artifact_ids() if item != "model_artifact"]
+        with self.assertRaisesRegex(ValueError, "requires artifact IDs: model_artifact"):
             self._record("G4", incomplete)
 
     def test_g4_rejects_package_source_not_produced_at_the_declared_run_artifact_path(self):
