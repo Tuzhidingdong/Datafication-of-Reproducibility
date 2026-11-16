@@ -1052,7 +1052,12 @@ def _stage_gate_input_mismatches(
 
 def _resume_plan(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
                  events: list[dict[str, Any]]) -> dict[str, Any]:
-    order, _, producer_by_artifact = _validate_plan(plan, root)
+    # This is a loaded Run, not first-time initialization. Provenance-only
+    # Acceptance sources may be missing; keep their status inspectable while
+    # preserving strict existence checks for operational source_artifacts.
+    order, _, producer_by_artifact = _validate_plan(
+        plan, root, allow_missing_acceptance_sources=True,
+    )
     stages = _stage_map(plan)
     latest = _latest_stage_events(events)
     gate_snapshot = _gate_status(manifest)
