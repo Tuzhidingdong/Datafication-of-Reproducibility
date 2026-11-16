@@ -44,8 +44,8 @@ class StageExecutionContractTests(unittest.TestCase):
                     config_root.mkdir()
                     adapter_manifest = package_root / "adapter_manifest.json"
                     virtual_query = config_root / "virtual_reproduction_query.json"
-                    publication_plan = config_root / "publication_package_plan.json"
-                    for path in (adapter_manifest, virtual_query, publication_plan):
+                    publication_plan_template = config_root / "publication_package_plan.json"
+                    for path in (adapter_manifest, virtual_query, publication_plan_template):
                         path.write_text("{}\n", encoding="utf-8")
 
                     plan = self._load_plan(relative_path)
@@ -54,7 +54,7 @@ class StageExecutionContractTests(unittest.TestCase):
                     source_paths = {
                         "adapter_package_manifest": adapter_manifest,
                         "virtual_query_input": virtual_query,
-                        "publication_plan": publication_plan,
+                        "publication_plan_template": publication_plan_template,
                     }
                     for artifact in plan["source_artifacts"]:
                         artifact["path"] = str(source_paths[artifact["artifact_id"]])
