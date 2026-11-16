@@ -108,7 +108,7 @@ The acceptance JSON is the current review state; the append-only Acceptance Ledg
 
 1. **Create the initial record, then initialize its history exactly once.** Complete its immutable identity, Run binding, source snapshot, fixed stage list, and initial `NOT_ASSESSED` final assessment. Then run:
    ```bash
-   dor init-acceptance-ledger --record acceptance_record.json --ledger acceptance_events.jsonl --actor "USER_CONFIRMED_REVIEWER_LABEL" --rationale "Created the controlled acceptance record."
+   dor init-acceptance --manifest <run_root>/run_manifest.json --out <acceptance_root>/acceptance_record.json --source-selection-manifest <acceptance_root>/source_selection_manifest.json --extraction-review-record <acceptance_root>/extraction_review_record.json --actor "USER_CONFIRMED_REVIEWER_LABEL" --rationale "Initialize acceptance for the completed Run"
    ```
    Use only a reviewer/actor label the user has supplied or explicitly authorized. The string is provenance metadata, not identity authentication.
 
