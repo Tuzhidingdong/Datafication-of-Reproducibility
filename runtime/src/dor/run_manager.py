@@ -541,11 +541,14 @@ def _validate_event_semantics(
                 raise ValueError(f"Worker authorization lacks rationale at line {line_number}.")
             if event.get("task_spec") != stage.get("worker_task"):
                 raise ValueError(f"Worker authorization task specification differs from the run plan at line {line_number}.")
-            if "worker_task_id" in event and (
-                not isinstance(event["worker_task_id"], str)
-                or not event["worker_task_id"].strip()
-            ):
-                raise ValueError(f"Worker authorization task ID is invalid at line {line_number}.")
+            if "worker_task_id" in event:
+                expected_worker_task_id = (
+                    f"DOR_{event['run_id']}_{stage_id}_ATTEMPT_{event['attempt']:04d}"
+                )
+                if event.get("worker_task_id") != expected_worker_task_id:
+                    raise ValueError(
+                        f"Worker authorization task ID differs from its Run/Stage/Attempt identity at line {line_number}."
+                    )
             validate_snapshots(event.get("input_artifacts"), stage["inputs"], "Worker authorization inputs", line_number)
             expected_outputs = [
                 {"artifact_id": item["artifact_id"], "path": str(_artifact_path(root, item)), "kind": item["kind"]}
