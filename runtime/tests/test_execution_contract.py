@@ -152,6 +152,50 @@ class StageExecutionContractTests(unittest.TestCase):
             self.assertIn("not fabricate", objective)
             self.assertNotIn("fit models", objective)
 
+    def test_publication_plan_preparation_and_g4_build_use_the_bound_validation(self):
+        cases = (
+            ("templates/run_plan.example.json", "STRUCTURED_DATASET", None),
+            ("templates/run_plan.canonical_adapter.example.json", "CANONICAL_BUNDLE", None),
+            ("templates/run_plan.single_study.example.json", "STRUCTURED_DATASET", "CONTROLLED_SINGLE_STUDY"),
+            ("templates/run_plan.canonical_adapter.single_study.example.json", "CANONICAL_BUNDLE", "CONTROLLED_SINGLE_STUDY"),
+        )
+        for relative_path, expected_route, expected_profile in cases:
+            plan = self._load_plan(relative_path)
+            bindings = stage_action_bindings_for_plan(plan)
+            with self.subTest(path=relative_path):
+                preparation = bindings["publication_plan_preparation"]
+                assembly = bindings["publication_package_assembly"]
+                self.assertEqual(preparation["route"], expected_route)
+                self.assertEqual(preparation["execution_profile"], expected_profile or "FULL_ANALYSIS")
+                self.assertEqual(preparation["executor"], "manual")
+                self.assertEqual(preparation["validator_command"], "validate-publication-plan")
+                self.assertEqual(assembly["executor"], "local")
+                self.assertEqual(assembly["runtime_command"], "build-publication-package")
+                self.assertIn(
+                    ["--validation", {"artifact": "publication_plan_validation"}],
+                    [
+                        assembly["argv_template"][index:index + 2]
+                        for index in range(len(assembly["argv_template"]) - 1)
+                    ],
+                )
+                self.assertIn("publication_plan_template", {
+                    item["artifact_id"] for item in plan["source_artifacts"]
+                })
+
+        parser = build_parser()
+        validation_args = parser.parse_args([
+            "validate-publication-plan", "--plan", "final_plan.json",
+            "--manifest", "run_manifest.json", "--out", "validation.json",
+        ])
+        self.assertEqual(validation_args.command, "validate-publication-plan")
+        build_args = parser.parse_args([
+            "build-publication-package", "--plan", "final_plan.json",
+            "--validation", "validation.json",
+            "--workspace-root", "run_root", "--out-dir", "package",
+            "--workflow-ledger", "workflow_gate_ledger.jsonl",
+        ])
+        self.assertEqual(build_args.validation, Path("validation.json"))
+
     def test_contract_cli_and_validator_actions_exist_in_runtime_parser(self):
         contract = json.loads(
             (ROOT / "runtime" / "src" / "dor" / "stage_execution_contract.json").read_text(encoding="utf-8")
