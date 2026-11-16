@@ -53,7 +53,7 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
        dor run-verify --manifest <new_run_root>/run_manifest.json
        dor run-resume-plan --manifest <new_run_root>/run_manifest.json
 
-6. Use `dor run-advance --manifest <run_root>/run_manifest.json --args-dir <run_control>/stage_arguments` to execute configured local stages in dependency order. The Skill prepares one JSON argv array per local stage from the Run Manager action bindings. The runner records stage outcomes automatically and pauses at human review, Worker authorization, unapproved Gate, or missing stage arguments. Complete the requested human/Worker action, record its outcome, then run `run-advance` again. Never bypass G0-G4 or auto-dispatch a Worker. See [Run Plan execution bindings](docs/RUN_PLAN_EXECUTION_BINDINGS.md).
+6. Use `dor run-advance --manifest <run_root>/run_manifest.json` to execute configured local stages in dependency order. The Runtime derives CLI arguments directly from the machine-readable execution contract and active Run Artifact paths; supported routes do not require per-stage argument files. It records stage outcomes automatically and pauses at human review, Worker authorization, unapproved Gate, or an unresolved user choice. Complete the requested human/Worker action, record its outcome, then run `run-advance` again. Never bypass G0-G4 or auto-dispatch a Worker. See [Run Plan execution bindings](docs/RUN_PLAN_EXECUTION_BINDINGS.md).
 7. At completion, generate the artifact and usage reports:
 
        dor run-artifacts --manifest <run_root>/run_manifest.json --out <run_root>/artifact_manifest.json
