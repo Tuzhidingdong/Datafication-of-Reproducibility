@@ -31,6 +31,16 @@ An adapter package contains an adapter_manifest.json, the declared output artifa
 
 Supported artifact roles are standardized_dataset, discovery_dataset, source_inventory, mapping_plan, build_spec, canonical_bundle, domain_profile, evidence_index, and auxiliary. These are handoff labels, not semantic interpretations.
 
+## Initialize a manifest for existing files
+
+When an upstream process has already prepared structured CSV/JSON files and their provenance inputs, but has not yet written an Adapter Manifest, the generic Runtime can create the manifest from an explicit file list:
+
+    dor init-adapter-package --package-root <package_root> --adapter-id <preparation_process_id> --adapter-version <version> --source <source_id>=<source_file> --artifact <artifact_id>=standardized_dataset=<package_relative_csv_or_json>
+
+Repeat \`--source\` and \`--artifact\` for every file that belongs in the package. The package root and all artifact files must already exist. Artifact paths must resolve inside the package root; source paths may be external and are stored as resolved absolute paths when they are outside the package. The output defaults to \`<package_root>/adapter_manifest.json\`; an existing manifest is never overwritten.
+
+This helper is a manifest initializer, not a domain adapter. It hashes only the explicitly supplied files and validates the resulting manifest. It does not crawl directories, convert or parse source files, infer scientific fields or mappings, inspect original papers/SI, or certify extraction fidelity. The supplied \`adapter_id\` and version identify the upstream preparation process; they must not falsely imply that DoR performed the preparation.
+
 ## Current format support
 
 The package validator can verify hashes for all declared formats in the manifest. The current structural source audit and canonical builder directly parse CSV and JSON. For other or proprietary formats, an external adapter must create a structured CSV/JSON handoff suitable for the declared mapping and entity-grain review. Preserve each original source file as an immutable provenance asset and retain the exact source hash plus the upstream-supplied page, record, object, row, cell, or other stable locator in the evidence/provenance records. DoR validates the presence and structural binding of these locator values only; it does not open the original source to verify their content.
