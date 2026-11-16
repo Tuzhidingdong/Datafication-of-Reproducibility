@@ -120,6 +120,28 @@ def _validate_source_selection(payload: Any, source_snapshot: list[dict[str, Any
         missing = sorted(set(expected) - set(assigned))
         unknown = sorted(set(assigned) - set(expected))
         errors.append(_error("SOURCE_SELECTION_PARTITION_MISMATCH", f"selected_sources and excluded_sources must partition the exact Run source snapshot; missing={missing}, unknown={unknown}.", "source_selection_manifest"))
+    selected_ids = {
+        item.get("source_id") for item in selected
+        if isinstance(item, dict) and _nonempty(item.get("source_id"))
+    }
+    selected_roles = {
+        item.get("role") for item in expected.values()
+        if item.get("source_id") in selected_ids
+    }
+    if "STRUCTURED_DATA" not in selected_roles:
+        errors.append(_error(
+            "SOURCE_SELECTION_STRUCTURED_DATA_MISSING",
+            "At least one STRUCTURED_DATA source must be selected for a V1.0 acceptance scope.",
+            "source_selection_manifest",
+        ))
+    if len(study_ids) == 1:
+        for required_role in ("PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"):
+            if required_role not in selected_roles:
+                errors.append(_error(
+                    "SOURCE_SELECTION_SINGLE_STUDY_PROVENANCE_MISSING",
+                    f"A controlled single-Study acceptance must select its {required_role} provenance source.",
+                    "source_selection_manifest",
+                ))
     if payload.get("study_ids") != sorted(study_ids):
         errors.append(_error("SOURCE_SELECTION_STUDY_SET_MISMATCH", "source_selection_manifest.study_ids must equal the sorted explicit acceptance Study IDs.", "source_selection_manifest"))
     return errors
