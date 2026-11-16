@@ -311,16 +311,16 @@ def build_parser() -> argparse.ArgumentParser:
     run_usage.add_argument("--manifest", type=Path, required=True)
     run_usage.add_argument("--out", type=Path, default=None)
 
-    run_execute = subparsers.add_parser("run-stage-execute", help="Execute one contract-bound local stage and record RUNNING/SUCCEEDED/FAILED automatically")
+    run_execute = subparsers.add_parser("run-stage-execute", help="Derive argv from Run Artifacts and execute one contract-bound local stage")
     run_execute.add_argument("--manifest", type=Path, required=True)
     run_execute.add_argument("--stage", dest="stage_id", required=True)
-    run_execute.add_argument("--args-file", type=Path, default=None, help="Optional explicit JSON argv override; supported Run Plans derive arguments from the execution contract by default")
+    run_execute.add_argument("--args-file", type=Path, default=None, help="Explicit JSON argv override for custom or unbound Run stages only")
     run_execute.add_argument("--timeout-seconds", type=int, default=3600)
     run_execute.add_argument("--dry-run", action="store_true", help="Print the exact argv without changing the Run")
 
-    run_advance = subparsers.add_parser("run-advance", help="Execute configured local stages until a Gate, human, Worker, or missing-arguments boundary")
+    run_advance = subparsers.add_parser("run-advance", help="Derive argv from Run Artifacts and execute local stages until a human, Worker, Gate, or input boundary")
     run_advance.add_argument("--manifest", type=Path, required=True)
-    run_advance.add_argument("--args-dir", type=Path, default=None, help="Optional explicit per-stage JSON argv overrides; normal supported Run execution derives arguments from Artifact bindings")
+    run_advance.add_argument("--args-dir", type=Path, default=None, help="Explicit per-stage JSON argv overrides for custom or unbound Run stages only")
     run_advance.add_argument("--max-local-stages", type=int, default=10)
     run_advance.add_argument("--timeout-seconds", type=int, default=3600)
 
