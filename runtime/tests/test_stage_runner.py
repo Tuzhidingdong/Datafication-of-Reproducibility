@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import json
 import subprocess
 import tempfile
@@ -136,7 +137,7 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
             self.assertEqual(cwd, str(self.run_root.resolve()))
             self.assertFalse(check)
             runtime_src = str(Path(__file__).resolve().parents[1] / "src")
-            self.assertIn(runtime_src, env["PYTHONPATH"].split(";") if ";" in env["PYTHONPATH"] else env["PYTHONPATH"].split(":"))
+            self.assertIn(runtime_src, env["PYTHONPATH"].split(os.pathsep))
             self.output.parent.mkdir(parents=True, exist_ok=True)
             self.output.write_text('{"status":"synthetic-success"}\n', encoding="utf-8")
             return subprocess.CompletedProcess(command, 0)
