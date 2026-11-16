@@ -520,7 +520,7 @@ class WorkflowGateTests(unittest.TestCase):
         self._prepare_g4_publication_plan(by_id, source_map, g3_event["event_hash"])
         return [
             "publication_plan", "publication_plan_validation",
-            "worker_review_output", "reviewed_findings",
+            "worker_review_output", "reviewed_findings", "reviewed_findings_validation",
             "model_report", "model_artifact", "reproducibility_evaluation",
             "interaction_report", "robustness_report", "interaction_selection",
             "virtual_prediction", "cohort_review_record", "cohort_review_validation",
