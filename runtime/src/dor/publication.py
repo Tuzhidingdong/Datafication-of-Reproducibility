@@ -251,15 +251,37 @@ def validate_publication_plan_files(
             "sha256": digest,
         })
 
+    single_study_profile = "single_study_applicability_record" in rows
     required_package_ids = {
         "WORKER_REVIEW_RECORD", "HUMAN_DISPOSITION_RECORD",
         "HUMAN_DISPOSITION_VALIDATION",
     }
+    if single_study_profile:
+        required_package_ids.update({
+            "SINGLE_STUDY_APPLICABILITY_RECORD",
+            "SINGLE_STUDY_APPLICABILITY_VALIDATION",
+            "MODEL_NOT_APPLICABLE_RECORD",
+            "REPRODUCIBILITY_NOT_APPLICABLE_RECORD",
+            "INTERACTION_NOT_APPLICABLE_RECORD",
+            "INTERACTION_NOT_APPLICABLE_MANIFEST",
+            "ROBUSTNESS_NOT_APPLICABLE_RECORD",
+            "ROBUSTNESS_NOT_APPLICABLE_MANIFEST",
+            "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD",
+            "INTERACTION_SELECTION",
+        })
+    else:
+        required_package_ids.update({
+            "COHORT_REVIEW_RECORD", "COHORT_REVIEW_VALIDATION",
+            "MODEL_ARTIFACT_001", "MODEL_REPORT_001",
+            "REPRODUCIBILITY_EVALUATION_001", "INTERACTION_REPORT_001",
+            "INTERACTION_ROBUSTNESS_001", "INTERACTION_SELECTION_001",
+            "VIRTUAL_PREDICTION_001",
+        })
     if not required_package_ids.issubset(package_artifact_ids):
         missing = sorted(required_package_ids - package_artifact_ids)
         issues.append({
             "code": "REQUIRED_REVIEW_DELIVERY_MISSING",
-            "message": "Publication Plan is missing required Worker/human review package entries: " + ", ".join(missing),
+            "message": "Publication Plan is missing required review/analysis package entries: " + ", ".join(missing),
         })
     by_run_artifact = {
         binding["artifact_id"] for binding in source_bindings
@@ -267,6 +289,19 @@ def validate_publication_plan_files(
     required_run_artifacts = {
         "worker_review_output", "reviewed_findings", "reviewed_findings_validation",
     }
+    if single_study_profile:
+        required_run_artifacts.update({
+            "single_study_applicability_record", "single_study_applicability_validation",
+            "canonical_bundle", "modeling_task", "model_report", "reproducibility_evaluation",
+            "interaction_report", "interaction_manifest", "robustness_report",
+            "robustness_manifest", "interaction_selection", "virtual_prediction",
+        })
+    else:
+        required_run_artifacts.update({
+            "model_artifact", "model_report", "reproducibility_evaluation",
+            "interaction_report", "robustness_report", "interaction_selection",
+            "virtual_prediction", "cohort_review_record", "cohort_review_validation",
+        })
     missing_run_artifacts = sorted(required_run_artifacts - by_run_artifact)
     if missing_run_artifacts:
         issues.append({
@@ -278,7 +313,7 @@ def validate_publication_plan_files(
         item.get("stage_id"): item for item in run_plan.get("stages", [])
         if isinstance(item, dict)
     }
-    if "single_study_applicability_record" in rows:
+    if single_study_profile:
         profile_required = {
             "SINGLE_STUDY_APPLICABILITY_RECORD": "single_study_applicability_record",
             "SINGLE_STUDY_APPLICABILITY_VALIDATION": "single_study_applicability_validation",
@@ -331,14 +366,22 @@ def validate_publication_plan_files(
             except (OSError, ValueError, json.JSONDecodeError) as exc:
                 issues.append({"code": "INTERACTION_SELECTION_INVALID", "message": str(exc)})
         optional_active = bool(selected_ids)
+        resume_actions = {
+            item["stage_id"]: item["action"]
+            for item in artifact_manifest.get("resume_plan", {}).get("stages", [])
+            if isinstance(item, dict) and isinstance(item.get("stage_id"), str)
+        }
+        for stage_id in ("mechanism_plan_preparation", "response_surface_generation", "mechanism_evidence_bridge"):
+            if stage_id in run_plan_stages:
+                expected_action = "REUSE" if optional_active else "SKIPPED"
+                if resume_actions.get(stage_id) != expected_action:
+                    issues.append({
+                        "code": "OPTIONAL_STAGE_STATE_MISMATCH",
+                        "message": f"{stage_id} must be {expected_action} for the exact G3 interaction selection; found {resume_actions.get(stage_id)}.",
+                    })
         for stage_id, package_map in optional_groups.items():
             if stage_id not in run_plan_stages:
                 continue
-            resume_actions = {
-                item["stage_id"]: item["action"]
-                for item in artifact_manifest.get("resume_plan", {}).get("stages", [])
-                if isinstance(item, dict) and isinstance(item.get("stage_id"), str)
-            }
             expected_action = "REUSE" if optional_active else "SKIPPED"
             if resume_actions.get(stage_id) != expected_action:
                 issues.append({
