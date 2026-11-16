@@ -4,6 +4,7 @@ import argparse, json, sys
 from pathlib import Path
 from dor.audit import run_audit, run_audit_from_adapter_handoff
 from dor.adapters import validate_adapter_package_files
+from dor.adapter_package import initialize_adapter_package
 from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle_from_handoff,
     materialize_adapter_artifacts_files)
 from dor.canonical_discovery import run_canonical_discovery_scan
@@ -88,6 +89,24 @@ def _parse_artifact_bindings(values: list[str]) -> list[tuple[str, Path]]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dor", description="Datafication of Reproducibility runtime")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    adapter_initialize = subparsers.add_parser(
+        "init-adapter-package",
+        help="Create a hash-bound manifest for explicitly selected existing source and dataset files",
+    )
+    adapter_initialize.add_argument("--package-root", type=Path, required=True,
+        help="Existing package directory; artifact files must be inside it")
+    adapter_initialize.add_argument("--adapter-id", required=True,
+        help="Identifier for the upstream preparation process, not a scientific domain")
+    adapter_initialize.add_argument("--adapter-version", required=True,
+        help="Version label for the upstream preparation process")
+    adapter_initialize.add_argument("--package-id", default=None,
+        help="Optional package identifier; defaults to a normalized package-directory name")
+    adapter_initialize.add_argument("--source", action="append", default=[],
+        help="Explicit provenance source as SOURCE_ID=FILE_PATH; repeat as needed")
+    adapter_initialize.add_argument("--artifact", action="append", default=[],
+        help="Explicit package artifact as ARTIFACT_ID=ROLE=FILE_PATH; repeat as needed")
+    adapter_initialize.add_argument("--out", type=Path, default=None,
+        help="New manifest path inside package-root; defaults to adapter_manifest.json")
     adapter_validation = subparsers.add_parser(
         "validate-adapter-package",
         help="Validate an external adapter package without interpreting its data semantics",
@@ -439,6 +458,13 @@ def main() -> int:
             if args.run_manifest is None:
                 raise ValueError("Modelling commands require --run-manifest so the Cohort approval is bound to the exact active Run.")
             enforce_cohort_review(args.cohort_dir, args.task, args.workflow_ledger, args.run_manifest)
+        if args.command == "init-adapter-package":
+            result = initialize_adapter_package(
+                args.package_root, args.adapter_id, args.adapter_version,
+                args.source, args.artifact, args.out, args.package_id,
+            )
+            print(_write_json(None, result), end="")
+            return 0
         if args.command == "validate-adapter-package":
             report = validate_adapter_package_files(args.manifest, args.package_root, args.out)
             print(_write_json(None, report), end="")
