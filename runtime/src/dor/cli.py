@@ -5,6 +5,7 @@ from pathlib import Path
 from dor.audit import run_audit, run_audit_from_adapter_handoff
 from dor.adapters import validate_adapter_package_files
 from dor.adapter_package import initialize_adapter_package
+from dor.project_setup import initialize_project_run_plan
 from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle_from_handoff,
     materialize_adapter_artifacts_files)
 from dor.canonical_discovery import run_canonical_discovery_scan
@@ -107,6 +108,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Explicit package artifact as ARTIFACT_ID=ROLE=FILE_PATH; repeat as needed")
     adapter_initialize.add_argument("--out", type=Path, default=None,
         help="New manifest path inside package-root; defaults to adapter_manifest.json")
+    project_run_plan = subparsers.add_parser(
+        "init-run-plan",
+        help="Create a validated project Run Plan from an Adapter handoff and a supported route/profile",
+    )
+    project_run_plan.add_argument("--adapter-handoff", type=Path, required=True,
+        help="Existing validated route-preflight adapter_handoff.json")
+    project_run_plan.add_argument("--project-root", type=Path, required=True,
+        help="Existing project directory; configuration and run_control folders are created if needed")
+    project_run_plan.add_argument("--run-root", type=Path, required=True,
+        help="New Run workspace path; it must be separate from every protected source root")
+    project_run_plan.add_argument("--profile", choices=["CONTROLLED_SINGLE_STUDY", "FULL_ANALYSIS"],
+        default="CONTROLLED_SINGLE_STUDY",
+        help="Analysis profile; the conservative one-Study profile is the default")
+    project_run_plan.add_argument("--project-id", default=None,
+        help="Optional stable project identifier; defaults to a normalized project-directory name")
+    project_run_plan.add_argument("--workflow-ledger", type=Path, default=None,
+        help="Optional G0-G4 ledger path; defaults to project_root/run_control/workflow_gate_ledger.jsonl")
+    project_run_plan.add_argument("--virtual-query-input", type=Path, default=None,
+        help="Required only for FULL_ANALYSIS; an existing explicit virtual reproduction query JSON")
+    project_run_plan.add_argument("--publication-plan-template", type=Path, default=None,
+        help="Optional existing project-owned Publication Plan blueprint; otherwise a route/profile template is copied")
+    project_run_plan.add_argument("--acceptance-source", action="append", default=[],
+        help="Optional provenance-only V1.0 source as SOURCE_ID=ROLE=FILE_PATH; repeat as needed")
+    project_run_plan.add_argument("--out", type=Path, default=None,
+        help="New Run Plan output path; defaults to project_root/run_control/run_plan.<route_profile>.json")
     adapter_validation = subparsers.add_parser(
         "validate-adapter-package",
         help="Validate an external adapter package without interpreting its data semantics",
@@ -462,6 +488,18 @@ def main() -> int:
             result = initialize_adapter_package(
                 args.package_root, args.adapter_id, args.adapter_version,
                 args.source, args.artifact, args.out, args.package_id,
+            )
+            print(_write_json(None, result), end="")
+            return 0
+        if args.command == "init-run-plan":
+            result = initialize_project_run_plan(
+                args.adapter_handoff, args.project_root, args.run_root,
+                profile=args.profile, project_id=args.project_id,
+                workflow_ledger_path=args.workflow_ledger,
+                virtual_query_input=args.virtual_query_input,
+                publication_plan_template=args.publication_plan_template,
+                acceptance_sources=args.acceptance_source,
+                output_path=args.out,
             )
             print(_write_json(None, result), end="")
             return 0
