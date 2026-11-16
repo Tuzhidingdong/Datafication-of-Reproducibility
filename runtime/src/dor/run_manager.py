@@ -1462,6 +1462,63 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
         acceptance_source_counts[item["status"]] = (
             acceptance_source_counts.get(item["status"], 0) + 1
         )
+    archived_attempts = []
+    for event in events:
+        if (event.get("event_type") != "STAGE_STATUS"
+                or event.get("status") != "FAILED"
+                or not isinstance(event.get("archive_manifest"), dict)):
+            continue
+        manifest_binding = event["archive_manifest"]
+        archive_manifest_path = _safe_relative_path(
+            root, manifest_binding["path"], "Worker failure archive manifest"
+        )
+        try:
+            archive_manifest_actual = (
+                sha256_file(archive_manifest_path)
+                if archive_manifest_path.is_file() and not archive_manifest_path.is_symlink()
+                else None
+            )
+        except OSError:
+            archive_manifest_actual = None
+        archived_files = []
+        for archived in event.get("archived_outputs", []):
+            archived_path = _safe_relative_path(
+                root, archived["archive_path"], "Worker archived output"
+            )
+            try:
+                actual = (
+                    sha256_file(archived_path)
+                    if archived_path.is_file() and not archived_path.is_symlink()
+                    else None
+                )
+            except OSError:
+                actual = None
+            archived_files.append({
+                "artifact_id": archived["artifact_id"],
+                "original_path": archived["original_path"],
+                "archive_path": str(archived_path),
+                "expected_sha256": archived["sha256"],
+                "actual_sha256": actual,
+                "status": "CURRENT" if actual == archived["sha256"] else "MISSING_OR_TAMPERED",
+            })
+        manifest_current = archive_manifest_actual == manifest_binding["sha256"]
+        archived_attempts.append({
+            "stage_id": event["stage_id"],
+            "attempt": event["attempt"],
+            "reason": event.get("reason"),
+            "event_hash": event["event_hash"],
+            "archive_manifest_path": str(archive_manifest_path),
+            "archive_manifest_expected_sha256": manifest_binding["sha256"],
+            "archive_manifest_actual_sha256": archive_manifest_actual,
+            "archive_manifest_status": "CURRENT" if manifest_current else "MISSING_OR_TAMPERED",
+            "archived_outputs": archived_files,
+            "status": (
+                "CURRENT" if manifest_current and all(item["status"] == "CURRENT" for item in archived_files)
+                else "MISSING_OR_TAMPERED"
+            ),
+            "reusable_as_stage_outputs": False,
+        })
+
     return {
         "schema_version": RUN_SCHEMA_VERSION,
         "run_id": manifest["run_id"],
@@ -1473,6 +1530,8 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
         "last_event_hash": events[-1]["event_hash"] if events else EVENT_GENESIS_HASH,
         "artifact_count": len(artifacts),
         "status_counts": counts,
+        "archived_attempt_count": len(archived_attempts),
+        "archived_attempts": archived_attempts,
         "source_integrity": "CURRENT" if all(item == "CURRENT" for item in all_source_states) else "SOURCE_CHANGED_NEW_RUN_REQUIRED",
         "acceptance_source_artifacts": acceptance_source_artifacts,
         "acceptance_source_status_counts": acceptance_source_counts,
