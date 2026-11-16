@@ -474,35 +474,51 @@ def initialize_acceptance_record(
         })
 
     event_path = (root / manifest["event_ledger_path"]).resolve(strict=True)
-    workflow_gate_binding = None
     workflow_ledger_path = manifest.get("workflow_ledger_path")
-    if isinstance(workflow_ledger_path, str) and workflow_ledger_path.strip():
-        gate_path = Path(workflow_ledger_path).expanduser().resolve(strict=True)
-        gate_report = inspect_gate_ledger(gate_path)
-        gate_event_hashes = {
-            gate_id: gate_report["gates"][gate_id].get("event_hash")
-            for gate_id in GATE_ORDER
-        }
-        gate_artifacts = {}
-        for gate_id in GATE_ORDER:
-            event = gate_report.get("events", {}).get(gate_id)
-            normalized = []
-            event_artifacts = event.get("artifacts", []) if isinstance(event, dict) else []
-            for item in event_artifacts:
-                if not isinstance(item, dict):
-                    continue
-                normalized.append({
-                    "artifact_id": item["artifact_id"],
-                    "path": str(Path(item["path"]).expanduser().resolve(strict=False)),
-                    "sha256": item["sha256"],
-                })
-            gate_artifacts[gate_id] = normalized
-        workflow_gate_binding = {
-            "path": str(gate_path),
-            "sha256": _sha256(gate_path),
-            "gate_event_hashes": gate_event_hashes,
-            "gate_artifacts": gate_artifacts,
-        }
+    if not isinstance(workflow_ledger_path, str) or not workflow_ledger_path.strip():
+        raise ValueError("A completed V1.0 Run must bind its G0-G4 workflow_ledger_path in the immutable Run Manifest.")
+    unresolved_gate_path = Path(workflow_ledger_path).expanduser()
+    if unresolved_gate_path.is_symlink():
+        raise ValueError("The G0-G4 workflow approval ledger must not be a symlink.")
+    gate_path = unresolved_gate_path.resolve(strict=True)
+    if not gate_path.is_file():
+        raise ValueError("The G0-G4 workflow approval ledger must be a regular file.")
+    gate_report = inspect_gate_ledger(gate_path)
+    if gate_report.get("valid_ledger") is not True:
+        raise ValueError("The G0-G4 workflow approval ledger is not valid.")
+    unapproved_gates = [
+        gate_id for gate_id in GATE_ORDER
+        if gate_report["gates"][gate_id].get("status") != "APPROVED"
+    ]
+    if unapproved_gates:
+        raise ValueError(
+            "Post-Run Acceptance requires current APPROVED decisions for every Gate G0-G4; "
+            "unapproved/stale gates: " + ", ".join(unapproved_gates) + "."
+        )
+    gate_event_hashes = {
+        gate_id: gate_report["gates"][gate_id].get("event_hash")
+        for gate_id in GATE_ORDER
+    }
+    gate_artifacts = {}
+    for gate_id in GATE_ORDER:
+        event = gate_report.get("events", {}).get(gate_id)
+        normalized = []
+        event_artifacts = event.get("artifacts", []) if isinstance(event, dict) else []
+        for item in event_artifacts:
+            if not isinstance(item, dict):
+                continue
+            normalized.append({
+                "artifact_id": item["artifact_id"],
+                "path": str(Path(item["path"]).expanduser().resolve(strict=False)),
+                "sha256": item["sha256"],
+            })
+        gate_artifacts[gate_id] = normalized
+    workflow_gate_binding = {
+        "path": str(gate_path),
+        "sha256": _sha256(gate_path),
+        "gate_event_hashes": gate_event_hashes,
+        "gate_artifacts": gate_artifacts,
+    }
 
     record = {
         "schema_version": "1.0",
@@ -530,8 +546,7 @@ def initialize_acceptance_record(
             "last_event_hash": events[-1]["event_hash"] if events else None,
         },
     }
-    if workflow_gate_binding is not None:
-        record["workflow_gate_ledger"] = workflow_gate_binding
+    record["workflow_gate_ledger"] = workflow_gate_binding
     raw = (json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -552,7 +567,7 @@ def initialize_acceptance_record(
         "source_selection_evidence_bound": bool(source_selection_evidence and source_selection_evidence[0].get("artifact_id") == "acceptance_source_selection"),
         "extraction_review_evidence_bound": bool(extraction_review_evidence),
         "scientific_decision": "NOT_ASSESSED",
-        "next_required_action": "Complete the post-Run source-selection and extraction-review evidence, then review each fixed Acceptance stage and initialize the Acceptance revision ledger.",
+        "next_required_action": "Review each of the eight fixed Acceptance stages against the bound artifacts, record the human stage decisions and final assessment through the Acceptance revision ledger, then validate and checkpoint the final record.",
     }
 
 
