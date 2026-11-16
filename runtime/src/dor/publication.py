@@ -310,6 +310,72 @@ def validate_publication_plan_files(
             "message": "Publication Plan does not package required Run artifacts: " + ", ".join(missing_run_artifacts),
         })
 
+    expected_package_sources = {
+        "WORKER_REVIEW_RECORD": "worker_review_output",
+        "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
+        "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+    }
+    if single_study_profile:
+        expected_package_sources.update({
+            "ADAPTER_HANDOFF": "adapter_handoff",
+            "DATASET_MANIFEST": "dataset_manifest",
+            "SOURCE_INVENTORY": "source_inventory",
+            "MAPPING_PLAN": "mapping_plan",
+            "MAPPING_VALIDATION": "mapping_validation",
+            "BUILD_SPEC": "build_spec",
+            "BUILD_SPEC_VALIDATION": "build_spec_validation",
+            "CANONICAL_BUNDLE": "canonical_bundle",
+            "CANONICAL_VALIDATION": "canonical_validation_report",
+            "RECONCILIATION_REPORT": "reconciliation_report",
+            "RECONCILIATION_DECISIONS": "reconciliation_decisions",
+            "RECONCILIATION_VALIDATION": "reconciliation_decision_validation",
+            "DISCOVERY_REPORT": "discovery_report",
+            "RESEARCH_SCOPE_RECORD": "research_scope_record",
+            "MODELING_TASK": "modeling_task",
+            "G2_REVIEW_PACKET": "g2_review_packet",
+            "SINGLE_STUDY_APPLICABILITY_RECORD": "single_study_applicability_record",
+            "SINGLE_STUDY_APPLICABILITY_VALIDATION": "single_study_applicability_validation",
+            "MODEL_NOT_APPLICABLE_RECORD": "model_report",
+            "REPRODUCIBILITY_NOT_APPLICABLE_RECORD": "reproducibility_evaluation",
+            "INTERACTION_NOT_APPLICABLE_RECORD": "interaction_report",
+            "INTERACTION_NOT_APPLICABLE_MANIFEST": "interaction_manifest",
+            "ROBUSTNESS_NOT_APPLICABLE_RECORD": "robustness_report",
+            "ROBUSTNESS_NOT_APPLICABLE_MANIFEST": "robustness_manifest",
+            "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD": "virtual_prediction",
+            "INTERACTION_SELECTION": "interaction_selection",
+        })
+    else:
+        expected_package_sources.update({
+            "MODEL_ARTIFACT_001": "model_artifact",
+            "MODEL_REPORT_001": "model_report",
+            "REPRODUCIBILITY_EVALUATION_001": "reproducibility_evaluation",
+            "INTERACTION_REPORT_001": "interaction_report",
+            "INTERACTION_ROBUSTNESS_001": "robustness_report",
+            "INTERACTION_SELECTION_001": "interaction_selection",
+            "VIRTUAL_PREDICTION_001": "virtual_prediction",
+            "COHORT_REVIEW_RECORD": "cohort_review_record",
+            "COHORT_REVIEW_VALIDATION": "cohort_review_validation",
+            "MECHANISM_BRIDGE_001": "mechanism_evidence_bridge_report",
+            "MECHANISM_FINDINGS_001": "mechanism_findings",
+            "MECHANISM_LEDGER_001": "mechanism_evidence_ledger",
+            "MECHANISM_REVIEW_QUEUE_001": "mechanism_review_queue",
+            "MECHANISM_MANIFEST_001": "mechanism_evidence_bridge_manifest",
+            "RESPONSE_SURFACE_REPORT_001": "interaction_response_surface_report",
+            "RESPONSE_SURFACE_DATA_001": "interaction_response_surface",
+            "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
+            "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
+        })
+    for package_id, expected_source_id in expected_package_sources.items():
+        entry = next((item for item in artifacts if item["artifact_id"] == package_id), None)
+        binding = next((item for item in source_bindings if item["package_artifact_id"] == package_id), None)
+        if entry is not None and (
+            binding is None or binding["artifact_id"] != expected_source_id
+        ):
+            issues.append({
+                "code": "PACKAGE_SOURCE_ID_MISMATCH",
+                "message": f"{package_id} must bind Run Artifact {expected_source_id}.",
+            })
+
     run_plan_stages = {
         item.get("stage_id"): item for item in run_plan.get("stages", [])
         if isinstance(item, dict)
