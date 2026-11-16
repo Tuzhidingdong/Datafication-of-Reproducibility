@@ -35,8 +35,9 @@ def _write_json(path: Path, payload: dict[str, Any]) -> str:
     if path.exists():
         raise FileExistsError(f"Refusing to overwrite an existing single-study artifact: {path}")
     rendered = json.dumps(payload, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
-    path.write_text(rendered, encoding="utf-8")
-    return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+    content = rendered.encode("utf-8")
+    path.write_bytes(content)
+    return hashlib.sha256(content).hexdigest()
 
 
 def _planned_artifact_path(root: Path, plan: dict[str, Any], artifact_id: str) -> Path:
