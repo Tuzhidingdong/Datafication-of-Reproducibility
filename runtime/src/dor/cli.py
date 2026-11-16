@@ -314,13 +314,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_execute = subparsers.add_parser("run-stage-execute", help="Execute one contract-bound local stage and record RUNNING/SUCCEEDED/FAILED automatically")
     run_execute.add_argument("--manifest", type=Path, required=True)
     run_execute.add_argument("--stage", dest="stage_id", required=True)
-    run_execute.add_argument("--args-file", type=Path, required=True, help="JSON array of individual CLI argument strings for the bound Runtime command")
+    run_execute.add_argument("--args-file", type=Path, default=None, help="Optional explicit JSON argv override; supported Run Plans derive arguments from the execution contract by default")
     run_execute.add_argument("--timeout-seconds", type=int, default=3600)
     run_execute.add_argument("--dry-run", action="store_true", help="Print the exact argv without changing the Run")
 
     run_advance = subparsers.add_parser("run-advance", help="Execute configured local stages until a Gate, human, Worker, or missing-arguments boundary")
     run_advance.add_argument("--manifest", type=Path, required=True)
-    run_advance.add_argument("--args-dir", type=Path, required=True, help="Directory containing <stage_id>.json CLI argument arrays")
+    run_advance.add_argument("--args-dir", type=Path, default=None, help="Optional explicit per-stage JSON argv overrides; normal supported Run execution derives arguments from Artifact bindings")
     run_advance.add_argument("--max-local-stages", type=int, default=10)
     run_advance.add_argument("--timeout-seconds", type=int, default=3600)
 
@@ -471,12 +471,14 @@ def main() -> int:
             print(_write_json(args.out, result), end="")
             return 0
         if args.command == "run-stage-execute":
-            try:
-                cli_arguments = json.loads(args.args_file.read_text(encoding="utf-8-sig"))
-            except (OSError, json.JSONDecodeError) as exc:
-                raise ValueError(f"Could not read --args-file as a JSON array: {exc}") from exc
-            if not isinstance(cli_arguments, list):
-                raise ValueError("--args-file must contain a JSON array of CLI argument strings.")
+            cli_arguments = None
+            if args.args_file is not None:
+                try:
+                    cli_arguments = json.loads(args.args_file.read_text(encoding="utf-8-sig"))
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise ValueError(f"Could not read --args-file as a JSON array: {exc}") from exc
+                if not isinstance(cli_arguments, list):
+                    raise ValueError("--args-file must contain a JSON array of CLI argument strings.")
             result = execute_local_stage(
                 args.manifest, args.stage_id, cli_arguments,
                 timeout_seconds=args.timeout_seconds, dry_run=args.dry_run,
@@ -494,7 +496,7 @@ def main() -> int:
             return 0 if result["status"] in {
                 "COMPLETE", "PAUSED_FOR_GATE", "PAUSED_FOR_HUMAN",
                 "PAUSED_FOR_WORKER_AUTHORIZATION", "ARGUMENTS_REQUIRED",
-                "YIELDED_AFTER_LOCAL_STAGE_LIMIT",
+                "INPUT_REQUIRED", "YIELDED_AFTER_LOCAL_STAGE_LIMIT",
             } else 2
         if args.command == "run-artifacts":
             result = build_artifact_manifest(args.manifest)
