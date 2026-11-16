@@ -419,6 +419,7 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     run_artifact_id,
                 )
             optional_paths = {
+                "MECHANISM_PLAN_001": "07_review/mechanism_plan.json",
                 "MECHANISM_BRIDGE_001": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
                 "MECHANISM_FINDINGS_001": "07_mechanism_bridge/mechanism_findings.json",
                 "MECHANISM_LEDGER_001": "07_mechanism_bridge/mechanism_evidence_ledger.csv",
@@ -426,6 +427,7 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 "MECHANISM_MANIFEST_001": "07_mechanism_bridge/mechanism_evidence_bridge_manifest.json",
                 "RESPONSE_SURFACE_REPORT_001": "07_response_surface/interaction_response_surface_report.json",
                 "RESPONSE_SURFACE_DATA_001": "07_response_surface/interaction_response_surface.csv",
+                "RESPONSE_SURFACE_MANIFEST_001": "07_response_surface/interaction_response_surface_manifest.json",
                 "RESPONSE_SURFACE_SUPPORT_001": "07_response_surface/interaction_observed_support.csv",
                 "RESPONSE_SURFACE_MARGINALS_001": "07_response_surface/interaction_marginal_effects.csv",
             }
