@@ -168,16 +168,28 @@ def validate_publication_plan_files(
             issues.append({"code": "PROJECT_ID_MISMATCH", "message": "Publication Plan project_id differs from the active Run."})
 
     artifact_manifest = build_artifact_manifest(manifest_path)
-    if artifact_manifest.get("source_integrity") != "CURRENT":
-        issues.append({
-            "code": "SOURCE_INTEGRITY_CHANGED",
-            "message": "An operational or provenance-only source changed after Run initialization.",
-        })
+    artifact_rows = artifact_manifest.get("artifacts", [])
     rows = {
         item.get("artifact_id"): item
-        for item in artifact_manifest.get("artifacts", [])
+        for item in artifact_rows
         if isinstance(item, dict) and isinstance(item.get("artifact_id"), str)
     }
+    stale_operational_sources = sorted(
+        item["artifact_id"] for item in artifact_rows
+        if isinstance(item, dict)
+        and item.get("kind") == "source"
+        and item.get("status") != "CURRENT"
+        and isinstance(item.get("artifact_id"), str)
+    )
+    if stale_operational_sources:
+        issues.append({
+            "code": "OPERATIONAL_SOURCE_INTEGRITY_CHANGED",
+            "message": (
+                "Operational Run source artifacts changed after initialization: "
+                + ", ".join(stale_operational_sources)
+                + ". Provenance-only Acceptance paper/SI sources are checked separately."
+            ),
+        })
 
     source_bindings: list[dict[str, str]] = []
     package_artifact_ids: set[str] = set()
