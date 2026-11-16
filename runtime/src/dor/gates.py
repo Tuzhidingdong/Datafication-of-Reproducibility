@@ -922,6 +922,37 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
             "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD",
             "INTERACTION_SELECTION",
         }
+        expected_package_sources = {
+            "ADAPTER_HANDOFF": "adapter_handoff",
+            "DATASET_MANIFEST": "dataset_manifest",
+            "SOURCE_INVENTORY": "source_inventory",
+            "MAPPING_PLAN": "mapping_plan",
+            "MAPPING_VALIDATION": "mapping_validation",
+            "BUILD_SPEC": "build_spec",
+            "BUILD_SPEC_VALIDATION": "build_spec_validation",
+            "CANONICAL_BUNDLE": "canonical_bundle",
+            "CANONICAL_VALIDATION": "canonical_validation_report",
+            "RECONCILIATION_REPORT": "reconciliation_report",
+            "RECONCILIATION_DECISIONS": "reconciliation_decisions",
+            "RECONCILIATION_VALIDATION": "reconciliation_decision_validation",
+            "DISCOVERY_REPORT": "discovery_report",
+            "RESEARCH_SCOPE_RECORD": "research_scope_record",
+            "MODELING_TASK": "modeling_task",
+            "G2_REVIEW_PACKET": "g2_review_packet",
+            "SINGLE_STUDY_APPLICABILITY_RECORD": "single_study_applicability_record",
+            "SINGLE_STUDY_APPLICABILITY_VALIDATION": "single_study_applicability_validation",
+            "MODEL_NOT_APPLICABLE_RECORD": "model_report",
+            "REPRODUCIBILITY_NOT_APPLICABLE_RECORD": "reproducibility_evaluation",
+            "INTERACTION_NOT_APPLICABLE_RECORD": "interaction_report",
+            "INTERACTION_NOT_APPLICABLE_MANIFEST": "interaction_manifest",
+            "ROBUSTNESS_NOT_APPLICABLE_RECORD": "robustness_report",
+            "ROBUSTNESS_NOT_APPLICABLE_MANIFEST": "robustness_manifest",
+            "VIRTUAL_PREDICTION_NOT_APPLICABLE_RECORD": "virtual_prediction",
+            "INTERACTION_SELECTION": "interaction_selection",
+            "WORKER_REVIEW_RECORD": "worker_review_output",
+            "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
+            "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+        }
     else:
         required_package_ids = required_common | {
             "COHORT_REVIEW_RECORD", "COHORT_REVIEW_VALIDATION",
@@ -929,6 +960,29 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
             "REPRODUCIBILITY_EVALUATION_001", "INTERACTION_REPORT_001",
             "INTERACTION_ROBUSTNESS_001", "INTERACTION_SELECTION_001",
             "VIRTUAL_PREDICTION_001",
+        }
+        expected_package_sources = {
+            "MODEL_ARTIFACT_001": "model_artifact",
+            "MODEL_REPORT_001": "model_report",
+            "REPRODUCIBILITY_EVALUATION_001": "reproducibility_evaluation",
+            "INTERACTION_REPORT_001": "interaction_report",
+            "INTERACTION_ROBUSTNESS_001": "robustness_report",
+            "INTERACTION_SELECTION_001": "interaction_selection",
+            "VIRTUAL_PREDICTION_001": "virtual_prediction",
+            "COHORT_REVIEW_RECORD": "cohort_review_record",
+            "COHORT_REVIEW_VALIDATION": "cohort_review_validation",
+            "WORKER_REVIEW_RECORD": "worker_review_output",
+            "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
+            "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
+            "MECHANISM_BRIDGE_001": "mechanism_evidence_bridge_report",
+            "MECHANISM_FINDINGS_001": "mechanism_findings",
+            "MECHANISM_LEDGER_001": "mechanism_evidence_ledger",
+            "MECHANISM_REVIEW_QUEUE_001": "mechanism_review_queue",
+            "MECHANISM_MANIFEST_001": "mechanism_evidence_bridge_manifest",
+            "RESPONSE_SURFACE_REPORT_001": "interaction_response_surface_report",
+            "RESPONSE_SURFACE_DATA_001": "interaction_response_surface",
+            "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
+            "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
         }
     missing_package_ids = sorted(required_package_ids - set(package_ids))
     if missing_package_ids:
@@ -968,6 +1022,11 @@ def _validate_g4_publication_plan(by_id: Mapping[str, dict[str, str]]) -> None:
             continue
         if not isinstance(package_id, str) or not isinstance(source_id, str) or not source_id.strip():
             raise ValueError("Every sourced G4 Publication Plan entry requires package artifact_id and source_artifact_id.")
+        expected_source_id = expected_package_sources.get(package_id)
+        if expected_source_id is not None and source_id != expected_source_id:
+            raise ValueError(
+                f"G4 Publication Plan {package_id} must bind Run Artifact {expected_source_id}, not {source_id}."
+            )
         expected_package_ids.add(package_id)
         relative = Path(source_path)
         if (relative.is_absolute() or re.match(r"^[A-Za-z]:", source_path)
