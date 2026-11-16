@@ -19,6 +19,12 @@ For a supported Structured Dataset or Canonical Bundle Run, do not manually wrap
 3. Preview with `dor run-stage-execute --manifest run_manifest.json --stage <stage_id> --args-file <stage_args.json> --dry-run`.
 4. Execute with the same command without `--dry-run`.
 
+For a contiguous segment of ready local stages, prepare `<stage_id>.json` argument arrays for the local stages under one directory and use:
+
+    dor run-advance --manifest run_manifest.json --args-dir path/to/stage_arguments --max-local-stages 10
+
+It runs local stages in dependency order and pauses at the first MANUAL stage, Worker authorization boundary, unapproved Gate, missing argument file, or failure. The returned report gives the next stage and its bound evidence paths. After completing and recording the human/Worker operation, invoke `run-advance` again. Inactive conditional stages are recorded as SKIPPED by the Runtime. Each call is limited to ten local stages by default.
+
 The Runtime runner obtains the CLI subcommand only from `stage_execution_contract.json`, never invokes a shell, records RUNNING before launch, and records SUCCEEDED only when every declared output exists and can be hashed. It records FAILED on non-zero exit, timeout, launch error, or missing output. Partial outputs are preserved under `.dor_attempt_archive/<stage_id>/`; they are not silently deleted. Re-read `run-resume-plan` after every stage because the next action may have changed. The runner injects the immutable Run's workflow-ledger and manifest arguments for commands that require them; do not pass or override those arguments.
 
 Use `run-stage-record` only for explicitly completed MANUAL or WORKER operations, not as a substitute for executing a local CLI stage. Human stages must be completed by a human and validated using the stage's declared validator. Worker stages still require `run-worker-authorize`, an explicit host Worker Manager dispatch, returned job/session/usage data, and a separate human review/promotion stage. Include Worker token counts only when returned by the existing Worker Manager; unknown usage stays unknown.
