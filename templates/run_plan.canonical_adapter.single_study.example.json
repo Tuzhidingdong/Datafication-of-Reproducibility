@@ -586,7 +586,13 @@
         "canonical_reconciliation",
         "reconciliation_decision_review",
         "research_scope_selection",
-        "single_study_na_artifacts"
+        "single_study_na_artifacts",
+        "adapter_package_validation",
+        "mapping_validation",
+        "build_spec_validation",
+        "reconciliation_decision_validation",
+        "exploratory_discovery",
+        "g2_review_packet"
       ],
       "required_gate": "G3",
       "inputs": [
@@ -649,7 +655,13 @@
         "reconciliation_decision_review",
         "research_scope_selection",
         "single_study_na_artifacts",
-        "publication_plan_preparation"
+        "publication_plan_preparation",
+        "adapter_package_validation",
+        "mapping_validation",
+        "build_spec_validation",
+        "reconciliation_decision_validation",
+        "exploratory_discovery",
+        "g2_review_packet"
       ],
       "inputs": [
         "g2_review_packet",
