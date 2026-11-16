@@ -76,6 +76,10 @@ class StageExecutionContractTests(unittest.TestCase):
                     self.assertEqual(first_action["action"], "READY_TO_RUN")
                     self.assertEqual(first_action["action_binding"]["runtime_command"], "prepare-adapter-handoff")
                     self.assertEqual(
+                        first_action["action_binding"]["argv_template"][:2],
+                        ["--manifest", {"artifact": "adapter_package_manifest"}],
+                    )
+                    self.assertEqual(
                         first_action["action_binding"]["input_artifacts"][0]["path"],
                         str(adapter_manifest.resolve()),
                     )
@@ -121,6 +125,11 @@ class StageExecutionContractTests(unittest.TestCase):
                     "validate-single-study-applicability",
                 )
                 self.assertEqual(bindings["independent_result_review"]["executor"], "worker")
+                self.assertTrue(bindings["single_study_na_artifacts"]["argv_template"])
+                self.assertEqual(
+                    bindings["single_study_na_artifacts"]["argv_template"][0:2],
+                    ["--record", {"artifact": "single_study_applicability_record"}],
+                )
 
     def test_controlled_single_study_profile_rejects_omitted_na_stage(self):
         plan = self._load_plan("templates/run_plan.single_study.example.json")
