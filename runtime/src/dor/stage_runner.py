@@ -309,6 +309,11 @@ def execute_local_stage(
         )
         argument_source = "EXECUTION_CONTRACT"
     else:
+        if isinstance(binding.get("argv_template"), list) and binding.get("argv_template"):
+            raise ValueError(
+                f"Stage {stage_id} has a machine-declared argv_template; "
+                "supported Run stages must use Artifact-bound automatic arguments, not an args-file override."
+            )
         cli_arguments = _normalise_arguments(arguments)
     workflow_ledger = manifest.get("workflow_ledger_path")
     if runtime_command in _GATED_COMMANDS or runtime_command in _EXPLICIT_LEDGER_COMMANDS:
@@ -571,7 +576,25 @@ def advance_run(
 
         args_path = arguments_root / f"{stage_id}.json" if arguments_root is not None else None
         arguments = None
-        if args_path is not None and args_path.is_file():
+        has_automatic_binding = (
+            isinstance(action_binding, dict)
+            and isinstance(action_binding.get("argv_template"), list)
+            and bool(action_binding.get("argv_template"))
+        )
+        if has_automatic_binding and args_path is not None and args_path.is_file():
+            return {
+                "status": "ARGUMENT_OVERRIDE_NOT_ALLOWED",
+                "run_id": manifest["run_id"],
+                "completed_local_stages": completed,
+                "stage_id": stage_id,
+                "arguments_file": str(args_path),
+                "reason": (
+                    "This supported Run Stage is bound to the checked-in argv_template. "
+                    "Remove the manual override file and let Run Manager derive arguments from its Artifacts."
+                ),
+                "action_binding": action_binding,
+            }
+        if not has_automatic_binding and args_path is not None and args_path.is_file():
             try:
                 arguments = json.loads(args_path.read_text(encoding="utf-8-sig"))
             except (OSError, json.JSONDecodeError) as exc:
@@ -592,11 +615,7 @@ def advance_run(
                     "arguments_file": str(args_path),
                     "reason": "Arguments file must contain a JSON array of strings.",
                 }
-        if arguments is None and not (
-            isinstance(action_binding, dict)
-            and isinstance(action_binding.get("argv_template"), list)
-            and action_binding.get("argv_template")
-        ):
+        if arguments is None and not has_automatic_binding:
             return {
                 "status": "ARGUMENTS_REQUIRED",
                 "run_id": manifest["run_id"],
