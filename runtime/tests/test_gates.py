@@ -569,6 +569,32 @@ class WorkflowGateTests(unittest.TestCase):
             for artifact_id in artifact_ids
         ]
         self._write("reviewed_findings", reviewed)
+        worker = json.loads(self.files["worker_review_output"].read_text(encoding="utf-8"))
+        self._write("reviewed_findings_validation", {
+            "schema_version": "1.0",
+            "contract": "REVIEWED_WORKER_FINDINGS",
+            "valid": True,
+            "run_id": "RUN_GATE",
+            "project_id": "PROJECT_TEST",
+            "stage_id": "human_review_and_promotion",
+            "run_root": str(self.root.resolve()),
+            "record": {
+                "path": str(self.files["reviewed_findings"].resolve()),
+                "sha256": sha256_file(self.files["reviewed_findings"]),
+            },
+            "worker_output": {
+                "artifact_id": "worker_review_output",
+                "path": str(self.files["worker_review_output"].resolve()),
+                "sha256": sha256_file(self.files["worker_review_output"]),
+                "worker_status": worker["status"],
+                "finding_count": len(worker["findings"]),
+            },
+            "reviewed_artifact_count": len(reviewed["reviewed_artifacts"]),
+            "promotion_decision": reviewed["promotion_decision"],
+            "expected_promotion_decision": reviewed["promotion_decision"],
+            "validation_report_path": str(self.files["reviewed_findings_validation"].resolve()),
+            "errors": [],
+        })
 
 
     def _record_g0(self):
@@ -812,9 +838,34 @@ class WorkflowGateTests(unittest.TestCase):
             "overall_rationale": "The Worker review returned no findings requiring promotion.",
         }
         by_id["reviewed_findings"] = bind("reviewed_findings", reviewed)
+        validation_path = self.root / "reviewed_findings_validation.json"
         by_id["reviewed_findings_validation"] = bind(
             "reviewed_findings_validation",
-            {"schema_version": "1.0", "valid": True},
+            {
+                "schema_version": "1.0",
+                "contract": "REVIEWED_WORKER_FINDINGS",
+                "valid": True,
+                "run_id": "RUN_GATE",
+                "project_id": "PROJECT_TEST",
+                "stage_id": "human_review_and_promotion",
+                "run_root": str(self.root.resolve()),
+                "record": {
+                    "path": by_id["reviewed_findings"]["path"],
+                    "sha256": by_id["reviewed_findings"]["sha256"],
+                },
+                "worker_output": {
+                    "artifact_id": "worker_review_output",
+                    "path": by_id["worker_review_output"]["path"],
+                    "sha256": by_id["worker_review_output"]["sha256"],
+                    "worker_status": worker["status"],
+                    "finding_count": len(worker["findings"]),
+                },
+                "reviewed_artifact_count": len(reviewed_artifacts),
+                "promotion_decision": reviewed["promotion_decision"],
+                "expected_promotion_decision": reviewed["promotion_decision"],
+                "validation_report_path": str(validation_path.resolve()),
+                "errors": [],
+            },
         )
         single_source_map = {
             "ADAPTER_HANDOFF": "adapter_handoff",
