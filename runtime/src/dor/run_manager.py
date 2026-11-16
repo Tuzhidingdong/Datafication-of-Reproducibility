@@ -1909,10 +1909,9 @@ def record_stage_status(
                             raise ValueError(
                                 "Worker result task_id differs from the task_id in the exact Run authorization packet."
                             )
-                        recorded_task_id = completed_producer.get("task_id")
-                        if recorded_task_id is not None and recorded_task_id != result_task_id:
-                            raise ValueError("Worker result task_id differs from the task_id supplied by the host Worker Manager.")
-                        completed_producer["task_id"] = result_task_id
+                        # The Worker Result task_id is the DoR authorization-packet
+                        # identity. producer.task_id remains the distinct external
+                        # task identifier returned by the host Worker Manager, if any.
             except (OSError, ValueError, KeyError, TypeError) as exc:
                 if producer_kind != "worker":
                     raise
