@@ -97,6 +97,10 @@
     "authorized_by": {
       "type": "string"
     },
+    "worker_task_id": {
+      "type": "string",
+      "minLength": 1
+    },
     "rationale": {
       "type": "string"
     },
