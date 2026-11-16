@@ -1894,6 +1894,18 @@ def record_stage_status(
                                 + str(worker_result_payload.get("summary", "")).strip()
                             )
                         result_task_id = worker_result_payload["task_id"]
+                        authorization = _latest_worker_authorization(
+                            events, stage_id, latest["attempt"]
+                        )
+                        expected_worker_task_id = (
+                            authorization.get("worker_task_id")
+                            if isinstance(authorization, dict) else None
+                        )
+                        if (isinstance(expected_worker_task_id, str)
+                                and result_task_id != expected_worker_task_id):
+                            raise ValueError(
+                                "Worker result task_id differs from the task_id in the exact Run authorization packet."
+                            )
                         recorded_task_id = completed_producer.get("task_id")
                         if recorded_task_id is not None and recorded_task_id != result_task_id:
                             raise ValueError("Worker result task_id differs from the task_id supplied by the host Worker Manager.")
