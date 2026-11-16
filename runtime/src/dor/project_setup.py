@@ -213,6 +213,18 @@ def initialize_project_run_plan(
     acceptance_ids = [item["source_id"] for item in acceptance_records]
     if len(acceptance_ids) != len(set(acceptance_ids)):
         raise ValueError("Acceptance source IDs must be unique.")
+    if profile == "CONTROLLED_SINGLE_STUDY" and acceptance_records:
+        supplied_roles = {item["role"] for item in acceptance_records}
+        required_roles = {"PRIMARY_PAPER", "SUPPLEMENTARY_INFORMATION"}
+        missing_roles = sorted(required_roles - supplied_roles)
+        if missing_roles:
+            raise ValueError(
+                "A controlled single-Study V1.0 Acceptance source snapshot requires both "
+                "PRIMARY_PAPER and SUPPLEMENTARY_INFORMATION; missing: "
+                + ", ".join(missing_roles)
+                + ". Add the linked source files explicitly or omit --acceptance-source "
+                "only when this Run will not be used for V1.0 Acceptance."
+            )
 
     run_template = json.loads(run_template_path.read_text(encoding="utf-8"))
     if not isinstance(run_template, dict):
