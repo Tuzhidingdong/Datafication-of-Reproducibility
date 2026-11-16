@@ -141,6 +141,20 @@ class ContractBoundStageRunnerTests(unittest.TestCase):
         self.assertEqual(report["argument_source"], "EXECUTION_CONTRACT")
         self.assertEqual(verify_run(self.manifest_path)["event_count"], 1)
 
+    def test_supported_stage_rejects_manual_args_override(self):
+        with patch(
+            "dor.stage_runner.stage_action_bindings_for_plan",
+            return_value=self._automatic_bindings(),
+        ):
+            with self.assertRaisesRegex(ValueError, "must use Artifact-bound automatic arguments"):
+                execute_local_stage(
+                    self.manifest_path,
+                    "local_stage",
+                    ["--input", str(self.source), "--out", str(self.output)],
+                    dry_run=True,
+                )
+        self.assertEqual(verify_run(self.manifest_path)["event_count"], 1)
+
     def test_single_selection_binding_refuses_ambiguous_user_choice(self):
         selection_path = self.root / "interaction_selection.json"
         selection_path.write_text(
