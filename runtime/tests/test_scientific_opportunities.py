@@ -450,6 +450,7 @@ class ScientificOpportunityTests(unittest.TestCase):
             )
         approved = {
             "canonical_concept_id": "CONCEPT_SHARED",
+            "measurement_context": "same-cycle-100-measurement",
             "display_name": "Reviewed shared feature",
             "definition": "Explicitly supplied test definition",
             "review_status": "APPROVED",
@@ -467,6 +468,33 @@ class ScientificOpportunityTests(unittest.TestCase):
             result["profile"]["self_association_exclusion_reason_counts"],
             {"SAME_APPROVED_SEMANTIC_CONCEPT": 1},
         )
+
+    def test_same_approved_concept_with_different_measurement_context_is_not_auto_excluded(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            _add_system_level_study(
+                bundle, study, [1.0, 2.0, 3.0, 4.0], [2.0, 4.0, 6.0, 8.0],
+                condition_type="condition_alias", condition_unit="outcome-unit",
+            )
+        for row in bundle["observations"]:
+            row["semantic_metadata"] = {
+                "canonical_concept_id": "CONCEPT_SHARED",
+                "measurement_context": "endpoint-cycle-100",
+                "review_status": "APPROVED",
+            }
+        for row in bundle["conditions"]:
+            row["semantic_metadata"] = {
+                "canonical_concept_id": "CONCEPT_SHARED",
+                "measurement_context": "initial-condition",
+                "review_status": "APPROVED",
+            }
+        result = build_scientific_opportunities(bundle, bootstrap_iterations=200)
+        self.assertEqual(result["profile"]["self_association_exclusion_count"], 0)
+        self.assertEqual(len(result["correlations"]), 1)
+        self.assertEqual(len(result["opportunities"]), 1)
+        review = result["opportunities"][0]["semantic_review"]
+        self.assertEqual(review["relationship_status"], "SAME_APPROVED_CONCEPT_CONTEXT_UNRESOLVED")
+        self.assertEqual(review["status"], "APPROVED_METADATA_AVAILABLE_FOR_DOMAIN_REVIEW")
 
     def test_approved_direct_derivation_is_excluded_before_tests_and_fdr(self):
         bundle = _bundle()
