@@ -78,8 +78,25 @@
             "fdr_alpha",
             "paired_contrast_test_count",
             "numeric_trend_test_count",
-            "opportunity_count_written"
-          ]
+            "opportunity_count_written",
+            "maximum_levels_per_condition",
+            "condition_level_count_total",
+            "categorical_level_count_excluded_from_pairwise_screen"
+          ],
+          "properties": {
+            "maximum_levels_per_condition": {
+              "type": "integer",
+              "minimum": 2
+            },
+            "condition_level_count_total": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "categorical_level_count_excluded_from_pairwise_screen": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
         },
         "limitations": {
           "type": "array",

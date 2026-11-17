@@ -76,6 +76,7 @@ def summarize_canonical_bundle(
     fdr_alpha: float = 0.10,
     bootstrap_iterations: int = 1000,
     maximum_opportunities: int = 500,
+    maximum_levels_per_condition: int = 20,
     seed: int = 42,
 ) -> dict[str, Any]:
     """Summarize canonical entities without interpreting target or condition semantics."""
@@ -239,6 +240,7 @@ def summarize_canonical_bundle(
         fdr_alpha=fdr_alpha,
         bootstrap_iterations=bootstrap_iterations,
         maximum_opportunities=maximum_opportunities,
+        maximum_levels_per_condition=maximum_levels_per_condition,
         seed=seed,
     )
     signals.extend(scientific["signals"])
@@ -286,6 +288,7 @@ def run_canonical_discovery_scan(
     fdr_alpha: float = 0.10,
     bootstrap_iterations: int = 1000,
     maximum_opportunities: int = 500,
+    maximum_levels_per_condition: int = 20,
     seed: int = 42,
 ) -> dict[str, Any]:
     """Create a read-only exploratory report from a canonical bundle."""
@@ -305,7 +308,8 @@ def run_canonical_discovery_scan(
     bundle = json.loads(bundle_path.read_text(encoding="utf-8-sig"))
     result = summarize_canonical_bundle(
         bundle, minimum_studies, maximum_pairs, minimum_paired_studies,
-        fdr_alpha, bootstrap_iterations, maximum_opportunities, seed,
+        fdr_alpha, bootstrap_iterations, maximum_opportunities,
+        maximum_levels_per_condition, seed,
     )
     if _sha256(bundle_path) != input_hash:
         raise RuntimeError("Canonical bundle changed during discovery scan.")
@@ -339,6 +343,10 @@ def run_canonical_discovery_scan(
           "study_difference_ci95": json.dumps(row.get("study_difference_ci95"), ensure_ascii=False),
           "study_effects_json": json.dumps(row.get("study_effects", []), ensure_ascii=False, sort_keys=True)}
          for row in scientific["contrasts"]])
+    _write_csv(output_dir / "condition_level_support.csv",
+        ["target_id", "endpoint_definition", "timepoint", "outcome_unit",
+         "condition_type", "condition_unit", "condition_level", "study_count",
+         "system_count", "experiment_count"], scientific["condition_level_support"])
     _write_csv(output_dir / "condition_outcome_correlations.csv",
         ["analysis_family", "target_id", "endpoint_definition", "timepoint", "outcome_unit",
          "condition_type", "condition_unit", "independent_study_count", "system_correlation_count",

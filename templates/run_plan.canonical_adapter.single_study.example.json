@@ -275,6 +275,38 @@
         {
           "artifact_id": "joint_support",
           "path": "04_discovery/joint_support.csv"
+        },
+        {
+          "artifact_id": "discovery_data_profile",
+          "path": "04_discovery/discovery_data_profile.json"
+        },
+        {
+          "artifact_id": "signal_catalogue",
+          "path": "04_discovery/signal_catalogue.csv"
+        },
+        {
+          "artifact_id": "condition_level_support",
+          "path": "04_discovery/condition_level_support.csv"
+        },
+        {
+          "artifact_id": "condition_outcome_contrasts",
+          "path": "04_discovery/condition_outcome_contrasts.csv"
+        },
+        {
+          "artifact_id": "condition_outcome_correlations",
+          "path": "04_discovery/condition_outcome_correlations.csv"
+        },
+        {
+          "artifact_id": "research_opportunities",
+          "path": "04_discovery/research_opportunities.json"
+        },
+        {
+          "artifact_id": "evidence_ledger",
+          "path": "04_discovery/evidence_ledger.jsonl"
+        },
+        {
+          "artifact_id": "scientific_analysis_profile",
+          "path": "04_discovery/scientific_analysis_profile.json"
         }
       ]
     },
@@ -290,7 +322,15 @@
         "target_support",
         "study_coverage",
         "condition_support",
-        "joint_support"
+        "joint_support",
+        "discovery_data_profile",
+        "signal_catalogue",
+        "condition_level_support",
+        "condition_outcome_contrasts",
+        "condition_outcome_correlations",
+        "research_opportunities",
+        "evidence_ledger",
+        "scientific_analysis_profile"
       ],
       "outputs": [
         {

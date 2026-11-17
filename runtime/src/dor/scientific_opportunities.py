@@ -147,6 +147,7 @@ def build_scientific_opportunities(
     fdr_alpha: float = 0.10,
     bootstrap_iterations: int = 1000,
     maximum_opportunities: int = 500,
+    maximum_levels_per_condition: int = 20,
     seed: int = 42,
 ) -> dict[str, Any]:
     """Screen within-Study/System condition contrasts and numeric condition trends.
@@ -160,8 +161,8 @@ def build_scientific_opportunities(
         raise ValueError("minimum_paired_studies must be >= 3 for the Study-level sign test.")
     if not 0 < fdr_alpha < 1:
         raise ValueError("fdr_alpha must be between 0 and 1.")
-    if bootstrap_iterations < 0 or maximum_opportunities < 1:
-        raise ValueError("bootstrap_iterations must be non-negative and maximum_opportunities positive.")
+    if bootstrap_iterations < 0 or maximum_opportunities < 1 or maximum_levels_per_condition < 2:
+        raise ValueError("bootstrap_iterations must be non-negative, maximum_opportunities positive, and maximum_levels_per_condition >= 2.")
 
     experiments = {row["experiment_id"]: row for row in bundle.get("experiments", [])}
     systems = {row["system_id"]: row for row in bundle.get("systems", [])}
@@ -258,6 +259,8 @@ def build_scientific_opportunities(
 
     contrast_rows: list[dict[str, Any]] = []
     correlation_rows: list[dict[str, Any]] = []
+    condition_level_support_rows: list[dict[str, Any]] = []
+    categorical_level_count_excluded = 0
     raw_opportunities: list[dict[str, Any]] = []
 
     for base_key, levels_by_label in sorted(by_base.items(), key=lambda item: _label(item[0])):
@@ -265,6 +268,20 @@ def build_scientific_opportunities(
         target_id, endpoint, timepoint, outcome_unit = outcome_key
         condition_type, condition_unit = condition_base
         labels = sorted(levels_by_label)
+        for label in labels:
+            study_levels = levels_by_label[label]
+            condition_level_support_rows.append({
+                "target_id": target_id,
+                "endpoint_definition": endpoint,
+                "timepoint": timepoint,
+                "outcome_unit": outcome_unit,
+                "condition_type": condition_type,
+                "condition_unit": condition_unit,
+                "condition_level": label,
+                "study_count": len(study_levels),
+                "system_count": len({system for systems_by_study in study_levels.values() for system in systems_by_study}),
+                "experiment_count": len({experiment for systems_by_study in study_levels.values() for cell in systems_by_study.values() for experiment in cell["experiment_ids"]}),
+            })
         level_study_counts = {
             label: len(levels_by_label[label]) for label in labels
         }
@@ -388,7 +405,14 @@ def build_scientific_opportunities(
         else:
             if len(labels) < 2:
                 continue
-            for label_a, label_b in itertools.combinations(labels, 2):
+            screened_labels = labels
+            if len(labels) > maximum_levels_per_condition:
+                screened_labels = sorted(
+                    labels,
+                    key=lambda label: (-level_study_counts[label], label),
+                )[:maximum_levels_per_condition]
+                categorical_level_count_excluded += len(labels) - len(screened_labels)
+            for label_a, label_b in itertools.combinations(screened_labels, 2):
                 studies_a = levels_by_label[label_a]
                 studies_b = levels_by_label[label_b]
                 eligible_level_a = len(studies_a)
@@ -643,6 +667,9 @@ def build_scientific_opportunities(
         "ambiguous_condition_experiment_assignments_excluded": ambiguous_assignments,
         "paired_contrast_test_count": len(contrast_rows),
         "numeric_trend_test_count": len(correlation_rows),
+        "maximum_levels_per_condition": maximum_levels_per_condition,
+        "condition_level_count_total": len(condition_level_support_rows),
+        "categorical_level_count_excluded_from_pairwise_screen": categorical_level_count_excluded,
         "opportunity_count_before_limit": len(raw_opportunities),
         "opportunity_count_written": len(opportunities),
         "fdr_screen_positive_count": sum(
@@ -664,6 +691,7 @@ def build_scientific_opportunities(
         "profile": profile,
         "contrasts": contrast_rows,
         "correlations": correlation_rows,
+        "condition_level_support": condition_level_support_rows,
         "opportunities": opportunities,
         "signals": signals,
         "evidence_ledger": evidence_ledger,

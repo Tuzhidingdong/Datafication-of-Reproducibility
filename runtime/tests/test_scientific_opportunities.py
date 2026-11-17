@@ -172,6 +172,28 @@ class ScientificOpportunityTests(unittest.TestCase):
         )
         self.assertIn("not", " ".join(opportunity["limitations"]).lower())
 
+    def test_high_cardinality_conditions_keep_full_coverage_but_bound_pairwise_screen(self):
+        bundle = _bundle()
+        levels = [f"level_{index:02d}" for index in range(22)]
+        for study in range(1, 4):
+            _add_study(
+                bundle, study, levels,
+                [float(study * 100 + index) for index in range(len(levels))],
+            )
+        result = build_scientific_opportunities(
+            bundle, bootstrap_iterations=0, maximum_levels_per_condition=20
+        )
+        self.assertEqual(len(result["condition_level_support"]), 22)
+        self.assertEqual(result["profile"]["condition_level_count_total"], 22)
+        self.assertEqual(
+            result["profile"]["categorical_level_count_excluded_from_pairwise_screen"], 2
+        )
+        self.assertEqual(len(result["contrasts"]), 190)
+        selected_levels = {
+            row["level_a"] for row in result["contrasts"]
+        } | {row["level_b"] for row in result["contrasts"]}
+        self.assertEqual(len(selected_levels), 20)
+
 
 if __name__ == "__main__":
     unittest.main()

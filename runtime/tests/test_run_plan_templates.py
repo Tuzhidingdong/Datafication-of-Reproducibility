@@ -147,6 +147,58 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     {"artifact_id": "research_scope_record", "path": "05_scope/research_scope_record.json"},
                     stages["research_scope_selection"]["outputs"],
                 )
+    def test_discovery_engine_outputs_are_declared_and_available_to_scope_review(self):
+        expected = {
+            "discovery_manifest", "discovery_report", "discovery_brief",
+            "discovery_data_profile", "target_support", "study_coverage",
+            "condition_support", "joint_support", "signal_catalogue",
+            "condition_level_support", "condition_outcome_contrasts",
+            "condition_outcome_correlations", "research_opportunities",
+            "evidence_ledger", "scientific_analysis_profile",
+        }
+        for path in (
+            "templates/run_plan.example.json",
+            "templates/run_plan.canonical_adapter.example.json",
+            "templates/run_plan.single_study.example.json",
+            "templates/run_plan.canonical_adapter.single_study.example.json",
+        ):
+            plan = self._load_plan(path)
+            stages = {item["stage_id"]: item for item in plan["stages"]}
+            discovery = stages["exploratory_discovery"]
+            scope = stages["research_scope_selection"]
+            with self.subTest(path=path):
+                output_ids = {item["artifact_id"] for item in discovery["outputs"]}
+                self.assertEqual(output_ids, expected)
+                self.assertTrue(expected.issubset(set(scope["inputs"])))
+                for artifact_id in expected:
+                    output = next(item for item in discovery["outputs"] if item["artifact_id"] == artifact_id)
+                    self.assertTrue(output["path"].startswith("04_discovery/"))
+
+    def test_stage_execution_contract_registers_every_discovery_output(self):
+        contract = json.loads(
+            (ROOT / "runtime/src/dor/stage_execution_contract.json").read_text(encoding="utf-8")
+        )
+        stages = {item["stage_id"]: item for item in contract["stages"]}
+        expected = {
+            "discovery_manifest", "discovery_report", "discovery_brief",
+            "discovery_data_profile", "target_support", "study_coverage",
+            "condition_support", "joint_support", "signal_catalogue",
+            "condition_level_support", "condition_outcome_contrasts",
+            "condition_outcome_correlations", "research_opportunities",
+            "evidence_ledger", "scientific_analysis_profile",
+        }
+        discovery = stages["exploratory_discovery"]
+        scope = stages["research_scope_selection"]
+        for variant in discovery["route_variants"]:
+            with self.subTest(route=variant["route"]):
+                self.assertEqual(
+                    {item["artifact_id"] for item in variant["outputs"]},
+                    expected,
+                )
+        for variant in scope["route_variants"]:
+            with self.subTest(scope_route=variant["route"]):
+                self.assertTrue(expected.issubset(set(variant["inputs"])))
+
     def test_canonical_route_uses_materialized_bundle_as_the_bundle_producer(self):
         plan = self._load_plan("templates/run_plan.canonical_adapter.example.json")
         stages = {item["stage_id"]: item for item in plan["stages"]}

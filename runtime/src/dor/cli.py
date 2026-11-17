@@ -187,6 +187,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Study-level bootstrap iterations for percentile confidence intervals; 0 disables intervals")
     discovery.add_argument("--maximum-opportunities", type=int, default=500,
         help="Maximum ranked DOR-generated research opportunities to write")
+    discovery.add_argument("--maximum-levels-per-condition", type=int, default=20,
+        help="Maximum condition levels screened pairwise per target/endpoint/condition; full level coverage is retained")
     discovery.add_argument("--seed", type=int, default=42,
         help="Deterministic seed for Study-level bootstrap intervals")
     audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
@@ -735,7 +737,7 @@ def main() -> int:
             result = run_canonical_discovery_scan(
                 bundle_path, args.out_dir, args.minimum_studies, args.maximum_pairs,
                 args.minimum_paired_studies, args.fdr_alpha, args.bootstrap_iterations,
-                args.maximum_opportunities, args.seed,
+                args.maximum_opportunities, args.maximum_levels_per_condition, args.seed,
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0

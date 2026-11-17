@@ -116,6 +116,7 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertTrue((output / "discovery_manifest.json").is_file())
             self.assertTrue((output / "target_support.csv").is_file())
             self.assertTrue((output / "condition_outcome_contrasts.csv").is_file())
+            self.assertTrue((output / "condition_level_support.csv").is_file())
             self.assertTrue((output / "condition_outcome_correlations.csv").is_file())
             self.assertTrue((output / "research_opportunities.json").is_file())
             self.assertTrue((output / "evidence_ledger.jsonl").is_file())
@@ -140,6 +141,7 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(args.fdr_alpha, 0.10)
         self.assertEqual(args.bootstrap_iterations, 1000)
         self.assertEqual(args.maximum_opportunities, 500)
+        self.assertEqual(args.maximum_levels_per_condition, 20)
         self.assertEqual(args.seed, 42)
 
     def test_profile_preserves_studies_without_observations(self):
