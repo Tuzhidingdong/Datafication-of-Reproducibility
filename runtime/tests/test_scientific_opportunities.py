@@ -410,10 +410,13 @@ class ScientificOpportunityTests(unittest.TestCase):
         self.assertEqual(result["profile"]["opportunity_count_before_mirror_deduplication"], 2)
         self.assertEqual(result["profile"]["mirror_duplicate_opportunity_count"], 1)
         self.assertEqual(result["profile"]["opportunity_count_before_limit"], 1)
+        self.assertEqual(result["profile"]["numeric_trend_fdr_test_count"], 1)
         proof = result["mirror_duplicates"][0]["proof"]
         self.assertTrue(proof["exact_reciprocal_values"])
         self.assertTrue(proof["identical_experiment_support_within_each_system"])
         self.assertEqual(proof["matched_system_count"], 16)
+        self.assertEqual(proof["matched_experiment_count"], 16)
+        self.assertEqual(proof["matched_observation_count"], 32)
 
     def test_near_mirror_with_a_different_system_value_is_not_deduplicated(self):
         bundle = _bundle()
@@ -435,6 +438,7 @@ class ScientificOpportunityTests(unittest.TestCase):
         ]
         self.assertEqual(len(rows), 2)
         self.assertEqual(result["mirror_duplicates"], [])
+        self.assertEqual(result["profile"]["numeric_trend_fdr_test_count"], 2)
         self.assertEqual(len(result["opportunities"]), 2)
 
     def test_approved_semantic_alias_is_excluded_before_tests_and_fdr(self):
