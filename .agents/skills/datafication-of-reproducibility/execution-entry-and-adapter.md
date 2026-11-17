@@ -13,11 +13,11 @@ DoR never assumes a particular source system or research domain. When a project 
 - Read the external adapter package contract at ../../../docs/ADAPTER_CONTRACT.md.
 - Create a DoR handoff with dor prepare-adapter-handoff --manifest <adapter_manifest.json> --package-root <package_root> --out <adapter_handoff.json>. The output is a hash-bound routing record; it does not approve scientific semantics.
 - This pre-Run stage is available only when the handoff route is CANONICAL_BUNDLE. Run dor discover-opportunities --adapter-handoff <adapter_handoff.json> --out-dir <new_discovery_directory>.
-- Read agent_research_brief.md and discovery_report.json. Use aggregate CSV outputs only when a specific signal needs inspection.
-- Do not load complete source datasets or large evidence collections into an LLM context. Use deterministic local processing and pass only bounded summaries or task-specific evidence packets to Agents.
-- Treat every signal as exploratory. Do not infer domain meanings from identifiers, filenames, or unreviewed labels.
-- Synthesize a small set of testable research opportunities. Each must cite supporting signal IDs, independent Study support, data limitations, identifiability, confounding risks, counterexamples, proposed validation, and novelty-review status.
-- The user selects or revises a research direction before a formal analysis task and Run are initialized.
+- The Runtime itself generates the full-bundle profile, Study-aware condition/outcome screens, multiple-testing corrections, ranked research opportunities, and Observation-to-Study evidence ledger. Read research_opportunities.json, condition_outcome_contrasts.csv, condition_outcome_correlations.csv, evidence_ledger.jsonl, and discovery_report.json; use the bounded agent_research_brief.md only as an index.
+- Do not repeat the Runtime calculations with ad hoc scripts or replace its opportunity catalogue with free-form Agent hypotheses. Do not load complete source datasets or raw Observation collections into an LLM context.
+- Treat every opportunity as a candidate, not a finding. Do not infer domain meanings from identifiers, filenames, or unreviewed labels. Explicitly challenge Study support, endpoint/unit comparability, confounding, counterexamples, missing evidence, and the appropriateness of the statistical screen.
+- The Agent may provide a critical interpretation of a DOR-generated opportunity, but must bind every claim to its opportunity ID and evidence-ledger records. It must not fabricate effect sizes, p/q values, Studies, or source references.
+- The user selects or revises a DOR-generated research opportunity before the formal Modeling Task, endpoint-specific Cohort, and Run are initialized. The exact opportunity ID is selected through the hash-bound Discovery scope record.
 
 If the handoff route is STRUCTURED_DATASET, do not run this stage outside the formal workflow. Initialize the guided Run, validate the handoff, audit all declared supported datasets, complete G0/G1 review and canonical construction, then use the Run Plan's exploratory_discovery stage on the resulting canonical bundle before G2. This avoids bypassing source and mapping approvals.
 

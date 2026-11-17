@@ -1,0 +1,177 @@
+from __future__ import annotations
+
+import unittest
+
+from dor.scientific_opportunities import (
+    _apply_bh,
+    _sign_test_p,
+    build_scientific_opportunities,
+)
+
+
+def _bundle():
+    return {
+        "schema_version": "1.0",
+        "project_id": "scientific-opportunity-test",
+        "mapping_version": "synthetic-1",
+        "studies": [],
+        "systems": [],
+        "conditions": [],
+        "experiments": [],
+        "observations": [],
+        "comparisons": [],
+        "evidence": [],
+    }
+
+
+def _add_study(bundle, study_number, condition_values, outcome_values, condition_type="condition_x",
+               condition_unit=None, replicate_observations=1):
+    study_id = f"S{study_number}"
+    system_id = f"SYS{study_number}"
+    bundle["studies"].append({"study_id": study_id, "source_locators": []})
+    bundle["systems"].append({
+        "system_id": system_id, "study_ids": [study_id], "system_type": "synthetic-system"
+    })
+    for experiment_number, (condition_value, outcome_value) in enumerate(
+        zip(condition_values, outcome_values), start=1
+    ):
+        condition_id = f"C{study_number}_{experiment_number}"
+        experiment_id = f"E{study_number}_{experiment_number}"
+        bundle["conditions"].append({
+            "condition_id": condition_id,
+            "system_ids": [system_id],
+            "condition_type": condition_type,
+            "raw_value": condition_value,
+            "raw_unit": condition_unit,
+            "value_state": "REPORTED",
+        })
+        bundle["experiments"].append({
+            "experiment_id": experiment_id,
+            "study_id": study_id,
+            "system_id": system_id,
+            "condition_ids": [condition_id],
+        })
+        for replicate in range(replicate_observations):
+            bundle["observations"].append({
+                "observation_id": f"O{study_number}_{experiment_number}_{replicate}",
+                "experiment_id": experiment_id,
+                "target_id": "TARGET_Y",
+                "endpoint_definition": "endpoint-definition-1",
+                "timepoint": "cycle-100",
+                "value_state": "REPORTED",
+                "raw_value": outcome_value + replicate * 0.01,
+                "raw_unit": "outcome-unit",
+                "evidence_ids": [],
+            })
+
+
+class ScientificOpportunityTests(unittest.TestCase):
+    def test_exact_sign_test_uses_study_direction_not_observation_count(self):
+        self.assertEqual(_sign_test_p([1.0, 1.0, 1.0, 1.0, 1.0]), 0.0625)
+        self.assertEqual(_sign_test_p([1.0, -1.0, 1.0, -1.0, 1.0]), 1.0)
+        self.assertIsNone(_sign_test_p([0.0, 0.0]))
+
+    def test_benjamini_hochberg_is_monotone_and_bounded(self):
+        rows = [
+            {"analysis_family": "A", "p_value": 0.01, "q_value": None},
+            {"analysis_family": "A", "p_value": 0.04, "q_value": None},
+            {"analysis_family": "A", "p_value": 0.03, "q_value": None},
+            {"analysis_family": "B", "p_value": 0.001, "q_value": None},
+        ]
+        _apply_bh(rows, "A")
+        self.assertAlmostEqual(rows[0]["q_value"], 0.03)
+        self.assertAlmostEqual(rows[2]["q_value"], 0.04)
+        self.assertAlmostEqual(rows[1]["q_value"], 0.04)
+        self.assertIsNone(rows[3]["q_value"])
+        self.assertTrue(all(0 <= rows[i]["q_value"] <= 1 for i in range(3)))
+
+    def test_repeated_observations_do_not_inflate_independent_studies(self):
+        bundle = _bundle()
+        for study in range(1, 6):
+            baseline = float(study * 10)
+            _add_study(
+                bundle, study,
+                condition_values=["low", "high"],
+                outcome_values=[baseline + 2.0, baseline + 8.0],
+                replicate_observations=12,
+            )
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        self.assertEqual(len(result["contrasts"]), 1)
+        contrast = result["contrasts"][0]
+        self.assertEqual(contrast["paired_study_count"], 5)
+        self.assertEqual(contrast["positive_study_count"], 5)
+        self.assertEqual(contrast["observation_count"], 120)
+        self.assertAlmostEqual(contrast["median_study_difference_b_minus_a"], 6.0)
+        self.assertAlmostEqual(contrast["p_value"], 0.0625)
+        self.assertAlmostEqual(contrast["q_value"], 0.0625)
+        self.assertEqual(result["profile"]["analysis_unit"], "INDEPENDENT_STUDY")
+        self.assertEqual(len(contrast["study_effects"]), 5)
+        self.assertTrue(all(len(item["supporting_observation_ids"]) == 24 for item in contrast["study_effects"]))
+        self.assertTrue(result["opportunities"])
+        self.assertEqual(result["opportunities"][0]["screen_status"], "FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW")
+        self.assertEqual(
+            result["opportunities"][0]["semantic_status"],
+            "CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW",
+        )
+
+    def test_numeric_condition_trend_uses_one_spearman_per_study(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            x_values = [1.0, 2.0, 3.0, 4.0, 5.0]
+            y_values = [study * value for value in x_values]
+            _add_study(
+                bundle, study, x_values, y_values,
+                condition_type="current_density",
+                condition_unit="mA cm-2",
+                replicate_observations=1,
+            )
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        self.assertEqual(len(result["correlations"]), 1)
+        row = result["correlations"][0]
+        self.assertEqual(row["independent_study_count"], 4)
+        self.assertEqual(row["system_correlation_count"], 4)
+        self.assertAlmostEqual(row["median_study_spearman_rho"], 1.0)
+        self.assertAlmostEqual(row["p_value"], 0.125)
+        self.assertAlmostEqual(row["q_value"], 0.125)
+        self.assertEqual(len(row["study_effects"]), 4)
+        self.assertEqual(len(result["opportunities"]), 1)
+        self.assertEqual(result["opportunities"][0]["signal_type"], "WITHIN_STUDY_SYSTEM_NUMERIC_CONDITION_TREND")
+
+    def test_multiple_condition_levels_in_one_experiment_are_excluded_as_ambiguous(self):
+        bundle = _bundle()
+        _add_study(bundle, 1, ["low"], [1.0])
+        # Attach a second, conflicting value for the same condition type to the same Experiment.
+        bundle["conditions"].append({
+            "condition_id": "C1_conflict",
+            "system_ids": ["SYS1"],
+            "condition_type": "condition_x",
+            "raw_value": "high",
+            "raw_unit": None,
+            "value_state": "REPORTED",
+        })
+        bundle["experiments"][0]["condition_ids"].append("C1_conflict")
+        result = build_scientific_opportunities(bundle)
+        self.assertEqual(result["profile"]["ambiguous_condition_experiment_assignments_excluded"], 1)
+        self.assertEqual(result["opportunities"], [])
+
+    def test_unmapped_identifiers_are_preserved_without_semantic_guessing(self):
+        bundle = _bundle()
+        for study in range(1, 4):
+            _add_study(bundle, study, ["A", "B"], [1.0 + study, 2.0 + study])
+        result = build_scientific_opportunities(bundle, bootstrap_iterations=0)
+        opportunity = result["opportunities"][0]
+        self.assertIn("TARGET_Y", opportunity["scientific_question"])
+        self.assertIn("condition_x", opportunity["scientific_question"])
+        self.assertEqual(
+            opportunity["semantic_status"],
+            "CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW",
+        )
+        self.assertIn("not", " ".join(opportunity["limitations"]).lower())
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -2,44 +2,106 @@
 
 ## Purpose
 
-The Scientific Discovery Engine is DoR's domain-neutral exploratory entry point. It profiles a validated Canonical Bundle, summarizes the support and distribution of declared targets across Studies, reports coverage of linked conditions, and identifies target pairs recorded within the same canonical experiment.
+The Scientific Discovery Engine is a deterministic Runtime capability, not an Agent prompt. Its job is to use the complete, validated Canonical Bundle to find data-supported research opportunities before a narrow endpoint-specific Cohort or Modeling Task is chosen.
 
-It produces aggregate-only outputs for agent-led question formation. It does not establish accepted findings, novelty, causality, mechanisms, or statistical significance.
+It performs full-bundle profiling, Study-aware condition/outcome screening, multiple-testing correction, evidence-ledger construction, and deterministic candidate-question generation. The Agent may challenge the interpretation and help the user review domain meaning, but it must not replace the Runtime calculations, invent candidate evidence, or silently promote candidates to accepted findings.
 
-## Input contract
+## Input and protection contract
 
-The preferred input is a Canonical Bundle created by the reviewed mapping/build workflow or supplied by a validated external adapter package.
+The preferred input is a Canonical Bundle produced by the reviewed mapping/build workflow or supplied by a validated external adapter package.
 
     dor discover-opportunities --bundle path/to/canonical_bundle.json --out-dir path/to/new/discovery_run
 
-The command first checks canonical structure and referential integrity. It then reads only the declared entities and links in the bundle. The input is hash-checked before and after processing. The command refuses to overwrite a non-empty output directory.
+For a bundle registered by an adapter handoff:
 
-The same Canonical Bundle can be registered as a source artifact in a formal Run Plan and used by downstream reconciliation, cohort construction, modelling, validation, and publication stages. The exploratory scan does not create a formal Run, approve a mapping, select a target, or cross a G0-G4 gate.
+    dor discover-opportunities --adapter-handoff path/to/adapter_handoff.json --out-dir path/to/new/discovery_run
+
+The command validates canonical structure and references, hashes the bundle before and after analysis, reads only the declared Canonical Bundle entities and links, and refuses to overwrite a non-empty output directory. Source data are read-only.
+
+The discovery scan is independent of a selected Modeling Task or Cohort. It must run over the entire supplied Canonical Bundle, not a previously narrowed modeling cohort. A later task-specific Cohort is created only after the user selects a research opportunity and approves the resulting analysis scope.
+
+Original papers, SI, images, and other raw research documents are never opened or parsed by this engine. Source locators remain opaque provenance references.
+
+## Full-dataset profile
+
+The engine reports Study, System, Condition, Experiment, Observation, and target coverage from the complete bundle. It preserves distinct counts, including Studies without any Observation records, instead of treating Observation rows as independent Studies. Reported numeric support is separated by exact target ID, endpoint definition, timepoint, and unit string.
+
+Target IDs, endpoint definitions, and condition labels remain canonical identifiers. The Runtime does not infer a physical meaning from an identifier or guess unit conversions. When semantic registry information is not explicitly approved and bound to the Canonical Bundle, opportunities are labelled CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW.
+
+## Study-aware statistical screens
+
+### Shared aggregation rules
+
+1. Only observations with value_state=REPORTED, a finite numeric value, and an explicit unit enter numeric outcome screens.
+2. A complete normalized value/unit pair is used together; otherwise the raw value/unit pair is retained. No half-normalized value/unit mixtures are created.
+3. Outcome groups remain separate by target ID, endpoint definition, timepoint, and exact unit.
+4. Multiple Observation rows in one Experiment are reduced to an Experiment median before statistical screening.
+5. Condition assignments are linked through the Experiment's declared condition_ids. When one Experiment has conflicting values for the same condition type/unit, that assignment is excluded rather than guessed.
+6. Comparisons are stratified by the same Study and canonical System. A Study contributes at most one effect value to a cross-Study test, regardless of how many Observations, Experiments, or Systems it contains.
+
+### Categorical and two-level conditions
+
+For each exact condition type/unit and pair of levels, the engine identifies Studies and Systems that contain both levels. It calculates a median outcome for each level within each shared System, a paired difference for that System, then a median of paired System differences for that Study.
+
+The inferential input is therefore one Study-level difference per independent Study. A System without both levels does not contribute to that contrast. The result retains the per-Study values, counts, System IDs, Experiment IDs, and Observation IDs.
+
+### Numeric conditions
+
+When a condition type/unit has at least three distinct numeric levels across the dataset, it is treated as a quantitative exposure rather than expanded into many arbitrary cut-point pairs.
+
+Within each Study/System, Spearman rank correlation is calculated across Experiment-level condition/outcome pairs only when at least four eligible Experiments and three distinct condition values are present. Multiple eligible System correlations are reduced to one median correlation per Study. Each Study therefore contributes at most one rho to the cross-Study direction screen.
+
+### Inference and multiplicity
+
+- Each analysis family uses a two-sided exact sign test across independent Study-level effects.
+- Categorical paired contrasts and quantitative Spearman trends are treated as separate multiple-testing families.
+- Benjamini-Hochberg q-values are calculated within each family.
+- The default q-value screen threshold is 0.10. A screen-positive candidate is a prioritization signal, not proof of a scientific effect.
+- Percentile confidence intervals are generated by deterministic bootstrap resampling of Study-level effects. The seed and iteration count are recorded.
+- If fewer than the configured minimum number of independent Studies contribute, the inferential test and q-value remain null. The output may still preserve a descriptive candidate with an explicit insufficient-support status.
+
+Defaults are configurable:
+
+    dor discover-opportunities --bundle <canonical_bundle.json> --out-dir <new_directory> --minimum-paired-studies 3 --fdr-alpha 0.10 --bootstrap-iterations 1000 --maximum-opportunities 500 --seed 42
+
+## DOR-generated research opportunities
+
+Each opportunity contains a deterministic ID, a question written from the observed canonical variables, the analysis family, effect estimate, Study-level confidence interval, p-value, q-value, screen status, independent Study count, limitations, confounding risks, proposed validation, and direct references to the supporting Study/System/Experiment/Observation records.
+
+The question is deliberately phrased in terms of the declared canonical identifiers. It does not rename a target as capacity, lifetime, efficiency, or another scientific concept unless an approved semantic definition exists outside this scan.
+
+A screen-positive result is labelled FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW. A candidate with insufficient independent Study support is labelled DESCRIPTIVE_CANDIDATE_INSUFFICIENT_INDEPENDENT_STUDY_SUPPORT. Neither status is an accepted scientific finding.
 
 ## Outputs
 
-- discovery_manifest.json — input and output hashes and read-only execution scope.
-- discovery_data_profile.json — counts of Studies, Systems, Conditions, Experiments, Observations, and declared targets.
-- target_support.csv — observation and Study counts plus descriptive numeric summaries by exact target/unit.
-- study_coverage.csv — per-Study numeric summaries using the declared Study and Observation links.
+- discovery_manifest.json — input/output SHA-256 values, read-only scope, and engine configuration.
+- discovery_data_profile.json — full Canonical Bundle entity and numeric target counts.
+- target_support.csv — observation and Study support plus descriptive numeric summaries by target/endpoint/timepoint/unit.
+- study_coverage.csv — per-Study numeric target summaries.
 - condition_support.csv — coverage of explicitly linked, reported Conditions.
-- joint_support.csv — target pairs co-recorded within one canonical Experiment.
-- signal_catalogue.csv — bounded descriptive signals with interpretation limits.
-- discovery_report.json — machine-readable profile, signals, and limitations.
-- agent_research_brief.md — bounded aggregate-only reasoning input.
+- joint_support.csv — target pairs co-recorded within one canonical Experiment; co-observation is not an interaction.
+- condition_outcome_contrasts.csv — within-Study/System paired categorical or two-level condition contrasts and their Study-level tests.
+- condition_outcome_correlations.csv — within-Study/System numeric-condition Spearman screens and cross-Study tests.
+- research_opportunities.json — DOR-generated, ranked, structured candidate research questions.
+- evidence_ledger.jsonl — one record per opportunity/Study with supporting System, Experiment, and Observation IDs.
+- scientific_analysis_profile.json — algorithm versions, thresholds, test-family descriptions, and limitations.
+- signal_catalogue.csv and discovery_report.json — aggregate signal catalogue and machine-readable summary.
+- agent_research_brief.md — bounded aggregate summary with DOR-generated candidates; it contains no raw Observation rows, full papers, or source-document text.
+
+## Research scope and downstream workflow
+
+The user selects or rejects the generated opportunity IDs. An opportunity is also exposed as a Discovery signal, so the existing research_scope_record.selected_signal_ids contract can bind it to the exact Discovery report hash. The scope validator checks that a selected opportunity's target ID matches the Modeling Task target ID.
+
+Only after that human selection and scope review should the formal Run create the endpoint-specific Cohort and Modeling Task, then continue through G0-G4, validation, and publication. The original full-bundle Discovery output remains immutable and is not replaced by a narrow Cohort.
 
 ## Interpretation boundaries
 
-- The scan does not infer target or condition semantics from identifiers or labels.
-- Units are kept as exact strings. No implicit conversion is performed.
-- Study-level summaries are descriptive, not inferential heterogeneity tests.
-- Condition coverage does not estimate a condition effect.
-- Co-observation within a canonical Experiment is not evidence of causal interaction or mechanism.
-- No p-values, multiple-testing correction, causal effects, novelty determinations, or mechanism claims are generated.
-- The accuracy of Study, System, Experiment, Condition, Observation, and Evidence links remains dependent on the upstream adapter and reviewed mapping.
+- This is observational screening, not causal inference or mechanism discovery.
+- Statistical significance is not generated from flattened Observation counts; Study is the independent unit for cross-Study tests.
+- Within-Study/System matching reduces some structural confounding but does not control all protocol, composition, laboratory, or measurement differences.
+- Study bootstrap intervals do not account for every upstream extraction, mapping, and measurement uncertainty.
+- The significance screen does not establish endpoint comparability, physical meaning, novelty, or publication-worthiness.
+- No implicit unit conversion, timepoint merging, arbitrary numeric binning, missing-value imputation, or conflicting-condition resolution is performed.
+- Canonical Study/System/Experiment relationships depend on the quality of the reviewed mapping or adapter input.
 
-## Next step
-
-An Agent may use the aggregate brief and report to propose a small set of testable research opportunities. Each proposal must identify supporting signal IDs, Study support, feasibility, identifiability, confounding risks, counterexamples, validation requirements, and novelty-review status.
-
-The user selects or revises a research direction before a formal analysis task and Run are initialized. Exploratory outputs remain candidates and never substitute for the canonical reconciliation, endpoint-specific cohort, Study-level validation, interaction robustness, mechanism-evidence review, or publication workflow.
+The purpose is to let DOR establish, from its complete structured database, what relationships are actually represented, how independently they are supported, where the evidence is weak, and which concrete research questions deserve the user's attention.

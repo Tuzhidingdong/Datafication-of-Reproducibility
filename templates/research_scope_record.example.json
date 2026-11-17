@@ -6,7 +6,7 @@
   "target_id": "<exact target ID from the modeling task>",
   "scope_statement": "<bounded statement of the selected analysis scope>",
   "selected_signal_ids": [
-    "<signal_id from the exact Discovery report>"
+    "<OPP-... or other signal_id from the exact Discovery report>"
   ],
   "not_selected_signal_ids": [],
   "selection_rationale": "<why the selected signals define the scope and why the remaining signals were not selected>",

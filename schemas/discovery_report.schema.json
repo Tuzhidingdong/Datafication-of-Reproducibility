@@ -1,100 +1,130 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/discovery_report.schema.json",
-  "title": "Scientific Discovery Scan Report",
+  "title": "Deterministic scientific discovery report",
   "type": "object",
   "required": [
     "schema_version",
-    "discovery_status",
-    "research_opportunity_synthesis",
-    "novelty_assessment",
+    "input_type",
+    "input_bundle_sha256",
     "profile",
+    "signal_count",
     "signals",
-    "limitations"
+    "scientific_analysis",
+    "research_opportunities_file",
+    "research_opportunity_count",
+    "evidence_ledger_file",
+    "evidence_ledger_row_count",
+    "interpretation_boundary"
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "1.1"
     },
-    "discovery_status": {
-      "const": "EXPLORATORY_SIGNALS_ONLY_NOT_ACCEPTED_SCIENTIFIC_FINDINGS"
+    "input_type": {
+      "const": "CANONICAL_BUNDLE"
     },
-    "research_opportunity_synthesis": {
-      "const": "REQUIRES_AGENT_SCIENTIFIC_REVIEW"
-    },
-    "novelty_assessment": {
-      "const": "REQUIRES_TARGETED_LITERATURE_REVIEW"
+    "input_bundle_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
     },
     "profile": {
       "type": "object"
     },
-    "signals": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      }
-    },
-    "source_merge_issue_count": {
+    "signal_count": {
       "type": "integer",
       "minimum": 0
     },
-    "limitations": {
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "signal_id",
+          "signal_type",
+          "interpretation_status"
+        ],
+        "properties": {
+          "signal_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "signal_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "interpretation_status": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "scientific_analysis": {
+      "type": "object",
+      "required": [
+        "profile",
+        "limitations",
+        "analysis_families"
+      ],
+      "properties": {
+        "profile": {
+          "type": "object",
+          "required": [
+            "engine_version",
+            "analysis_unit",
+            "fdr_method",
+            "fdr_alpha",
+            "paired_contrast_test_count",
+            "numeric_trend_test_count",
+            "opportunity_count_written"
+          ]
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "analysis_families": {
+          "type": "object",
+          "required": [
+            "paired_contrast",
+            "numeric_trend"
+          ],
+          "properties": {
+            "paired_contrast": {
+              "type": "string"
+            },
+            "numeric_trend": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "research_opportunities_file": {
+      "const": "research_opportunities.json"
+    },
+    "research_opportunity_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "evidence_ledger_file": {
+      "const": "evidence_ledger.jsonl"
+    },
+    "evidence_ledger_row_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "interpretation_boundary": {
       "type": "array",
       "items": {
         "type": "string"
       }
-    },
-    "agent_brief_file": {
-      "type": "string"
-    },
-    "source_merge_issue_counts": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "integer",
-        "minimum": 0
-      }
-    },
-    "agent_brief_signal_selection": {
-      "type": "object",
-      "description": "Per-category signal counts included in the bounded Agent research brief.",
-      "properties": {
-        "CROSS_STUDY_DESCRIPTIVE_HETEROGENEITY": {
-          "$ref": "#/$defs/briefSignalSelection"
-        },
-        "CONDITION_COVERAGE_OPPORTUNITY": {
-          "$ref": "#/$defs/briefSignalSelection"
-        },
-        "CO_OBSERVED_FEATURE_PAIR_OPPORTUNITY": {
-          "$ref": "#/$defs/briefSignalSelection"
-        }
-      },
-      "additionalProperties": false
     }
   },
-  "additionalProperties": false,
-  "$defs": {
-    "briefSignalSelection": {
-      "type": "object",
-      "required": [
-        "available",
-        "included",
-        "omitted"
-      ],
-      "properties": {
-        "available": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "included": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "omitted": {
-          "type": "integer",
-          "minimum": 0
-        }
-      },
-      "additionalProperties": false
-    }
-  }
+  "additionalProperties": false
 }

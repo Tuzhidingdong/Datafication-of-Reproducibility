@@ -110,7 +110,7 @@ The domain-neutral discovery entry point accepts a validated Canonical Bundle:
 
     dor discover-opportunities --bundle path/to/canonical_bundle.json --out-dir path/to/new/discovery_run
 
-It produces aggregate-only profiles and candidate signals. The same canonical data artifact can be registered in a formal Run Plan and passed into downstream reconciliation, cohort construction, modelling, validation, and publication. Exploratory results do not approve a formal analysis task or cross G0-G4 gates. See docs/SCIENTIFIC_DISCOVERY_ENGINE.md.
+DOR itself profiles the full Canonical Bundle and generates Study-aware condition/outcome contrasts, within-Study/System numeric trends, exact Study-level sign tests, Benjamini-Hochberg q-values, Study-bootstrap intervals, ranked research opportunities, and an Observation-to-Study evidence ledger. It does not rely on an Agent to calculate or invent research questions. The Agent reviews and challenges these Runtime-generated candidates; the user selects a direction before a Modeling Task and endpoint-specific Cohort are initialized. Exploratory outputs do not approve a formal analysis task or cross G0-G4 gates. See docs/SCIENTIFIC_DISCOVERY_ENGINE.md.
 
 ## Run Manager
 

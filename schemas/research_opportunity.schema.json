@@ -114,6 +114,147 @@
     },
     "recommendation_rationale": {
       "type": "string"
+    },
+    "signal_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "analysis_family": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint_definition": {
+      "type": "string"
+    },
+    "timepoint": {
+      "type": "string"
+    },
+    "outcome_unit": {
+      "type": "string"
+    },
+    "condition_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "condition_unit": {
+      "type": "string"
+    },
+    "level_a": {
+      "type": "string"
+    },
+    "level_b": {
+      "type": "string"
+    },
+    "condition_levels": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "independent_study_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "effect_size": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "confidence_interval_95": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "number"
+      }
+    },
+    "p_value": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "q_value": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "screen_status": {
+      "enum": [
+        "FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW",
+        "NOT_FDR_SCREEN_POSITIVE_REQUIRES_REVIEW",
+        "DESCRIPTIVE_CANDIDATE_INSUFFICIENT_INDEPENDENT_STUDY_SUPPORT"
+      ]
+    },
+    "semantic_status": {
+      "type": "string"
+    },
+    "study_effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "study_id"
+        ],
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "study_id"
+        ],
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence_feasibility": {
+      "type": "object",
+      "properties": {
+        "study_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "system_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "experiment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observation_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

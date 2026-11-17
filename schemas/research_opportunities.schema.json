@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/research_opportunities.schema.json",
+  "title": "DOR-generated research opportunity catalogue",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "engine_version",
+    "input_bundle_sha256",
+    "candidate_count_before_limit",
+    "candidate_count_written",
+    "opportunities",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "engine_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_bundle_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "candidate_count_before_limit": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidate_count_written": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "opportunities": {
+      "type": "array",
+      "items": {
+        "$ref": "research_opportunity.schema.json"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

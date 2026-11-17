@@ -115,7 +115,15 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertEqual(result["profile"]["study_count"], 3)
             self.assertTrue((output / "discovery_manifest.json").is_file())
             self.assertTrue((output / "target_support.csv").is_file())
+            self.assertTrue((output / "condition_outcome_contrasts.csv").is_file())
+            self.assertTrue((output / "condition_outcome_correlations.csv").is_file())
+            self.assertTrue((output / "research_opportunities.json").is_file())
+            self.assertTrue((output / "evidence_ledger.jsonl").is_file())
+            self.assertTrue((output / "scientific_analysis_profile.json").is_file())
             self.assertTrue((output / "agent_research_brief.md").is_file())
+            discovery_report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(discovery_report["schema_version"], "1.1")
+            self.assertEqual(discovery_report["research_opportunity_count"], 0)
             brief = (output / "agent_research_brief.md").read_text(encoding="utf-8")
             self.assertNotIn("O1A", brief)
             manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
@@ -128,6 +136,19 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         ])
         self.assertEqual(args.bundle, Path("canonical_bundle.json"))
         self.assertEqual(args.maximum_pairs, 250)
+        self.assertEqual(args.minimum_paired_studies, 3)
+        self.assertEqual(args.fdr_alpha, 0.10)
+        self.assertEqual(args.bootstrap_iterations, 1000)
+        self.assertEqual(args.maximum_opportunities, 500)
+        self.assertEqual(args.seed, 42)
+
+    def test_profile_preserves_studies_without_observations(self):
+        bundle = make_bundle()
+        bundle["studies"].append({"study_id": "S_INVENTORY_ONLY", "source_locators": []})
+        result = summarize_canonical_bundle(bundle, minimum_studies=3)
+        self.assertEqual(result["profile"]["study_count"], 4)
+        self.assertEqual(result["profile"]["study_count_with_observations"], 3)
+        self.assertEqual(result["profile"]["study_count_without_observations"], 1)
 
     def test_invalid_bundle_fails_without_creating_output(self):
         with tempfile.TemporaryDirectory() as tmp:

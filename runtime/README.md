@@ -59,7 +59,7 @@ For a Canonical Bundle supplied inside an external adapter package, use the hash
 
     dor discover-opportunities --adapter-handoff path/to/run/00_adapter/adapter_handoff.json --out-dir path/to/new/discovery_run
 
-The scan validates canonical structure and references, hashes the input before and after processing, writes aggregate-only profiles and a bounded Agent brief, and refuses to overwrite a non-empty output directory. It does not create a formal Run or cross G0-G4 approval gates.
+The scan validates canonical structure and references, hashes the input before and after processing, and profiles the complete bundle. DOR itself generates Study-aware paired condition/outcome contrasts, within-Study/System Spearman trends for numeric conditions, exact Study-level sign tests, Benjamini-Hochberg q-values by test family, Study-bootstrap intervals, structured research opportunities, and an Observation/Experiment/System/Study evidence ledger. It refuses to overwrite a non-empty output directory and does not create a formal Run or cross G0-G4 approval gates. Configure the screen with --minimum-paired-studies, --fdr-alpha, --bootstrap-iterations, --maximum-opportunities, and --seed. See ../docs/SCIENTIFIC_DISCOVERY_ENGINE.md for the full statistical contract.
 
 ## Human review and Worker promotion validation
 

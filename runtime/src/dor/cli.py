@@ -179,6 +179,16 @@ def build_parser() -> argparse.ArgumentParser:
     discovery.add_argument("--minimum-studies", type=int, default=3, help="Minimum Study groups for cross-Study descriptive signals")
     discovery.add_argument("--maximum-pairs", type=int, default=250,
         help="Maximum co-observed target pairs to catalogue")
+    discovery.add_argument("--minimum-paired-studies", type=int, default=3,
+        help="Minimum independent Studies for an inferential screening test")
+    discovery.add_argument("--fdr-alpha", type=float, default=0.10,
+        help="Benjamini-Hochberg q-value threshold used to label screening candidates")
+    discovery.add_argument("--bootstrap-iterations", type=int, default=1000,
+        help="Study-level bootstrap iterations for percentile confidence intervals; 0 disables intervals")
+    discovery.add_argument("--maximum-opportunities", type=int, default=500,
+        help="Maximum ranked DOR-generated research opportunities to write")
+    discovery.add_argument("--seed", type=int, default=42,
+        help="Deterministic seed for Study-level bootstrap intervals")
     audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
     audit.add_argument("--csv", type=Path, help="Path to a source CSV file")
     audit.add_argument("--json", type=Path, help="Path to a source JSON file")
@@ -724,6 +734,8 @@ def main() -> int:
             bundle_path = args.bundle if args.bundle is not None else canonical_bundle_from_handoff(args.adapter_handoff)
             result = run_canonical_discovery_scan(
                 bundle_path, args.out_dir, args.minimum_studies, args.maximum_pairs,
+                args.minimum_paired_studies, args.fdr_alpha, args.bootstrap_iterations,
+                args.maximum_opportunities, args.seed,
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0

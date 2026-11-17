@@ -34,6 +34,7 @@ def validate_research_scope_record(
     if record.get("discovery_report_sha256") != discovery_report_sha256:
         issue("SCOPE_DISCOVERY_HASH_MISMATCH", "discovery_report_sha256", "Scope record must bind to the exact Discovery report SHA-256.")
 
+    report_signals_by_id: dict[str, dict[str, Any]] = {}
     if not isinstance(discovery_report, dict):
         issue("DISCOVERY_REPORT_NOT_OBJECT", "$discovery_report", "Discovery report must be a JSON object.")
         report_signal_ids: list[str] = []
@@ -53,6 +54,7 @@ def validate_research_scope_record(
             else:
                 seen_report.add(signal_id)
                 report_signal_ids.append(signal_id)
+                report_signals_by_id[signal_id] = signal
 
     def read_id_list(key: str) -> list[str]:
         value = record.get(key)
@@ -92,6 +94,17 @@ def validate_research_scope_record(
                 issue("MODELING_TASK_IDENTITY_MISSING", field, f"Modeling task requires a non-empty {field}.")
             elif record.get(field) != task_value:
                 issue("SCOPE_TASK_IDENTITY_MISMATCH", field, f"Scope record {field} must match the exact modeling task.")
+        task_target = modeling_task.get("target_id")
+        if isinstance(task_target, str) and task_target.strip():
+            for selected_id in selected:
+                selected_signal = report_signals_by_id.get(selected_id, {})
+                signal_target = selected_signal.get("target_id")
+                if isinstance(signal_target, str) and signal_target.strip() and signal_target != task_target:
+                    issue(
+                        "SCOPE_SELECTED_SIGNAL_TARGET_MISMATCH",
+                        "selected_signal_ids",
+                        f"Selected Discovery signal {selected_id} targets {signal_target}, but the modeling task targets {task_target}.",
+                    )
 
     for field in ("scope_statement", "selection_rationale", "reviewed_by"):
         if not isinstance(record.get(field), str) or not record[field].strip():
@@ -119,6 +132,10 @@ def validate_research_scope_record(
         "target_id": record.get("target_id"),
         "discovered_signal_count": len(report_signal_ids),
         "selected_signal_ids": sorted(set(selected)) if not errors else [],
+        "selected_opportunity_ids": sorted(
+            signal_id for signal_id in selected
+            if str(report_signals_by_id.get(signal_id, {}).get("signal_type", "")).startswith("WITHIN_STUDY_SYSTEM_")
+        ) if not errors else [],
         "selected_signal_count": len(selected),
         "not_selected_signal_count": len(excluded),
         "discovery_report_sha256": discovery_report_sha256,
