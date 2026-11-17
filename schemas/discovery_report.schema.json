@@ -92,7 +92,8 @@
             "opportunity_count_before_mirror_deduplication",
             "mirror_duplicate_opportunity_count",
             "mirror_duplicate_group_count",
-            "self_association_exclusion_count"
+            "self_association_exclusion_count",
+            "numeric_trend_fdr_test_count"
           ],
           "properties": {
             "maximum_levels_per_condition": {
@@ -148,6 +149,10 @@
               "minimum": 0
             },
             "self_association_exclusion_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "numeric_trend_fdr_test_count": {
               "type": "integer",
               "minimum": 0
             }
