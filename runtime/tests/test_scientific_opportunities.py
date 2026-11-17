@@ -324,8 +324,23 @@ class ScientificOpportunityTests(unittest.TestCase):
             bundle, minimum_paired_studies=3, bootstrap_iterations=200
         )
         self.assertEqual(result["profile"]["self_association_exclusion_count"], 0)
-        self.assertEqual(len(result["correlations"]), 1)
-        self.assertEqual(result["correlations"][0]["median_study_spearman_rho"], 1.0)
+        within_system = [
+            row for row in result["correlations"]
+            if row["analysis_family"] == "CONDITION_OUTCOME_WITHIN_SYSTEM_SPEARMAN"
+        ]
+        between_system = [
+            row for row in result["correlations"]
+            if row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+        ]
+        # The fixture has one Experiment per System, so the within-System family
+        # is retained as a zero-support diagnostic row, not an inferential result.
+        self.assertEqual(len(within_system), 1)
+        self.assertEqual(within_system[0]["independent_study_count"], 0)
+        self.assertIsNone(within_system[0]["p_value"])
+        self.assertEqual(len(between_system), 1)
+        self.assertEqual(between_system[0]["independent_study_count"], 4)
+        self.assertEqual(between_system[0]["median_study_spearman_rho"], 1.0)
+        self.assertEqual(len(result["opportunities"]), 1)
 
     def test_high_cardinality_conditions_keep_full_coverage_but_bound_pairwise_screen(self):
         bundle = _bundle()
