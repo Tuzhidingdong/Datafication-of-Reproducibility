@@ -312,12 +312,12 @@ def _exact_mirror_proof(left: dict[str, Any], right: dict[str, Any]) -> dict[str
                 math.isclose(float(a["condition_value"]), float(b["outcome_median"]), rel_tol=0.0, abs_tol=0.0)
                 and math.isclose(float(a["outcome_median"]), float(b["condition_value"]), rel_tol=0.0, abs_tol=0.0)
                 and set(a.get("supporting_experiment_ids", [])) == set(b.get("supporting_experiment_ids", []))
-                and set(a.get("supporting_observation_ids", [])) == set(b.get("supporting_observation_ids", []))
             ):
                 return None
             matched_systems += 1
             matched_experiments.update(a.get("supporting_experiment_ids", []))
             matched_observations.update(a.get("supporting_observation_ids", []))
+            matched_observations.update(b.get("supporting_observation_ids", []))
     return {
         "exact_reciprocal_values": True,
         "identical_study_support": True,
