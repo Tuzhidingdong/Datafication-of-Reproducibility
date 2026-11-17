@@ -43,6 +43,77 @@
       "items": {
         "type": "string"
       }
+    },
+    "excluded_self_associations": {
+      "type": "array",
+      "description": "Structural target-condition self-relations excluded before inferential tests and FDR correction.",
+      "items": {
+        "type": "object",
+        "required": [
+          "exclusion_id",
+          "exclusion_reason",
+          "target_id",
+          "condition_type",
+          "independent_study_count",
+          "admission_status"
+        ],
+        "properties": {
+          "exclusion_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "exclusion_reason": {
+            "enum": [
+              "SAME_CANONICAL_ATTRIBUTE",
+              "IDENTICAL_VALUES"
+            ]
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "endpoint_definition": {
+            "type": "string"
+          },
+          "timepoint": {
+            "type": "string"
+          },
+          "outcome_unit": {
+            "type": "string"
+          },
+          "condition_type": {
+            "type": "string"
+          },
+          "condition_unit": {
+            "type": "string"
+          },
+          "independent_study_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "system_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "experiment_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "observation_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "analysis_families_excluded": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "admission_status": {
+            "const": "EXCLUDED_FROM_SCIENTIFIC_OPPORTUNITIES_AND_FDR"
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false
