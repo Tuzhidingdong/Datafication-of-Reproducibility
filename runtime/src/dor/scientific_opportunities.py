@@ -1460,6 +1460,10 @@ def build_scientific_opportunities(
         "paired_contrast_test_count": sum(row["analysis_family"] == "CONDITION_OUTCOME_PAIRED_STUDY_SYSTEM_CONTRAST" for row in contrast_rows),
         "between_system_contrast_test_count": sum(row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_CONTRAST" for row in contrast_rows),
         "numeric_trend_test_count": len(correlation_rows),
+        "numeric_trend_fdr_test_count": sum(
+            row.get("p_value") is not None and not row.get("mirror_duplicate_of_opportunity_id")
+            for row in correlation_rows
+        ),
         "within_system_numeric_trend_test_count": sum(row["analysis_family"] == "CONDITION_OUTCOME_WITHIN_SYSTEM_SPEARMAN" for row in correlation_rows),
         "between_system_numeric_trend_test_count": sum(row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN" for row in correlation_rows),
         "between_system_numeric_group_count": between_system_numeric_group_count,
