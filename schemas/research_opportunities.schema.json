@@ -133,7 +133,9 @@
                 "enum": [
                   "DISTINCT_APPROVED_CONCEPTS",
                   "SAME_APPROVED_CONCEPT",
-                  "UNRESOLVED_FROM_AVAILABLE_METADATA"
+                  "UNRESOLVED_FROM_AVAILABLE_METADATA",
+                  "SAME_APPROVED_CONCEPT_SAME_MEASUREMENT_CONTEXT",
+                  "SAME_APPROVED_CONCEPT_CONTEXT_UNRESOLVED"
                 ]
               },
               "target": {
@@ -198,6 +200,12 @@
                     ]
                   },
                   "reviewed_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "measurement_context": {
                     "type": [
                       "string",
                       "null"
@@ -268,6 +276,12 @@
                     ]
                   },
                   "reviewed_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "measurement_context": {
                     "type": [
                       "string",
                       "null"
