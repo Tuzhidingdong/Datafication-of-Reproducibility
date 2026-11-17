@@ -92,6 +92,7 @@ def _semantic_metadata_summary(entry: dict[str, Any] | None) -> dict[str, Any]:
         "display_name": metadata.get("display_name"),
         "definition": metadata.get("definition"),
         "measurement_basis": metadata.get("measurement_basis"),
+        "measurement_context": metadata.get("measurement_context"),
         "derivation_type": metadata.get("derivation_type"),
         "derived_from": metadata.get("derived_from", []),
         "reviewer": metadata.get("reviewer"),
@@ -105,9 +106,15 @@ def _semantic_review(target_id: str, condition_type: str,
     target = _semantic_metadata_summary(target_entry)
     condition = _semantic_metadata_summary(condition_entry)
     if target["status"] == "APPROVED" and condition["status"] == "APPROVED":
-        relationship = ("DISTINCT_APPROVED_CONCEPTS"
-                        if target.get("canonical_concept_id") != condition.get("canonical_concept_id")
-                        else "SAME_APPROVED_CONCEPT")
+        if target.get("canonical_concept_id") != condition.get("canonical_concept_id"):
+            relationship = "DISTINCT_APPROVED_CONCEPTS"
+        elif (
+            target.get("measurement_context")
+            and target.get("measurement_context") == condition.get("measurement_context")
+        ):
+            relationship = "SAME_APPROVED_CONCEPT_SAME_MEASUREMENT_CONTEXT"
+        else:
+            relationship = "SAME_APPROVED_CONCEPT_CONTEXT_UNRESOLVED"
         status = "APPROVED_METADATA_AVAILABLE_FOR_DOMAIN_REVIEW"
     else:
         relationship = "UNRESOLVED_FROM_AVAILABLE_METADATA"
@@ -138,7 +145,12 @@ def _self_association_reason(
     if (target_metadata or {}).get("status") == "APPROVED" and (condition_metadata or {}).get("status") == "APPROVED":
         target_concept = str(target_meta.get("canonical_concept_id") or "").strip()
         condition_concept = str(condition_meta.get("canonical_concept_id") or "").strip()
-        if target_concept and target_concept == condition_concept:
+        if (
+            target_concept
+            and target_concept == condition_concept
+            and target_meta.get("measurement_context")
+            and target_meta.get("measurement_context") == condition_meta.get("measurement_context")
+        ):
             return "SAME_APPROVED_SEMANTIC_CONCEPT"
         target_dependencies = (
             _metadata_dependencies(target_meta)
