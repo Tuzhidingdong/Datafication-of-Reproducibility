@@ -493,6 +493,10 @@
         },
         "reviewed_at": {
           "type": "string"
+        },
+        "measurement_context": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false
