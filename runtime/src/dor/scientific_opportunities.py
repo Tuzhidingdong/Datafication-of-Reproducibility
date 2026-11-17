@@ -15,7 +15,7 @@ import statistics
 from collections import defaultdict
 from typing import Any
 
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "1.1.0"
 
 
 def _finite_number(value: Any) -> float | None:
