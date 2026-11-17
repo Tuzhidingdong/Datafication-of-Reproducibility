@@ -65,7 +65,9 @@
           "exclusion_reason": {
             "enum": [
               "SAME_CANONICAL_ATTRIBUTE",
-              "IDENTICAL_VALUES"
+              "IDENTICAL_VALUES",
+              "SAME_APPROVED_SEMANTIC_CONCEPT",
+              "DECLARED_DIRECT_DERIVATION"
             ]
           },
           "target_id": {
@@ -110,6 +112,91 @@
           },
           "admission_status": {
             "const": "EXCLUDED_FROM_SCIENTIFIC_OPPORTUNITIES_AND_FDR"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "mirror_duplicates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "mirror_group_id",
+          "representative_opportunity_id",
+          "duplicate_opportunity_ids",
+          "proof",
+          "decision"
+        ],
+        "properties": {
+          "mirror_group_id": {
+            "type": "string"
+          },
+          "representative_opportunity_id": {
+            "type": "string"
+          },
+          "duplicate_opportunity_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "member_opportunity_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "attribute_pair": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "proof": {
+            "type": "object",
+            "required": [
+              "exact_reciprocal_values",
+              "identical_study_support",
+              "identical_system_support_within_each_study",
+              "identical_experiment_support_within_each_system",
+              "unit_strings_cross_match_exactly"
+            ],
+            "properties": {
+              "exact_reciprocal_values": {
+                "const": true
+              },
+              "identical_study_support": {
+                "const": true
+              },
+              "identical_system_support_within_each_study": {
+                "const": true
+              },
+              "identical_experiment_support_within_each_system": {
+                "const": true
+              },
+              "unit_strings_cross_match_exactly": {
+                "const": true
+              },
+              "supporting_study_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "matched_system_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "matched_experiment_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "decision": {
+            "const": "ONE_STATISTICAL_HYPOTHESIS_RETAINED_BEFORE_BH_FDR"
           }
         },
         "additionalProperties": false
