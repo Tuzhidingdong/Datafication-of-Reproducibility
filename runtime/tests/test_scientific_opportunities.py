@@ -276,6 +276,57 @@ class ScientificOpportunityTests(unittest.TestCase):
         )
         self.assertIn("not", " ".join(opportunity["limitations"]).lower())
 
+    def test_same_canonical_attribute_is_excluded_before_statistics_and_fdr(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            x_values = [1.0, 2.0, 3.0, 4.0]
+            _add_system_level_study(
+                bundle, study, x_values, [value * 2 for value in x_values],
+                condition_type="target-y", condition_unit="outcome-unit",
+            )
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        self.assertEqual(result["opportunities"], [])
+        self.assertEqual(result["correlations"], [])
+        self.assertEqual(result["contrasts"], [])
+        self.assertEqual(result["profile"]["self_association_exclusion_count"], 1)
+        exclusion = result["self_association_exclusions"][0]
+        self.assertEqual(exclusion["exclusion_reason"], "SAME_CANONICAL_ATTRIBUTE")
+        self.assertEqual(exclusion["admission_status"], "EXCLUDED_FROM_SCIENTIFIC_OPPORTUNITIES_AND_FDR")
+
+    def test_identical_same_unit_values_are_excluded_as_structural_identity(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            x_values = [1.0, 2.0, 3.0, 4.0]
+            _add_system_level_study(
+                bundle, study, x_values, x_values,
+                condition_type="condition_x", condition_unit="outcome-unit",
+            )
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        self.assertEqual(result["opportunities"], [])
+        self.assertEqual(result["correlations"], [])
+        self.assertEqual(result["profile"]["self_association_exclusion_reason_counts"],
+                         {"IDENTICAL_VALUES": 1})
+        self.assertEqual(result["self_association_exclusions"][0]["independent_study_count"], 4)
+
+    def test_perfect_rank_correlation_alone_is_not_excluded(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            x_values = [1.0, 2.0, 3.0, 4.0]
+            _add_system_level_study(
+                bundle, study, x_values, [value * 2 for value in x_values],
+                condition_type="condition_x", condition_unit="outcome-unit",
+            )
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        self.assertEqual(result["profile"]["self_association_exclusion_count"], 0)
+        self.assertEqual(len(result["correlations"]), 1)
+        self.assertEqual(result["correlations"][0]["median_study_spearman_rho"], 1.0)
+
     def test_high_cardinality_conditions_keep_full_coverage_but_bound_pairwise_screen(self):
         bundle = _bundle()
         levels = [f"level_{index:02d}" for index in range(22)]
