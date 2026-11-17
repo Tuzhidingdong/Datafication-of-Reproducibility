@@ -463,6 +463,58 @@
         },
         "limitation": {
           "type": "string"
+        },
+        "covariate_coverage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "condition_type",
+              "condition_unit",
+              "complete_numeric_coverage_study_count",
+              "incomplete_or_ambiguous_study_ids",
+              "rank_screen_eligible_study_ids",
+              "status"
+            ],
+            "properties": {
+              "condition_type": {
+                "type": "string"
+              },
+              "condition_unit": {
+                "type": "string"
+              },
+              "complete_numeric_coverage_study_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "complete_numeric_coverage_study_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "incomplete_or_ambiguous_study_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "rank_screen_eligible_study_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "status": {
+                "enum": [
+                  "EXACT_MONOTONIC_CO_VARIATION_DETECTED",
+                  "NO_EXACT_MONOTONIC_CO_VARIATION_IN_EVALUABLE_STUDIES",
+                  "INSUFFICIENT_OR_INCOMPLETE_COVARIATE_COVERAGE"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": true
