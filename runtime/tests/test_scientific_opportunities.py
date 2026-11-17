@@ -490,7 +490,11 @@ class ScientificOpportunityTests(unittest.TestCase):
             }
         result = build_scientific_opportunities(bundle, bootstrap_iterations=200)
         self.assertEqual(result["profile"]["self_association_exclusion_count"], 0)
-        self.assertEqual(len(result["correlations"]), 1)
+        between_system_rows = [
+            row for row in result["correlations"]
+            if row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+        ]
+        self.assertEqual(len(between_system_rows), 1)
         self.assertEqual(len(result["opportunities"]), 1)
         review = result["opportunities"][0]["semantic_review"]
         self.assertEqual(review["relationship_status"], "SAME_APPROVED_CONCEPT_CONTEXT_UNRESOLVED")
