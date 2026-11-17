@@ -298,6 +298,20 @@ def build_scientific_opportunities(
             for study_id in levels_by_label[label]
             for system_id in levels_by_label[label][study_id]
         )
+        if all_levels_numeric:
+            numeric_level_by_label = {
+                label: next(
+                    levels_by_label[label][study_id][system_id]["condition_number"]
+                    for study_id in sorted(levels_by_label[label])
+                    for system_id in sorted(levels_by_label[label][study_id])
+                )
+                for label in labels
+            }
+            labels = sorted(labels, key=lambda label: (numeric_level_by_label[label], label))
+        else:
+            # Nominal labels have no inferred scientific order. Their stable
+            # serialized order only defines the signed b-minus-a contrast.
+            labels = sorted(labels)
         use_numeric_trend = all_levels_numeric and len(numeric_levels) >= 3
 
         if use_numeric_trend:
@@ -472,6 +486,7 @@ def build_scientific_opportunities(
                     "condition_unit": condition_unit,
                     "level_a": label_a,
                     "level_b": label_b,
+                    "contrast_orientation": "NUMERIC_ASCENDING" if all_levels_numeric else "SERIALIZED_LABEL_ORDER",
                     "level_a_study_count": eligible_level_a,
                     "level_b_study_count": eligible_level_b,
                     "paired_study_count": len(differences),
@@ -503,6 +518,7 @@ def build_scientific_opportunities(
                     "condition_unit": condition_unit,
                     "level_a": label_a,
                     "level_b": label_b,
+                    "contrast_orientation": "NUMERIC_ASCENDING" if all_levels_numeric else "SERIALIZED_LABEL_ORDER",
                     "independent_study_count": len(differences),
                     "effect_size": effect,
                     "confidence_interval_95": ci,
@@ -534,28 +550,319 @@ def build_scientific_opportunities(
                     "evidence_refs": study_effects,
                 })
 
+    # Between-System, within-Study screens are distinct from paired within-
+    # System screens. They are enabled when the Canonical grain contains one
+    # Experiment per System, but are explicitly labelled cross-sectional and
+    # retain system-composition confounding as a limitation.
+    between_system_numeric_group_count = 0
+    between_system_numeric_eligible_study_count = 0
+    between_system_categorical_pair_count = 0
+    between_system_categorical_eligible_study_count = 0
+    for base_key, levels_by_label in sorted(by_base.items(), key=lambda item: _label(item[0])):
+        outcome_key, condition_base = base_key
+        target_id, endpoint, timepoint, outcome_unit = outcome_key
+        condition_type, condition_unit = condition_base
+        labels = sorted(levels_by_label)
+        level_numbers: dict[str, float | None] = {}
+        level_study_counts = {label: len(levels_by_label[label]) for label in labels}
+        for label in labels:
+            first_cell = next(
+                levels_by_label[label][study_id][system_id]
+                for study_id in sorted(levels_by_label[label])
+                for system_id in sorted(levels_by_label[label][study_id])
+            )
+            level_numbers[label] = first_cell["condition_number"]
+        all_numeric = all(value is not None for value in level_numbers.values())
+        numeric_levels = {value for value in level_numbers.values() if value is not None}
+        if all_numeric:
+            labels = sorted(labels, key=lambda label: (level_numbers[label], label))
+
+        # A System is eligible for the between-System screen only when it
+        # contributes exactly one condition level for this outcome/condition
+        # within this Study. Systems with repeated levels remain available to
+        # the separate within-System analysis above.
+        labels_by_study_system: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+        for label in labels:
+            for study_id, systems_by_study in levels_by_label[label].items():
+                for system_id in systems_by_study:
+                    labels_by_study_system[study_id][system_id].append(label)
+        eligible_cells: dict[str, dict[str, tuple[str, dict[str, Any]]]] = defaultdict(dict)
+        for study_id, systems_by_study in labels_by_study_system.items():
+            for system_id, system_labels in systems_by_study.items():
+                if len(system_labels) != 1:
+                    continue
+                label = system_labels[0]
+                eligible_cells[study_id][system_id] = (
+                    label, levels_by_label[label][study_id][system_id]
+                )
+
+        use_between_system_numeric = all_numeric and len(numeric_levels) >= 3
+        if use_between_system_numeric:
+            between_system_numeric_group_count += 1
+            study_effects = []
+            for study_id in sorted(eligible_cells):
+                points = []
+                for system_id, (label, cell) in sorted(eligible_cells[study_id].items()):
+                    x_value = level_numbers[label]
+                    y_value = _median(cell["values"])
+                    if x_value is None or y_value is None:
+                        continue
+                    points.append({
+                        "x": x_value, "y": y_value, "system_id": system_id,
+                        "experiment_ids": sorted(cell["experiment_ids"]),
+                        "observation_ids": sorted(cell["observation_ids"]),
+                    })
+                rho = _spearman(
+                    [item["x"] for item in points],
+                    [item["y"] for item in points],
+                )
+                if rho is None:
+                    continue
+                study_effects.append({
+                    "study_id": study_id,
+                    "study_spearman_rho": rho,
+                    "eligible_system_count": len(points),
+                    "supporting_system_ids": sorted(item["system_id"] for item in points),
+                    "supporting_experiment_ids": sorted({
+                        experiment for item in points for experiment in item["experiment_ids"]
+                    }),
+                    "supporting_observation_ids": sorted({
+                        observation for item in points for observation in item["observation_ids"]
+                    }),
+                })
+            if study_effects:
+                between_system_numeric_eligible_study_count += len(study_effects)
+                rhos = [item["study_spearman_rho"] for item in study_effects]
+                p_value = _sign_test_p(rhos) if len(rhos) >= minimum_paired_studies else None
+                identity = ["BETWEEN_SYSTEM_SPEARMAN", outcome_key, condition_base]
+                effect = _median(rhos)
+                ci = _bootstrap_median_ci(rhos, bootstrap_iterations, _stable_seed(seed, identity))
+                correlation_rows.append({
+                    "analysis_family": "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN",
+                    "target_id": target_id,
+                    "endpoint_definition": endpoint,
+                    "timepoint": timepoint,
+                    "outcome_unit": outcome_unit,
+                    "condition_type": condition_type,
+                    "condition_unit": condition_unit,
+                    "independent_study_count": len(rhos),
+                    "system_correlation_count": sum(item["eligible_system_count"] for item in study_effects),
+                    "experiment_count": len({exp for item in study_effects for exp in item["supporting_experiment_ids"]}),
+                    "observation_count": len({obs for item in study_effects for obs in item["supporting_observation_ids"]}),
+                    "median_study_spearman_rho": effect,
+                    "study_spearman_ci95": ci,
+                    "positive_study_count": sum(value > 0 for value in rhos),
+                    "negative_study_count": sum(value < 0 for value in rhos),
+                    "zero_study_count": sum(value == 0 for value in rhos),
+                    "p_value": p_value,
+                    "q_value": None,
+                    "study_effects": study_effects,
+                    "interpretation_status": "BETWEEN_SYSTEM_WITHIN_STUDY_RANK_ASSOCIATION_CANDIDATE_NOT_CAUSAL",
+                })
+                if len(rhos) >= minimum_paired_studies:
+                    opp_id = _opportunity_id(identity)
+                    raw_opportunities.append({
+                        "schema_version": "1.0",
+                        "opportunity_id": opp_id,
+                        "analysis_family": "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN",
+                        "signal_type": "WITHIN_STUDY_BETWEEN_SYSTEM_NUMERIC_CONDITION_TREND",
+                        "target_id": target_id,
+                        "endpoint_definition": endpoint,
+                        "timepoint": timepoint,
+                        "outcome_unit": outcome_unit,
+                        "condition_type": condition_type,
+                        "condition_unit": condition_unit,
+                        "condition_levels": sorted(numeric_levels),
+                        "independent_study_count": len(rhos),
+                        "effect_size": effect,
+                        "confidence_interval_95": ci,
+                        "p_value": p_value,
+                        "q_value": None,
+                        "study_effects": study_effects,
+                        "supporting_studies": sorted(item["study_id"] for item in study_effects),
+                        "supporting_signals": [opp_id],
+                        "scientific_question": (
+                            f"Within independent Studies, across distinct canonical Systems, is "
+                            f"canonical target '{target_id}' ({endpoint}; timepoint {timepoint}; {outcome_unit}) "
+                            f"associated with the reported numeric condition '{condition_type}' ({condition_unit})?"
+                        ),
+                        "hypothesis": (
+                            "The between-System condition/outcome rank association has a consistent direction "
+                            "across independent Studies; this is cross-sectional screening, not a causal claim."
+                        ),
+                        "semantic_status": "CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW",
+                        "identifiability": "WITHIN_STUDY_BETWEEN_SYSTEM_CROSS_SECTIONAL_RANK_ASSOCIATION",
+                        "limitations": [
+                            "Each Study contributes at most one Spearman correlation across eligible Systems.",
+                            "Systems with more than one condition level are excluded from this between-System screen and remain eligible for within-System analysis.",
+                            "Differences in chemistry, composition, protocol, and laboratory between Systems may confound the association.",
+                            "The cross-Study sign test screens direction consistency; it does not establish causality or remove system-level confounding.",
+                            "Target and condition identifiers are not interpreted, and no unit conversion or timepoint merging is performed.",
+                        ],
+                        "evidence_refs": study_effects,
+                    })
+
+        elif len(labels) >= 2:
+            screened_labels = labels
+            if len(labels) > maximum_levels_per_condition:
+                screened_labels = sorted(
+                    labels, key=lambda label: (-level_study_counts[label], label)
+                )[:maximum_levels_per_condition]
+            for label_a, label_b in itertools.combinations(screened_labels, 2):
+                between_system_categorical_pair_count += 1
+                study_effects = []
+                for study_id in sorted(eligible_cells):
+                    group_a = []
+                    group_b = []
+                    for system_id, (label, cell) in sorted(eligible_cells[study_id].items()):
+                        system_value = _median(cell["values"])
+                        if system_value is None:
+                            continue
+                        point = {
+                            "system_id": system_id,
+                            "outcome_median": system_value,
+                            "experiment_ids": sorted(cell["experiment_ids"]),
+                            "observation_ids": sorted(cell["observation_ids"]),
+                        }
+                        if label == label_a:
+                            group_a.append(point)
+                        elif label == label_b:
+                            group_b.append(point)
+                    # Require replicated Systems in both groups within a Study.
+                    if len(group_a) < 2 or len(group_b) < 2:
+                        continue
+                    median_a = _median([item["outcome_median"] for item in group_a])
+                    median_b = _median([item["outcome_median"] for item in group_b])
+                    if median_a is None or median_b is None:
+                        continue
+                    study_effects.append({
+                        "study_id": study_id,
+                        "level_a_median": median_a,
+                        "level_b_median": median_b,
+                        "median_between_system_difference_b_minus_a": median_b - median_a,
+                        "level_a_system_ids": sorted(item["system_id"] for item in group_a),
+                        "level_b_system_ids": sorted(item["system_id"] for item in group_b),
+                        "level_a_system_count": len(group_a),
+                        "level_b_system_count": len(group_b),
+                        "supporting_system_ids": sorted(
+                            {item["system_id"] for item in group_a + group_b}
+                        ),
+                        "supporting_experiment_ids": sorted({
+                            experiment for item in group_a + group_b for experiment in item["experiment_ids"]
+                        }),
+                        "supporting_observation_ids": sorted({
+                            observation for item in group_a + group_b for observation in item["observation_ids"]
+                        }),
+                    })
+                if not study_effects:
+                    continue
+                between_system_categorical_eligible_study_count += len(study_effects)
+                differences = [
+                    item["median_between_system_difference_b_minus_a"]
+                    for item in study_effects
+                ]
+                p_value = _sign_test_p(differences) if len(differences) >= minimum_paired_studies else None
+                identity = ["BETWEEN_SYSTEM_CONTRAST", outcome_key, condition_base, label_a, label_b]
+                effect = _median(differences)
+                ci = _bootstrap_median_ci(differences, bootstrap_iterations, _stable_seed(seed, identity))
+                contrast_rows.append({
+                    "analysis_family": "CONDITION_OUTCOME_BETWEEN_SYSTEM_CONTRAST",
+                    "target_id": target_id,
+                    "endpoint_definition": endpoint,
+                    "timepoint": timepoint,
+                    "outcome_unit": outcome_unit,
+                    "condition_type": condition_type,
+                    "condition_unit": condition_unit,
+                    "level_a": label_a,
+                    "level_b": label_b,
+                    "contrast_orientation": "NUMERIC_ASCENDING" if all_numeric else "SERIALIZED_LABEL_ORDER",
+                    "independent_study_count": len(differences),
+                    "level_a_system_count": sum(item["level_a_system_count"] for item in study_effects),
+                    "level_b_system_count": sum(item["level_b_system_count"] for item in study_effects),
+                    "paired_study_count": 0,
+                    "paired_system_count": 0,
+                    "experiment_count": len({exp for item in study_effects for exp in item["supporting_experiment_ids"]}),
+                    "observation_count": len({obs for item in study_effects for obs in item["supporting_observation_ids"]}),
+                    "median_study_difference_b_minus_a": effect,
+                    "study_difference_ci95": ci,
+                    "positive_study_count": sum(value > 0 for value in differences),
+                    "negative_study_count": sum(value < 0 for value in differences),
+                    "zero_study_count": sum(value == 0 for value in differences),
+                    "p_value": p_value,
+                    "q_value": None,
+                    "study_effects": study_effects,
+                    "interpretation_status": "BETWEEN_SYSTEM_WITHIN_STUDY_CROSS_SECTIONAL_CONTRAST_CANDIDATE_NOT_CAUSAL",
+                })
+                if len(differences) >= minimum_paired_studies:
+                    opp_id = _opportunity_id(identity)
+                    raw_opportunities.append({
+                        "schema_version": "1.0",
+                        "opportunity_id": opp_id,
+                        "analysis_family": "CONDITION_OUTCOME_BETWEEN_SYSTEM_CONTRAST",
+                        "signal_type": "WITHIN_STUDY_BETWEEN_SYSTEM_CONDITION_OUTCOME_CONTRAST",
+                        "target_id": target_id,
+                        "endpoint_definition": endpoint,
+                        "timepoint": timepoint,
+                        "outcome_unit": outcome_unit,
+                        "condition_type": condition_type,
+                        "condition_unit": condition_unit,
+                        "level_a": label_a,
+                        "level_b": label_b,
+                        "contrast_orientation": "NUMERIC_ASCENDING" if all_numeric else "SERIALIZED_LABEL_ORDER",
+                        "independent_study_count": len(differences),
+                        "effect_size": effect,
+                        "confidence_interval_95": ci,
+                        "p_value": p_value,
+                        "q_value": None,
+                        "study_effects": study_effects,
+                        "supporting_studies": sorted(item["study_id"] for item in study_effects),
+                        "supporting_signals": [opp_id],
+                        "scientific_question": (
+                            f"Within independent Studies, do distinct canonical Systems assigned to "
+                            f"condition '{condition_type}' ({condition_unit}) level {label_b} versus {label_a} "
+                            f"differ in canonical target '{target_id}' ({endpoint}; timepoint {timepoint}; {outcome_unit})?"
+                        ),
+                        "hypothesis": (
+                            "The between-System group contrast is directionally consistent across independent Studies; "
+                            "this is cross-sectional association screening, not a causal effect."
+                        ),
+                        "semantic_status": "CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW",
+                        "identifiability": "WITHIN_STUDY_BETWEEN_SYSTEM_CROSS_SECTIONAL_CONTRAST",
+                        "limitations": [
+                            "Each Study contributes one difference between System-level group medians.",
+                            "Both condition levels require at least two distinct Systems within a Study.",
+                            "Differences in chemistry, composition, protocol, and laboratory between Systems may confound the contrast.",
+                            "The exact sign test evaluates cross-Study direction consistency; it does not establish causality.",
+                            "Target and condition identifiers are not interpreted, and no unit conversion or timepoint merging is performed.",
+                        ],
+                        "evidence_refs": study_effects,
+                    })
+
     _apply_bh(contrast_rows, "CONDITION_OUTCOME_PAIRED_STUDY_SYSTEM_CONTRAST")
+    _apply_bh(contrast_rows, "CONDITION_OUTCOME_BETWEEN_SYSTEM_CONTRAST")
     _apply_bh(correlation_rows, "CONDITION_OUTCOME_WITHIN_SYSTEM_SPEARMAN")
+    _apply_bh(correlation_rows, "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN")
 
     contrast_index = {
-        (row["target_id"], row["endpoint_definition"], row["timepoint"], row["outcome_unit"],
+        (row["analysis_family"], row["target_id"], row["endpoint_definition"], row["timepoint"], row["outcome_unit"],
          row["condition_type"], row["condition_unit"], row["level_a"], row["level_b"]): row
         for row in contrast_rows
     }
     correlation_index = {
-        (row["target_id"], row["endpoint_definition"], row["timepoint"], row["outcome_unit"],
+        (row["analysis_family"], row["target_id"], row["endpoint_definition"], row["timepoint"], row["outcome_unit"],
          row["condition_type"], row["condition_unit"]): row
         for row in correlation_rows
     }
     for opportunity in raw_opportunities:
-        if opportunity["analysis_family"] == "CONDITION_OUTCOME_PAIRED_STUDY_SYSTEM_CONTRAST":
-            key = (opportunity["target_id"], opportunity["endpoint_definition"], opportunity["timepoint"],
-                   opportunity["outcome_unit"], opportunity["condition_type"], opportunity["condition_unit"],
-                   opportunity["level_a"], opportunity["level_b"])
+        if "CONTRAST" in opportunity["analysis_family"]:
+            key = (opportunity["analysis_family"], opportunity["target_id"], opportunity["endpoint_definition"],
+                   opportunity["timepoint"], opportunity["outcome_unit"], opportunity["condition_type"],
+                   opportunity["condition_unit"], opportunity["level_a"], opportunity["level_b"])
             tested = contrast_index[key]
         else:
-            key = (opportunity["target_id"], opportunity["endpoint_definition"], opportunity["timepoint"],
-                   opportunity["outcome_unit"], opportunity["condition_type"], opportunity["condition_unit"])
+            key = (opportunity["analysis_family"], opportunity["target_id"], opportunity["endpoint_definition"],
+                   opportunity["timepoint"], opportunity["outcome_unit"], opportunity["condition_type"],
+                   opportunity["condition_unit"])
             tested = correlation_index[key]
         opportunity["p_value"] = tested["p_value"]
         opportunity["q_value"] = tested["q_value"]
@@ -593,7 +900,8 @@ def build_scientific_opportunities(
         ]
         opportunity["proposed_methods"] = [
             "Study-aware descriptive replication",
-            "Within-Study/System paired contrast or within-Study/System Spearman screen",
+            "Within-System paired contrasts where repeated condition levels exist",
+            "Within-Study between-System cross-sectional contrasts/trends, with explicit system-composition confounding review",
             "Study-grouped validation after the user approves a research scope",
         ]
         opportunity["expected_scientific_contribution"] = (
@@ -606,10 +914,14 @@ def build_scientific_opportunities(
         ]
         opportunity["supporting_signals"] = opportunity["supporting_signals"]
         study_effect_values = [
-            item.get("median_paired_system_difference_b_minus_a", item.get("study_spearman_rho"))
+            item.get(
+                "median_paired_system_difference_b_minus_a",
+                item.get("median_between_system_difference_b_minus_a", item.get("study_spearman_rho")),
+            )
             for item in opportunity["study_effects"]
         ]
-        pooled_direction = 1 if (effect or 0) > 0 else (-1 if (effect or 0) < 0 else 0)
+        opportunity_effect = opportunity.get("effect_size")
+        pooled_direction = 1 if (opportunity_effect or 0) > 0 else (-1 if (opportunity_effect or 0) < 0 else 0)
         opportunity["counterexamples"] = [
             item["study_id"]
             for item, study_value in zip(opportunity["study_effects"], study_effect_values)
@@ -619,7 +931,10 @@ def build_scientific_opportunities(
             "study_count": opportunity["independent_study_count"],
             "system_count": len({
                 system for item in opportunity["study_effects"]
-                for system in item.get("supporting_system_ids", [])
+                for system in (
+                    item.get("supporting_system_ids", [])
+                    or item.get("level_a_system_ids", []) + item.get("level_b_system_ids", [])
+                )
             }),
             "experiment_count": sum(len(item.get("supporting_experiment_ids", [])) for item in opportunity["study_effects"]),
             "observation_count": sum(len(item.get("supporting_observation_ids", [])) for item in opportunity["study_effects"]),
@@ -665,8 +980,15 @@ def build_scientific_opportunities(
         "seed": seed,
         "numeric_observation_count_used": reported_numeric_count,
         "ambiguous_condition_experiment_assignments_excluded": ambiguous_assignments,
-        "paired_contrast_test_count": len(contrast_rows),
+        "paired_contrast_test_count": sum(row["analysis_family"] == "CONDITION_OUTCOME_PAIRED_STUDY_SYSTEM_CONTRAST" for row in contrast_rows),
+        "between_system_contrast_test_count": sum(row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_CONTRAST" for row in contrast_rows),
         "numeric_trend_test_count": len(correlation_rows),
+        "within_system_numeric_trend_test_count": sum(row["analysis_family"] == "CONDITION_OUTCOME_WITHIN_SYSTEM_SPEARMAN" for row in correlation_rows),
+        "between_system_numeric_trend_test_count": sum(row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN" for row in correlation_rows),
+        "between_system_numeric_group_count": between_system_numeric_group_count,
+        "between_system_numeric_eligible_study_count": between_system_numeric_eligible_study_count,
+        "between_system_categorical_pair_count": between_system_categorical_pair_count,
+        "between_system_categorical_eligible_study_count": between_system_categorical_eligible_study_count,
         "maximum_levels_per_condition": maximum_levels_per_condition,
         "condition_level_count_total": len(condition_level_support_rows),
         "categorical_level_count_excluded_from_pairwise_screen": categorical_level_count_excluded,

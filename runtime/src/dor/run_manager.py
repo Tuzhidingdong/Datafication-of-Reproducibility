@@ -122,6 +122,7 @@ def _absolute_existing_directory(raw: Any, label: str) -> Path:
 def _validate_plan(
     plan: dict[str, Any], run_root: Path | None = None, *,
     allow_missing_acceptance_sources: bool = False,
+    validate_execution_contract: bool = True,
 ) -> tuple[list[str], dict[str, dict[str, Any]], dict[str, str]]:
     if plan.get("schema_version") != RUN_SCHEMA_VERSION:
         raise ValueError(f"Run plan schema_version must be {RUN_SCHEMA_VERSION}.")
@@ -205,7 +206,8 @@ def _validate_plan(
     stages_value = plan.get("stages")
     if not isinstance(stages_value, list) or not stages_value:
         raise ValueError("Run plan requires a non-empty explicit stages array.")
-    validate_supported_run_plan_execution_contract(plan)
+    if validate_execution_contract:
+        validate_supported_run_plan_execution_contract(plan)
     stages: dict[str, dict[str, Any]] = {}
     producer_by_artifact: dict[str, str] = {}
     output_paths: set[str] = set()
@@ -369,7 +371,9 @@ def _initialization_snapshot(manifest: Mapping[str, Any]) -> dict[str, Any]:
     return snapshot
 
 
-def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+def _manifest_context(
+    manifest_path: Path, *, validate_execution_contract: bool = True,
+) -> tuple[Path, dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
     manifest_path = manifest_path.expanduser().resolve(strict=True)
     manifest = _read_json(manifest_path, "Run manifest")
     if manifest.get("schema_version") != RUN_SCHEMA_VERSION:
@@ -384,7 +388,10 @@ def _manifest_context(manifest_path: Path) -> tuple[Path, dict[str, Any], dict[s
     if plan_hash != manifest.get("plan_sha256"):
         raise ValueError("Run plan SHA-256 differs from the immutable run-init snapshot.")
     plan = _read_json(plan_path, "Bound run plan")
-    order, source_defs, producer_by_artifact = _validate_plan(plan, root, allow_missing_acceptance_sources=True)
+    order, source_defs, producer_by_artifact = _validate_plan(
+        plan, root, allow_missing_acceptance_sources=True,
+        validate_execution_contract=validate_execution_contract,
+    )
     if plan.get("project_id") != manifest.get("project_id"):
         raise ValueError("Run manifest project_id differs from its bound run plan.")
     if manifest.get("plan_path") != "run_plan.json" or manifest.get("event_ledger_path") != "run_events.jsonl":
@@ -1445,10 +1452,17 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
     definitions, producers = _artifact_definitions(plan)
     successful_outputs: dict[str, dict[str, Any]] = {}
     latest_status = _latest_stage_events(events)
-    resume_actions = {
-        item["stage_id"]: item["action"]
-        for item in _resume_plan(root, manifest, plan, events)["stages"]
-    }
+    # This is a provenance/hash report, not an execution authorization.
+    # Historical Runs must remain inspectable from their immutable Run Plan and
+    # event ledger even after the current Runtime Stage contract evolves.
+    contract_compatibility = {"status": "CURRENT", "reason": None}
+    try:
+        validate_supported_run_plan_execution_contract(plan)
+    except (ValueError, RuntimeError) as exc:
+        contract_compatibility = {
+            "status": "HISTORICAL_PLAN_READ_ONLY",
+            "reason": str(exc),
+        }
     for stage_id, event in latest_success.items():
         for output in event.get("output_artifacts", []):
             successful_outputs[output["artifact_id"]] = {
@@ -1484,9 +1498,12 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
             expected = recorded.get("sha256") if recorded else None
             if recorded is None:
                 state = "PRESENT_UNRECORDED" if actual is not None else "NOT_CREATED"
-            elif latest_status.get(stage_id, {}).get("status") != "SUCCEEDED" or resume_actions.get(stage_id) != "REUSE":
+            elif latest_status.get(stage_id, {}).get("status") != "SUCCEEDED":
                 state = "STALE_OR_MISSING"
             else:
+                # CURRENT means the bytes match the exact successful event bound
+                # to the immutable Run Plan. It does not mean the stage is
+                # eligible for reuse under today's execution contract.
                 state = "CURRENT" if actual == expected else "STALE_OR_MISSING"
             artifacts.append({
                 "artifact_id": output["artifact_id"], "kind": output.get("kind", "derived"),
@@ -1596,6 +1613,7 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
         "archived_attempt_count": len(archived_attempts),
         "archived_attempts": archived_attempts,
         "source_integrity": "CURRENT" if all(item == "CURRENT" for item in all_source_states) else "SOURCE_CHANGED_NEW_RUN_REQUIRED",
+        "execution_contract_compatibility": contract_compatibility,
         "acceptance_source_artifacts": acceptance_source_artifacts,
         "acceptance_source_status_counts": acceptance_source_counts,
         "artifacts": artifacts,
@@ -1604,7 +1622,12 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
 
 
 def build_artifact_manifest(manifest_path: Path) -> dict[str, Any]:
-    root, manifest, plan, events = _manifest_context(manifest_path)
+    # Artifact provenance is derived from the frozen Run Plan and hash-chained
+    # events. It must remain regenerable even when a newer Runtime contract
+    # adds outputs or changes stage bindings; this path is strictly read-only.
+    root, manifest, plan, events = _manifest_context(
+        manifest_path, validate_execution_contract=False,
+    )
     return _artifact_manifest(root, manifest, plan, events)
 
 def _usage_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1642,7 +1665,9 @@ def _usage_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def build_run_usage_report(manifest_path: Path) -> dict[str, Any]:
     """Summarize token usage actually recorded on terminal Run stage attempts."""
-    root, manifest, plan, events = _manifest_context(manifest_path)
+    root, manifest, plan, events = _manifest_context(
+        manifest_path, validate_execution_contract=False,
+    )
     token_fields = (
         "input_tokens", "output_tokens", "reasoning_tokens",
         "cache_read_tokens", "cache_write_tokens",

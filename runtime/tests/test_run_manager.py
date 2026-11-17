@@ -360,6 +360,22 @@ class RunManagerTests(unittest.TestCase):
         by_id = {item["artifact_id"]: item for item in refreshed["artifacts"]}
         self.assertEqual(by_id["source_inventory"]["status"], "STALE_OR_MISSING")
 
+    def test_artifact_manifest_remains_readable_when_current_execution_contract_evolves(self):
+        self.run_local("audit")
+        with patch(
+            "dor.run_manager.validate_supported_run_plan_execution_contract",
+            side_effect=ValueError("Historical exploratory_discovery output declarations differ from the current contract."),
+        ):
+            artifact_manifest = build_artifact_manifest(self.manifest_path)
+            by_id = {item["artifact_id"]: item for item in artifact_manifest["artifacts"]}
+            self.assertEqual(
+                artifact_manifest["execution_contract_compatibility"]["status"],
+                "HISTORICAL_PLAN_READ_ONLY",
+            )
+            self.assertEqual(by_id["dataset_manifest"]["status"], "CURRENT")
+            with self.assertRaisesRegex(ValueError, "Historical exploratory_discovery"):
+                build_resume_plan(self.manifest_path)
+
     def test_run_usage_aggregates_only_terminal_stage_attempts(self):
         record_stage_status(
             self.manifest_path, "audit", "RUNNING", "local",

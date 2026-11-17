@@ -1106,6 +1106,7 @@
           "executor": "manual",
           "required_gate": null,
           "inputs": [
+            "discovery_manifest",
             "discovery_report",
             "discovery_brief",
             "target_support",
@@ -1143,6 +1144,7 @@
           "executor": "manual",
           "required_gate": null,
           "inputs": [
+            "discovery_manifest",
             "discovery_report",
             "discovery_brief",
             "target_support",

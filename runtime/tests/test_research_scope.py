@@ -88,6 +88,21 @@ class ResearchScopeValidationTests(unittest.TestCase):
         self.assertTrue(result["valid"], result)
         self.assertEqual(result["selected_opportunity_ids"], ["OPP-ABC123"])
 
+    def test_between_system_opportunity_is_reported_as_a_selected_opportunity(self):
+        report = {
+            "signals": [{
+                "signal_id": "OPP-BETWEEN",
+                "signal_type": "WITHIN_STUDY_BETWEEN_SYSTEM_CONDITION_OUTCOME_CONTRAST",
+                "target_id": "TARGET_01",
+            }]
+        }
+        record = dict(self.record)
+        record["selected_signal_ids"] = ["OPP-BETWEEN"]
+        record["not_selected_signal_ids"] = []
+        result = self.validate(record=record, report=report)
+        self.assertTrue(result["valid"], result)
+        self.assertEqual(result["selected_opportunity_ids"], ["OPP-BETWEEN"])
+
     def test_selected_opportunity_target_must_match_modeling_task(self):
         report = {
             "signals": [{

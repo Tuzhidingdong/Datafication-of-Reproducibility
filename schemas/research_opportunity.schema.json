@@ -255,6 +255,13 @@
         }
       },
       "additionalProperties": false
+    },
+    "contrast_orientation": {
+      "type": "string",
+      "enum": [
+        "NUMERIC_ASCENDING",
+        "SERIALIZED_LABEL_ORDER"
+      ]
     }
   },
   "additionalProperties": false

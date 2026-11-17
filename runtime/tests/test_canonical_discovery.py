@@ -146,7 +146,18 @@ class CanonicalDiscoveryTests(unittest.TestCase):
 
     def test_profile_preserves_studies_without_observations(self):
         bundle = make_bundle()
-        bundle["studies"].append({"study_id": "S_INVENTORY_ONLY", "source_locators": []})
+        bundle["studies"].append({"study_id": "S_WITH_EXPERIMENT_NO_OBSERVATION", "source_locators": []})
+        bundle["systems"].append({
+            "system_id": "SYS_WITHOUT_OBSERVATION",
+            "study_ids": ["S_WITH_EXPERIMENT_NO_OBSERVATION"],
+            "system_type": "unspecified",
+        })
+        bundle["experiments"].append({
+            "experiment_id": "E_WITHOUT_OBSERVATION",
+            "study_id": "S_WITH_EXPERIMENT_NO_OBSERVATION",
+            "system_id": "SYS_WITHOUT_OBSERVATION",
+            "condition_ids": [],
+        })
         result = summarize_canonical_bundle(bundle, minimum_studies=3)
         self.assertEqual(result["profile"]["study_count"], 4)
         self.assertEqual(result["profile"]["study_count_with_observations"], 3)

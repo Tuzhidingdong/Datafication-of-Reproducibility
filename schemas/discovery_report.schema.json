@@ -81,7 +81,14 @@
             "opportunity_count_written",
             "maximum_levels_per_condition",
             "condition_level_count_total",
-            "categorical_level_count_excluded_from_pairwise_screen"
+            "categorical_level_count_excluded_from_pairwise_screen",
+            "between_system_contrast_test_count",
+            "within_system_numeric_trend_test_count",
+            "between_system_numeric_trend_test_count",
+            "between_system_numeric_group_count",
+            "between_system_numeric_eligible_study_count",
+            "between_system_categorical_pair_count",
+            "between_system_categorical_eligible_study_count"
           ],
           "properties": {
             "maximum_levels_per_condition": {
@@ -93,6 +100,34 @@
               "minimum": 0
             },
             "categorical_level_count_excluded_from_pairwise_screen": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "between_system_contrast_test_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "within_system_numeric_trend_test_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "between_system_numeric_trend_test_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "between_system_numeric_group_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "between_system_numeric_eligible_study_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "between_system_categorical_pair_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "between_system_categorical_eligible_study_count": {
               "type": "integer",
               "minimum": 0
             }
@@ -108,13 +143,17 @@
           "type": "object",
           "required": [
             "paired_contrast",
-            "numeric_trend"
+            "numeric_trend",
+            "between_system_contrast"
           ],
           "properties": {
             "paired_contrast": {
               "type": "string"
             },
             "numeric_trend": {
+              "type": "string"
+            },
+            "between_system_contrast": {
               "type": "string"
             }
           }

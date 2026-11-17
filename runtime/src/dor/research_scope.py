@@ -134,7 +134,7 @@ def validate_research_scope_record(
         "selected_signal_ids": sorted(set(selected)) if not errors else [],
         "selected_opportunity_ids": sorted(
             signal_id for signal_id in selected
-            if str(report_signals_by_id.get(signal_id, {}).get("signal_type", "")).startswith("WITHIN_STUDY_SYSTEM_")
+            if str(report_signals_by_id.get(signal_id, {}).get("signal_type", "")).startswith("WITHIN_STUDY_") and "CONDITION" in str(report_signals_by_id.get(signal_id, {}).get("signal_type", ""))
         ) if not errors else [],
         "selected_signal_count": len(selected),
         "not_selected_signal_count": len(excluded),

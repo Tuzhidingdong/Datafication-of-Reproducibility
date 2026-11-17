@@ -245,7 +245,11 @@ def summarize_canonical_bundle(
     )
     signals.extend(scientific["signals"])
 
-    studies_with_observations = set(study_by_experiment.values())
+    studies_with_observations = {
+        study_by_experiment[item["experiment_id"]]
+        for item in observations
+        if item.get("experiment_id") in study_by_experiment
+    }
     systems_with_experiments = {item["system_id"] for item in bundle["experiments"]}
     profile = {
         "study_count": len(studies),
@@ -274,7 +278,7 @@ def summarize_canonical_bundle(
             "Units are kept as exact strings; no implicit conversion is performed.",
             "Study-level summaries are descriptive and are not inferential heterogeneity tests.",
             "Co-observation within one canonical experiment does not establish causality or interaction.",
-            "No causal, mechanistic, novelty, or statistical-significance claims are generated.",
+            "Statistical screens and q-values are prioritization evidence only; they do not establish scientific significance, causality, mechanism, novelty, or publication-worthiness.",
         ],
     }
 
@@ -334,8 +338,9 @@ def run_canonical_discovery_scan(
     scientific = result["scientific"]
     _write_csv(output_dir / "condition_outcome_contrasts.csv",
         ["analysis_family", "target_id", "endpoint_definition", "timepoint", "outcome_unit",
-         "condition_type", "condition_unit", "level_a", "level_b", "level_a_study_count",
-         "level_b_study_count", "paired_study_count", "paired_system_count", "experiment_count",
+         "condition_type", "condition_unit", "level_a", "level_b", "contrast_orientation",
+         "level_a_study_count", "level_b_study_count", "level_a_system_count", "level_b_system_count",
+         "independent_study_count", "paired_study_count", "paired_system_count", "experiment_count",
          "observation_count", "median_study_difference_b_minus_a", "study_difference_ci95",
          "positive_study_count", "negative_study_count", "zero_study_count", "p_value", "q_value",
          "interpretation_status", "study_effects_json"],
@@ -377,8 +382,9 @@ def run_canonical_discovery_scan(
         "profile": scientific["profile"],
         "limitations": scientific["limitations"],
         "analysis_families": {
-            "paired_contrast": "Study-level exact two-sided sign test; within Study/System contrasts; BH correction",
-            "numeric_trend": "Within Study/System Spearman; Study-level median rho; exact sign test; BH correction",
+            "paired_contrast": "Study-level exact two-sided sign test; within-System paired contrasts; BH correction",
+            "numeric_trend": "Within-System and between-System within-Study Spearman screens; one effect per Study; exact sign test and BH correction",
+            "between_system_contrast": "Cross-sectional System-level group medians within each Study; independent Study sign test; BH correction",
         },
     }
     (output_dir / "scientific_analysis_profile.json").write_text(

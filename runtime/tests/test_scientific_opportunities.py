@@ -65,6 +65,47 @@ def _add_study(bundle, study_number, condition_values, outcome_values, condition
             })
 
 
+
+
+
+def _add_system_level_study(bundle, study_number, condition_values, outcome_values,
+                            condition_type="condition_x", condition_unit=None):
+    study_id = f"BS{study_number}"
+    bundle["studies"].append({"study_id": study_id, "source_locators": []})
+    for index, (condition_value, outcome_value) in enumerate(zip(condition_values, outcome_values), start=1):
+        system_id = f"BSYS{study_number}_{index}"
+        condition_id = f"BC{study_number}_{index}"
+        experiment_id = f"BE{study_number}_{index}"
+        bundle["systems"].append({
+            "system_id": system_id, "study_ids": [study_id], "system_type": "synthetic-system"
+        })
+        bundle["conditions"].append({
+            "condition_id": condition_id,
+            "system_ids": [system_id],
+            "condition_type": condition_type,
+            "raw_value": condition_value,
+            "raw_unit": condition_unit,
+            "value_state": "REPORTED",
+        })
+        bundle["experiments"].append({
+            "experiment_id": experiment_id,
+            "study_id": study_id,
+            "system_id": system_id,
+            "condition_ids": [condition_id],
+        })
+        bundle["observations"].append({
+            "observation_id": f"BO{study_number}_{index}",
+            "experiment_id": experiment_id,
+            "target_id": "TARGET_Y",
+            "endpoint_definition": "endpoint-definition-1",
+            "timepoint": "cycle-100",
+            "value_state": "REPORTED",
+            "raw_value": outcome_value,
+            "raw_unit": "outcome-unit",
+            "evidence_ids": [],
+        })
+
+
 class ScientificOpportunityTests(unittest.TestCase):
     def test_exact_sign_test_uses_study_direction_not_observation_count(self):
         self.assertEqual(_sign_test_p([1.0, 1.0, 1.0, 1.0, 1.0]), 0.0625)
@@ -101,9 +142,13 @@ class ScientificOpportunityTests(unittest.TestCase):
         self.assertEqual(len(result["contrasts"]), 1)
         contrast = result["contrasts"][0]
         self.assertEqual(contrast["paired_study_count"], 5)
-        self.assertEqual(contrast["positive_study_count"], 5)
+        # Nominal string labels are not assigned an invented ordinal order:
+        # serialized label order determines A/B and the signed b-minus-a value.
+        self.assertEqual(contrast["contrast_orientation"], "SERIALIZED_LABEL_ORDER")
+        self.assertEqual(contrast["positive_study_count"], 0)
+        self.assertEqual(contrast["negative_study_count"], 5)
         self.assertEqual(contrast["observation_count"], 120)
-        self.assertAlmostEqual(contrast["median_study_difference_b_minus_a"], 6.0)
+        self.assertAlmostEqual(contrast["median_study_difference_b_minus_a"], -6.0)
         self.assertAlmostEqual(contrast["p_value"], 0.0625)
         self.assertAlmostEqual(contrast["q_value"], 0.0625)
         self.assertEqual(result["profile"]["analysis_unit"], "INDEPENDENT_STUDY")
@@ -140,6 +185,65 @@ class ScientificOpportunityTests(unittest.TestCase):
         self.assertEqual(len(row["study_effects"]), 4)
         self.assertEqual(len(result["opportunities"]), 1)
         self.assertEqual(result["opportunities"][0]["signal_type"], "WITHIN_STUDY_SYSTEM_NUMERIC_CONDITION_TREND")
+
+    def test_between_system_numeric_trend_recovers_one_study_rho_per_paper(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            x_values = [1.0, 2.0, 3.0, 4.0, 5.0]
+            y_values = [float(study * 10 + value * 2) for value in x_values]
+            _add_system_level_study(
+                bundle, study, x_values, y_values,
+                condition_type="current_density", condition_unit="mA cm-2",
+            )
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        rows = [
+            row for row in result["correlations"]
+            if row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+        ]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["independent_study_count"], 4)
+        self.assertEqual(rows[0]["system_correlation_count"], 20)
+        self.assertAlmostEqual(rows[0]["median_study_spearman_rho"], 1.0)
+        self.assertAlmostEqual(rows[0]["p_value"], 0.125)
+        self.assertEqual(len(rows[0]["study_effects"]), 4)
+        opportunities = [
+            item for item in result["opportunities"]
+            if item["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+        ]
+        self.assertEqual(len(opportunities), 1)
+        self.assertEqual(
+            opportunities[0]["identifiability"],
+            "WITHIN_STUDY_BETWEEN_SYSTEM_CROSS_SECTIONAL_RANK_ASSOCIATION",
+        )
+
+    def test_between_system_categorical_contrast_requires_replicated_systems_per_group(self):
+        bundle = _bundle()
+        for study in range(1, 6):
+            base = float(study * 10)
+            _add_system_level_study(
+                bundle, study,
+                ["low", "low", "high", "high"],
+                [base + 1.0, base + 3.0, base + 7.0, base + 9.0],
+            )
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        rows = [
+            row for row in result["contrasts"]
+            if row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_CONTRAST"
+        ]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["independent_study_count"], 5)
+        self.assertEqual(rows[0]["level_a_system_count"], 10)
+        self.assertEqual(rows[0]["level_b_system_count"], 10)
+        self.assertEqual(rows[0]["contrast_orientation"], "SERIALIZED_LABEL_ORDER")
+        self.assertAlmostEqual(rows[0]["median_study_difference_b_minus_a"], -6.0)
+        self.assertEqual(rows[0]["negative_study_count"], 5)
+        self.assertAlmostEqual(rows[0]["p_value"], 0.0625)
+        self.assertEqual(rows[0]["interpretation_status"],
+                         "BETWEEN_SYSTEM_WITHIN_STUDY_CROSS_SECTIONAL_CONTRAST_CANDIDATE_NOT_CAUSAL")
 
     def test_multiple_condition_levels_in_one_experiment_are_excluded_as_ambiguous(self):
         bundle = _bundle()

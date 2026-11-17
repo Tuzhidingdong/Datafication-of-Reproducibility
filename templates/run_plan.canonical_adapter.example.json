@@ -317,6 +317,7 @@
         "exploratory_discovery"
       ],
       "inputs": [
+        "discovery_manifest",
         "discovery_report",
         "discovery_brief",
         "target_support",
