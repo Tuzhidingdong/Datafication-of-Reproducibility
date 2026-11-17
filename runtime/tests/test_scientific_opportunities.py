@@ -475,6 +475,7 @@ class ScientificOpportunityTests(unittest.TestCase):
             row["semantic_metadata"] = {
                 "canonical_concept_id": "OUTCOME_CONCEPT",
                 "review_status": "APPROVED",
+                "derivation_type": "CALCULATED",
                 "derived_from": ["condition_alias"],
             }
         for row in bundle["conditions"]:
