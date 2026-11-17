@@ -357,9 +357,11 @@ def run_canonical_discovery_scan(
          "condition_type", "condition_unit", "independent_study_count", "system_correlation_count",
          "experiment_count", "observation_count", "median_study_spearman_rho", "study_spearman_ci95",
          "positive_study_count", "negative_study_count", "zero_study_count", "p_value", "q_value",
-         "interpretation_status", "study_effects_json"],
+         "deduplication_status", "mirror_group_id", "mirror_duplicate_of_opportunity_id",
+         "confounding_review_json", "interpretation_status", "study_effects_json"],
         [{**{key: value for key, value in row.items() if key != "study_effects"},
           "study_spearman_ci95": json.dumps(row.get("study_spearman_ci95"), ensure_ascii=False),
+          "confounding_review_json": json.dumps(row.get("confounding_review"), ensure_ascii=False, sort_keys=True),
           "study_effects_json": json.dumps(row.get("study_effects", []), ensure_ascii=False, sort_keys=True)}
          for row in scientific["correlations"]])
 
@@ -371,6 +373,7 @@ def run_canonical_discovery_scan(
         "candidate_count_written": len(scientific["opportunities"]),
         "opportunities": scientific["opportunities"],
         "excluded_self_associations": scientific["self_association_exclusions"],
+        "mirror_duplicates": scientific["mirror_duplicates"],
         "limitations": scientific["limitations"],
     }
     (output_dir / "research_opportunities.json").write_text(
@@ -392,7 +395,7 @@ def run_canonical_discovery_scan(
         json.dumps(scientific_profile, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
 
     report = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "input_type": "CANONICAL_BUNDLE",
         "input_bundle_sha256": input_hash,
         "profile": result["profile"],
@@ -402,6 +405,8 @@ def run_canonical_discovery_scan(
         "research_opportunities_file": "research_opportunities.json",
         "research_opportunity_count": len(scientific["opportunities"]),
         "excluded_self_association_count": len(scientific["self_association_exclusions"]),
+        "mirror_duplicate_opportunity_count": scientific["profile"]["mirror_duplicate_opportunity_count"],
+        "mirror_duplicate_group_count": scientific["profile"]["mirror_duplicate_group_count"],
         "evidence_ledger_file": "evidence_ledger.jsonl",
         "evidence_ledger_row_count": len(scientific["evidence_ledger"]),
         "interpretation_boundary": result["interpretation_boundary"] + scientific["limitations"],
@@ -436,6 +441,17 @@ def run_canonical_discovery_scan(
         brief_lines.append("- " + json.dumps(exclusion, ensure_ascii=False, sort_keys=True))
     if not scientific["self_association_exclusions"]:
         brief_lines.append("- None detected by the conservative identity checks.")
+    brief_lines.extend(["", "## Exact mirror-duplicate relationships", ""])
+    for duplicate in scientific["mirror_duplicates"]:
+        brief_lines.append("- " + json.dumps(duplicate, ensure_ascii=False, sort_keys=True))
+    if not scientific["mirror_duplicates"]:
+        brief_lines.append("- None proven by the exact reciprocal-value and support checks.")
+    brief_lines.extend(["", "## Candidate semantic and confounding review", ""])
+    for opportunity in scientific["opportunities"]:
+        brief_lines.append(
+            f"- {opportunity['opportunity_id']}: semantic={opportunity['semantic_review']['status']}; "
+            f"confounding={opportunity['confounding_review']['status']}"
+        )
     brief_lines.extend(["", "## Candidate signals", ""])
     for signal in result["signals"][:40]:
         brief_lines.append("- " + json.dumps(signal, ensure_ascii=False, sort_keys=True))
@@ -470,6 +486,8 @@ def run_canonical_discovery_scan(
         "profile": result["profile"],
         "signal_count": len(result["signals"]),
         "research_opportunity_count": len(scientific["opportunities"]),
+        "mirror_duplicate_opportunity_count": scientific["profile"]["mirror_duplicate_opportunity_count"],
+        "mirror_duplicate_group_count": scientific["profile"]["mirror_duplicate_group_count"],
         "fdr_screen_positive_count": scientific["profile"]["fdr_screen_positive_count"],
         "manifest_path": str(output_dir / "discovery_manifest.json"),
         "report_path": str(output_dir / "discovery_report.json"),
