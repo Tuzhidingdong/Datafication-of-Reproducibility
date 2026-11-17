@@ -262,6 +262,210 @@
         "NUMERIC_ASCENDING",
         "SERIALIZED_LABEL_ORDER"
       ]
+    },
+    "semantic_review": {
+      "type": "object",
+      "required": [
+        "status",
+        "relationship_status",
+        "target",
+        "condition",
+        "interpretation"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "APPROVED_METADATA_AVAILABLE_FOR_DOMAIN_REVIEW",
+            "DOMAIN_SEMANTIC_REVIEW_REQUIRED"
+          ]
+        },
+        "relationship_status": {
+          "enum": [
+            "DISTINCT_APPROVED_CONCEPTS",
+            "SAME_APPROVED_CONCEPT",
+            "UNRESOLVED_FROM_AVAILABLE_METADATA"
+          ]
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "identifier",
+            "status"
+          ],
+          "properties": {
+            "identifier": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "MISSING",
+                "PARTIAL",
+                "CONFLICTING",
+                "UNAPPROVED",
+                "APPROVED"
+              ]
+            },
+            "canonical_concept_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "display_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "definition": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_basis": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "derivation_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "derived_from": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reviewer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reviewed_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "condition": {
+          "type": "object",
+          "required": [
+            "identifier",
+            "status"
+          ],
+          "properties": {
+            "identifier": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "MISSING",
+                "PARTIAL",
+                "CONFLICTING",
+                "UNAPPROVED",
+                "APPROVED"
+              ]
+            },
+            "canonical_concept_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "display_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "definition": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_basis": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "derivation_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "derived_from": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reviewer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reviewed_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "interpretation": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "confounding_review": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "screen_method": {
+          "type": "string"
+        },
+        "recorded_condition_covariate_types_examined": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "unassessed_confounder_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitation": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
     }
   },
   "additionalProperties": false
