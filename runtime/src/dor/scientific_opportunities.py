@@ -40,6 +40,41 @@ def _reported_value(record: dict[str, Any]) -> tuple[Any, str]:
 def _label(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
 
+def _identifier_key(value: Any) -> str:
+    """Normalize an identifier only for conservative same-attribute detection."""
+    return "".join(character for character in str(value or "") if character.isalnum()).casefold()
+
+
+def _self_association_reason(
+    target_id: str,
+    condition_type: str,
+    outcome_unit: str,
+    condition_unit: str,
+    levels_by_label: dict[str, dict[str, dict[str, dict[str, Any]]]],
+) -> str | None:
+    """Return a reason only for explicit identity, never for mere high correlation."""
+    if _identifier_key(target_id) and _identifier_key(target_id) == _identifier_key(condition_type):
+        return "SAME_CANONICAL_ATTRIBUTE"
+    if outcome_unit != condition_unit:
+        return None
+    compared = []
+    study_ids = set()
+    for study_levels in levels_by_label.values():
+        for study_id, systems_by_study in study_levels.items():
+            for cell in systems_by_study.values():
+                condition_value = cell.get("condition_number")
+                outcome_value = _median(cell.get("values", []))
+                if condition_value is None or outcome_value is None:
+                    return None
+                compared.append((condition_value, outcome_value))
+                study_ids.add(study_id)
+    if len(study_ids) >= 3 and len(compared) >= 4 and all(
+        math.isclose(condition, outcome, rel_tol=0.0, abs_tol=0.0)
+        for condition, outcome in compared
+    ):
+        return "IDENTICAL_VALUES"
+    return None
+
 
 def _median(values: list[float]) -> float | None:
     return float(statistics.median(values)) if values else None
@@ -262,6 +297,57 @@ def build_scientific_opportunities(
     condition_level_support_rows: list[dict[str, Any]] = []
     categorical_level_count_excluded = 0
     raw_opportunities: list[dict[str, Any]] = []
+
+    # Exclude structural self-relations before tests and BH family construction.
+    self_association_exclusions: list[dict[str, Any]] = []
+    for base_key, levels_by_label in list(by_base.items()):
+        outcome_key, condition_base = base_key
+        target_id, endpoint, timepoint, outcome_unit = outcome_key
+        condition_type, condition_unit = condition_base
+        reason = _self_association_reason(
+            target_id, condition_type, outcome_unit, condition_unit, levels_by_label
+        )
+        if reason is None:
+            continue
+        experiment_ids = {
+            exp for study_levels in levels_by_label.values()
+            for systems_by_study in study_levels.values()
+            for cell in systems_by_study.values() for exp in cell["experiment_ids"]
+        }
+        observation_ids = {
+            obs for study_levels in levels_by_label.values()
+            for systems_by_study in study_levels.values()
+            for cell in systems_by_study.values() for obs in cell["observation_ids"]
+        }
+        system_ids = {
+            system for study_levels in levels_by_label.values()
+            for systems_by_study in study_levels.values() for system in systems_by_study
+        }
+        study_ids = {
+            study for study_levels in levels_by_label.values() for study in study_levels
+        }
+        self_association_exclusions.append({
+            "exclusion_id": "SELF-" + hashlib.sha256(_label(base_key).encode("utf-8")).hexdigest()[:12].upper(),
+            "exclusion_reason": reason,
+            "target_id": target_id,
+            "endpoint_definition": endpoint,
+            "timepoint": timepoint,
+            "outcome_unit": outcome_unit,
+            "condition_type": condition_type,
+            "condition_unit": condition_unit,
+            "independent_study_count": len(study_ids),
+            "system_count": len(system_ids),
+            "experiment_count": len(experiment_ids),
+            "observation_count": len(observation_ids),
+            "analysis_families_excluded": [
+                "CONDITION_OUTCOME_PAIRED_STUDY_SYSTEM_CONTRAST",
+                "CONDITION_OUTCOME_BETWEEN_SYSTEM_CONTRAST",
+                "CONDITION_OUTCOME_WITHIN_SYSTEM_SPEARMAN",
+                "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN",
+            ],
+            "admission_status": "EXCLUDED_FROM_SCIENTIFIC_OPPORTUNITIES_AND_FDR",
+        })
+        del by_base[base_key]
 
     for base_key, levels_by_label in sorted(by_base.items(), key=lambda item: _label(item[0])):
         outcome_key, condition_base = base_key
@@ -992,6 +1078,11 @@ def build_scientific_opportunities(
         "maximum_levels_per_condition": maximum_levels_per_condition,
         "condition_level_count_total": len(condition_level_support_rows),
         "categorical_level_count_excluded_from_pairwise_screen": categorical_level_count_excluded,
+        "self_association_exclusion_count": len(self_association_exclusions),
+        "self_association_exclusion_reason_counts": {
+            reason: sum(item["exclusion_reason"] == reason for item in self_association_exclusions)
+            for reason in sorted({item["exclusion_reason"] for item in self_association_exclusions})
+        },
         "opportunity_count_before_limit": len(raw_opportunities),
         "opportunity_count_written": len(opportunities),
         "fdr_screen_positive_count": sum(
@@ -1017,5 +1108,9 @@ def build_scientific_opportunities(
         "opportunities": opportunities,
         "signals": signals,
         "evidence_ledger": evidence_ledger,
-        "limitations": limitations,
+        "self_association_exclusions": self_association_exclusions,
+        "limitations": limitations + [
+            "Canonical target/condition identity and exact same-unit value identity are excluded before inferential testing and FDR correction.",
+            "Perfect correlation alone is not treated as proof of self-association; broader deterministic derivation requires explicit provenance metadata and human review.",
+        ],
     }
