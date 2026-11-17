@@ -140,8 +140,14 @@ def _self_association_reason(
         condition_concept = str(condition_meta.get("canonical_concept_id") or "").strip()
         if target_concept and target_concept == condition_concept:
             return "SAME_APPROVED_SEMANTIC_CONCEPT"
-        target_dependencies = _metadata_dependencies(target_meta)
-        condition_dependencies = _metadata_dependencies(condition_meta)
+        target_dependencies = (
+            _metadata_dependencies(target_meta)
+            if str(target_meta.get("derivation_type") or "").upper() == "CALCULATED" else set()
+        )
+        condition_dependencies = (
+            _metadata_dependencies(condition_meta)
+            if str(condition_meta.get("derivation_type") or "").upper() == "CALCULATED" else set()
+        )
         if (_identifier_key(condition_type) in target_dependencies
                 or _identifier_key(condition_concept) in target_dependencies
                 or _identifier_key(target_id) in condition_dependencies
@@ -394,17 +400,24 @@ def _screen_recorded_condition_covariates(
     system_condition_values: dict[tuple[str, str], dict[tuple[str, str], dict[str, dict[str, Any]]]],
 ) -> dict[str, Any]:
     """Flag exact monotonic co-exposures recorded on the same System cohort."""
-    covariate_bases = sorted({base for condition_map in system_condition_values.values() for base in condition_map}, key=_label)
+    covariate_bases = sorted(
+        {base for condition_map in system_condition_values.values() for base in condition_map},
+        key=_label,
+    )
     findings: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    coverage_rows = []
     examined = set()
-    for study_effect in study_effects:
-        study_id = study_effect["study_id"]
-        points = study_effect.get("system_points", [])
-        for covariate_base in covariate_bases:
-            if (covariate_base == primary_condition_base
-                    or _identifier_key(covariate_base[0]) == _identifier_key(target_id)):
-                continue
-            examined.add(covariate_base)
+    for covariate_base in covariate_bases:
+        if (
+            covariate_base == primary_condition_base
+            or _identifier_key(covariate_base[0]) == _identifier_key(target_id)
+        ):
+            continue
+        examined.add(covariate_base)
+        complete_studies, incomplete_studies, rank_eligible_studies = [], [], []
+        for study_effect in study_effects:
+            study_id = study_effect["study_id"]
+            points = study_effect.get("system_points", [])
             covariate_values, complete = [], True
             for point in points:
                 levels = system_condition_values.get((study_id, point["system_id"]), {}).get(covariate_base, {})
@@ -417,19 +430,39 @@ def _screen_recorded_condition_covariates(
                     break
                 covariate_values.append(float(level["condition_number"]))
             if not complete or len(covariate_values) != len(points):
+                incomplete_studies.append(study_id)
                 continue
+            complete_studies.append(study_id)
             exposure_values = [float(point["condition_value"]) for point in points]
             outcome_values = [float(point["outcome_median"]) for point in points]
             rho_exposure = _spearman(exposure_values, covariate_values)
-            if rho_exposure is None or abs(rho_exposure) != 1.0:
+            if rho_exposure is None:
                 continue
-            findings[covariate_base].append({
-                "study_id": study_id,
-                "system_count": len(points),
-                "spearman_rho_with_primary_condition": rho_exposure,
-                "spearman_rho_with_outcome": _spearman(covariate_values, outcome_values),
-                "supporting_system_ids": sorted(point["system_id"] for point in points),
-            })
+            rank_eligible_studies.append(study_id)
+            rho_outcome = _spearman(covariate_values, outcome_values)
+            if abs(rho_exposure) == 1.0:
+                findings[covariate_base].append({
+                    "study_id": study_id,
+                    "system_count": len(points),
+                    "spearman_rho_with_primary_condition": rho_exposure,
+                    "spearman_rho_with_outcome": rho_outcome,
+                    "supporting_system_ids": sorted(point["system_id"] for point in points),
+                })
+        coverage_rows.append({
+            "condition_type": covariate_base[0],
+            "condition_unit": covariate_base[1],
+            "complete_numeric_coverage_study_ids": sorted(complete_studies),
+            "complete_numeric_coverage_study_count": len(complete_studies),
+            "incomplete_or_ambiguous_study_ids": sorted(incomplete_studies),
+            "rank_screen_eligible_study_ids": sorted(rank_eligible_studies),
+            "status": (
+                "EXACT_MONOTONIC_CO_VARIATION_DETECTED"
+                if findings.get(covariate_base)
+                else "NO_EXACT_MONOTONIC_CO_VARIATION_IN_EVALUABLE_STUDIES"
+                if rank_eligible_studies
+                else "INSUFFICIENT_OR_INCOMPLETE_COVARIATE_COVERAGE"
+            ),
+        })
     serialized = []
     for (condition_type, condition_unit), rows in sorted(findings.items(), key=lambda item: _label(item[0])):
         serialized.append({
@@ -445,6 +478,7 @@ def _screen_recorded_condition_covariates(
         "status": "POTENTIAL_CO_EXPOSURE_REQUIRES_DOMAIN_REVIEW" if serialized else "NO_PERFECT_MONOTONIC_RECORDED_COVARIATE_DETECTED",
         "screen_method": "EXACT_WITHIN_STUDY_SPEARMAN_ABS_RHO_EQ_1_ON_COMPLETE_SYSTEM_COHORT",
         "recorded_condition_covariate_types_examined": len(examined),
+        "covariate_coverage": coverage_rows,
         "findings": serialized,
         "unassessed_confounder_domains": [
             "System/material/composition descriptors not represented as structured reported Conditions",
@@ -453,6 +487,7 @@ def _screen_recorded_condition_covariates(
         ],
         "limitation": "This is an unadjusted screening diagnostic. No covariate adjustment or causal identification is performed.",
     }
+
 
 
 def build_scientific_opportunities(
