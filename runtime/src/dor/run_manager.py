@@ -1456,12 +1456,21 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
     # Historical Runs must remain inspectable from their immutable Run Plan and
     # event ledger even after the current Runtime Stage contract evolves.
     contract_compatibility = {"status": "CURRENT", "reason": None}
+    resume_actions: dict[str, str] | None = None
     try:
         validate_supported_run_plan_execution_contract(plan)
     except (ValueError, RuntimeError) as exc:
         contract_compatibility = {
             "status": "HISTORICAL_PLAN_READ_ONLY",
             "reason": str(exc),
+        }
+    else:
+        # For a current plan, preserve the normal invalidation semantics:
+        # an upstream change can make a previously successful downstream
+        # artifact stale even if its bytes still match its own old event hash.
+        resume_actions = {
+            item["stage_id"]: item["action"]
+            for item in _resume_plan(root, manifest, plan, events)["stages"]
         }
     for stage_id, event in latest_success.items():
         for output in event.get("output_artifacts", []):
@@ -1498,12 +1507,18 @@ def _artifact_manifest(root: Path, manifest: dict[str, Any], plan: dict[str, Any
             expected = recorded.get("sha256") if recorded else None
             if recorded is None:
                 state = "PRESENT_UNRECORDED" if actual is not None else "NOT_CREATED"
-            elif latest_status.get(stage_id, {}).get("status") != "SUCCEEDED":
+            elif (
+                latest_status.get(stage_id, {}).get("status") != "SUCCEEDED"
+                or (
+                    resume_actions is not None
+                    and resume_actions.get(stage_id) != "REUSE"
+                )
+            ):
                 state = "STALE_OR_MISSING"
             else:
-                # CURRENT means the bytes match the exact successful event bound
-                # to the immutable Run Plan. It does not mean the stage is
-                # eligible for reuse under today's execution contract.
+                # For current plans, REUSE also proves no upstream invalidation.
+                # For historical plans, only the frozen successful event and
+                # its exact output hash can be evaluated under read-only mode.
                 state = "CURRENT" if actual == expected else "STALE_OR_MISSING"
             artifacts.append({
                 "artifact_id": output["artifact_id"], "kind": output.get("kind", "derived"),

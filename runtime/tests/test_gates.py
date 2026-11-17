@@ -211,7 +211,7 @@ class WorkflowGateTests(unittest.TestCase):
         self._run_context_patch.start()
         self.addCleanup(self._run_context_patch.stop)
 
-    def _fake_manifest_context(self, manifest_path):
+    def _fake_manifest_context(self, manifest_path, *, validate_execution_contract=True):
         run_root = Path(manifest_path).parent.resolve()
         manifest = json.loads((run_root / "run_manifest.json").read_text(encoding="utf-8"))
         plan = json.loads((run_root / "run_plan.json").read_text(encoding="utf-8"))
