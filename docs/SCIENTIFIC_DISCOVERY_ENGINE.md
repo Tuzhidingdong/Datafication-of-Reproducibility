@@ -28,7 +28,7 @@ Original papers, SI, images, and other raw research documents are never opened o
 
 The engine reports Study, System, Condition, Experiment, Observation, and target coverage from the complete bundle. It preserves distinct counts, including Studies without any Observation records, instead of treating Observation rows as independent Studies. Reported numeric support is separated by exact target ID, endpoint definition, timepoint, and unit string.
 
-Target IDs, endpoint definitions, and condition labels remain canonical identifiers. The Runtime does not infer a physical meaning from an identifier or guess unit conversions. When semantic registry information is not explicitly approved and bound to the Canonical Bundle, opportunities are labelled CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW.
+Target IDs, endpoint definitions, and condition labels remain canonical identifiers. The Runtime does not infer a physical meaning from an identifier or guess unit conversions. The optional `semantic_metadata` object on target Observations and Condition records can carry a reviewed concept ID, definition, measurement basis, derivation inputs, review status, reviewer and review date. Metadata is used only when consistently present for all records of that canonical attribute and marked `APPROVED`. Matching approved concept IDs and explicitly declared direct derivations are excluded before tests/FDR; missing, partial, conflicting or unapproved metadata remains a domain-review requirement. When no approved metadata is present, opportunities retain CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW.
 
 ## Study-aware statistical screens
 
@@ -56,7 +56,7 @@ Two distinct screens are retained:
 - **Within-System trend:** Spearman is calculated across Experiment-level condition/outcome pairs inside the same Study/System. A System needs at least four eligible Experiments and three distinct condition values. Multiple System correlations are reduced to one median rho per Study.
 - **Between-System, within-Study trend:** when each eligible System contributes only one condition level for that outcome/condition, the engine calculates Spearman across System-level medians inside a Study. At least four distinct Systems and three distinct exposure/outcome values are required. A System with multiple condition levels is excluded from this cross-sectional screen and remains eligible for the within-System screen.
 
-Each Study contributes at most one rho to each analysis family. The between-System result is explicitly cross-sectional: composition, cell design, protocol, and other system-level differences can confound the association. It is not a substitute for a controlled within-System comparison.
+Each Study contributes at most one rho to each analysis family. The between-System result is explicitly cross-sectional: composition, cell design, protocol, and other system-level differences can confound the association. It is not a substitute for a controlled within-System comparison. For numeric between-System trends, the Runtime also screens other structured numeric Condition variables on the same complete Study/System cohort and flags exact monotonic co-variation as a potential co-exposure/non-identifiability issue. This is an unadjusted diagnostic, not a covariate-adjusted model or proof of confounding. Unstructured System descriptions, composition, protocol, laboratory, batch and unmeasured variables remain explicit review risks.
 
 ### Categorical conditions across Systems
 
@@ -68,6 +68,7 @@ Nominal string values are not assigned an invented ordinal order. Their signed `
 
 ### Inference and multiplicity
 
+- Exact reciprocal between-System numeric hypotheses are deduplicated before BH-FDR only when both rows have reciprocal canonical target/condition identifiers, cross-matching exact unit strings, identical Study/System/Experiment support, and every System-level condition/outcome value is the exact reverse of its counterpart. The original correlation rows remain in the diagnostic catalogue, with the duplicate explicitly linked to its representative; the duplicate receives no separate q-value and does not enter the BH denominator. A perfect or high Spearman coefficient alone never triggers this merge.
 - Each analysis family uses a two-sided exact sign test across independent Study-level effects.
 - Within-System paired contrasts, between-System categorical contrasts, within-System numeric trends, and between-System numeric trends are separate multiple-testing families.
 - Benjamini-Hochberg q-values are calculated within each family.
@@ -82,7 +83,7 @@ Defaults are configurable:
 
 ## DOR-generated research opportunities
 
-Each opportunity contains a deterministic ID, a question written from the observed canonical variables, the analysis family, effect estimate, Study-level confidence interval, p-value, q-value, screen status, independent Study count, limitations, confounding risks, proposed validation, and direct references to the supporting Study/System/Experiment/Observation records.
+Each opportunity contains a deterministic ID, a question written from the observed canonical variables, the analysis family, effect estimate, Study-level confidence interval, p-value, q-value, screen status, independent Study count, a structured semantic-review status, a structured confounding-review record, limitations, proposed validation, and direct references to the supporting Study/System/Experiment/Observation records. The confounding review reports exact monotonic co-variation among recorded numeric Conditions when measurable and names important unassessed domains. It does not claim that unmeasured confounding has been ruled out.
 
 The question is deliberately phrased in terms of the declared canonical identifiers. It does not rename a target as capacity, lifetime, efficiency, or another scientific concept unless an approved semantic definition exists outside this scan.
 
@@ -99,7 +100,7 @@ A screen-positive result is labelled FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW.
 - joint_support.csv — target pairs co-recorded within one canonical Experiment; co-observation is not an interaction.
 - condition_outcome_contrasts.csv — within-System paired contrasts and between-System cross-sectional categorical contrasts, separately labelled with their Study-level tests.
 - condition_outcome_correlations.csv — within-System and between-System within-Study numeric-condition Spearman screens and cross-Study direction-consistency tests.
-- research_opportunities.json — DOR-generated, ranked, structured candidate research questions.
+- research_opportunities.json — DOR-generated, ranked, structured candidate research questions, explicit self-association exclusions, and proof records for exact mirror duplicates.
 - evidence_ledger.jsonl — one record per opportunity/Study with supporting System, Experiment, and Observation IDs.
 - scientific_analysis_profile.json — algorithm versions, thresholds, test-family descriptions, and limitations.
 - signal_catalogue.csv and discovery_report.json — aggregate signal catalogue and machine-readable summary.
