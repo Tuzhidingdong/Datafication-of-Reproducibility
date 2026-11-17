@@ -106,6 +106,49 @@ def _add_system_level_study(bundle, study_number, condition_values, outcome_valu
         })
 
 
+def _add_bidirectional_feature_study(bundle, study_number, feature_a_values, feature_b_values):
+    study_id = f"MIRROR_STUDY_{study_number}"
+    bundle["studies"].append({"study_id": study_id, "source_locators": []})
+    for index, (value_a, value_b) in enumerate(zip(feature_a_values, feature_b_values), start=1):
+        system_id = f"MIRROR_SYS_{study_number}_{index}"
+        condition_a = f"MIRROR_CA_{study_number}_{index}"
+        condition_b = f"MIRROR_CB_{study_number}_{index}"
+        experiment_id = f"MIRROR_E_{study_number}_{index}"
+        bundle["systems"].append({
+            "system_id": system_id, "study_ids": [study_id], "system_type": "synthetic-system"
+        })
+        bundle["conditions"].extend([
+            {
+                "condition_id": condition_a, "system_ids": [system_id],
+                "condition_type": "FEATURE_A", "raw_value": value_a, "raw_unit": "feature-unit",
+                "value_state": "REPORTED",
+            },
+            {
+                "condition_id": condition_b, "system_ids": [system_id],
+                "condition_type": "FEATURE_B", "raw_value": value_b, "raw_unit": "feature-unit",
+                "value_state": "REPORTED",
+            },
+        ])
+        bundle["experiments"].append({
+            "experiment_id": experiment_id, "study_id": study_id, "system_id": system_id,
+            "condition_ids": [condition_a, condition_b],
+        })
+        bundle["observations"].extend([
+            {
+                "observation_id": f"MIRROR_OA_{study_number}_{index}", "experiment_id": experiment_id,
+                "target_id": "FEATURE_A", "endpoint_definition": "endpoint-1", "timepoint": "t1",
+                "value_state": "REPORTED", "raw_value": value_a, "raw_unit": "feature-unit",
+                "evidence_ids": [],
+            },
+            {
+                "observation_id": f"MIRROR_OB_{study_number}_{index}", "experiment_id": experiment_id,
+                "target_id": "FEATURE_B", "endpoint_definition": "endpoint-1", "timepoint": "t1",
+                "value_state": "REPORTED", "raw_value": value_b, "raw_unit": "feature-unit",
+                "evidence_ids": [],
+            },
+        ])
+
+
 class ScientificOpportunityTests(unittest.TestCase):
     def test_exact_sign_test_uses_study_direction_not_observation_count(self):
         self.assertEqual(_sign_test_p([1.0, 1.0, 1.0, 1.0, 1.0]), 0.0625)
@@ -341,6 +384,149 @@ class ScientificOpportunityTests(unittest.TestCase):
         self.assertEqual(between_system[0]["independent_study_count"], 4)
         self.assertEqual(between_system[0]["median_study_spearman_rho"], 1.0)
         self.assertEqual(len(result["opportunities"]), 1)
+
+    def test_exact_reciprocal_between_system_relations_are_deduplicated_before_fdr(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            _add_bidirectional_feature_study(
+                bundle, study, [1.0, 2.0, 3.0, 4.0], [4.0, 3.0, 2.0, 1.0]
+            )
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        rows = [
+            row for row in result["correlations"]
+            if row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+        ]
+        self.assertEqual(len(rows), 2)
+        duplicates = [row for row in rows if row.get("mirror_duplicate_of_opportunity_id")]
+        representatives = [row for row in rows if row.get("deduplication_status") == "UNIQUE_MIRROR_GROUP_REPRESENTATIVE"]
+        self.assertEqual(len(duplicates), 1)
+        self.assertEqual(len(representatives), 1)
+        self.assertIsNone(duplicates[0]["q_value"])
+        self.assertAlmostEqual(representatives[0]["q_value"], 0.125)
+        self.assertEqual(len(result["opportunities"]), 1)
+        self.assertEqual(len(result["mirror_duplicates"]), 1)
+        self.assertEqual(result["profile"]["opportunity_count_before_mirror_deduplication"], 2)
+        self.assertEqual(result["profile"]["mirror_duplicate_opportunity_count"], 1)
+        self.assertEqual(result["profile"]["opportunity_count_before_limit"], 1)
+        proof = result["mirror_duplicates"][0]["proof"]
+        self.assertTrue(proof["exact_reciprocal_values"])
+        self.assertTrue(proof["identical_experiment_support_within_each_system"])
+        self.assertEqual(proof["matched_system_count"], 16)
+
+    def test_near_mirror_with_a_different_system_value_is_not_deduplicated(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            _add_bidirectional_feature_study(
+                bundle, study, [1.0, 2.0, 3.0, 4.0], [4.0, 3.0, 2.0, 1.0]
+            )
+        altered = next(
+            row for row in bundle["conditions"]
+            if row["condition_type"] == "FEATURE_B" and row["condition_id"] == "MIRROR_CB_1_1"
+        )
+        altered["raw_value"] = 4.25
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        rows = [
+            row for row in result["correlations"]
+            if row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+        ]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(result["mirror_duplicates"], [])
+        self.assertEqual(len(result["opportunities"]), 2)
+
+    def test_approved_semantic_alias_is_excluded_before_tests_and_fdr(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            _add_system_level_study(
+                bundle, study, [1.0, 2.0, 3.0, 4.0], [2.0, 4.0, 6.0, 8.0],
+                condition_type="condition_alias", condition_unit="outcome-unit",
+            )
+        approved = {
+            "canonical_concept_id": "CONCEPT_SHARED",
+            "display_name": "Reviewed shared feature",
+            "definition": "Explicitly supplied test definition",
+            "review_status": "APPROVED",
+            "reviewer": "reviewer-1",
+            "reviewed_at": "2026-01-01",
+        }
+        for row in bundle["observations"]:
+            row["semantic_metadata"] = approved
+        for row in bundle["conditions"]:
+            row["semantic_metadata"] = approved
+        result = build_scientific_opportunities(bundle, bootstrap_iterations=200)
+        self.assertEqual(result["opportunities"], [])
+        self.assertEqual(result["correlations"], [])
+        self.assertEqual(
+            result["profile"]["self_association_exclusion_reason_counts"],
+            {"SAME_APPROVED_SEMANTIC_CONCEPT": 1},
+        )
+
+    def test_approved_direct_derivation_is_excluded_before_tests_and_fdr(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            _add_system_level_study(
+                bundle, study, [1.0, 2.0, 3.0, 4.0], [2.0, 4.0, 6.0, 8.0],
+                condition_type="condition_alias", condition_unit="outcome-unit",
+            )
+        for row in bundle["observations"]:
+            row["semantic_metadata"] = {
+                "canonical_concept_id": "OUTCOME_CONCEPT",
+                "review_status": "APPROVED",
+                "derived_from": ["condition_alias"],
+            }
+        for row in bundle["conditions"]:
+            row["semantic_metadata"] = {
+                "canonical_concept_id": "CONDITION_CONCEPT",
+                "review_status": "APPROVED",
+            }
+        result = build_scientific_opportunities(bundle, bootstrap_iterations=200)
+        self.assertEqual(result["opportunities"], [])
+        self.assertEqual(
+            result["profile"]["self_association_exclusion_reason_counts"],
+            {"DECLARED_DIRECT_DERIVATION": 1},
+        )
+
+    def test_recorded_perfectly_co_varying_condition_is_flagged_for_confounding_review(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            _add_system_level_study(
+                bundle, study, [1.0, 2.0, 3.0, 4.0], [10.0, 20.0, 30.0, 40.0],
+                condition_type="current_density", condition_unit="mA cm-2",
+            )
+            for index, value in enumerate([10.0, 20.0, 30.0, 40.0], start=1):
+                experiment = next(
+                    row for row in bundle["experiments"]
+                    if row["experiment_id"] == f"BE{study}_{index}"
+                )
+                condition_id = f"VOLTAGE_{study}_{index}"
+                bundle["conditions"].append({
+                    "condition_id": condition_id,
+                    "system_ids": [experiment["system_id"]],
+                    "condition_type": "voltage",
+                    "raw_value": value,
+                    "raw_unit": "V",
+                    "value_state": "REPORTED",
+                })
+                experiment["condition_ids"].append(condition_id)
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=200
+        )
+        row = next(
+            item for item in result["correlations"]
+            if item["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+            and item["condition_type"] == "current_density"
+        )
+        review = row["confounding_review"]
+        self.assertEqual(review["status"], "POTENTIAL_CO_EXPOSURE_REQUIRES_DOMAIN_REVIEW")
+        finding = next(item for item in review["findings"] if item["condition_type"] == "voltage")
+        self.assertEqual(finding["study_count"], 4)
+        self.assertTrue(all(
+            item["spearman_rho_with_primary_condition"] == 1.0
+            for item in finding["study_details"]
+        ))
 
     def test_high_cardinality_conditions_keep_full_coverage_but_bound_pairwise_screen(self):
         bundle = _bundle()
