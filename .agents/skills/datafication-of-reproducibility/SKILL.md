@@ -41,7 +41,7 @@ The core Skill contains the immutable decisions and operating rules. Load only t
 - Before a Run, for pre-Run Discovery, adapter handoff, route selection, review packet preparation, or Run initialization: read [Execution entry and Adapter routing](execution-entry-and-adapter.md).
 - For source audit, mapping, Canonical construction, and reconciliation: read [Data audit and Canonical workflow](execution-data-and-canonical.md).
 - For Cohort review, modelling, cross-Study validation, Interaction analysis, and mechanism evidence: read [Modelling and scientific interpretation](execution-modeling-and-interactions.md).
-- For virtual condition scenarios and publication hand-off: read [Virtual and publication workflow](execution-virtual-and-publication.md).
+- For virtual condition scenarios and publication hand-off (including the FULL_ANALYSIS Virtual Query dual-path decision, G2 Query Review Ready vs G3/G4 Prediction Consumer Ready, formal SKIPPED evidence, and Worker/Review/Publication conditional inputs): read [Virtual and publication workflow](execution-virtual-and-publication.md).
 - When recording approvals, dispatching a Worker, dealing with missing information, or deciding whether to stop: read [Approval and governance rules](execution-governance.md).
 - For recovery, final project acceptance, or acceptance-record revisions: read [Run Manager and controlled acceptance](execution-run-manager-and-acceptance.md).
 

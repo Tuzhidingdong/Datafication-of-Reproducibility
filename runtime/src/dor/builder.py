@@ -595,9 +595,22 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
         match_mode = link.get("match_mode", "ROW_OVERLAP")
         if match_mode == "ROW_OVERLAP":
             parent_units = unitsets_by_definition[parent_id]
+            # Inverted index: unit key -> parent indices sharing that unit.
+            # Equivalent to the previous all-pairs intersection scan but O(n+m+k)
+            # instead of O(n*m), which is required for real-scale source tables.
+            parent_index: dict[str, list[int]] = {}
+            for parent_index_position, parent_keys in enumerate(parent_units):
+                for unit_key in parent_keys:
+                    parent_index.setdefault(unit_key, []).append(parent_index_position)
             for child_record, child_units in zip(child_records, unitsets_by_definition[child_id]):
-                matching = [parent for parent, parent_keys in zip(parent_records, parent_units) if child_units.intersection(parent_keys)]
-                parent_ids = [parent[ID_FIELDS[parent_type]] for parent in matching]
+                candidate_positions: set[int] = set()
+                for unit_key in child_units:
+                    candidate_positions.update(parent_index.get(unit_key, ()))
+                parent_ids = [
+                    parent_records[pos][ID_FIELDS[parent_type]]
+                    for pos in candidate_positions
+                    if child_units.intersection(parent_units[pos])
+                ]
                 if cardinality == "ONE":
                     if len(parent_ids) != 1:
                         errors.append(_issue("LINK_CARDINALITY_VIOLATION", child_record[ID_FIELDS[child_type]], f"{field_id} requires exactly one linked {parent_type}; found {len(parent_ids)}."))

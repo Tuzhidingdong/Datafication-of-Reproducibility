@@ -77,30 +77,39 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertTrue(any(Path(item) == (project / "raw_sources").resolve()
                                 for item in plan["source_roots"]))
 
-    def test_full_analysis_requires_explicit_virtual_query_and_includes_it(self):
+    def test_full_analysis_can_initialize_without_pre_generated_virtual_query(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             project, handoff = self._structured_handoff(root)
-            query = project / "configuration" / "virtual_query.json"
-            write_json(query, {"schema_version": "1.0", "query_id": "explicit-test"})
-
-            with self.assertRaisesRegex(ValueError, "requires --virtual-query-input"):
-                initialize_project_run_plan(
-                    handoff, project, root / "runs" / "missing-query",
-                    profile="FULL_ANALYSIS",
-                )
-
-            self.assertFalse((project / "run_control").exists())
 
             result = initialize_project_run_plan(
                 handoff, project, root / "runs" / "full-analysis",
                 profile="FULL_ANALYSIS",
-                virtual_query_input=query,
             )
-            plan = json.loads(Path(result["run_plan_path"]).read_text(encoding="utf-8"))
-            source_artifacts = {item["artifact_id"]: item["path"] for item in plan["source_artifacts"]}
-            self.assertEqual(source_artifacts["virtual_query_input"], str(query.resolve()))
+
+            plan_path = Path(result["run_plan_path"])
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+            self.assertTrue(result["valid"])
+            self.assertEqual(result["route"], "STRUCTURED_DATASET")
+            self.assertEqual(result["profile"], "FULL_ANALYSIS")
             self.assertNotIn("execution_profile", plan)
+            source_artifacts = {item["artifact_id"]: item["path"] for item in plan["source_artifacts"]}
+            self.assertNotIn("virtual_query_input", source_artifacts)
+            self.assertIsNone(result.get("virtual_query_reference"))
+
+            # optional external query may be kept as non-authoritative reference only
+            query = project / "configuration" / "virtual_query.json"
+            write_json(query, {"schema_version": "1.0", "query_id": "reference-only"})
+            result2 = initialize_project_run_plan(
+                handoff, project, root / "runs" / "full-analysis-2",
+                profile="FULL_ANALYSIS",
+                virtual_query_input=query,
+                output_path=project / "run_control" / "run_plan.full_analysis.ref.json",
+            )
+            plan2 = json.loads(Path(result2["run_plan_path"]).read_text(encoding="utf-8"))
+            source_artifacts2 = {item["artifact_id"]: item["path"] for item in plan2["source_artifacts"]}
+            self.assertNotIn("virtual_query_input", source_artifacts2)
+            self.assertEqual(result2.get("virtual_query_reference"), str(query.resolve()))
 
     def test_single_study_rejects_unused_virtual_query(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/virtual_query_validation.schema.json",
+  "title": "Validation report for a prepared Virtual Query against a confirmed modeling task",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract",
+    "valid",
+    "task_path",
+    "task_sha256",
+    "decision_path",
+    "decision_sha256",
+    "source_query_path",
+    "source_query_sha256",
+    "prepared_query_path",
+    "prepared_query_sha256",
+    "task_id",
+    "target_id",
+    "endpoint_definition",
+    "feature_count",
+    "validated_feature_ids",
+    "decision",
+    "interpretation"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "contract": { "const": "VIRTUAL_QUERY_PREPARATION" },
+    "valid": { "const": true },
+    "task_path": { "type": "string", "minLength": 1 },
+    "task_sha256": { "$ref": "#/$defs/sha256" },
+    "decision_path": { "type": "string", "minLength": 1 },
+    "decision_sha256": { "$ref": "#/$defs/sha256" },
+    "source_query_path": { "type": "string", "minLength": 1 },
+    "source_query_sha256": { "$ref": "#/$defs/sha256" },
+    "prepared_query_path": { "type": "string", "minLength": 1 },
+    "prepared_query_sha256": { "$ref": "#/$defs/sha256" },
+    "task_id": { "type": "string", "minLength": 1 },
+    "target_id": { "type": "string", "minLength": 1 },
+    "endpoint_definition": { "type": "string", "minLength": 1 },
+    "feature_count": { "type": "integer", "minimum": 0 },
+    "validated_feature_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "decision": { "const": "RUN_PREDICTION" },
+    "interpretation": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+  }
+}

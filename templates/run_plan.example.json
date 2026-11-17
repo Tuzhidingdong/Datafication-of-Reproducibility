@@ -12,10 +12,6 @@
       "path": "D:/Research/Project/raw_sources/adapter_package/adapter_manifest.json"
     },
     {
-      "artifact_id": "virtual_query_input",
-      "path": "D:/Research/Project/configuration/virtual_reproduction_query.json"
-    },
-    {
       "artifact_id": "publication_plan_template",
       "path": "D:/Research/Project/configuration/publication_package_plan.json"
     }
@@ -358,6 +354,53 @@
       ]
     },
     {
+      "stage_id": "virtual_query_preparation",
+      "executor": "manual",
+      "depends_on": [
+        "research_scope_selection"
+      ],
+      "inputs": [
+        "modeling_task",
+        "research_scope_record"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "virtual_query_decision",
+          "path": "08_virtual_reproduction/virtual_query_decision.json"
+        }
+      ],
+      "required_gate": null
+    },
+    {
+      "stage_id": "virtual_query_materialization",
+      "executor": "local",
+      "depends_on": [
+        "virtual_query_preparation",
+        "research_scope_selection"
+      ],
+      "inputs": [
+        "modeling_task",
+        "virtual_query_decision"
+      ],
+      "outputs": [
+        {
+          "artifact_id": "virtual_query_input",
+          "path": "08_virtual_reproduction/virtual_query_input.json"
+        },
+        {
+          "artifact_id": "virtual_query_validation",
+          "path": "08_virtual_reproduction/virtual_query_validation.json"
+        }
+      ],
+      "required_gate": null,
+      "activation": {
+        "artifact_id": "virtual_query_decision",
+        "json_pointer": "/decision",
+        "operator": "equals",
+        "value": "RUN_PREDICTION"
+      }
+    },
+    {
       "stage_id": "g2_review_packet",
       "executor": "manual",
       "depends_on": [
@@ -367,7 +410,9 @@
         "research_scope_selection",
         "reconciliation_decision_validation",
         "reconciliation_decision_review",
-        "exploratory_discovery"
+        "exploratory_discovery",
+        "virtual_query_preparation",
+        "virtual_query_materialization"
       ],
       "inputs": [
         "canonical_bundle",
@@ -376,6 +421,7 @@
         "reconciliation_review_queue",
         "research_scope_record",
         "modeling_task",
+        "virtual_query_decision",
         "reconciliation_decisions",
         "reconciliation_decision_validation",
         "discovery_report"
@@ -607,7 +653,8 @@
       "executor": "manual",
       "depends_on": [
         "interaction_discovery",
-        "interaction_robustness"
+        "interaction_robustness",
+        "virtual_query_preparation"
       ],
       "required_gate": "G2",
       "inputs": [
@@ -616,7 +663,8 @@
         "interaction_manifest",
         "robustness_report",
         "robustness_catalogue",
-        "robustness_manifest"
+        "robustness_manifest",
+        "virtual_query_decision"
       ],
       "outputs": [
         {
@@ -775,20 +823,30 @@
       "stage_id": "virtual_condition_prediction",
       "executor": "local",
       "depends_on": [
-        "baseline_model_fit"
+        "baseline_model_fit",
+        "virtual_query_preparation",
+        "virtual_query_materialization"
       ],
       "required_gate": "G2",
       "inputs": [
+        "virtual_query_decision",
         "model_artifact",
         "baseline_run_manifest",
-        "virtual_query_input"
+        "virtual_query_input",
+        "virtual_query_validation"
       ],
       "outputs": [
         {
           "artifact_id": "virtual_prediction",
           "path": "08_virtual_reproduction/virtual_prediction.json"
         }
-      ]
+      ],
+      "activation": {
+        "artifact_id": "virtual_query_decision",
+        "json_pointer": "/decision",
+        "operator": "equals",
+        "value": "RUN_PREDICTION"
+      }
     },
     {
       "stage_id": "independent_result_review",
@@ -799,8 +857,8 @@
         "interaction_discovery",
         "interaction_robustness",
         "g3_selection_packet",
-        "virtual_condition_prediction",
-        "cohort_review"
+        "cohort_review",
+        "virtual_query_preparation"
       ],
       "required_gate": "G3",
       "inputs": [
@@ -810,9 +868,9 @@
         "interaction_report",
         "robustness_report",
         "interaction_selection",
-        "virtual_prediction",
         "cohort_review_record",
-        "cohort_review_validation"
+        "cohort_review_validation",
+        "virtual_query_decision"
       ],
       "worker_task": {
         "objective": "Independently audit the declared Cohort review, serialized model artifact and model report, reproducibility, interaction, robustness, selection, and virtual-prediction artifacts for model-file integrity, leakage, unsupported scientific claims, contradictory evidence, and reproducibility risks. Every finding must include a stable, unique finding_id; use the same ID throughout the review packet and do not merge distinct findings.",
@@ -850,8 +908,8 @@
         "nested_reproducibility_evaluation",
         "interaction_discovery",
         "interaction_robustness",
-        "virtual_condition_prediction",
-        "cohort_review"
+        "cohort_review",
+        "virtual_query_preparation"
       ],
       "inputs": [
         "worker_review_output",
@@ -861,9 +919,9 @@
         "reproducibility_evaluation",
         "interaction_report",
         "robustness_report",
-        "virtual_prediction",
         "cohort_review_record",
-        "cohort_review_validation"
+        "cohort_review_validation",
+        "virtual_query_decision"
       ],
       "outputs": [
         {
@@ -885,13 +943,13 @@
         "interaction_discovery",
         "interaction_robustness",
         "g3_selection_packet",
-        "virtual_condition_prediction",
         "independent_result_review",
         "human_review_and_promotion",
         "cohort_review",
         "mechanism_plan_preparation",
         "response_surface_generation",
-        "mechanism_evidence_bridge"
+        "mechanism_evidence_bridge",
+        "virtual_query_preparation"
       ],
       "required_gate": "G3",
       "inputs": [
@@ -902,12 +960,12 @@
         "interaction_report",
         "robustness_report",
         "interaction_selection",
-        "virtual_prediction",
         "worker_review_output",
         "reviewed_findings",
         "reviewed_findings_validation",
         "cohort_review_record",
-        "cohort_review_validation"
+        "cohort_review_validation",
+        "virtual_query_decision"
       ],
       "outputs": [
         {
@@ -931,11 +989,11 @@
         "interaction_discovery",
         "interaction_robustness",
         "g3_selection_packet",
-        "virtual_condition_prediction",
         "human_review_and_promotion",
         "independent_result_review",
         "cohort_review",
-        "publication_plan_preparation"
+        "publication_plan_preparation",
+        "virtual_query_preparation"
       ],
       "required_gate": "G4",
       "inputs": [
@@ -947,12 +1005,12 @@
         "interaction_report",
         "robustness_report",
         "interaction_selection",
-        "virtual_prediction",
         "reviewed_findings",
         "worker_review_output",
         "reviewed_findings_validation",
         "cohort_review_record",
-        "cohort_review_validation"
+        "cohort_review_validation",
+        "virtual_query_decision"
       ],
       "outputs": [
         {
@@ -969,11 +1027,13 @@
       "stage_id": "publication_package_audit",
       "executor": "local",
       "depends_on": [
-        "publication_package_assembly"
+        "publication_package_assembly",
+        "virtual_query_preparation"
       ],
       "inputs": [
         "publication_package_manifest",
-        "publication_writing_guide"
+        "publication_writing_guide",
+        "virtual_query_decision"
       ],
       "outputs": [
         {

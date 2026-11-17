@@ -180,6 +180,17 @@ class WorkflowGateTests(unittest.TestCase):
             "promotion_decision": "PROMOTE_ACCEPTED_ONLY",
             "overall_rationale": "Only the accepted finding is promoted.",
         })
+        make_file("virtual_query_decision", {
+            "schema_version": "1.0",
+            "decision": "NOT_APPLICABLE",
+            "reason": "Virtual prediction not applicable for synthetic gate fixture.",
+            "task_id": "TASK_GATE",
+            "target_id": "TARGET_GATE",
+            "endpoint_definition": "test endpoint definition",
+            "modeling_task_sha256": sha256_file(self.files["modeling_task"]),
+            "reviewer": "human-reviewer",
+            "decided_at": "2026-11-14T00:00:00Z",
+        })
         make_file("mechanism_plan", {
             "schema_version": "1.0", "task_id": "TASK_GATE",
             "interaction_id": "INT_1",
@@ -348,13 +359,14 @@ class WorkflowGateTests(unittest.TestCase):
         report["expected_promotion_decision"] = reviewed["promotion_decision"]
         self._write("reviewed_findings_validation", report)
 
-    def _prepare_g4_publication_plan(self, by_id, source_map, g3_event_hash):
+    def _prepare_g4_publication_plan(self, by_id, source_map, g3_event_hash, virtual_prediction_state="RUN_PREDICTION"):
         publication_root = self.root / "10_publication"
         publication_root.mkdir(parents=True, exist_ok=True)
         plan_path = publication_root / "publication_package_plan.json"
         validation_path = publication_root / "publication_plan_validation.json"
         entries = []
         report_sources = []
+        # sourced entries
         for package_id, source_id in source_map.items():
             source = by_id[source_id]
             source_path = Path(source["path"]).resolve()
@@ -375,6 +387,19 @@ class WorkflowGateTests(unittest.TestCase):
                 "artifact_id": source_id,
                 "path": str(source_path),
                 "sha256": source["sha256"],
+            })
+        # full-analysis virtual prediction delivery is decision-driven
+        if virtual_prediction_state == "NOT_APPLICABLE":
+            entries.append({
+                "artifact_id": "VIRTUAL_PREDICTION_001",
+                "path": "artifacts/virtual_prediction_001.json",
+                "source_path": None,
+                "source_artifact_id": None,
+                "type": "json",
+                "description": "Virtual prediction not applicable for this synthetic fixture.",
+                "status": "not_applicable",
+                "linked_record_ids": [],
+                "manuscript_sections": [],
             })
         plan = {
             "schema_version": "1.0",
@@ -522,20 +547,31 @@ class WorkflowGateTests(unittest.TestCase):
         }
 
     def _g4_artifact_ids(self):
-        source_map = {
+        # Default synthetic full-analysis fixtures record G2 as NOT_APPLICABLE (no vq query/validation artifacts).
+        # Build a G4 fixture consistent with the current bound virtual query decision to avoid invalidating upstream gates.
+        vq_state = "NOT_APPLICABLE"
+        if "virtual_query_decision" in self.files and self.files["virtual_query_decision"].exists():
+            try:
+                vq_state = json.loads(self.files["virtual_query_decision"].read_text(encoding="utf-8")).get("decision", "NOT_APPLICABLE")
+            except Exception:
+                vq_state = "NOT_APPLICABLE"
+
+        base_sources = {
             "MODEL_ARTIFACT_001": "model_artifact",
             "MODEL_REPORT_001": "model_report",
             "REPRODUCIBILITY_EVALUATION_001": "reproducibility_evaluation",
             "INTERACTION_REPORT_001": "interaction_report",
             "INTERACTION_ROBUSTNESS_001": "robustness_report",
             "INTERACTION_SELECTION_001": "interaction_selection",
-            "VIRTUAL_PREDICTION_001": "virtual_prediction",
             "COHORT_REVIEW_RECORD": "cohort_review_record",
             "COHORT_REVIEW_VALIDATION": "cohort_review_validation",
             "WORKER_REVIEW_RECORD": "worker_review_output",
             "HUMAN_DISPOSITION_RECORD": "reviewed_findings",
             "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
         }
+        source_map = dict(base_sources)
+        if vq_state == "RUN_PREDICTION":
+            source_map["VIRTUAL_PREDICTION_001"] = "virtual_prediction"
         by_id = {
             artifact_id: {
                 "artifact_id": artifact_id,
@@ -555,22 +591,63 @@ class WorkflowGateTests(unittest.TestCase):
         )
         if g3_event is None:
             raise AssertionError("The synthetic full-analysis G4 fixture requires a preceding G3 event.")
-        self._prepare_g4_publication_plan(by_id, source_map, g3_event["event_hash"])
-        return [
+        self._prepare_g4_publication_plan(by_id, source_map, g3_event["event_hash"], virtual_prediction_state=vq_state)
+        ids = [
             "publication_plan", "publication_plan_validation",
             "worker_review_output", "reviewed_findings", "reviewed_findings_validation",
             "model_report", "model_artifact", "reproducibility_evaluation",
             "interaction_report", "robustness_report", "interaction_selection",
-            "virtual_prediction", "cohort_review_record", "cohort_review_validation",
+            "cohort_review_record", "cohort_review_validation",
+            "virtual_query_decision",
         ]
+        if vq_state == "RUN_PREDICTION":
+            ids.insert(ids.index("cohort_review_record"), "virtual_prediction")
+        return ids
+
+    def _ensure_virtual_query_decision(
+        self,
+        decision="NOT_APPLICABLE",
+        reason="Virtual prediction not applicable for synthetic gate fixture.",
+        source_query_path: str | None = None,
+    ):
+        task_path = self.files.get("modeling_task")
+        if task_path is None or not task_path.exists():
+            return
+        task = json.loads(task_path.read_text(encoding="utf-8"))
+        payload = {
+            "schema_version": "1.0",
+            "decision": decision,
+            "reason": reason,
+            "task_id": task.get("task_id"),
+            "target_id": task.get("target_id"),
+            "endpoint_definition": task.get("endpoint_definition"),
+            "modeling_task_sha256": sha256_file(task_path),
+            "reviewer": "human-reviewer",
+            "decided_at": "2026-11-14T00:00:00Z",
+        }
+        if decision == "RUN_PREDICTION":
+            payload["source_query_path"] = source_query_path or "08_virtual_reproduction/virtual_query_input.json"
+        path = self.root / "virtual_query_decision.json"
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        self.files["virtual_query_decision"] = path
 
     def _refresh_reviewed_artifact_bindings(self):
         reviewed = json.loads(self.files["reviewed_findings"].read_text(encoding="utf-8"))
+        vq_state = "NOT_APPLICABLE"
+        if "virtual_query_decision" in self.files and self.files["virtual_query_decision"].exists():
+            try:
+                vq_state = json.loads(self.files["virtual_query_decision"].read_text(encoding="utf-8")).get("decision", "NOT_APPLICABLE")
+            except Exception:
+                vq_state = "NOT_APPLICABLE"
         artifact_ids = [
             "model_artifact", "model_report", "reproducibility_evaluation",
             "interaction_report", "robustness_report", "interaction_selection",
-            "virtual_prediction", "cohort_review_record", "cohort_review_validation",
         ]
+        if vq_state == "RUN_PREDICTION":
+            artifact_ids.append("virtual_prediction")
+        artifact_ids.extend(["cohort_review_record", "cohort_review_validation"])
+        if "virtual_query_decision" in self.files:
+            artifact_ids.append("virtual_query_decision")
         reviewed["reviewed_artifacts"] = [
             {
                 "artifact_id": artifact_id,
@@ -578,6 +655,7 @@ class WorkflowGateTests(unittest.TestCase):
                 "sha256": sha256_file(self.files[artifact_id]),
             }
             for artifact_id in artifact_ids
+            if artifact_id in self.files
         ]
         self._write("reviewed_findings", reviewed)
         worker = json.loads(self.files["worker_review_output"].read_text(encoding="utf-8"))
@@ -635,7 +713,12 @@ class WorkflowGateTests(unittest.TestCase):
                 path = self.root / (artifact_id + ".json")
                 path.write_text(json.dumps({"schema_version": "1.0", "artifact_id": artifact_id}), encoding="utf-8")
                 self.files[artifact_id] = path
-        ids.extend(self._prepare_review_packet("G2", ids))
+        # FULL_ANALYSIS G2 now requires a valid virtual_query_decision; default fixtures use NOT_APPLICABLE.
+        self._ensure_virtual_query_decision()
+        if "virtual_query_decision" not in ids and "virtual_query_decision" in self.files:
+            ids.append("virtual_query_decision")
+        review_ids = list(ids)
+        ids.extend(self._prepare_review_packet("G2", review_ids))
         return self._record("G2", ids)
 
     def _record_g3(self, include_mechanism=True):
@@ -999,6 +1082,25 @@ class WorkflowGateTests(unittest.TestCase):
         self._write("research_scope_record", scope)
         with self.assertRaisesRegex(ValueError, "research_scope_record"):
             self._record_g2()
+
+    def test_full_analysis_g2_requires_explicit_virtual_query_decision(self):
+        self._record_g0()
+        self._record_g1()
+        ids = [
+            "canonical_bundle", "canonical_validation_report",
+            "reconciliation_report", "reconciliation_review_queue",
+            "reconciliation_decisions", "reconciliation_decision_validation",
+            "discovery_report", "research_scope_record", "modeling_task",
+        ]
+        for artifact_id in ids:
+            if artifact_id not in self.files:
+                path = self.root / (artifact_id + ".json")
+                path.write_text(json.dumps({"schema_version": "1.0", "artifact_id": artifact_id}), encoding="utf-8")
+                self.files[artifact_id] = path
+        review_ids = list(ids)
+        ids.extend(self._prepare_review_packet("G2", review_ids))
+        with self.assertRaisesRegex(ValueError, "virtual_query_decision"):
+            self._record("G2", ids)
 
     def test_complete_gate_chain_and_exact_artifact_binding(self):
         self._complete_to_g2()

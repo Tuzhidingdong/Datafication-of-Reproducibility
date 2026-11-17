@@ -25,13 +25,14 @@ G4_REQUIRED_REVIEWED_ARTIFACTS = {
     "interaction_report",
     "robustness_report",
     "interaction_selection",
-    "virtual_prediction",
 }
 G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS = {
     *G4_REQUIRED_REVIEWED_ARTIFACTS,
+    "virtual_prediction",
     "model_artifact",
     "cohort_review_record",
     "cohort_review_validation",
+    "virtual_query_decision",
 }
 G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS = {
     "single_study_applicability_record",
@@ -43,6 +44,7 @@ G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS = {
     "research_scope_record",
     "modeling_task",
     *G4_REQUIRED_REVIEWED_ARTIFACTS,
+    "virtual_prediction",
     "interaction_manifest",
     "robustness_manifest",
 }
@@ -68,7 +70,10 @@ G4_SINGLE_STUDY_REQUIRED_ARTIFACTS = {
 G4_FULL_ANALYSIS_REQUIRED_ARTIFACTS = {
     "publication_plan", "publication_plan_validation",
     "worker_review_output", "reviewed_findings", "reviewed_findings_validation",
-    *G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS,
+    "virtual_query_decision",
+    "model_artifact", "model_report", "reproducibility_evaluation",
+    "interaction_report", "robustness_report", "interaction_selection",
+    "cohort_review_record", "cohort_review_validation",
 }
 REQUIRED_ARTIFACTS = {
     "G0": {"dataset_manifest", "source_inventory", "g0_review_packet", "g0_review_packet_validation"},
@@ -112,6 +117,14 @@ _GATE_REVIEW_INPUT_SETS = {
             "reconciliation_report", "reconciliation_review_queue",
             "reconciliation_decisions", "reconciliation_decision_validation",
             "discovery_report", "research_scope_record", "modeling_task",
+            "virtual_query_decision",
+        }),
+        frozenset({
+            "canonical_bundle", "canonical_validation_report",
+            "reconciliation_report", "reconciliation_review_queue",
+            "reconciliation_decisions", "reconciliation_decision_validation",
+            "discovery_report", "research_scope_record", "modeling_task",
+            "virtual_query_decision", "virtual_query_input", "virtual_query_validation",
         }),
     ),
 }
@@ -246,13 +259,68 @@ def _load_events(ledger_path: Path) -> list[dict[str, Any]]:
                 elif gate == "G4" and single_study_profile:
                     required = G4_SINGLE_STUDY_REQUIRED_ARTIFACTS
                 else:
-                    required = REQUIRED_ARTIFACTS[gate]
+                    required = set(REQUIRED_ARTIFACTS[gate])
+
+                virtual_query_state = None
+                if gate == "G2":
+                    # Historical/full-analysis G2 approvals in current contract bind explicit virtual_query_decision.
+                    # If a historical ledger line already includes it, keep structural validation artifact-aware.
+                    if "virtual_query_decision" in artifact_ids:
+                        required = required | {"virtual_query_decision"}
+                    try:
+                        if "virtual_query_decision" in artifact_ids:
+                            from dor.virtual_reproduction import read_virtual_query_decision
+                            by_id_tmp = _binding_map(artifacts)
+                            decision = read_virtual_query_decision(Path(by_id_tmp["virtual_query_decision"]["path"]))
+                            virtual_query_state = decision.get("decision")
+                    except Exception:
+                        virtual_query_state = None
+                    if "virtual_query_decision" in artifact_ids:
+                        # Historical event validation: infer from bound artifacts to avoid mutable-file retroactive breaks.
+                        if ({"virtual_query_input", "virtual_query_validation"} & artifact_ids):
+                            if virtual_query_state == "RUN_PREDICTION":
+                                required = required | {"virtual_query_input", "virtual_query_validation"}
+                        elif virtual_query_state == "RUN_PREDICTION" and not ({"virtual_query_input", "virtual_query_validation"} & artifact_ids):
+                            # Current decision file may have changed after approval; do not retroactively require artifacts absent from event.
+                            pass
+                        elif virtual_query_state == "NOT_APPLICABLE":
+                            forbidden = {"virtual_query_input", "virtual_query_validation", "virtual_prediction"} & artifact_ids
+                            if forbidden:
+                                raise ValueError(
+                                    f"Gate G2 NOT_APPLICABLE virtual query decision cannot bind artifacts: {', '.join(sorted(forbidden))}."
+                                )
+
+                if gate == "G4" and not single_study_profile:
+                    by_id_tmp = _binding_map(artifacts)
+                    if "virtual_query_decision" in by_id_tmp:
+                        required = required | {"virtual_query_decision"}
+                        try:
+                            from dor.virtual_reproduction import read_virtual_query_decision
+                            decision = read_virtual_query_decision(Path(by_id_tmp["virtual_query_decision"]["path"]))
+                            virtual_query_state = decision.get("decision")
+                        except Exception:
+                            virtual_query_state = None
+                        if virtual_query_state == "RUN_PREDICTION":
+                            required = required | {"virtual_prediction"}
+                        elif virtual_query_state == "NOT_APPLICABLE":
+                            required = required - {"virtual_prediction"}
+                            forbidden = {"virtual_prediction"} & artifact_ids
+                            if forbidden:
+                                raise ValueError(
+                                    "Gate G4 NOT_APPLICABLE virtual query decision cannot bind virtual_prediction."
+                                )
+
                 missing = required - artifact_ids
                 if missing:
                     raise ValueError(f"Gate {gate} event at line {line_number} lacks required artifacts: {', '.join(sorted(missing))}.")
                 if gate == "G4":
                     reviewable = (G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
-                                  if single_study_profile else G4_REVIEWABLE_ARTIFACTS)
+                                  if single_study_profile else set(G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS))
+                    if not single_study_profile and "virtual_query_decision" in artifact_ids:
+                        if virtual_query_state == "NOT_APPLICABLE":
+                            reviewable = set(reviewable) - {"virtual_prediction"}
+                        elif virtual_query_state == "RUN_PREDICTION":
+                            reviewable = set(reviewable) | {"virtual_prediction"}
                     if not reviewable.issubset(artifact_ids):
                         raise ValueError("G4 does not bind the complete declared Worker review input set.")
             prior_gate = PREVIOUS_GATE.get(gate)
@@ -526,6 +594,40 @@ def _validate_g1_artifacts(
         raise ValueError("G1 build_spec_validation is not the deterministic validation result for the bound mapping plan, source inventory, and build spec.")
 
 
+def _validate_g2_virtual_query_artifacts(by_id: Mapping[str, dict[str, str]], task_binding: dict[str, str]) -> str:
+    from dor.virtual_reproduction import read_virtual_query_decision, validate_virtual_query_preparation_artifacts
+    decision_binding = _require_gate_binding(by_id, "virtual_query_decision", "G2")
+    task_path = Path(task_binding["path"])
+    decision_path = Path(decision_binding["path"])
+    decision = read_virtual_query_decision(decision_path)
+    if decision.get("modeling_task_sha256") != task_binding["sha256"]:
+        raise ValueError("G2 virtual_query_decision does not bind the exact approved modeling_task hash.")
+    status = decision.get("decision")
+    query_binding = by_id.get("virtual_query_input")
+    validation_binding = by_id.get("virtual_query_validation")
+    if status == "RUN_PREDICTION":
+        if query_binding is None or validation_binding is None:
+            raise ValueError("G2 RUN_PREDICTION virtual query decision requires virtual_query_input and virtual_query_validation artifacts.")
+        validate_virtual_query_preparation_artifacts(
+            task_path=task_path,
+            decision_path=decision_path,
+            query_path=Path(query_binding["path"]),
+            validation_path=Path(validation_binding["path"]),
+        )
+    elif status == "NOT_APPLICABLE":
+        if query_binding is not None or validation_binding is not None:
+            raise ValueError("G2 NOT_APPLICABLE virtual query decision must not bind virtual_query_input or virtual_query_validation artifacts.")
+        # ensure decision is valid and matches task even without prepared artifacts
+        from dor.virtual_reproduction import validate_virtual_query_preparation_artifacts as _vq
+        _vq(task_path=task_path, decision_path=decision_path)
+        reason = decision.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("G2 NOT_APPLICABLE virtual query decision requires a non-empty human reason.")
+    else:
+        raise ValueError("G2 virtual_query_decision has an unsupported decision state.")
+    return status
+
+
 def _validate_g2_artifacts(
     bindings: list[dict[str, str]],
     previous_gate_event: Mapping[str, Any],
@@ -593,6 +695,14 @@ def _validate_g2_artifacts(
         raise ValueError("G2 modeling_task requires a non-empty target_id.")
     if not isinstance(task.get("endpoint_definition"), str) or not task["endpoint_definition"].strip():
         raise ValueError("G2 modeling_task requires an exact non-empty endpoint_definition.")
+
+    # Virtual Query dual-path: mandatory for FULL_ANALYSIS; CONTROLLED_SINGLE_STUDY retains legacy NA behavior.
+    if "virtual_query_decision" not in by_id:
+        raise ValueError(
+            "G2 FULL_ANALYSIS approval requires virtual_query_decision (RUN_PREDICTION or NOT_APPLICABLE). "
+            "CONTROLLED_SINGLE_STUDY retains its original NA artifacts and does not use FULL_ANALYSIS virtual_query_decision."
+        )
+    _validate_g2_virtual_query_artifacts(by_id, task_binding)
 
 
 def _validate_single_study_na_bundle(
@@ -1165,12 +1275,19 @@ def _validate_g4_publication_plan(
             "HUMAN_DISPOSITION_VALIDATION": "reviewed_findings_validation",
         }
     else:
+        decision_state = None
+        if "virtual_query_decision" in by_id:
+            try:
+                from dor.virtual_reproduction import read_virtual_query_decision
+                vq = read_virtual_query_decision(Path(by_id["virtual_query_decision"]["path"]))
+                decision_state = vq.get("decision")
+            except Exception:
+                decision_state = None
         required_package_ids = required_common | {
             "COHORT_REVIEW_RECORD", "COHORT_REVIEW_VALIDATION",
             "MODEL_ARTIFACT_001", "MODEL_REPORT_001",
             "REPRODUCIBILITY_EVALUATION_001", "INTERACTION_REPORT_001",
             "INTERACTION_ROBUSTNESS_001", "INTERACTION_SELECTION_001",
-            "VIRTUAL_PREDICTION_001",
         }
         expected_package_sources = {
             "MODEL_ARTIFACT_001": "model_artifact",
@@ -1179,7 +1296,6 @@ def _validate_g4_publication_plan(
             "INTERACTION_REPORT_001": "interaction_report",
             "INTERACTION_ROBUSTNESS_001": "robustness_report",
             "INTERACTION_SELECTION_001": "interaction_selection",
-            "VIRTUAL_PREDICTION_001": "virtual_prediction",
             "COHORT_REVIEW_RECORD": "cohort_review_record",
             "COHORT_REVIEW_VALIDATION": "cohort_review_validation",
             "WORKER_REVIEW_RECORD": "worker_review_output",
@@ -1197,6 +1313,9 @@ def _validate_g4_publication_plan(
             "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
             "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
         }
+        if decision_state == "RUN_PREDICTION":
+            required_package_ids.add("VIRTUAL_PREDICTION_001")
+            expected_package_sources["VIRTUAL_PREDICTION_001"] = "virtual_prediction"
     missing_package_ids = sorted(required_package_ids - set(package_ids))
     if missing_package_ids:
         raise ValueError(
@@ -1305,6 +1424,28 @@ def _validate_g4_publication_plan(
         if gate_source["path"] != str(source_file) or gate_source["sha256"] != digest:
             raise ValueError(f"G4 Gate binding for {source_id} differs from the exact Publication Plan source.")
 
+    # Virtual query decision governs virtual prediction delivery in full analysis.
+    if "single_study_applicability_record" not in by_id:
+        vq_entry = next((item for item in entries if item.get("artifact_id") == "VIRTUAL_PREDICTION_001"), None)
+        vq_binding = reported_by_package.get("VIRTUAL_PREDICTION_001")
+        if decision_state == "NOT_APPLICABLE":
+            if (vq_entry is None or vq_entry.get("status") != "not_applicable"
+                    or vq_entry.get("source_path") is not None
+                    or vq_entry.get("source_artifact_id") is not None
+                    or vq_binding is not None):
+                raise ValueError(
+                    "G4 NOT_APPLICABLE virtual query decision requires VIRTUAL_PREDICTION_001 to be not_applicable without a source."
+                )
+        elif decision_state == "RUN_PREDICTION":
+            if (vq_entry is None
+                    or vq_entry.get("status") not in {"complete", "partial", "requires_review"}
+                    or vq_entry.get("source_artifact_id") != "virtual_prediction"
+                    or not isinstance(vq_entry.get("source_path"), str)
+                    or vq_binding is None or vq_binding.get("artifact_id") != "virtual_prediction"):
+                raise ValueError(
+                    "G4 RUN_PREDICTION virtual query decision requires VIRTUAL_PREDICTION_001 to be sourced from virtual_prediction."
+                )
+
     # Every mandatory delivery entry must be connected to its declared Run
     # Artifact, not merely present as an unsourced placeholder in the plan.
     for package_id in required_package_ids:
@@ -1377,9 +1518,21 @@ def _validate_g4_reviewed_findings(
         if previous_gate_event is None:
             raise ValueError("G4 single-study review requires the approved G3 event.")
         _validate_single_study_na_bundle(by_id, previous_gate_event)
-        expected_reviewed_artifacts = G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
+        expected_reviewed_artifacts = set(G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS)
     else:
-        expected_reviewed_artifacts = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
+        expected_reviewed_artifacts = set(G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS)
+        decision_state = None
+        if "virtual_query_decision" in by_id:
+            try:
+                from dor.virtual_reproduction import read_virtual_query_decision
+                vq = read_virtual_query_decision(Path(by_id["virtual_query_decision"]["path"]))
+                decision_state = vq.get("decision")
+            except Exception:
+                decision_state = None
+        if decision_state == "NOT_APPLICABLE":
+            expected_reviewed_artifacts.discard("virtual_prediction")
+        elif decision_state == "RUN_PREDICTION":
+            expected_reviewed_artifacts.add("virtual_prediction")
     worker_binding = _require_gate_binding(by_id, "worker_review_output", "G4")
     reviewed_binding = _require_gate_binding(by_id, "reviewed_findings", "G4")
     validation_binding = _require_gate_binding(by_id, "reviewed_findings_validation", "G4")
@@ -1553,8 +1706,6 @@ def _validate_g4_reviewed_findings(
         path = Path(binding["path"])
         if not path.is_file() or sha256_file(path) != binding["sha256"]:
             raise ValueError(f"G4 reviewed artifact {artifact_id} changed after human review.")
-    if validation_report.get("reviewed_artifact_count") != len(expected_reviewed_artifacts):
-        raise ValueError("G4 reviewed_findings_validation reviewed_artifact_count differs from the active Worker input set.")
     if reviewed_ids != expected_reviewed_artifacts:
         missing = sorted(expected_reviewed_artifacts - reviewed_ids)
         unexpected = sorted(reviewed_ids - expected_reviewed_artifacts)
@@ -1562,6 +1713,8 @@ def _validate_g4_reviewed_findings(
             "G4 reviewed_findings must bind exactly the artifacts supplied to the active Worker review stage; "
             + "missing=" + ", ".join(missing) + "; unexpected=" + ", ".join(unexpected) + "."
         )
+    if validation_report.get("reviewed_artifact_count") != len(reviewed_ids):
+        raise ValueError("G4 reviewed_findings_validation reviewed_artifact_count is inconsistent with reviewed_findings.")
     for finding_id, finding in worker_findings.items():
         if not set(finding["supporting_artifact_ids"]).issubset(reviewed_ids):
             raise ValueError(f"G4 Worker finding {finding_id} cites an artifact outside the human-reviewed artifact set.")
@@ -1817,16 +1970,45 @@ def record_gate_decision(
     bindings = _artifact_bindings(artifact_specs)
     ids = {item["artifact_id"] for item in bindings}
     if decision == "APPROVE":
-        required_artifacts = REQUIRED_ARTIFACTS[gate_id]
+        required_artifacts = set(REQUIRED_ARTIFACTS[gate_id])
         reviewed_artifacts: set[str] = set()
+        single_study_profile = "single_study_applicability_record" in ids
+        virtual_query_state = None
+        by_id = _binding_map(bindings)
+        if gate_id == "G2":
+            required_artifacts.add("virtual_query_decision")
+            if "virtual_query_decision" not in ids:
+                raise ValueError("G2 requires artifact IDs: virtual_query_decision. FULL_ANALYSIS requires an explicit human virtual_query_decision.")
+            from dor.virtual_reproduction import read_virtual_query_decision
+            vq = read_virtual_query_decision(Path(by_id["virtual_query_decision"]["path"]))
+            virtual_query_state = vq.get("decision")
+            if virtual_query_state == "RUN_PREDICTION":
+                required_artifacts |= {"virtual_query_input", "virtual_query_validation"}
+            elif virtual_query_state == "NOT_APPLICABLE":
+                forbidden = {"virtual_query_input", "virtual_query_validation", "virtual_prediction"} & ids
+                if forbidden:
+                    raise ValueError(
+                        "G2 NOT_APPLICABLE virtual query decision cannot bind artifacts: " + ", ".join(sorted(forbidden))
+                    )
         if gate_id == "G4":
-            single_study_profile = "single_study_applicability_record" in ids
             if single_study_profile:
-                required_artifacts = G4_SINGLE_STUDY_REQUIRED_ARTIFACTS
-                reviewed_artifacts = G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS
+                required_artifacts = set(G4_SINGLE_STUDY_REQUIRED_ARTIFACTS)
+                reviewed_artifacts = set(G4_SINGLE_STUDY_REVIEWABLE_ARTIFACTS)
             else:
-                required_artifacts = G4_FULL_ANALYSIS_REQUIRED_ARTIFACTS
-                reviewed_artifacts = G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS
+                required_artifacts = set(G4_FULL_ANALYSIS_REQUIRED_ARTIFACTS)
+                reviewed_artifacts = set(G4_FULL_ANALYSIS_REVIEWABLE_ARTIFACTS)
+                if "virtual_query_decision" not in ids:
+                    raise ValueError("G4 FULL_ANALYSIS approval requires virtual_query_decision (RUN_PREDICTION or NOT_APPLICABLE).")
+                from dor.virtual_reproduction import read_virtual_query_decision
+                vq = read_virtual_query_decision(Path(by_id["virtual_query_decision"]["path"]))
+                virtual_query_state = vq.get("decision")
+                if virtual_query_state == "RUN_PREDICTION":
+                    required_artifacts.add("virtual_prediction")
+                    reviewed_artifacts.add("virtual_prediction")
+                elif virtual_query_state == "NOT_APPLICABLE":
+                    reviewed_artifacts.discard("virtual_prediction")
+                    if "virtual_prediction" in ids:
+                        raise ValueError("G4 NOT_APPLICABLE virtual query decision cannot bind virtual_prediction.")
         missing = required_artifacts - ids
         if missing:
             raise ValueError(f"Gate {gate_id} requires artifact IDs: {', '.join(sorted(missing))}.")

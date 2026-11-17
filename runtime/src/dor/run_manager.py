@@ -513,6 +513,31 @@ def _validate_event_semantics(
             if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
                 raise ValueError(f"{label} SHA-256 is malformed for {artifact_id} at line {line_number}.")
 
+    def expected_input_ids(stage: Mapping[str, Any], event: Mapping[str, Any]) -> list[str]:
+        """Declared input set for an event, allowing conditionally added VQ IDs.
+
+        Historical events are validated from their own recorded bindings. We do
+        NOT re-resolve current VQ state here: a decision/artifact that changed
+        after approval must not retroactively invalidate the ledger structure.
+        """
+        declared = list(stage.get("inputs", []))
+        if _vq_phase_for_stage(str(stage.get("stage_id", "")), plan) is None:
+            return declared
+        from dor.virtual_query_state import VQ_ARTIFACT_IDS
+        observed = [
+            item.get("artifact_id") for item in (event.get("input_artifacts") or [])
+            if isinstance(item, dict)
+        ]
+        if len(observed) != len(event.get("input_artifacts") or []):
+            raise ValueError(f"Malformed VQ stage input binding at line {event.get('sequence')}.")
+        for artifact_id in observed:
+            if artifact_id not in declared and artifact_id not in VQ_ARTIFACT_IDS:
+                raise ValueError(f"Undeclared input artifact {artifact_id} at line {event.get('sequence')}.")
+        for artifact_id in declared:
+            if artifact_id not in observed:
+                raise ValueError(f"Missing declared input artifact {artifact_id} at line {event.get('sequence')}.")
+        return observed
+
     def validate_gate_snapshot(event: Mapping[str, Any], stage: Mapping[str, Any], line_number: int) -> None:
         required = stage.get("required_gate")
         snapshot = event.get("gate_approval")
@@ -564,7 +589,7 @@ def _validate_event_semantics(
                     raise ValueError(
                         f"Worker authorization task ID differs from its Run/Stage/Attempt identity at line {line_number}."
                     )
-            validate_snapshots(event.get("input_artifacts"), stage["inputs"], "Worker authorization inputs", line_number)
+            validate_snapshots(event.get("input_artifacts"), expected_input_ids(stage, event), "Worker authorization inputs", line_number)
             expected_outputs = [
                 {"artifact_id": item["artifact_id"], "path": str(_artifact_path(root, item)), "kind": item["kind"]}
                 for item in stage["outputs"]
@@ -616,7 +641,7 @@ def _validate_event_semantics(
             producer = event.get("producer")
             if not isinstance(producer, dict) or producer.get("kind") != stage["executor"]:
                 raise ValueError(f"Stage producer does not match its plan at line {line_number}.")
-            validate_snapshots(event.get("input_artifacts"), stage["inputs"], "Stage inputs", line_number)
+            validate_snapshots(event.get("input_artifacts"), expected_input_ids(stage, event), "Stage inputs", line_number)
             if event.get("output_artifacts") != []:
                 raise ValueError(f"RUNNING event must not claim completed outputs at line {line_number}.")
             validate_gate_snapshot(event, stage, line_number)
@@ -1696,10 +1721,71 @@ def build_run_usage_report(manifest_path: Path) -> dict[str, Any]:
 
 
 
+def _vq_consumer_stages(plan: Mapping[str, Any]) -> set[str]:
+    from dor.virtual_query_state import is_full_analysis_plan
+    if not is_full_analysis_plan(plan):
+        return set()
+    return {
+        "g3_selection_packet", "independent_result_review", "human_review_and_promotion",
+        "publication_plan_preparation", "publication_package_assembly", "publication_package_audit",
+    }
+
+
+def _vq_phase_for_stage(stage_id: str, plan: Mapping[str, Any]) -> str | None:
+    from dor.virtual_query_state import is_full_analysis_plan
+    if not is_full_analysis_plan(plan):
+        return None
+    if stage_id == "g2_review_packet":
+        return "g2"
+    if stage_id in _vq_consumer_stages(plan):
+        return "consumer"
+    return None
+
+
+def _effective_stage_inputs(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
+                            stage: dict[str, Any], events: list[dict[str, Any]] | None = None) -> list[str]:
+    inputs = list(stage.get("inputs", []))
+    stage_id = str(stage.get("stage_id", ""))
+    phase = _vq_phase_for_stage(stage_id, plan)
+    if phase is None:
+        return inputs
+    from dor.virtual_query_state import (
+        require_vq_ready, QUERY_REVIEW_READY, PREDICTION_READY, NOT_APPLICABLE,
+    )
+    evs = events if events is not None else _load_events(root / manifest["event_ledger_path"], manifest["run_id"])
+    # Explicitly authorize (or reject) VQ consumption here, at the shared input
+    # construction point. PENDING/FAILED_OR_INVALID must never be deferred to a
+    # later natural read failure or silently converted into a fixed input list.
+    state = require_vq_ready(root, plan, evs, stage_id, phase)
+    if phase == "g2":
+        # G2: RUN_PREDICTION needs decision+query+validation; NOT_APPLICABLE needs decision only (and mat SKIPPED evidenced by events/state)
+        if state.status == QUERY_REVIEW_READY:
+            for aid in ("virtual_query_decision", "virtual_query_input", "virtual_query_validation"):
+                if aid not in inputs:
+                    inputs.append(aid)
+            inputs = [i for i in inputs if i != "virtual_prediction"]
+        elif state.status == NOT_APPLICABLE:
+            inputs = [i for i in inputs if i not in {"virtual_query_input", "virtual_query_validation", "virtual_prediction"}]
+            if "virtual_query_decision" not in inputs:
+                inputs.append("virtual_query_decision")
+    else:
+        # consumer stages
+        if state.status == PREDICTION_READY:
+            for aid in ("virtual_query_decision", "virtual_query_input", "virtual_query_validation", "virtual_prediction"):
+                if aid not in inputs:
+                    inputs.append(aid)
+        elif state.status == NOT_APPLICABLE:
+            inputs = [i for i in inputs if i not in {"virtual_query_input", "virtual_query_validation", "virtual_prediction"}]
+            if "virtual_query_decision" not in inputs:
+                inputs.append("virtual_query_decision")
+    return inputs
+
+
 def _stage_input_snapshots(root: Path, manifest: dict[str, Any], plan: dict[str, Any],
-                           stage: dict[str, Any]) -> list[dict[str, str]]:
+                           stage: dict[str, Any], events: list[dict[str, Any]] | None = None) -> list[dict[str, str]]:
     definitions, _ = _artifact_definitions(plan)
-    return _snapshot_artifacts(root, manifest, plan, stage["inputs"])
+    inputs = _effective_stage_inputs(root, manifest, plan, stage, events)
+    return _snapshot_artifacts(root, manifest, plan, inputs)
 
 
 def _check_gate(
@@ -1739,6 +1825,15 @@ def authorize_worker(
     project = project_root.expanduser().resolve(strict=True)
     if not project.is_dir():
         raise ValueError("Worker project_root must be an existing directory.")
+    # VQ readiness is checked at this real authorization entry point before any
+    # generic readiness gate, so PENDING/FAILED_OR_INVALID always produce the
+    # explicit, structured rejection rather than a late natural read failure.
+    vq_phase = _vq_phase_for_stage(stage_id, plan)
+    vq_evidence = None
+    if vq_phase is not None:
+        from dor.virtual_query_state import require_vq_ready, build_vq_evidence
+        vq_state = require_vq_ready(root, plan, events, stage_id, vq_phase)
+        vq_evidence = build_vq_evidence(root, plan, events, vq_state, vq_phase)
     resume = _resume_plan(root, manifest, plan, events)
     state = next(item for item in resume["stages"] if item["stage_id"] == stage_id)
     allowed_actions = {"READY_TO_RUN", "RETRY_REQUIRED", "REBUILD_REQUIRED"}
@@ -1746,8 +1841,11 @@ def authorize_worker(
         allowed_actions.add("RUNNING_NEEDS_RECONCILIATION")
     if state["action"] not in allowed_actions:
         raise ValueError(f"Worker stage is not ready for authorization (action={state['action']}).")
-    input_artifacts = _stage_input_snapshots(root, manifest, plan, stage)
+    input_artifacts = _stage_input_snapshots(root, manifest, plan, stage, events)
     gate_approval = _check_gate(stage, manifest, input_artifacts)
+    # Auditable phase-specific VQ evidence travels with the Worker authorization
+    # and task packet. Built from real Run events, resolved artifact paths and
+    # live file hashes; never from the decision declaration alone.
     permitted_outputs = []
     for output in stage["outputs"]:
         path = _artifact_path(root, output)
@@ -1774,6 +1872,7 @@ def authorize_worker(
         "permitted_outputs": permitted_outputs,
         "task_spec": stage["worker_task"],
         "gate_approval": gate_approval,
+        "virtual_query_evidence": vq_evidence,
     }
     expected_previous_event_hash = events[-1]["event_hash"] if events else EVENT_GENESIS_HASH
     event = _append_event(
@@ -1795,6 +1894,7 @@ def authorize_worker(
         "project_root": str(project),
         "input_artifacts": input_artifacts,
         "permitted_outputs": permitted_outputs,
+        "virtual_query_evidence": vq_evidence,
         "objective": stage["worker_task"]["objective"],
         "permitted_actions": stage["worker_task"]["permitted_actions"],
         "forbidden_actions": stage["worker_task"].get("forbidden_actions", []),
@@ -1895,7 +1995,7 @@ def record_stage_status(
             raise ValueError("A protected source input changed after run initialization; create a new run from the revised source snapshot.")
         if state["action"] not in allowed:
             raise ValueError(f"Stage cannot start a new attempt (action={state['action']}).")
-        input_snapshots = _stage_input_snapshots(root, manifest, plan, stage)
+        input_snapshots = _stage_input_snapshots(root, manifest, plan, stage, events)
         gate_approval = _check_gate(stage, manifest, input_snapshots)
         attempt = (latest.get("attempt", 0) if latest else 0) + 1
         for output in stage["outputs"]:
@@ -1962,7 +2062,7 @@ def record_stage_status(
                 event_payload["archived_outputs"] = archived_outputs
                 event_payload["archive_manifest"] = archive_manifest
         else:
-            current_inputs = _stage_input_snapshots(root, manifest, plan, stage)
+            current_inputs = _stage_input_snapshots(root, manifest, plan, stage, events)
             if current_inputs != latest.get("input_artifacts"):
                 raise ValueError("Stage inputs changed while the stage was running; completion is rejected.")
             try:

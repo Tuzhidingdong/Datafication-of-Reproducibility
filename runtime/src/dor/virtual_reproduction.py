@@ -24,45 +24,176 @@ def _finite_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
 
 
-def _validate_query(query: Any, artifact: dict[str, Any]) -> dict[str, Any]:
+def _binding_map(source: dict[str, Any], label: str) -> dict[str, dict[str, Any]]:
+    bindings = source.get("feature_bindings")
+    if not isinstance(bindings, list) or not bindings:
+        raise ValueError(label + " has no explicit feature bindings.")
+    result: dict[str, dict[str, Any]] = {}
+    for item in bindings:
+        if not isinstance(item, dict):
+            raise ValueError(label + " feature bindings are malformed.")
+        fid = item.get("feature_id")
+        if not isinstance(fid, str) or not fid:
+            raise ValueError(label + " feature bindings contain an invalid feature_id.")
+        if fid in result:
+            raise ValueError(label + " feature bindings are duplicated: " + fid)
+        result[fid] = item
+    return result
+
+
+def _validate_query(query: Any, source: dict[str, Any], label: str = "selected model artifact") -> dict[str, Any]:
     if not isinstance(query, dict) or query.get("schema_version") != "1.0":
         raise ValueError("Virtual reproduction query must be an object with schema_version 1.0.")
     for key in ("task_id", "target_id", "endpoint_definition"):
-        if query.get(key) != artifact.get(key):
-            raise ValueError("Query " + key + " does not exactly match the selected model artifact.")
+        if query.get(key) != source.get(key):
+            raise ValueError("Query " + key + " does not exactly match the " + label + ".")
     features = query.get("features")
     if not isinstance(features, dict):
         raise ValueError("Query features must be an object keyed by exact feature_id.")
-    bindings = artifact.get("feature_bindings")
-    if not isinstance(bindings, list) or not bindings:
-        raise ValueError("Model artifact has no explicit feature bindings.")
-    expected_ids = [item.get("feature_id") for item in bindings if isinstance(item, dict)]
-    if len(expected_ids) != len(bindings) or len(set(expected_ids)) != len(expected_ids):
-        raise ValueError("Model artifact feature bindings are malformed or duplicated.")
-    missing = sorted(set(expected_ids) - set(features))
-    extra = sorted(set(features) - set(expected_ids))
+    expected = _binding_map(source, label.capitalize() if label else "Source")
+    missing = sorted(set(expected) - set(features))
+    extra = sorted(set(features) - set(expected))
     if missing or extra:
         raise ValueError("Query feature IDs must match exactly; missing=" + repr(missing) + "; extra=" + repr(extra))
     row: dict[str, Any] = {}
-    for binding in bindings:
-        fid = binding["feature_id"]
+    for fid, binding in expected.items():
         item = features[fid]
         if not isinstance(item, dict) or set(item) != {"value", "unit"}:
             raise ValueError("Feature " + fid + " must contain exactly value and unit.")
-        if item["unit"] != binding.get("expected_unit"):
+        if item.get("unit") != binding.get("expected_unit"):
             raise ValueError("Feature " + fid + " unit must exactly match expected_unit; no implicit conversion is performed.")
-        value = item["value"]
-        if binding["value_type"] == "NUMERIC":
+        expected_type = binding.get("value_type")
+        value = item.get("value")
+        if expected_type == "NUMERIC":
             if not _finite_number(value):
                 raise ValueError("Numeric feature " + fid + " must be a finite JSON number, not a numeric string.")
             row[fid] = float(value)
-        elif binding["value_type"] == "CATEGORICAL":
+        elif expected_type == "CATEGORICAL":
             if not isinstance(value, str) or not value:
                 raise ValueError("Categorical feature " + fid + " must be a non-empty string.")
             row[fid] = value
         else:
             raise ValueError("Unsupported feature value_type for " + fid)
     return row
+
+
+def _load_decision(decision_path: Path) -> dict[str, Any]:
+    decision_path = decision_path.expanduser().resolve(strict=True)
+    decision = _read_json(decision_path)
+    if not isinstance(decision, dict):
+        raise ValueError("Virtual query decision must be a JSON object.")
+    if decision.get("schema_version") != "1.0":
+        raise ValueError("Virtual query decision schema_version must be 1.0.")
+    status = decision.get("decision")
+    if status not in {"RUN_PREDICTION", "NOT_APPLICABLE"}:
+        raise ValueError("Virtual query decision must be RUN_PREDICTION or NOT_APPLICABLE.")
+    reason = decision.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError("Virtual query decision requires a non-empty reason.")
+    for key in ("task_id", "target_id", "endpoint_definition", "modeling_task_sha256", "reviewer", "decided_at"):
+        value = decision.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Virtual query decision missing required field: {key}")
+    if status == "RUN_PREDICTION":
+        source = decision.get("source_query_path")
+        if not isinstance(source, str) or not source.strip():
+            raise ValueError("RUN_PREDICTION decision must provide source_query_path.")
+    else:
+        if "source_query_path" in decision and decision.get("source_query_path") is not None:
+            raise ValueError("NOT_APPLICABLE decision must not provide source_query_path.")
+    return decision
+
+
+def prepare_virtual_query_files(
+    task_path: Path,
+    decision_path: Path,
+    output_path: Path,
+    report_path: Path,
+    query_path: Path | None = None,
+) -> dict[str, Any]:
+    """Validate a RUN_PREDICTION virtual query decision and materialize formal artifacts.
+
+    The query file is treated as the human-supplied prediction condition input.
+    A schema/task-consistent copy is written to ``output_path`` as the formal
+    Run Artifact ``virtual_query_input`` and a validation report is written to
+    ``report_path``. No target selection, condition value, or unit is inferred or
+    transformed.
+    """
+    task_path = task_path.expanduser().resolve(strict=True)
+    decision_path = decision_path.expanduser().resolve(strict=True)
+    output_path = output_path.expanduser().resolve()
+    report_path = report_path.expanduser().resolve()
+    if output_path.exists():
+        raise FileExistsError("Refusing to overwrite existing virtual query output: " + str(output_path))
+    if report_path.exists():
+        raise FileExistsError("Refusing to overwrite existing virtual query validation: " + str(report_path))
+
+    task = _read_json(task_path)
+    if not isinstance(task, dict):
+        raise ValueError("Modeling task must be a JSON object.")
+    decision = _load_decision(decision_path)
+    if decision.get("decision") != "RUN_PREDICTION":
+        raise ValueError("Only RUN_PREDICTION decisions can produce virtual_query_input and virtual_query_validation artifacts.")
+
+    task_sha256 = sha256_file(task_path)
+    if decision.get("modeling_task_sha256") != task_sha256:
+        raise ValueError("Virtual query decision modeling_task_sha256 does not match the confirmed modeling task.")
+    for key in ("task_id", "target_id", "endpoint_definition"):
+        if decision.get(key) != task.get(key):
+            raise ValueError(f"Virtual query decision {key} does not exactly match the confirmed modeling task.")
+
+    required_task_fields = ("task_id", "target_id", "endpoint_definition", "feature_bindings")
+    for field in required_task_fields:
+        if field not in task:
+            raise ValueError("Confirmed modeling task is missing required field: " + field)
+
+    source_query_raw = query_path if query_path is not None else Path(str(decision["source_query_path"]))
+    source_query_path = source_query_raw.expanduser().resolve(strict=True)
+    query = _read_json(source_query_path)
+    if not isinstance(query, dict):
+        raise ValueError("Virtual reproduction query must be a JSON object.")
+
+    row = _validate_query(query, task, label="confirmed modeling task")
+    expected_features = _binding_map(task, "Confirmed modeling task")
+    if query.get("schema_version") != "1.0":
+        raise ValueError("Virtual reproduction query schema_version must be 1.0.")
+    if set(query.keys()) != {"schema_version", "task_id", "target_id", "endpoint_definition", "features"}:
+        raise ValueError("Virtual reproduction query must contain only schema_version, task_id, target_id, endpoint_definition, and features.")
+    if set(query["features"].keys()) != set(expected_features.keys()):
+        raise ValueError("Query feature IDs must match the confirmed modeling task exactly.")
+
+    _write_json(output_path, query)
+    report = {
+        "schema_version": "1.0",
+        "contract": "VIRTUAL_QUERY_PREPARATION",
+        "valid": True,
+        "task_path": str(task_path),
+        "task_sha256": task_sha256,
+        "decision_path": str(decision_path),
+        "decision_sha256": sha256_file(decision_path),
+        "source_query_path": str(source_query_path),
+        "source_query_sha256": sha256_file(source_query_path),
+        "prepared_query_path": str(output_path),
+        "prepared_query_sha256": sha256_file(output_path),
+        "task_id": task.get("task_id"),
+        "target_id": task.get("target_id"),
+        "endpoint_definition": task.get("endpoint_definition"),
+        "feature_count": len(expected_features),
+        "validated_feature_ids": sorted(expected_features.keys()),
+        "decision": "RUN_PREDICTION",
+        "interpretation": (
+            "A validated, task-consistent virtual query prepared from human-provided conditions under a "
+            "RUN_PREDICTION decision. It does not predict an outcome, approve a gate, or imply physical reproducibility."
+        ),
+    }
+    _write_json(report_path, report)
+    return {
+        "valid": True,
+        "output_path": str(output_path),
+        "report_path": str(report_path),
+        "report": report,
+        "validated_features": row,
+    }
 
 
 def _assess_domain(row: dict[str, Any], artifact: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
@@ -225,3 +356,112 @@ def predict_virtual_condition_files(model_run_dir: Path, query_path: Path, outpu
     }
     _write_json(output_path, result)
     return {"valid": True, "report": result, "output_path": str(output_path)}
+
+
+
+
+def read_virtual_query_decision(decision_path: Path) -> dict[str, Any]:
+    """Load and structurally validate a virtual_query_decision artifact."""
+    decision_path = decision_path.expanduser().resolve(strict=True)
+    _ = _load_decision(decision_path)
+    return _read_json(decision_path)
+
+
+def validate_virtual_query_preparation_artifacts(
+    *,
+    task_path: Path,
+    decision_path: Path,
+    query_path: Path | None = None,
+    validation_path: Path | None = None,
+) -> dict[str, Any]:
+    """Validate decision and, for RUN_PREDICTION, the prepared query/validation artifacts.
+
+    Returns a summary including decision state and checked artifact hashes.
+    """
+    task_path = task_path.expanduser().resolve(strict=True)
+    decision_path = decision_path.expanduser().resolve(strict=True)
+    task = _read_json(task_path)
+    if not isinstance(task, dict):
+        raise ValueError("Modeling task must be a JSON object.")
+    for field in ("task_id", "target_id", "endpoint_definition"):
+        if field not in task:
+            raise ValueError("Confirmed modeling task is missing required field: " + field)
+    task_sha256 = sha256_file(task_path)
+    decision = read_virtual_query_decision(decision_path)
+    decision_sha = sha256_file(decision_path)
+
+    if decision.get("modeling_task_sha256") != task_sha256:
+        raise ValueError("Virtual query decision modeling_task_sha256 does not match the confirmed modeling task.")
+    for key in ("task_id", "target_id", "endpoint_definition"):
+        if decision.get(key) != task.get(key):
+            raise ValueError(f"Virtual query decision {key} does not exactly match the confirmed modeling task.")
+
+    status = decision.get("decision")
+    summary: dict[str, Any] = {
+        "valid": True,
+        "decision": status,
+        "reason": decision.get("reason"),
+        "decision_path": str(decision_path),
+        "decision_sha256": decision_sha,
+        "task_path": str(task_path),
+        "task_sha256": task_sha256,
+        "task_id": task.get("task_id"),
+        "target_id": task.get("target_id"),
+        "endpoint_definition": task.get("endpoint_definition"),
+    }
+    if status == "NOT_APPLICABLE":
+        if query_path is not None and Path(query_path).expanduser().exists():
+            raise ValueError("NOT_APPLICABLE virtual query decision must not have a virtual_query_input artifact.")
+        if validation_path is not None and Path(validation_path).expanduser().exists():
+            raise ValueError("NOT_APPLICABLE virtual query decision must not have a virtual_query_validation artifact.")
+        summary["artifacts"] = {"virtual_query_input": None, "virtual_query_validation": None}
+        return summary
+
+    # RUN_PREDICTION
+    if query_path is None or validation_path is None:
+        raise ValueError("RUN_PREDICTION decision requires both virtual_query_input and virtual_query_validation artifacts.")
+    query_path = query_path.expanduser().resolve(strict=True)
+    validation_path = validation_path.expanduser().resolve(strict=True)
+    query = _read_json(query_path)
+    if not isinstance(query, dict):
+        raise ValueError("Virtual query input must be a JSON object.")
+    _validate_query(query, task, label="confirmed modeling task")
+    if set(query.keys()) != {"schema_version", "task_id", "target_id", "endpoint_definition", "features"}:
+        raise ValueError("Virtual reproduction query must contain only schema_version, task_id, target_id, endpoint_definition, and features.")
+    if set(query.get("features", {}).keys()) != set(_binding_map(task, "Confirmed modeling task").keys()):
+        raise ValueError("Query feature IDs must match the confirmed modeling task exactly.")
+
+    validation = _read_json(validation_path)
+    if not isinstance(validation, dict):
+        raise ValueError("Virtual query validation must be a JSON object.")
+    if validation.get("schema_version") != "1.0" or validation.get("contract") != "VIRTUAL_QUERY_PREPARATION":
+        raise ValueError("Virtual query validation has an unsupported contract.")
+    if validation.get("valid") is not True:
+        raise ValueError("Virtual query validation must declare valid=true.")
+    if validation.get("decision") != "RUN_PREDICTION":
+        raise ValueError("Virtual query validation must correspond to a RUN_PREDICTION decision.")
+    if validation.get("task_sha256") != task_sha256:
+        raise ValueError("Virtual query validation does not bind the exact confirmed modeling task.")
+    if validation.get("decision_sha256") != decision_sha:
+        raise ValueError("Virtual query validation does not bind the exact virtual query decision.")
+    if validation.get("prepared_query_sha256") != sha256_file(query_path):
+        raise ValueError("Virtual query validation does not bind the exact prepared virtual query input.")
+    source_q = validation.get("source_query_path")
+    source_q_sha = validation.get("source_query_sha256")
+    if not isinstance(source_q, str) or not source_q.strip() or not isinstance(source_q_sha, str):
+        raise ValueError("Virtual query validation must record source query provenance.")
+    try:
+        sp = Path(source_q).expanduser()
+        if sp.exists() and sha256_file(sp.resolve(strict=True)) != source_q_sha:
+            raise ValueError("Virtual query validation source query hash does not match the recorded source file.")
+    except OSError:
+        pass
+    for key in ("task_id", "target_id", "endpoint_definition"):
+        if validation.get(key) != task.get(key):
+            raise ValueError(f"Virtual query validation {key} does not match the confirmed modeling task.")
+
+    summary["artifacts"] = {
+        "virtual_query_input": {"path": str(query_path), "sha256": sha256_file(query_path)},
+        "virtual_query_validation": {"path": str(validation_path), "sha256": sha256_file(validation_path)},
+    }
+    return summary

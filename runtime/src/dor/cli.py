@@ -33,7 +33,7 @@ from dor.publication import (
     build_publication_package_files, audit_publication_package_files,
     validate_publication_plan_files,
 )
-from dor.virtual_reproduction import predict_virtual_condition_files
+from dor.virtual_reproduction import predict_virtual_condition_files, prepare_virtual_query_files
 from dor.gates import inspect_gate_ledger, record_gate_decision, require_gate, require_selected_interaction, require_selected_interaction_id
 from dor.acceptance import initialize_acceptance_record, validate_acceptance_record
 from dor.acceptance_ledger import (initialize_acceptance_ledger, record_acceptance_revision,
@@ -126,7 +126,8 @@ def build_parser() -> argparse.ArgumentParser:
     project_run_plan.add_argument("--workflow-ledger", type=Path, default=None,
         help="Optional G0-G4 ledger path; defaults to project_root/run_control/workflow_gate_ledger.jsonl")
     project_run_plan.add_argument("--virtual-query-input", type=Path, default=None,
-        help="Required only for FULL_ANALYSIS; an existing explicit virtual reproduction query JSON")
+        help="Optional for FULL_ANALYSIS: an existing query file kept as a non-authoritative project reference. "
+             "The formal Run Artifact is prepared later by virtual_query_preparation after modeling_task confirmation.")
     project_run_plan.add_argument("--publication-plan-template", type=Path, default=None,
         help="Optional existing project-owned Publication Plan blueprint; otherwise a route/profile template is copied")
     project_run_plan.add_argument("--acceptance-source", action="append", default=[],
@@ -289,9 +290,19 @@ def build_parser() -> argparse.ArgumentParser:
     package_audit = subparsers.add_parser("audit-publication-package", help="Verify publication package paths, completeness states, and SHA-256 hashes")
     package_audit.add_argument("--package-dir", type=Path, required=True, help="Publication package directory")
     package_audit.add_argument("--out", type=Path, help="Optional integrity report JSON outside the package")
+    prepare_virtual = subparsers.add_parser(
+        "prepare-virtual-query",
+        help="Materialize a RUN_PREDICTION virtual query decision into validated formal Run Artifacts",
+    )
+    prepare_virtual.add_argument("--task", type=Path, required=True, help="Confirmed modeling_task.json")
+    prepare_virtual.add_argument("--decision", type=Path, required=True, help="Human virtual_query_decision.json (RUN_PREDICTION)")
+    prepare_virtual.add_argument("--query", type=Path, default=None,
+        help="Optional override path to human-provided virtual_reproduction_query.json; defaults to decision.source_query_path")
+    prepare_virtual.add_argument("--out", type=Path, required=True, help="Formal virtual_query_input artifact path")
+    prepare_virtual.add_argument("--report", type=Path, required=True, help="Formal virtual_query_validation artifact path")
     virtual = subparsers.add_parser("predict-virtual-condition", help="Predict a requested condition set with a hash-verified selected baseline model")
     virtual.add_argument("--model-run-dir", type=Path, required=True, help="Exact output directory from dor fit-baselines")
-    virtual.add_argument("--query", type=Path, required=True, help="Explicit virtual_reproduction_query.json")
+    virtual.add_argument("--query", type=Path, required=True, help="Formal, validated virtual_query_input.json artifact")
     virtual.add_argument("--out", type=Path, required=True, help="New JSON prediction report path")
     for gated_parser in (build, cohort, models, evaluate, interaction, robustness,
                          surface, mechanism, package, virtual):
@@ -832,6 +843,19 @@ def main() -> int:
                     raise ValueError("Package integrity report must be written outside the package directory.")
             print(_write_json(args.out,report),end="")
             return 0 if report["valid"] else 2
+        if args.command == "prepare-virtual-query":
+            result = prepare_virtual_query_files(args.task, args.decision, args.out, args.report, args.query)
+            print(_write_json(None, {
+                "status": "validated",
+                "valid": result["valid"],
+                "output_path": result["output_path"],
+                "report_path": result["report_path"],
+                "task_id": result["report"]["task_id"],
+                "target_id": result["report"]["target_id"],
+                "feature_count": result["report"]["feature_count"],
+                "decision": result["report"]["decision"],
+            }), end="")
+            return 0
         if args.command == "predict-virtual-condition":
             _enforce_gate(args,"G2")
             result=predict_virtual_condition_files(args.model_run_dir,args.query,args.out)

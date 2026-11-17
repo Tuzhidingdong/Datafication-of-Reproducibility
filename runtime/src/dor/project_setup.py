@@ -110,7 +110,12 @@ def initialize_project_run_plan(
     acceptance_sources: list[str] | None = None,
     output_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Create and validate a non-overwriting project-specific Run Plan."""
+    """Create and validate a non-overwriting project-specific Run Plan.
+
+    FULL_ANALYSIS Runs no longer require a pre-generated Virtual Query at
+    initialization. A formal, human-provided query is prepared later after the
+    modeling task is confirmed.
+    """
     if profile not in _PROFILES:
         raise ValueError(f"profile must be one of {sorted(_PROFILES)}.")
 
@@ -154,13 +159,12 @@ def initialize_project_run_plan(
         raise ValueError(f"Project root is not a directory: {root}")
 
     if profile == "FULL_ANALYSIS":
-        if virtual_query_input is None:
-            raise ValueError(
-                "FULL_ANALYSIS requires --virtual-query-input. Do not create a placeholder query."
-            )
-        virtual_path = virtual_query_input.expanduser().resolve(strict=True)
-        if not virtual_path.is_file():
-            raise ValueError(f"Virtual reproduction query must be a file: {virtual_path}")
+        if virtual_query_input is not None:
+            virtual_path = virtual_query_input.expanduser().resolve(strict=True)
+            if not virtual_path.is_file():
+                raise ValueError(f"Virtual reproduction query must be a file: {virtual_path}")
+        else:
+            virtual_path = None
     else:
         if virtual_query_input is not None:
             raise ValueError(
@@ -265,11 +269,6 @@ def initialize_project_run_plan(
             "path": str(publication_path.resolve(strict=True)),
         },
     ]
-    if virtual_path is not None:
-        source_artifacts.append({
-            "artifact_id": "virtual_query_input",
-            "path": str(virtual_path),
-        })
 
     plan = {
         **run_template,
@@ -323,7 +322,7 @@ def initialize_project_run_plan(
         "workflow_ledger_path": str(ledger_path),
         "publication_plan_template": str(publication_path.resolve(strict=True)),
         "publication_template_created": publication_created,
-        "virtual_query_input": str(virtual_path) if virtual_path is not None else None,
+        "virtual_query_reference": str(virtual_path) if virtual_path is not None else None,
         "acceptance_source_count": len(acceptance_records),
         "run_init_command": (
             f'dor run-init --plan "{output}" --run-root "{run_root_path}"'

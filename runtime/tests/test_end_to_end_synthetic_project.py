@@ -757,6 +757,21 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             "reviewed_at": "2026-11-14T00:00:00Z",
             "limitations": ["Synthetic fixture only."],
         })
+        # FULL_ANALYSIS G2 now requires an explicit human virtual_query_decision.
+        # This legacy pipeline harness predates the VQ stages, so bind a valid
+        # NOT_APPLICABLE decision with no query/validation/prediction artifacts.
+        cls.virtual_query_decision_path = cls.root / "virtual_query_decision.json"
+        write_json(cls.virtual_query_decision_path, {
+            "schema_version": "1.0",
+            "decision": "NOT_APPLICABLE",
+            "reason": "Legacy synthetic pipeline harness has no virtual-condition scope.",
+            "task_id": task["task_id"],
+            "target_id": task["target_id"],
+            "endpoint_definition": task["endpoint_definition"],
+            "modeling_task_sha256": sha256_file(cls.task_path),
+            "reviewer": "synthetic-reviewer",
+            "decided_at": "2026-11-16T00:00:00Z",
+        })
         cls.research_scope_validation_path = cls.root / "research_scope_validation.json"
         cls._run_cli(
             "validate-research-scope",
@@ -776,6 +791,7 @@ class EndToEndSyntheticProjectTests(unittest.TestCase):
             ("discovery_report", cls.discovery_report_path),
             ("research_scope_record", cls.research_scope_record_path),
             ("modeling_task", cls.task_path),
+            ("virtual_query_decision", cls.virtual_query_decision_path),
         ], "Synthetic user approval of exact canonical data, reconciliation state, endpoint, feature bindings, and Study split.")
         cls._run_cli(
             "build-cohort", "--bundle", str(cls.bundle_path), "--task", str(cls.task_path),

@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from dor.mapping import sha256_file
+from dor.virtual_query_state import (
+    build_vq_evidence, require_vq_ready, is_full_analysis_plan, NOT_APPLICABLE, PREDICTION_READY,
+)
 
 STATUSES = {"complete", "partial", "not_generated", "not_applicable", "requires_review"}
 SHA256_RE = re.compile(r"^[a-fA-F0-9]{64}$")
@@ -119,6 +122,15 @@ def validate_publication_plan_files(
     )
 
     root, manifest, run_plan, events = _manifest_context(manifest_path)
+    # Publication is a prediction consumer. FULL_ANALYSIS must be either
+    # PREDICTION_READY or a fully evidenced NOT_APPLICABLE; PENDING/FAILED/INVALID
+    # raises here so no completed Plan can be prepared for such a Run.
+    vq_evidence: dict[str, Any] | None = None
+    vq_status: str | None = None
+    if is_full_analysis_plan(run_plan):
+        vq_state = require_vq_ready(root, run_plan, events, "publication_plan_preparation", "consumer")
+        vq_status = vq_state.status
+        vq_evidence = build_vq_evidence(root, run_plan, events, vq_state, "consumer")
     stage = next(
         (item for item in run_plan.get("stages", [])
          if item.get("stage_id") == "publication_plan_preparation"),
@@ -323,6 +335,9 @@ def validate_publication_plan_files(
             "interaction_report", "robustness_report", "interaction_selection",
             "virtual_prediction", "cohort_review_record", "cohort_review_validation",
         })
+        if vq_status == NOT_APPLICABLE:
+            # A formally SKIPPED prediction must not be packaged as a Run Artifact.
+            required_run_artifacts.discard("virtual_prediction")
     missing_run_artifacts = sorted(required_run_artifacts - by_run_artifact)
     if missing_run_artifacts:
         issues.append({
@@ -385,6 +400,10 @@ def validate_publication_plan_files(
             "RESPONSE_SURFACE_SUPPORT_001": "interaction_observed_support",
             "RESPONSE_SURFACE_MARGINALS_001": "interaction_marginal_effects",
         })
+        if vq_status == NOT_APPLICABLE:
+            # VIRTUAL_PREDICTION_001 remains a delivery entry with status
+            # not_applicable, but must not bind a source Run Artifact.
+            expected_package_sources.pop("VIRTUAL_PREDICTION_001", None)
     for package_id, expected_source_id in expected_package_sources.items():
         entry = next((item for item in artifacts if item["artifact_id"] == package_id), None)
         binding = next((item for item in source_bindings if item["package_artifact_id"] == package_id), None)
@@ -489,6 +508,45 @@ def validate_publication_plan_files(
                         "message": f"G3 selected no interaction; package {package_id} must remain not_generated without a source_path.",
                     })
 
+    if vq_evidence is not None:
+        vp_entry = next(
+            (item for item in artifacts if item.get("artifact_id") == "VIRTUAL_PREDICTION_001"),
+            None,
+        )
+        if vq_status == NOT_APPLICABLE:
+            if (vp_entry is None or vp_entry.get("status") != "not_applicable"
+                    or vp_entry.get("source_path") is not None
+                    or vp_entry.get("source_artifact_id") is not None):
+                issues.append({
+                    "code": "VIRTUAL_QUERY_NA_PREDICTION_ENTRY_INVALID",
+                    "message": (
+                        "NOT_APPLICABLE requires VIRTUAL_PREDICTION_001 to be status=not_applicable "
+                        "with no source_path/source_artifact_id."
+                    ),
+                })
+            absence = vq_evidence.get("artifact_absence_check", {})
+            if not absence.get("all_absent"):
+                issues.append({
+                    "code": "VIRTUAL_QUERY_NA_ARTIFACTS_PRESENT",
+                    "message": "NOT_APPLICABLE requires verified absence of query/validation/prediction artifacts.",
+                })
+        elif vq_status == PREDICTION_READY:
+            if (vp_entry is None or vp_entry.get("source_artifact_id") != "virtual_prediction"
+                    or not isinstance(vp_entry.get("source_path"), str)):
+                issues.append({
+                    "code": "VIRTUAL_QUERY_PREDICTION_ENTRY_INVALID",
+                    "message": (
+                        "RUN_PREDICTION requires VIRTUAL_PREDICTION_001 to source the real "
+                        "virtual_prediction Run Artifact."
+                    ),
+                })
+            pred_fact = vq_evidence.get("prediction", {})
+            if not pred_fact.get("present") or not pred_fact.get("sha256"):
+                issues.append({
+                    "code": "VIRTUAL_QUERY_PREDICTION_NOT_VERIFIED",
+                    "message": "RUN_PREDICTION requires a verified, hash-bound virtual_prediction artifact.",
+                })
+
     report = {
         "schema_version": "1.0",
         "contract": "RUN_BOUND_PUBLICATION_PLAN",
@@ -501,6 +559,7 @@ def validate_publication_plan_files(
         "source_artifacts": source_bindings,
         "validation_report_path": str(actual_report),
         "errors": issues,
+        "virtual_query_evidence": vq_evidence,
         "interpretation": (
             "A valid report binds every package source to a current Run Artifact and resolves conditional G3 outputs. "
             "It is not G4 approval or a scientific acceptance decision."
@@ -523,6 +582,7 @@ def build_publication_package_files(
         raise NotADirectoryError("Workspace root is not a directory: " + str(workspace_root))
     plan = _read_json(plan_path)
     artifacts = _validate_plan(plan)
+    vq_evidence: dict[str, Any] | None = None
     if validation_path is not None:
         supplied_validation = validation_path.expanduser()
         if supplied_validation.is_symlink() or not supplied_validation.is_file():
@@ -530,6 +590,30 @@ def build_publication_package_files(
         validation_report = _read_json(supplied_validation)
         if validation_report.get("contract") != "RUN_BOUND_PUBLICATION_PLAN" or validation_report.get("valid") is not True:
             raise ValueError("Publication Plan validation report is not valid.")
+        vq_evidence = validation_report.get("virtual_query_evidence")
+        if vq_evidence is not None and vq_evidence.get("contract") != "RUN_VIRTUAL_QUERY_EVIDENCE":
+            raise ValueError("Publication Plan validation carries invalid Virtual Query evidence.")
+        vp_entry = next(
+            (item for item in artifacts if item.get("artifact_id") == "VIRTUAL_PREDICTION_001"),
+            None,
+        )
+        if vq_evidence is not None and vq_evidence.get("status") == NOT_APPLICABLE:
+            if (vp_entry is None or vp_entry.get("status") != "not_applicable"
+                    or vp_entry.get("source_path") is not None):
+                raise ValueError(
+                    "Assembly refused: NOT_APPLICABLE Virtual Query requires VIRTUAL_PREDICTION_001 "
+                    "to be not_applicable without a source; no placeholder prediction may be produced."
+                )
+            absence = vq_evidence.get("artifact_absence_check", {})
+            if not absence.get("all_absent"):
+                raise ValueError("Assembly refused: verified absence of VQ artifacts is missing from the validation evidence.")
+        elif vq_evidence is not None and vq_evidence.get("status") == PREDICTION_READY:
+            pred_fact = vq_evidence.get("prediction", {})
+            if (vp_entry is None or not isinstance(vp_entry.get("source_path"), str)
+                    or not pred_fact.get("present") or not pred_fact.get("sha256")):
+                raise ValueError(
+                    "Assembly refused: RUN_PREDICTION requires VIRTUAL_PREDICTION_001 to source a verified prediction file."
+                )
         if validation_report.get("plan", {}).get("path") != str(plan_path):
             raise ValueError("Publication Plan validation report references another plan path.")
         if validation_report.get("plan", {}).get("sha256") != sha256_file(plan_path):
@@ -624,6 +708,8 @@ def build_publication_package_files(
     }
     if plan.get("domain_profile") is not None:
         manifest["domain_profile"] = plan["domain_profile"]
+    if vq_evidence is not None:
+        manifest["virtual_query_evidence"] = vq_evidence
     _write_json(output_dir / "package_manifest.json", manifest)
     return {"valid": True, "manifest": manifest, "output_dir": str(output_dir),
             "artifact_count": len(manifest_artifacts), "copied_artifact_count": len(copied_sources)}
@@ -710,7 +796,47 @@ def audit_publication_package_files(package_dir: Path) -> dict[str, Any]:
         else:
             ok = status in {"not_generated", "not_applicable"}
         checks.append({"artifact_id": aid, "path": rel_text, "status": status,
-                       "exists": exists, "hash_valid": ok if exists else None})
+                       "exists": exists, "hash_valid": ok if exists else None,
+                       "expected_sha256": expected if isinstance(expected, str) else None})
+
+    # Virtual Query dual-path audit: VIRTUAL_PREDICTION_001 must be justified by
+    # real decision + formal execution evidence, not by a bare status string.
+    vq_evidence = manifest.get("virtual_query_evidence")
+    if vq_evidence is not None:
+        if vq_evidence.get("contract") != "RUN_VIRTUAL_QUERY_EVIDENCE":
+            errors.append("Virtual Query evidence has an invalid contract.")
+        else:
+            vq_status = vq_evidence.get("status")
+            vp_record = next((item for item in records if isinstance(item, dict)
+                              and item.get("artifact_id") == "VIRTUAL_PREDICTION_001"), None)
+            decision = vq_evidence.get("decision", {})
+            if not decision.get("reason") or not decision.get("decision"):
+                errors.append("Virtual Query evidence is missing the human decision/reason.")
+            if vq_status == NOT_APPLICABLE:
+                absence = vq_evidence.get("artifact_absence_check", {})
+                mat = vq_evidence.get("materialization", {})
+                pred_stage = vq_evidence.get("prediction_stage", {})
+                if not absence.get("all_absent"):
+                    errors.append("NOT_APPLICABLE evidence must verify absence of query/validation/prediction artifacts.")
+                if mat.get("status") != "SKIPPED" or pred_stage.get("status") != "SKIPPED":
+                    errors.append("NOT_APPLICABLE evidence must bind formally SKIPPED materialization and prediction stages.")
+                if vp_record is None or vp_record.get("status") != "not_applicable":
+                    errors.append("NOT_APPLICABLE package must mark VIRTUAL_PREDICTION_001 as not_applicable.")
+                for artifact_id in ("virtual_query_input", "virtual_query_validation", "virtual_prediction"):
+                    check = next((c for c in checks if c["artifact_id"] == artifact_id), None)
+                    if check is not None and check["exists"]:
+                        errors.append("NOT_APPLICABLE package must not contain " + artifact_id + ".")
+            elif vq_status == PREDICTION_READY:
+                pred_fact = vq_evidence.get("prediction", {})
+                if not pred_fact.get("present") or not pred_fact.get("sha256"):
+                    errors.append("RUN_PREDICTION evidence must bind a verified prediction file.")
+                if vp_record is None or vp_record.get("status") in {"not_generated", "not_applicable"}:
+                    errors.append("RUN_PREDICTION package must mark VIRTUAL_PREDICTION_001 as a delivered artifact.")
+                elif isinstance(vp_record.get("path"), str):
+                    pred_path = package_dir / vp_record["path"]
+                    if (not pred_path.is_file() or pred_path.is_symlink()
+                            or sha256_file(pred_path) != pred_fact.get("sha256")):
+                        errors.append("Packaged prediction differs from the VQ-evidence-bound prediction hash.")
     package_entries = list(package_dir.rglob("*"))
     for entry in package_entries:
         if entry.is_symlink():

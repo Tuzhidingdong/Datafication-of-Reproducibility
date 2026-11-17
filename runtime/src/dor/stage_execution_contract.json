@@ -17,6 +17,8 @@
       "reconciliation_decision_validation",
       "exploratory_discovery",
       "research_scope_selection",
+      "virtual_query_preparation",
+      "virtual_query_materialization",
       "g2_review_packet",
       "cohort_build",
       "cohort_review",
@@ -48,6 +50,8 @@
       "reconciliation_decision_validation",
       "exploratory_discovery",
       "research_scope_selection",
+      "virtual_query_preparation",
+      "virtual_query_materialization",
       "g2_review_packet",
       "cohort_build",
       "cohort_review",
@@ -1093,6 +1097,91 @@
             "reconciliation_review_queue",
             "research_scope_record",
             "modeling_task",
+            "virtual_query_decision",
+            "reconciliation_decisions",
+            "reconciliation_decision_validation",
+            "discovery_report"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "g2_review_packet",
+              "path": "04_reconciliation/g2_review_packet.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "g2_review_packet_validation",
+              "path": "04_reconciliation/g2_review_packet_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null,
+          "depends_on": [
+            "canonical_build",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "research_scope_selection",
+            "reconciliation_decision_validation",
+            "reconciliation_decision_review",
+            "exploratory_discovery",
+            "virtual_query_preparation",
+            "virtual_query_materialization"
+          ],
+          "profile": "FULL_ANALYSIS"
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle",
+            "canonical_validation_report",
+            "reconciliation_report",
+            "reconciliation_review_queue",
+            "research_scope_record",
+            "modeling_task",
+            "virtual_query_decision",
+            "reconciliation_decisions",
+            "reconciliation_decision_validation",
+            "discovery_report"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "g2_review_packet",
+              "path": "04_reconciliation/g2_review_packet.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "g2_review_packet_validation",
+              "path": "04_reconciliation/g2_review_packet_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null,
+          "depends_on": [
+            "adapter_artifact_materialization",
+            "canonical_bundle_validation",
+            "canonical_reconciliation",
+            "research_scope_selection",
+            "reconciliation_decision_validation",
+            "reconciliation_decision_review",
+            "exploratory_discovery",
+            "virtual_query_preparation",
+            "virtual_query_materialization"
+          ],
+          "profile": "FULL_ANALYSIS"
+        },
+        {
+          "route": "STRUCTURED_DATASET",
+          "profile": "CONTROLLED_SINGLE_STUDY",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "canonical_bundle",
+            "canonical_validation_report",
+            "reconciliation_report",
+            "reconciliation_review_queue",
+            "research_scope_record",
+            "modeling_task",
             "reconciliation_decisions",
             "reconciliation_decision_validation",
             "discovery_report"
@@ -1122,6 +1211,7 @@
         },
         {
           "route": "CANONICAL_BUNDLE",
+          "profile": "CONTROLLED_SINGLE_STUDY",
           "executor": "manual",
           "required_gate": null,
           "inputs": [
@@ -1837,7 +1927,8 @@
             "interaction_manifest",
             "robustness_report",
             "robustness_catalogue",
-            "robustness_manifest"
+            "robustness_manifest",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -1849,7 +1940,8 @@
           "activation": null,
           "depends_on": [
             "interaction_discovery",
-            "interaction_robustness"
+            "interaction_robustness",
+            "virtual_query_preparation"
           ]
         },
         {
@@ -1862,7 +1954,8 @@
             "interaction_manifest",
             "robustness_report",
             "robustness_catalogue",
-            "robustness_manifest"
+            "robustness_manifest",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -1874,7 +1967,8 @@
           "activation": null,
           "depends_on": [
             "interaction_discovery",
-            "interaction_robustness"
+            "interaction_robustness",
+            "virtual_query_preparation"
           ]
         },
         {
@@ -2419,9 +2513,11 @@
           "executor": "local",
           "required_gate": "G2",
           "inputs": [
+            "virtual_query_decision",
             "model_artifact",
             "baseline_run_manifest",
-            "virtual_query_input"
+            "virtual_query_input",
+            "virtual_query_validation"
           ],
           "outputs": [
             {
@@ -2430,9 +2526,16 @@
               "kind": "derived"
             }
           ],
-          "activation": null,
+          "activation": {
+            "artifact_id": "virtual_query_decision",
+            "json_pointer": "/decision",
+            "operator": "equals",
+            "value": "RUN_PREDICTION"
+          },
           "depends_on": [
-            "baseline_model_fit"
+            "baseline_model_fit",
+            "virtual_query_preparation",
+            "virtual_query_materialization"
           ],
           "argv_template": [
             "--model-run-dir",
@@ -2454,9 +2557,11 @@
           "executor": "local",
           "required_gate": "G2",
           "inputs": [
+            "virtual_query_decision",
             "model_artifact",
             "baseline_run_manifest",
-            "virtual_query_input"
+            "virtual_query_input",
+            "virtual_query_validation"
           ],
           "outputs": [
             {
@@ -2465,9 +2570,16 @@
               "kind": "derived"
             }
           ],
-          "activation": null,
+          "activation": {
+            "artifact_id": "virtual_query_decision",
+            "json_pointer": "/decision",
+            "operator": "equals",
+            "value": "RUN_PREDICTION"
+          },
           "depends_on": [
-            "baseline_model_fit"
+            "baseline_model_fit",
+            "virtual_query_preparation",
+            "virtual_query_materialization"
           ],
           "argv_template": [
             "--model-run-dir",
@@ -2503,9 +2615,9 @@
             "interaction_report",
             "robustness_report",
             "interaction_selection",
-            "virtual_prediction",
             "cohort_review_record",
-            "cohort_review_validation"
+            "cohort_review_validation",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -2521,8 +2633,8 @@
             "interaction_discovery",
             "interaction_robustness",
             "g3_selection_packet",
-            "virtual_condition_prediction",
-            "cohort_review"
+            "cohort_review",
+            "virtual_query_preparation"
           ]
         },
         {
@@ -2536,9 +2648,9 @@
             "interaction_report",
             "robustness_report",
             "interaction_selection",
-            "virtual_prediction",
             "cohort_review_record",
-            "cohort_review_validation"
+            "cohort_review_validation",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -2554,8 +2666,8 @@
             "interaction_discovery",
             "interaction_robustness",
             "g3_selection_packet",
-            "virtual_condition_prediction",
-            "cohort_review"
+            "cohort_review",
+            "virtual_query_preparation"
           ]
         },
         {
@@ -2663,9 +2775,9 @@
             "reproducibility_evaluation",
             "interaction_report",
             "robustness_report",
-            "virtual_prediction",
             "cohort_review_record",
-            "cohort_review_validation"
+            "cohort_review_validation",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -2687,8 +2799,8 @@
             "nested_reproducibility_evaluation",
             "interaction_discovery",
             "interaction_robustness",
-            "virtual_condition_prediction",
-            "cohort_review"
+            "cohort_review",
+            "virtual_query_preparation"
           ]
         },
         {
@@ -2703,9 +2815,9 @@
             "reproducibility_evaluation",
             "interaction_report",
             "robustness_report",
-            "virtual_prediction",
             "cohort_review_record",
-            "cohort_review_validation"
+            "cohort_review_validation",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -2727,8 +2839,8 @@
             "nested_reproducibility_evaluation",
             "interaction_discovery",
             "interaction_robustness",
-            "virtual_condition_prediction",
-            "cohort_review"
+            "cohort_review",
+            "virtual_query_preparation"
           ]
         },
         {
@@ -2850,12 +2962,12 @@
             "interaction_report",
             "robustness_report",
             "interaction_selection",
-            "virtual_prediction",
             "worker_review_output",
             "reviewed_findings",
             "reviewed_findings_validation",
             "cohort_review_record",
-            "cohort_review_validation"
+            "cohort_review_validation",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -2876,13 +2988,13 @@
             "interaction_discovery",
             "interaction_robustness",
             "g3_selection_packet",
-            "virtual_condition_prediction",
             "independent_result_review",
             "human_review_and_promotion",
             "cohort_review",
             "mechanism_plan_preparation",
             "response_surface_generation",
-            "mechanism_evidence_bridge"
+            "mechanism_evidence_bridge",
+            "virtual_query_preparation"
           ]
         },
         {
@@ -2897,12 +3009,12 @@
             "interaction_report",
             "robustness_report",
             "interaction_selection",
-            "virtual_prediction",
             "worker_review_output",
             "reviewed_findings",
             "reviewed_findings_validation",
             "cohort_review_record",
-            "cohort_review_validation"
+            "cohort_review_validation",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -2923,13 +3035,13 @@
             "interaction_discovery",
             "interaction_robustness",
             "g3_selection_packet",
-            "virtual_condition_prediction",
             "independent_result_review",
             "human_review_and_promotion",
             "cohort_review",
             "mechanism_plan_preparation",
             "response_surface_generation",
-            "mechanism_evidence_bridge"
+            "mechanism_evidence_bridge",
+            "virtual_query_preparation"
           ]
         },
         {
@@ -3094,12 +3206,12 @@
             "interaction_report",
             "robustness_report",
             "interaction_selection",
-            "virtual_prediction",
             "reviewed_findings",
             "worker_review_output",
             "reviewed_findings_validation",
             "cohort_review_record",
-            "cohort_review_validation"
+            "cohort_review_validation",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -3120,11 +3232,11 @@
             "interaction_discovery",
             "interaction_robustness",
             "g3_selection_packet",
-            "virtual_condition_prediction",
             "human_review_and_promotion",
             "independent_result_review",
             "cohort_review",
-            "publication_plan_preparation"
+            "publication_plan_preparation",
+            "virtual_query_preparation"
           ],
           "argv_template": [
             "--plan",
@@ -3158,12 +3270,12 @@
             "interaction_report",
             "robustness_report",
             "interaction_selection",
-            "virtual_prediction",
             "reviewed_findings",
             "worker_review_output",
             "reviewed_findings_validation",
             "cohort_review_record",
-            "cohort_review_validation"
+            "cohort_review_validation",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -3184,11 +3296,11 @@
             "interaction_discovery",
             "interaction_robustness",
             "g3_selection_packet",
-            "virtual_condition_prediction",
             "human_review_and_promotion",
             "independent_result_review",
             "cohort_review",
-            "publication_plan_preparation"
+            "publication_plan_preparation",
+            "virtual_query_preparation"
           ],
           "argv_template": [
             "--plan",
@@ -3404,7 +3516,8 @@
           "required_gate": null,
           "inputs": [
             "publication_package_manifest",
-            "publication_writing_guide"
+            "publication_writing_guide",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -3415,7 +3528,8 @@
           ],
           "activation": null,
           "depends_on": [
-            "publication_package_assembly"
+            "publication_package_assembly",
+            "virtual_query_preparation"
           ],
           "argv_template": [
             "--package-dir",
@@ -3434,7 +3548,8 @@
           "required_gate": null,
           "inputs": [
             "publication_package_manifest",
-            "publication_writing_guide"
+            "publication_writing_guide",
+            "virtual_query_decision"
           ],
           "outputs": [
             {
@@ -3445,7 +3560,8 @@
           ],
           "activation": null,
           "depends_on": [
-            "publication_package_assembly"
+            "publication_package_assembly",
+            "virtual_query_preparation"
           ],
           "argv_template": [
             "--package-dir",
@@ -3921,6 +4037,157 @@
           ]
         }
       ]
+    },
+    {
+      "stage_id": "virtual_query_preparation",
+      "action_type": "MANUAL",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "modeling_task",
+            "research_scope_record"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "virtual_query_decision",
+              "path": "08_virtual_reproduction/virtual_query_decision.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null,
+          "depends_on": [
+            "research_scope_selection"
+          ]
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "manual",
+          "required_gate": null,
+          "inputs": [
+            "modeling_task",
+            "research_scope_record"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "virtual_query_decision",
+              "path": "08_virtual_reproduction/virtual_query_decision.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": null,
+          "depends_on": [
+            "research_scope_selection"
+          ]
+        }
+      ]
+    },
+    {
+      "stage_id": "virtual_query_materialization",
+      "action_type": "CLI",
+      "route_variants": [
+        {
+          "route": "STRUCTURED_DATASET",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "modeling_task",
+            "virtual_query_decision"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "virtual_query_input",
+              "path": "08_virtual_reproduction/virtual_query_input.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "virtual_query_validation",
+              "path": "08_virtual_reproduction/virtual_query_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": {
+            "artifact_id": "virtual_query_decision",
+            "json_pointer": "/decision",
+            "operator": "equals",
+            "value": "RUN_PREDICTION"
+          },
+          "depends_on": [
+            "virtual_query_preparation",
+            "research_scope_selection"
+          ],
+          "argv_template": [
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--decision",
+            {
+              "artifact": "virtual_query_decision"
+            },
+            "--out",
+            {
+              "artifact": "virtual_query_input"
+            },
+            "--report",
+            {
+              "artifact": "virtual_query_validation"
+            }
+          ]
+        },
+        {
+          "route": "CANONICAL_BUNDLE",
+          "executor": "local",
+          "required_gate": null,
+          "inputs": [
+            "modeling_task",
+            "virtual_query_decision"
+          ],
+          "outputs": [
+            {
+              "artifact_id": "virtual_query_input",
+              "path": "08_virtual_reproduction/virtual_query_input.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "virtual_query_validation",
+              "path": "08_virtual_reproduction/virtual_query_validation.json",
+              "kind": "derived"
+            }
+          ],
+          "activation": {
+            "artifact_id": "virtual_query_decision",
+            "json_pointer": "/decision",
+            "operator": "equals",
+            "value": "RUN_PREDICTION"
+          },
+          "depends_on": [
+            "virtual_query_preparation",
+            "research_scope_selection"
+          ],
+          "argv_template": [
+            "--task",
+            {
+              "artifact": "modeling_task"
+            },
+            "--decision",
+            {
+              "artifact": "virtual_query_decision"
+            },
+            "--out",
+            {
+              "artifact": "virtual_query_input"
+            },
+            "--report",
+            {
+              "artifact": "virtual_query_validation"
+            }
+          ]
+        }
+      ],
+      "cli_command": "prepare-virtual-query"
     }
   ],
   "profiles": {

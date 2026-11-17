@@ -9,6 +9,10 @@ import re
 from typing import Any, Mapping
 
 from dor.run_manager import _latest_stage_events, _manifest_context, verify_run
+from dor.virtual_query_state import (
+    VirtualQueryNotReadyError, build_vq_evidence, require_vq_ready,
+    is_full_analysis_plan, QUERY_REVIEW_READY, NOT_APPLICABLE,
+)
 from dor.worker_result import validate_worker_result_payload
 
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
@@ -155,13 +159,26 @@ def validate_run_review_packet_files(
     stage = stages.get(stage_id)
     if stage is None or stage.get("executor") != "manual":
         raise ValueError("Review packet must target a manual stage in the active Run Plan.")
+    issues: list[dict[str, str]] = []
+    vq_evidence: dict[str, Any] | None = None
+    if stage_id == "g2_review_packet" and is_full_analysis_plan(_plan):
+        # G2 packet must expose real, path/hash-bound evidence of the resolved
+        # dual path. QUERY_REVIEW_READY is sufficient here; prediction execution
+        # is deliberately NOT required for G2.
+        try:
+            vq_state = require_vq_ready(root, _plan, events, stage_id, "g2")
+            vq_evidence = build_vq_evidence(root, _plan, events, vq_state, "g2")
+        except VirtualQueryNotReadyError as exc:
+            issues.append({
+                "code": "VIRTUAL_QUERY_NOT_QUERY_REVIEW_READY",
+                "message": str(exc),
+            })
     latest_stage_event = _latest_stage_events(events).get(stage_id)
     if latest_stage_event is None or latest_stage_event.get("status") != "RUNNING":
         raise ValueError("Manual review packet stage must be recorded RUNNING before validation.")
     record_file, report_file = _check_record_and_report_paths(
         packet_file, report_path, root, stage, stage_id, stage_id + "_validation",
     )
-    issues: list[dict[str, str]] = []
     allowed = {
         "schema_version", "run_id", "project_id", "stage_id", "prepared_at",
         "packet_status", "artifact_bindings", "review_items",
@@ -207,11 +224,44 @@ def validate_run_review_packet_files(
     if len(binding_ids) != len(set(binding_ids)):
         issues.append({"code": "DUPLICATE_BINDING", "message": "artifact_bindings contains duplicate artifact IDs."})
     expected_ids = set(stage.get("inputs", []))
+    if vq_evidence is not None:
+        # G2 Review consumes phase-resolved VQ inputs: the same shared conditional
+        # input resolution used by worker authorization and Run events.
+        from dor.run_manager import _effective_stage_inputs
+        try:
+            expected_ids = set(_effective_stage_inputs(root, manifest, _plan, dict(stage), events))
+        except VirtualQueryNotReadyError:
+            # The VQ-not-ready error has already been recorded above; keep the
+            # static input set so the report is returned with actionable errors.
+            pass
     supplied_ids = set(binding_ids)
     for artifact_id in sorted(expected_ids - supplied_ids):
         issues.append({"code": "MISSING_INPUT_BINDING", "message": "Missing declared stage input: " + artifact_id})
     for artifact_id in sorted(supplied_ids - expected_ids):
         issues.append({"code": "UNDECLARED_INPUT_BINDING", "message": "Binding is not a declared stage input: " + artifact_id})
+    if vq_evidence is not None:
+        # The G2 packet must visibly bind the dual-path VQ inputs: decision for
+        # both paths, query/validation for RUN_PREDICTION, and NO query/validation
+        # or prediction for NOT_APPLICABLE.
+        if "virtual_query_decision" not in supplied_ids:
+            issues.append({
+                "code": "VQ_DECISION_NOT_BOUND",
+                "message": "FULL_ANALYSIS G2 packet must bind virtual_query_decision.",
+            })
+        if vq_evidence["status"] == QUERY_REVIEW_READY:
+            for artifact_id in ("virtual_query_input", "virtual_query_validation"):
+                if artifact_id not in supplied_ids:
+                    issues.append({
+                        "code": "VQ_QUERY_INPUT_NOT_BOUND",
+                        "message": "RUN_PREDICTION G2 packet must bind " + artifact_id + ".",
+                    })
+        elif vq_evidence["status"] == NOT_APPLICABLE:
+            for artifact_id in ("virtual_query_input", "virtual_query_validation", "virtual_prediction"):
+                if artifact_id in supplied_ids:
+                    issues.append({
+                        "code": "VQ_FORBIDDEN_ARTIFACT_BOUND",
+                        "message": "NOT_APPLICABLE G2 packet must not bind " + artifact_id + ".",
+                    })
 
     review_items = packet.get("review_items")
     if not isinstance(review_items, list) or not review_items:
@@ -257,6 +307,7 @@ def validate_run_review_packet_files(
         "record": {"path": str(record_file), "sha256": _sha256(record_file)},
         "checked_artifact_count": len(supplied_ids),
         "validation_report_path": str(report_file), "errors": issues,
+        "virtual_query_evidence": vq_evidence,
         "interpretation": "A valid packet confirms review materials and provenance only; it is not a human decision or gate approval.",
     }
 
@@ -285,6 +336,13 @@ def validate_reviewed_findings_files(
     record_path: Path, manifest_path: Path, report_path: Path,
 ) -> dict[str, Any]:
     root, manifest, _plan, events, artifacts, stages, run_report = _run_context(manifest_path)
+    # Review is a prediction consumer. Use the shared phase-aware resolver and
+    # reject PENDING/FAILED_OR_INVALID with a concrete, structured error. Never
+    # infer NOT_APPLICABLE from a missing prediction file.
+    vq_evidence: dict[str, Any] | None = None
+    if is_full_analysis_plan(_plan):
+        vq_state = require_vq_ready(root, _plan, events, _PROMOTION_STAGE, "consumer")
+        vq_evidence = build_vq_evidence(root, _plan, events, vq_state, "consumer")
     record_file = record_path.expanduser()
     record = _read_json(record_file, "Reviewed findings record")
     stage = stages.get(_PROMOTION_STAGE)
@@ -326,7 +384,13 @@ def validate_reviewed_findings_files(
             "message": "An operational Run source changed after initialization; provenance-only Acceptance sources are checked separately.",
         })
 
+    # FULL_ANALYSIS Review consumes the phase-resolved VQ artifacts, not just
+    # the static plan inputs. Reuse the same shared conditional input resolution
+    # used by worker authorization and Run events.
     expected_inputs = set(stage.get("inputs", []))
+    if is_full_analysis_plan(_plan):
+        from dor.run_manager import _effective_stage_inputs
+        expected_inputs = set(_effective_stage_inputs(root, manifest, _plan, dict(stage), events))
     if _WORKER_ID not in expected_inputs:
         issues.append({"code": "WORKER_INPUT_NOT_DECLARED", "message": "Promotion stage must consume worker_review_output."})
     expected_reviewed = expected_inputs - {_WORKER_ID}
@@ -469,5 +533,6 @@ def validate_reviewed_findings_files(
         "expected_promotion_decision": expected_decision,
         "validation_report_path": str(report_file),
         "errors": issues,
+        "virtual_query_evidence": vq_evidence,
         "interpretation": "A valid record confirms human dispositions and provenance only; it does not create a G0-G4 approval or alter analysis artifacts.",
     }

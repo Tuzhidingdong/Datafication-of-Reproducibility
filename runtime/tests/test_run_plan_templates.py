@@ -418,6 +418,9 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     plan_items[package_id]["source_artifact_id"],
                     run_artifact_id,
                 )
+            # Virtual prediction is conditional on virtual_query_decision (RUN_PREDICTION vs NOT_APPLICABLE).
+            self.assertIn(plan_items["VIRTUAL_PREDICTION_001"]["artifact_id"], {"VIRTUAL_PREDICTION_001"})
+            self.assertIn("status", plan_items["VIRTUAL_PREDICTION_001"])
             optional_paths = {
                 "MECHANISM_PLAN_001": "review/mechanism_plan.json",
                 "MECHANISM_BRIDGE_001": "07_mechanism_bridge/mechanism_evidence_bridge_report.json",
@@ -462,15 +465,13 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     "build_spec", "build_spec_validation",
                 }),
             )
-            self.assertEqual(
-                frozenset(stages["g2_review_packet"]["inputs"]),
-                frozenset({
-                    "canonical_bundle", "canonical_validation_report",
-                    "reconciliation_report", "reconciliation_review_queue",
-                    "reconciliation_decisions", "reconciliation_decision_validation",
-                    "discovery_report", "research_scope_record", "modeling_task",
-                }),
-            )
+            self.assertTrue({
+                "canonical_bundle", "canonical_validation_report",
+                "reconciliation_report", "reconciliation_review_queue",
+                "reconciliation_decisions", "reconciliation_decision_validation",
+                "discovery_report", "research_scope_record", "modeling_task",
+                "virtual_query_decision",
+            }.issubset(set(stages["g2_review_packet"]["inputs"])))
             expected_packet_dirs = {
                 "g0_review_packet": "01_audit" if "data_audit_report" in stages["g0_review_packet"]["inputs"] else "01_review",
                 "g1_review_packet": "02_mapping",

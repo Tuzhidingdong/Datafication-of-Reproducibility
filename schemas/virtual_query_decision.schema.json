@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/virtual_query_decision.schema.json",
+  "title": "Human decision for Virtual Query preparation in FULL_ANALYSIS",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "decision",
+    "reason",
+    "task_id",
+    "target_id",
+    "endpoint_definition",
+    "modeling_task_sha256",
+    "reviewer",
+    "decided_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "decision": { "enum": ["RUN_PREDICTION", "NOT_APPLICABLE"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string", "minLength": 1 },
+    "target_id": { "type": "string", "minLength": 1 },
+    "endpoint_definition": { "type": "string", "minLength": 1 },
+    "modeling_task_sha256": { "$ref": "#/$defs/sha256" },
+    "reviewer": { "type": "string", "minLength": 1 },
+    "decided_at": { "type": "string", "format": "date-time" },
+    "source_query_path": { "type": "string", "minLength": 1 },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "decision": { "const": "RUN_PREDICTION" } },
+        "required": ["decision"]
+      },
+      "then": { "required": ["source_query_path"] }
+    },
+    {
+      "if": {
+        "properties": { "decision": { "const": "NOT_APPLICABLE" } },
+        "required": ["decision"]
+      },
+      "then": { "not": { "required": ["source_query_path"] } }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+  }
+}

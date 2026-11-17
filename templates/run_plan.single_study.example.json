@@ -12,10 +12,6 @@
       "path": "D:/Research/Project/raw_sources/adapter_package/adapter_manifest.json"
     },
     {
-      "artifact_id": "virtual_query_input",
-      "path": "D:/Research/Project/configuration/virtual_reproduction_query.json"
-    },
-    {
       "artifact_id": "publication_plan_template",
       "path": "D:/Research/Project/configuration/publication_package_plan.json"
     }
