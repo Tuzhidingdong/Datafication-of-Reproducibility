@@ -19,7 +19,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.1"
+      "const": "1.2"
     },
     "input_type": {
       "const": "CANONICAL_BUNDLE"
@@ -88,7 +88,11 @@
             "between_system_numeric_group_count",
             "between_system_numeric_eligible_study_count",
             "between_system_categorical_pair_count",
-            "between_system_categorical_eligible_study_count"
+            "between_system_categorical_eligible_study_count",
+            "opportunity_count_before_mirror_deduplication",
+            "mirror_duplicate_opportunity_count",
+            "mirror_duplicate_group_count",
+            "self_association_exclusion_count"
           ],
           "properties": {
             "maximum_levels_per_condition": {
@@ -128,6 +132,22 @@
               "minimum": 0
             },
             "between_system_categorical_eligible_study_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "opportunity_count_before_mirror_deduplication": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "mirror_duplicate_opportunity_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "mirror_duplicate_group_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "self_association_exclusion_count": {
               "type": "integer",
               "minimum": 0
             }
@@ -180,6 +200,18 @@
       "items": {
         "type": "string"
       }
+    },
+    "mirror_duplicate_opportunity_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mirror_duplicate_group_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "excluded_self_association_count": {
+      "type": "integer",
+      "minimum": 0
     }
   },
   "additionalProperties": false
