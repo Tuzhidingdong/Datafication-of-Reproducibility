@@ -297,9 +297,10 @@ def _exact_mirror_proof(left: dict[str, Any], right: dict[str, Any]) -> dict[str
         return None
     left_studies = {item["study_id"]: item for item in left.get("study_effects", [])}
     right_studies = {item["study_id"]: item for item in right.get("study_effects", [])}
-    if not left_studies or set(left_studies) != set(right_studies):
+    if (not left_studies or set(left_studies) != set(right_studies)
+            or left.get("p_value") is None or right.get("p_value") is None):
         return None
-    matched_systems, matched_experiments = 0, set()
+    matched_systems, matched_experiments, matched_observations = 0, set(), set()
     for study_id in sorted(left_studies):
         a_points = {item["system_id"]: item for item in left_studies[study_id].get("system_points", [])}
         b_points = {item["system_id"]: item for item in right_studies[study_id].get("system_points", [])}
@@ -311,10 +312,12 @@ def _exact_mirror_proof(left: dict[str, Any], right: dict[str, Any]) -> dict[str
                 math.isclose(float(a["condition_value"]), float(b["outcome_median"]), rel_tol=0.0, abs_tol=0.0)
                 and math.isclose(float(a["outcome_median"]), float(b["condition_value"]), rel_tol=0.0, abs_tol=0.0)
                 and set(a.get("supporting_experiment_ids", [])) == set(b.get("supporting_experiment_ids", []))
+                and set(a.get("supporting_observation_ids", [])) == set(b.get("supporting_observation_ids", []))
             ):
                 return None
             matched_systems += 1
             matched_experiments.update(a.get("supporting_experiment_ids", []))
+            matched_observations.update(a.get("supporting_observation_ids", []))
     return {
         "exact_reciprocal_values": True,
         "identical_study_support": True,
@@ -324,6 +327,7 @@ def _exact_mirror_proof(left: dict[str, Any], right: dict[str, Any]) -> dict[str
         "supporting_study_ids": sorted(left_studies),
         "matched_system_count": matched_systems,
         "matched_experiment_count": len(matched_experiments),
+        "matched_observation_count": len(matched_observations),
     }
 
 
@@ -474,8 +478,16 @@ def _screen_recorded_condition_covariates(
             "study_details": rows,
             "interpretation": "Potential co-exposure/non-identifiability; this is a review flag, not proof of confounding.",
         })
+    if serialized:
+        overall_status = "POTENTIAL_CO_EXPOSURE_REQUIRES_DOMAIN_REVIEW"
+    elif not coverage_rows:
+        overall_status = "NO_OTHER_RECORDED_CONDITION_COVARIATE_AVAILABLE"
+    elif not any(row["rank_screen_eligible_study_ids"] for row in coverage_rows):
+        overall_status = "NO_EVALUABLE_RECORDED_COVARIATE_COVERAGE"
+    else:
+        overall_status = "NO_PERFECT_MONOTONIC_RECORDED_COVARIATE_DETECTED"
     return {
-        "status": "POTENTIAL_CO_EXPOSURE_REQUIRES_DOMAIN_REVIEW" if serialized else "NO_PERFECT_MONOTONIC_RECORDED_COVARIATE_DETECTED",
+        "status": overall_status,
         "screen_method": "EXACT_WITHIN_STUDY_SPEARMAN_ABS_RHO_EQ_1_ON_COMPLETE_SYSTEM_COHORT",
         "recorded_condition_covariate_types_examined": len(examined),
         "covariate_coverage": coverage_rows,
@@ -666,6 +678,11 @@ def build_scientific_opportunities(
             "outcome_unit": outcome_unit,
             "condition_type": condition_type,
             "condition_unit": condition_unit,
+            "semantic_review": _semantic_review(
+                target_id, condition_type,
+                target_semantic_index.get(target_id),
+                condition_semantic_index.get(condition_type),
+            ),
             "independent_study_count": len(study_ids),
             "system_count": len(system_ids),
             "experiment_count": len(experiment_ids),
