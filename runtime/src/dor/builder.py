@@ -619,15 +619,14 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                         raw_value, value_locator_type, value_locator = _resolve_item(
                             value_item, definition, grouped_unit
                         )
-                        if _is_blank(raw_value):
-                            continue
                         candidate = {
                             "candidate_id": "CAND_" + hashlib.sha256(
                                 _stable([entity_id, binding["binding_id"], grouped_unit["unit_key"]]).encode("utf-8")
                             ).hexdigest()[:20].upper(),
                             "candidate_source": binding["candidate_source"],
-                            "raw_value": raw_value,
                         }
+                        if not _is_blank(raw_value):
+                            candidate["raw_value"] = raw_value
                         candidate_locators = [{
                             "source_file": filename,
                             "source_sha256": digest,
@@ -675,6 +674,8 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                             })
                         if metadata_values:
                             candidate["source_metadata"] = metadata_values
+                        if not any(key in candidate for key in ("raw_value", "quoted_text", "source_metadata")):
+                            continue
                         unique_locators = {
                             _stable(locator): locator for locator in candidate_locators
                         }
