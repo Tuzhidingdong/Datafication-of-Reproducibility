@@ -238,6 +238,15 @@ class CandidatePairwiseReconciliationTests(unittest.TestCase):
         self.assertEqual(result["profile"]["pairwise_comparison_count"], 0)
         self.assertEqual(result["pairwise_rows"], [])
 
+    def test_v1_0_remains_valid_and_cannot_carry_v1_1_unit_definitions(self):
+        legacy = {"schema_version": "1.0", "registry_id": "registry:v1", "records": []}
+        self.assertTrue(validate_semantic_registry_data(legacy)["valid"])
+        self.assertEqual(approved_unit_symbol_lookup(legacy), {})
+        invalid = {**legacy, "unit_definitions": []}
+        report = validate_semantic_registry_data(invalid)
+        self.assertFalse(report["valid"])
+        self.assertTrue(any("requires semantic registry schema_version '1.1'" in item for item in report["errors"]))
+
     def test_v1_1_unit_definitions_require_exact_valid_canonical_symbol(self):
         registry = _approved_registry([
             _unit_definition(
