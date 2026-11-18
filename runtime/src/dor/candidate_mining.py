@@ -164,7 +164,9 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                     aggregate["candidate_quote_count"] += 1
                 source_metadata = candidate.get("source_metadata", {})
                 if isinstance(source_metadata, dict) and source_metadata:
-                    aggregate["candidate_metadata_count"] += 1
+                    aggregate["candidate_metadata_fields_count"] += 1
+                    if any(value not in (None, "") for value in source_metadata.values()):
+                        aggregate["candidate_metadata_count"] += 1
                 inventory.append({
                     "entity_type": entity_type,
                     "record_id": record_id,
@@ -273,7 +275,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
             )
         ),
         "candidate_metadata_key_counts": dict(sorted({
-            key: sum(1 for row in inventory if key in json.loads(row["source_metadata_json"]))
+            key: sum(1 for row in inventory if json.loads(row["source_metadata_json"]).get(key) not in (None, ""))
             for key in {
                 metadata_key
                 for row in inventory
