@@ -485,7 +485,7 @@ def run_canonical_discovery_scan(
         json.dumps(scientific_profile, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
 
     report = {
-        "schema_version": "1.3",
+        "schema_version": "1.4",
         "input_type": "CANONICAL_BUNDLE",
         "input_bundle_sha256": input_hash,
         "profile": result["profile"],
