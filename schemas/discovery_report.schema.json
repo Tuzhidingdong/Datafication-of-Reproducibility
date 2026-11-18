@@ -93,7 +93,9 @@
             "mirror_duplicate_opportunity_count",
             "mirror_duplicate_group_count",
             "self_association_exclusion_count",
-            "numeric_trend_fdr_test_count"
+            "numeric_trend_fdr_test_count",
+            "related_opportunity_group_count",
+            "semantic_registry"
           ],
           "properties": {
             "maximum_levels_per_condition": {
@@ -155,6 +157,65 @@
             "numeric_trend_fdr_test_count": {
               "type": "integer",
               "minimum": 0
+            },
+            "related_opportunity_group_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "semantic_registry": {
+              "type": "object",
+              "required": [
+                "status",
+                "registry_id",
+                "record_count",
+                "approved_record_count",
+                "applied_record_count",
+                "target_record_count",
+                "condition_record_count",
+                "bundle_modified",
+                "source_locators_dereferenced"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "NOT_SUPPLIED",
+                    "VALIDATED_AND_APPLIED_IN_MEMORY"
+                  ]
+                },
+                "registry_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "record_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "approved_record_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "applied_record_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "target_record_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "condition_record_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "bundle_modified": {
+                  "const": false
+                },
+                "source_locators_dereferenced": {
+                  "const": false
+                }
+              },
+              "additionalProperties": false
             }
           }
         },
@@ -217,7 +278,12 @@
     "excluded_self_association_count": {
       "type": "integer",
       "minimum": 0
+    },
+    "related_opportunity_group_count": {
+      "type": "integer",
+      "minimum": 0
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "schema_version": "1.3"
 }
