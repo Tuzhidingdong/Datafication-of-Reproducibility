@@ -190,6 +190,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum ranked DOR-generated research opportunities to write")
     discovery.add_argument("--maximum-levels-per-condition", type=int, default=20,
         help="Maximum condition levels screened pairwise per target/endpoint/condition; full level coverage is retained")
+    discovery.add_argument("--minimum-deep-experiments-per-system", type=int, default=8,
+        help="Minimum pairwise-available repeated Experiments per Study/System for within-System nonlinear/two-way screens")
+    discovery.add_argument("--minimum-deep-triplet-experiments-per-system", type=int, default=12,
+        help="Minimum pairwise-available Experiments per Study/System for within-System three-way screens")
+    discovery.add_argument("--minimum-deep-between-systems-per-study", type=int, default=8,
+        help="Minimum eligible Systems per Study for between-System nonlinear/two-way screens; three-way screens require at least 12")
+    discovery.add_argument("--maximum-deep-condition-pairs", type=int, default=100,
+        help="Maximum best-supported two-condition hypotheses screened per outcome")
+    discovery.add_argument("--maximum-deep-condition-triplets", type=int, default=40,
+        help="Maximum best-supported three-condition hypotheses screened per outcome")
+    discovery.add_argument("--maximum-deep-multiobjective-pairs", type=int, default=100,
+        help="Maximum best-supported co-recorded outcome pairs screened for multi-objective structure")
+    discovery.add_argument("--minimum-deep-model-improvement", type=float, default=0.10,
+        help="Minimum relative leave-one-out RMSE improvement for a positive-gain label; lower-gain candidates remain for counterevidence")
     discovery.add_argument("--seed", type=int, default=42,
         help="Deterministic seed for Study-level bootstrap intervals")
     discovery.add_argument("--semantic-registry", type=Path,
@@ -751,6 +765,13 @@ def main() -> int:
                 args.minimum_paired_studies, args.fdr_alpha, args.bootstrap_iterations,
                 args.maximum_opportunities, args.maximum_levels_per_condition, args.seed,
                 args.semantic_registry,
+                args.minimum_deep_experiments_per_system,
+                args.minimum_deep_triplet_experiments_per_system,
+                args.minimum_deep_between_systems_per_study,
+                args.maximum_deep_condition_pairs,
+                args.maximum_deep_condition_triplets,
+                args.maximum_deep_multiobjective_pairs,
+                args.minimum_deep_model_improvement,
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0

@@ -340,6 +340,34 @@
         {
           "artifact_id": "candidate_reconciliation_profile",
           "path": "04_discovery/candidate_reconciliation_profile.json"
+        },
+        {
+          "artifact_id": "deep_research_opportunities",
+          "path": "04_discovery/deep_research_opportunities.json"
+        },
+        {
+          "artifact_id": "deep_scientific_discovery_profile",
+          "path": "04_discovery/deep_scientific_discovery_profile.json"
+        },
+        {
+          "artifact_id": "deep_condition_response",
+          "path": "04_discovery/deep_condition_response.csv"
+        },
+        {
+          "artifact_id": "deep_interaction_candidates",
+          "path": "04_discovery/deep_interaction_candidates.csv"
+        },
+        {
+          "artifact_id": "multiobjective_tradeoff_candidates",
+          "path": "04_discovery/multiobjective_tradeoff_candidates.csv"
+        },
+        {
+          "artifact_id": "multiobjective_frontiers",
+          "path": "04_discovery/multiobjective_frontiers.csv"
+        },
+        {
+          "artifact_id": "deep_evidence_ledger",
+          "path": "04_discovery/deep_evidence_ledger.jsonl"
         }
       ]
     },
@@ -367,7 +395,8 @@
         "scientific_analysis_profile",
         "missingness_opportunity_profile",
         "candidate_sensitivity_profile",
-        "candidate_reconciliation_profile"
+        "candidate_reconciliation_profile",
+        "deep_research_opportunities"
       ],
       "outputs": [
         {

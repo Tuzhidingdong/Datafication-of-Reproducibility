@@ -10,7 +10,7 @@ import copy
 import json
 import math
 from collections import defaultdict
-from typing import Any
+from typing import Any, Callable
 
 from dor.scientific_opportunities import build_scientific_opportunities
 
@@ -308,8 +308,14 @@ def build_candidate_source_sensitivities(
     maximum_levels_per_condition: int = 20,
     seed: int = 42,
     semantic_registry: dict[str, Any] | None = None,
+    additional_scenario_analysis: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Run one isolated sensitivity scenario per candidate source, never per candidate row."""
+    """Run one isolated sensitivity scenario per candidate source, never per candidate row.
+
+    The optional callback lets another deterministic Runtime screen analyse the exact
+    source-specific scenario copy without exposing or returning the copied bundle.
+    Its result remains nested inside that source's sensitivity record.
+    """
     inventory = inventory_candidate_values(bundle)
     candidate_sources = inventory["profile"]["candidate_sources"]
     scenarios = []
@@ -392,6 +398,13 @@ def build_candidate_source_sensitivities(
             "fdr_screen_positive_count": analysis["profile"]["fdr_screen_positive_count"],
             "analysis_profile": analysis["profile"],
             "opportunities": analysis["opportunities"],
+            "additional_scenario_analysis": (
+                {
+                    "scenario_status": "CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY",
+                    "result": additional_scenario_analysis(scenario_bundle),
+                }
+                if additional_scenario_analysis is not None else None
+            ),
             "limitations": [
                 "This scenario substitutes only the selected candidate source's values into a copy of the bundle.",
                 "Candidate alternatives are not additional observations, replicates, Systems, or independent Studies.",

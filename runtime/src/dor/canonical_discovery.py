@@ -14,6 +14,7 @@ from dor.canonical import validate_canonical_bundle
 from dor.candidate_mining import inventory_candidate_values, build_candidate_source_sensitivities
 from dor.candidate_reconciliation import build_candidate_pairwise_reconciliation
 from dor.scientific_opportunities import build_scientific_opportunities
+from dor.deep_scientific_discovery import build_deep_scientific_discovery
 from dor.semantic_registry import load_semantic_registry
 
 
@@ -82,6 +83,13 @@ def summarize_canonical_bundle(
     maximum_levels_per_condition: int = 20,
     seed: int = 42,
     semantic_registry: dict[str, Any] | None = None,
+    minimum_deep_experiments_per_system: int = 8,
+    minimum_deep_triplet_experiments_per_system: int = 12,
+    minimum_deep_between_systems_per_study: int = 8,
+    maximum_deep_condition_pairs: int = 100,
+    maximum_deep_condition_triplets: int = 40,
+    maximum_deep_multiobjective_pairs: int = 100,
+    minimum_deep_model_improvement: float = 0.10,
 ) -> dict[str, Any]:
     """Summarize canonical entities without interpreting target or condition semantics."""
     if minimum_studies < 2 or maximum_pairs < 1:
@@ -257,6 +265,20 @@ def summarize_canonical_bundle(
         bundle,
         semantic_registry=semantic_registry,
     )
+    deep_options = {
+        "minimum_studies": minimum_paired_studies,
+        "minimum_experiments_per_system": minimum_deep_experiments_per_system,
+        "minimum_triplet_experiments_per_system": minimum_deep_triplet_experiments_per_system,
+        "minimum_between_systems_per_study": minimum_deep_between_systems_per_study,
+        "maximum_condition_pairs": maximum_deep_condition_pairs,
+        "maximum_condition_triplets": maximum_deep_condition_triplets,
+        "maximum_multiobjective_pairs": maximum_deep_multiobjective_pairs,
+        "minimum_model_improvement": minimum_deep_model_improvement,
+        "fdr_alpha": fdr_alpha,
+        "bootstrap_iterations": bootstrap_iterations,
+        "seed": seed,
+    }
+    deep_scientific = build_deep_scientific_discovery(bundle, **deep_options)
     candidate_sensitivity = build_candidate_source_sensitivities(
         bundle,
         minimum_paired_studies=minimum_paired_studies,
@@ -266,6 +288,9 @@ def summarize_canonical_bundle(
         maximum_levels_per_condition=maximum_levels_per_condition,
         seed=seed,
         semantic_registry=semantic_registry,
+        additional_scenario_analysis=lambda scenario_bundle: build_deep_scientific_discovery(
+            scenario_bundle, **deep_options
+        ),
     )
 
     studies_with_observations = {
@@ -290,6 +315,11 @@ def summarize_canonical_bundle(
         "candidate_value_count": candidate_inventory["profile"]["candidate_value_count"],
         "candidate_source_count": candidate_inventory["profile"]["candidate_source_count"],
         "candidate_sensitivity_scenario_count": candidate_sensitivity["scenario_count"],
+        "deep_discovery_opportunity_count": len(deep_scientific["opportunities"]),
+        "deep_discovery_fdr_screen_positive_count": deep_scientific["profile"]["fdr_screen_positive_count"],
+        "deep_discovery_two_way_hypotheses": deep_scientific["profile"]["two_way_hypotheses_screened"],
+        "deep_discovery_three_way_hypotheses": deep_scientific["profile"]["three_way_hypotheses_screened"],
+        "deep_discovery_multiobjective_pairs": deep_scientific["profile"]["multiobjective_pairs_screened"],
         "minimum_studies_for_cross_study_signal": minimum_studies,
     }
     return {
@@ -300,6 +330,7 @@ def summarize_canonical_bundle(
         "joint_rows": joint_rows,
         "signals": signals,
         "scientific": scientific,
+        "deep_scientific": deep_scientific,
         "candidate_mining": {
             "inventory_profile": candidate_inventory["profile"],
             "inventory_rows": candidate_inventory["inventory_rows"],
@@ -331,6 +362,13 @@ def run_canonical_discovery_scan(
     maximum_levels_per_condition: int = 20,
     seed: int = 42,
     semantic_registry_path: Path | None = None,
+    minimum_deep_experiments_per_system: int = 8,
+    minimum_deep_triplet_experiments_per_system: int = 12,
+    minimum_deep_between_systems_per_study: int = 8,
+    maximum_deep_condition_pairs: int = 100,
+    maximum_deep_condition_triplets: int = 40,
+    maximum_deep_multiobjective_pairs: int = 100,
+    minimum_deep_model_improvement: float = 0.10,
 ) -> dict[str, Any]:
     """Create a read-only exploratory report from a canonical bundle."""
     bundle_path = bundle_path.expanduser().resolve()
@@ -356,6 +394,13 @@ def run_canonical_discovery_scan(
         bundle, minimum_studies, maximum_pairs, minimum_paired_studies,
         fdr_alpha, bootstrap_iterations, maximum_opportunities,
         maximum_levels_per_condition, seed, semantic_registry,
+        minimum_deep_experiments_per_system,
+        minimum_deep_triplet_experiments_per_system,
+        minimum_deep_between_systems_per_study,
+        maximum_deep_condition_pairs,
+        maximum_deep_condition_triplets,
+        maximum_deep_multiobjective_pairs,
+        minimum_deep_model_improvement,
     )
     if _sha256(bundle_path) != input_hash:
         raise RuntimeError("Canonical bundle changed during discovery scan.")
@@ -435,18 +480,165 @@ def run_canonical_discovery_scan(
         "candidate_inventory": candidate_mining["inventory_profile"],
         "scenario_count": candidate_sensitivity["scenario_count"],
         "scenarios": [
-            {key: scenario[key] for key in (
-                "candidate_source", "scenario_status", "scenario_data_composition",
-                "overlay_counts", "primary_value_fallback_record_counts",
-                "conflicting_candidate_records_skipped", "unusable_candidate_records_skipped",
-                "candidate_opportunity_count",
-                "fdr_screen_positive_count", "analysis_profile"
-            )}
+            {
+                **{key: scenario[key] for key in (
+                    "candidate_source", "scenario_status", "scenario_data_composition",
+                    "overlay_counts", "primary_value_fallback_record_counts",
+                    "conflicting_candidate_records_skipped", "unusable_candidate_records_skipped",
+                    "candidate_opportunity_count",
+                    "fdr_screen_positive_count", "analysis_profile"
+                )},
+                "deep_sensitivity_status": (
+                    scenario.get("additional_scenario_analysis", {}).get("scenario_status")
+                    if scenario.get("additional_scenario_analysis") else None
+                ),
+                "deep_sensitivity_profile": (
+                    scenario.get("additional_scenario_analysis", {}).get("result", {}).get("profile")
+                    if scenario.get("additional_scenario_analysis") else None
+                ),
+                "deep_sensitivity_opportunity_count": (
+                    len(scenario.get("additional_scenario_analysis", {}).get("result", {}).get("opportunities", []))
+                    if scenario.get("additional_scenario_analysis") else 0
+                ),
+            }
             for scenario in candidate_sensitivity["scenarios"]
         ],
     }
     (output_dir / "candidate_sensitivity_profile.json").write_text(
         json.dumps(candidate_profile, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    deep = result["deep_scientific"]
+    deep_payload = {
+        "schema_version": deep["schema_version"],
+        "engine_version": deep["engine_version"],
+        "input_bundle_sha256": input_hash,
+        "profile": deep["profile"],
+        "nonlinear_opportunities": deep["nonlinear_opportunities"],
+        "interaction_opportunities": deep["interaction_opportunities"],
+        "multiobjective_opportunities": deep["multiobjective_opportunities"],
+        "opportunities": deep["opportunities"],
+        "limitations": deep["limitations"],
+        "candidate_sensitivity_boundary": "Candidate-source deep results are nested separately in candidate_sensitivity_opportunities.json.",
+    }
+    (output_dir / "deep_research_opportunities.json").write_text(
+        json.dumps(deep_payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (output_dir / "deep_scientific_discovery_profile.json").write_text(
+        json.dumps({"profile": deep["profile"], "limitations": deep["limitations"]},
+                   indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    _write_csv(output_dir / "deep_condition_response.csv",
+        ["opportunity_id", "signal_type", "analysis_family", "outcome_json", "condition_json",
+         "analysis_design", "confounding_review", "response_shape",
+         "threshold_value_median_across_eligible_studies",
+         "threshold_values_are_descriptive_not_universal_cutoffs", "model_comparison",
+         "minimum_model_improvement_threshold", "model_improvement_threshold_met",
+         "effect_estimate", "confidence_interval_95_json", "p_value", "q_value",
+         "independent_study_count", "eligible_system_count", "screen_status",
+         "counterexample_study_ids_json", "study_effects_json"],
+        [{
+            "opportunity_id": row["opportunity_id"],
+            "signal_type": row["signal_type"],
+            "analysis_family": row["analysis_family"],
+            "outcome_json": json.dumps(row.get("outcome"), ensure_ascii=False, sort_keys=True),
+            "condition_json": json.dumps(row.get("condition"), ensure_ascii=False, sort_keys=True),
+            "analysis_design": row.get("analysis_design"),
+            "confounding_review": row.get("confounding_review"),
+            "response_shape": row.get("response_shape"),
+            "threshold_value_median_across_eligible_studies": row.get("threshold_value_median_across_eligible_studies"),
+            "threshold_values_are_descriptive_not_universal_cutoffs": row.get("threshold_values_are_descriptive_not_universal_cutoffs"),
+            "model_comparison": row.get("model_comparison"),
+            "minimum_model_improvement_threshold": row.get("minimum_model_improvement_threshold"),
+            "model_improvement_threshold_met": row.get("model_improvement_threshold_met"),
+            "effect_estimate": row.get("effect_estimate"),
+            "confidence_interval_95_json": json.dumps(row.get("confidence_interval_95"), ensure_ascii=False),
+            "p_value": row.get("p_value"),
+            "q_value": row.get("q_value"),
+            "independent_study_count": row.get("independent_study_count"),
+            "eligible_system_count": row.get("eligible_system_count"),
+            "screen_status": row.get("screen_status"),
+            "counterexample_study_ids_json": json.dumps(row.get("counterexample_study_ids", []), ensure_ascii=False),
+            "study_effects_json": json.dumps(row.get("study_effects", []), ensure_ascii=False, sort_keys=True),
+        } for row in deep["nonlinear_opportunities"]])
+    _write_csv(output_dir / "deep_interaction_candidates.csv",
+        ["opportunity_id", "signal_type", "analysis_family", "outcome_json", "condition_features_json",
+         "interaction_order", "analysis_design", "confounding_review", "model_comparison",
+         "minimum_model_improvement_threshold",
+         "model_improvement_threshold_met", "effect_estimate", "confidence_interval_95_json",
+         "p_value", "q_value", "independent_study_count", "eligible_system_count",
+         "screen_status", "counterexample_study_ids_json", "study_effects_json"],
+        [{
+            "opportunity_id": row["opportunity_id"],
+            "signal_type": row["signal_type"],
+            "analysis_family": row["analysis_family"],
+            "outcome_json": json.dumps(row.get("outcome"), ensure_ascii=False, sort_keys=True),
+            "condition_features_json": json.dumps(row.get("condition_features"), ensure_ascii=False, sort_keys=True),
+            "interaction_order": row.get("interaction_order"),
+            "analysis_design": row.get("analysis_design"),
+            "confounding_review": row.get("confounding_review"),
+            "model_comparison": row.get("model_comparison"),
+            "minimum_model_improvement_threshold": row.get("minimum_model_improvement_threshold"),
+            "model_improvement_threshold_met": row.get("model_improvement_threshold_met"),
+            "effect_estimate": row.get("effect_estimate"),
+            "confidence_interval_95_json": json.dumps(row.get("confidence_interval_95"), ensure_ascii=False),
+            "p_value": row.get("p_value"),
+            "q_value": row.get("q_value"),
+            "independent_study_count": row.get("independent_study_count"),
+            "eligible_system_count": row.get("eligible_system_count"),
+            "screen_status": row.get("screen_status"),
+            "counterexample_study_ids_json": json.dumps(row.get("counterexample_study_ids", []), ensure_ascii=False),
+            "study_effects_json": json.dumps(row.get("study_effects", []), ensure_ascii=False, sort_keys=True),
+        } for row in deep["interaction_opportunities"]])
+    _write_csv(output_dir / "multiobjective_tradeoff_candidates.csv",
+        ["opportunity_id", "signal_type", "analysis_family", "objective_a_json", "objective_b_json",
+         "analysis_design", "confounding_review", "covariation_class", "effect_estimate",
+         "effect_direction", "counterexample_direction", "counterexample_study_ids_json",
+         "confidence_interval_95_json", "p_value", "q_value",
+         "independent_study_count", "screen_status", "study_effects_json"],
+        [{
+            "opportunity_id": row["opportunity_id"],
+            "signal_type": row["signal_type"],
+            "analysis_family": row["analysis_family"],
+            "objective_a_json": json.dumps(row.get("objective_a"), ensure_ascii=False, sort_keys=True),
+            "objective_b_json": json.dumps(row.get("objective_b"), ensure_ascii=False, sort_keys=True),
+            "analysis_design": row.get("analysis_design"),
+            "confounding_review": row.get("confounding_review"),
+            "covariation_class": row.get("covariation_class"),
+            "effect_estimate": row.get("effect_estimate"),
+            "effect_direction": row.get("effect_direction"),
+            "counterexample_direction": row.get("counterexample_direction"),
+            "counterexample_study_ids_json": json.dumps(row.get("counterexample_study_ids", []), ensure_ascii=False),
+            "confidence_interval_95_json": json.dumps(row.get("confidence_interval_95"), ensure_ascii=False),
+            "p_value": row.get("p_value"),
+            "q_value": row.get("q_value"),
+            "independent_study_count": row.get("independent_study_count"),
+            "screen_status": row.get("screen_status"),
+            "study_effects_json": json.dumps(row.get("study_effects", []), ensure_ascii=False, sort_keys=True),
+        } for row in deep["multiobjective_opportunities"]])
+    _write_csv(output_dir / "multiobjective_frontiers.csv",
+        ["population_type", "outcome_a_json", "outcome_b_json", "study_id", "system_id",
+         "direction_scenario", "objective_direction_declared_by_user", "experiment_id",
+         "supporting_experiment_ids_json", "value_a", "value_b", "is_non_dominated",
+         "frontier_point_count", "point_count_in_population"],
+        [{**{key: value for key, value in row.items()
+              if key not in {"outcome_a", "outcome_b", "supporting_experiment_ids"}},
+          "outcome_a_json": json.dumps(row.get("outcome_a"), ensure_ascii=False, sort_keys=True),
+          "outcome_b_json": json.dumps(row.get("outcome_b"), ensure_ascii=False, sort_keys=True),
+          "supporting_experiment_ids_json": json.dumps(row.get("supporting_experiment_ids", []), ensure_ascii=False)}
+         for row in deep["pareto_frontier_rows"]])
+
+    (output_dir / "deep_evidence_ledger.jsonl").write_text(
+        "".join(json.dumps({
+            "opportunity_id": opportunity["opportunity_id"],
+            "analysis_family": opportunity["analysis_family"],
+            "study_effect": study_effect,
+        }, ensure_ascii=False, sort_keys=True) + "\n"
+                for opportunity in deep["opportunities"]
+                for study_effect in opportunity.get("study_effects", [])),
+        encoding="utf-8",
+    )
+
     _write_csv(output_dir / "signal_catalogue.csv",
         ["signal_id", "signal_type", "target_id", "target_a", "target_b", "unit",
          "condition_type", "supporting_observation_count", "supporting_study_count",
@@ -513,14 +705,42 @@ def run_canonical_discovery_scan(
     (output_dir / "scientific_analysis_profile.json").write_text(
         json.dumps(scientific_profile, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
 
+    deep_scope_signals = []
+    for opportunity in deep["opportunities"]:
+        descriptor = {
+            "signal_id": opportunity["opportunity_id"],
+            "opportunity_id": opportunity["opportunity_id"],
+            "signal_source": "DEEP_DISCOVERY",
+            "signal_type": opportunity["signal_type"],
+        }
+        if opportunity.get("outcome"):
+            descriptor["target_id"] = opportunity["outcome"].get("target_id")
+        else:
+            descriptor["target_ids"] = sorted({
+                opportunity.get("objective_a", {}).get("target_id"),
+                opportunity.get("objective_b", {}).get("target_id"),
+            } - {None})
+        deep_scope_signals.append(descriptor)
+
     report = {
-        "schema_version": "1.4",
+        "schema_version": "1.5",
         "input_type": "CANONICAL_BUNDLE",
         "input_bundle_sha256": input_hash,
         "profile": result["profile"],
         "signal_count": len(result["signals"]),
         "signals": result["signals"],
         "scientific_analysis": scientific_profile,
+        "deep_discovery_signals": deep_scope_signals,
+        "deep_research_opportunities_sha256": _sha256(output_dir / "deep_research_opportunities.json"),
+        "deep_scientific_discovery": {
+            "profile": deep["profile"],
+            "opportunities_file": "deep_research_opportunities.json",
+            "nonlinear_file": "deep_condition_response.csv",
+            "interaction_file": "deep_interaction_candidates.csv",
+            "multiobjective_file": "multiobjective_tradeoff_candidates.csv",
+            "pareto_frontier_file": "multiobjective_frontiers.csv",
+            "evidence_ledger_file": "deep_evidence_ledger.jsonl",
+        },
         "research_opportunities_file": "research_opportunities.json",
         "research_opportunity_count": len(scientific["opportunities"]),
         "candidate_value_inventory_file": "candidate_value_inventory.csv",
@@ -618,6 +838,32 @@ def run_canonical_discovery_scan(
             f"- {opportunity['opportunity_id']}: semantic={opportunity['semantic_review']['status']}; "
             f"confounding={opportunity['confounding_review']['status']}"
         )
+    brief_lines.extend(["", "## Deep scientific screens", ""])
+    brief_lines.append(
+        f"- Nonlinear response candidates: {len(deep['nonlinear_opportunities'])}"
+    )
+    brief_lines.append(
+        f"- Two-way / three-way interaction candidates: "
+        f"{sum(item.get('interaction_order') == 2 for item in deep['interaction_opportunities'])} / "
+        f"{sum(item.get('interaction_order') == 3 for item in deep['interaction_opportunities'])}"
+    )
+    brief_lines.append(
+        f"- Multi-objective co-variation candidates: {len(deep['multiobjective_opportunities'])}"
+    )
+    brief_lines.append(
+        f"- Within-System / between-System candidates: "
+        f"{deep['profile']['within_system_opportunity_count']} / "
+        f"{deep['profile']['between_system_cross_sectional_opportunity_count']}"
+    )
+    brief_lines.append(
+        f"- FDR-screen-positive deep candidates: {deep['profile']['fdr_screen_positive_count']}"
+    )
+    brief_lines.append(
+        "- Pareto frontiers are reported for all four objective-direction scenarios; DoR does not infer which direction is desirable."
+    )
+    brief_lines.append(
+        "- Every deep screen uses feature-specific available subsets and Study-level cross-study inference."
+    )
     brief_lines.extend(["", "## Candidate signals", ""])
     for signal in result["signals"][:40]:
         brief_lines.append("- " + json.dumps(signal, ensure_ascii=False, sort_keys=True))
@@ -638,6 +884,7 @@ def run_canonical_discovery_scan(
         "source_files_modified": False,
         "raw_observations_in_agent_brief": False,
         "scientific_discovery_engine": scientific["profile"],
+        "deep_scientific_discovery_engine": deep["profile"],
         "semantic_registry_path": str(registry_path) if registry_path is not None else None,
         "semantic_registry_sha256": registry_hash,
         "semantic_registry": scientific["profile"]["semantic_registry"],
@@ -665,6 +912,11 @@ def run_canonical_discovery_scan(
         "related_opportunity_group_count": scientific["profile"]["related_opportunity_group_count"],
         "semantic_registry": scientific["profile"]["semantic_registry"],
         "fdr_screen_positive_count": scientific["profile"]["fdr_screen_positive_count"],
+        "deep_opportunity_count": len(deep["opportunities"]),
+        "deep_fdr_screen_positive_count": deep["profile"]["fdr_screen_positive_count"],
+        "deep_nonlinear_opportunity_count": len(deep["nonlinear_opportunities"]),
+        "deep_interaction_opportunity_count": len(deep["interaction_opportunities"]),
+        "deep_multiobjective_opportunity_count": len(deep["multiobjective_opportunities"]),
         "manifest_path": str(output_dir / "discovery_manifest.json"),
         "report_path": str(output_dir / "discovery_report.json"),
         "brief_path": str(brief_path),

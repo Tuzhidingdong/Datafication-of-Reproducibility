@@ -56,6 +56,26 @@ def validate_research_scope_record(
                 report_signal_ids.append(signal_id)
                 report_signals_by_id[signal_id] = signal
 
+        deep_signals = discovery_report.get("deep_discovery_signals", [])
+        if not isinstance(deep_signals, list):
+            issue("DEEP_DISCOVERY_SIGNALS_NOT_ARRAY", "deep_discovery_signals",
+                  "Deep Discovery signals must be an array when supplied.")
+            deep_signals = []
+        for index, signal in enumerate(deep_signals):
+            signal_id = signal.get("signal_id") if isinstance(signal, dict) else None
+            if not isinstance(signal_id, str) or not signal_id.strip():
+                issue("DEEP_DISCOVERY_SIGNAL_ID_INVALID",
+                      f"deep_discovery_signals[{index}].signal_id",
+                      "Every deep Discovery signal requires a non-empty signal_id.")
+            elif signal_id in seen_report:
+                issue("DISCOVERY_SIGNAL_ID_DUPLICATE",
+                      f"deep_discovery_signals[{index}].signal_id",
+                      "Deep Discovery signal ID duplicates another signal in the bound report.")
+            else:
+                seen_report.add(signal_id)
+                report_signal_ids.append(signal_id)
+                report_signals_by_id[signal_id] = signal
+
     def read_id_list(key: str) -> list[str]:
         value = record.get(key)
         if not isinstance(value, list):
@@ -99,11 +119,22 @@ def validate_research_scope_record(
             for selected_id in selected:
                 selected_signal = report_signals_by_id.get(selected_id, {})
                 signal_target = selected_signal.get("target_id")
-                if isinstance(signal_target, str) and signal_target.strip() and signal_target != task_target:
+                signal_targets = selected_signal.get("target_ids")
+                if isinstance(signal_target, str) and signal_target.strip():
+                    targets_match = signal_target == task_target
+                elif isinstance(signal_targets, list) and signal_targets:
+                    targets_match = task_target in signal_targets
+                else:
+                    targets_match = True
+                if not targets_match:
+                    declared_targets = (
+                        [signal_target] if isinstance(signal_target, str) and signal_target.strip()
+                        else signal_targets if isinstance(signal_targets, list) else []
+                    )
                     issue(
                         "SCOPE_SELECTED_SIGNAL_TARGET_MISMATCH",
                         "selected_signal_ids",
-                        f"Selected Discovery signal {selected_id} targets {signal_target}, but the modeling task targets {task_target}.",
+                        f"Selected Discovery signal {selected_id} targets {declared_targets}, but the modeling task targets {task_target}.",
                     )
 
     for field in ("scope_statement", "selection_rationale", "reviewed_by"):
@@ -134,7 +165,11 @@ def validate_research_scope_record(
         "selected_signal_ids": sorted(set(selected)) if not errors else [],
         "selected_opportunity_ids": sorted(
             signal_id for signal_id in selected
-            if str(report_signals_by_id.get(signal_id, {}).get("signal_type", "")).startswith("WITHIN_STUDY_") and "CONDITION" in str(report_signals_by_id.get(signal_id, {}).get("signal_type", ""))
+            if report_signals_by_id.get(signal_id, {}).get("signal_source") == "DEEP_DISCOVERY"
+            or (
+                str(report_signals_by_id.get(signal_id, {}).get("signal_type", "")).startswith("WITHIN_STUDY_")
+                and "CONDITION" in str(report_signals_by_id.get(signal_id, {}).get("signal_type", ""))
+            )
         ) if not errors else [],
         "selected_signal_count": len(selected),
         "not_selected_signal_count": len(excluded),

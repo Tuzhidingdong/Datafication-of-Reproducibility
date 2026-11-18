@@ -159,6 +159,10 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "candidate_pairwise_reconciliation", "candidate_reconciliation_profile",
             "missingness_opportunity_profile", "candidate_sensitivity_opportunities",
             "candidate_sensitivity_profile",
+            "deep_research_opportunities", "deep_scientific_discovery_profile",
+            "deep_condition_response", "deep_interaction_candidates",
+            "multiobjective_tradeoff_candidates", "multiobjective_frontiers",
+            "deep_evidence_ledger",
         }
         for path in (
             "templates/run_plan.example.json",
@@ -176,8 +180,12 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 scope_expected = expected - {
                     "candidate_value_inventory", "candidate_value_reconciliation",
                     "candidate_pairwise_reconciliation", "candidate_sensitivity_opportunities",
+                    "deep_scientific_discovery_profile", "deep_condition_response",
+                    "deep_interaction_candidates", "multiobjective_tradeoff_candidates",
+                    "multiobjective_frontiers", "deep_evidence_ledger",
                 }
                 self.assertTrue(scope_expected.issubset(set(scope["inputs"])))
+                self.assertIn("deep_research_opportunities", scope["inputs"])
                 self.assertFalse({
                     "candidate_value_inventory", "candidate_value_reconciliation",
                     "candidate_pairwise_reconciliation", "candidate_sensitivity_opportunities",
@@ -203,6 +211,10 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "candidate_pairwise_reconciliation", "candidate_reconciliation_profile",
             "missingness_opportunity_profile", "candidate_sensitivity_opportunities",
             "candidate_sensitivity_profile",
+            "deep_research_opportunities", "deep_scientific_discovery_profile",
+            "deep_condition_response", "deep_interaction_candidates",
+            "multiobjective_tradeoff_candidates", "multiobjective_frontiers",
+            "deep_evidence_ledger",
         }
         discovery = stages["exploratory_discovery"]
         scope = stages["research_scope_selection"]
@@ -215,10 +227,14 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
         scope_expected = expected - {
             "candidate_value_inventory", "candidate_value_reconciliation",
             "candidate_pairwise_reconciliation", "candidate_sensitivity_opportunities",
+            "deep_scientific_discovery_profile", "deep_condition_response",
+            "deep_interaction_candidates", "multiobjective_tradeoff_candidates",
+            "multiobjective_frontiers", "deep_evidence_ledger",
         }
         for variant in scope["route_variants"]:
             with self.subTest(scope_route=variant["route"]):
                 self.assertTrue(scope_expected.issubset(set(variant["inputs"])))
+                self.assertIn("deep_research_opportunities", variant["inputs"])
                 self.assertFalse({
                     "candidate_value_inventory", "candidate_value_reconciliation",
                     "candidate_pairwise_reconciliation", "candidate_sensitivity_opportunities",
