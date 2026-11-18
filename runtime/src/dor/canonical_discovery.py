@@ -372,7 +372,7 @@ def run_canonical_discovery_scan(
         ["entity_type", "record_id", "feature_id", "study_ids_json", "system_ids_json",
          "experiment_ids_json", "endpoint_definition", "timepoint", "primary_value_state",
          "candidate_id", "candidate_source", "candidate_value", "candidate_unit",
-         "candidate_numeric_value", "quoted_text", "source_locators_json"],
+         "candidate_numeric_value", "quoted_text", "source_metadata_json", "source_locators_json"],
         candidate_mining["inventory_rows"])
     _write_csv(output_dir / "candidate_value_reconciliation.csv",
         ["entity_type", "record_id", "feature_id", "primary_value_state", "candidate_count",
@@ -383,7 +383,8 @@ def run_canonical_discovery_scan(
     _write_csv(output_dir / "missingness_opportunity_profile.csv",
         ["entity_type", "feature_id", "value_state", "record_count", "study_count",
          "system_count", "experiment_count", "records_with_candidates", "candidate_count",
-         "records_with_locators", "candidate_quote_count", "records_with_value", "records_with_unit"],
+         "records_with_locators", "candidate_quote_count", "candidate_metadata_count",
+         "records_with_value", "records_with_unit"],
         candidate_mining["missingness_rows"])
     candidate_sensitivity = candidate_mining["sensitivity"]
     candidate_payload = {
@@ -406,8 +407,10 @@ def run_canonical_discovery_scan(
         "scenario_count": candidate_sensitivity["scenario_count"],
         "scenarios": [
             {key: scenario[key] for key in (
-                "candidate_source", "scenario_status", "overlay_counts",
-                "conflicting_candidate_records_skipped", "candidate_opportunity_count",
+                "candidate_source", "scenario_status", "scenario_data_composition",
+                "overlay_counts", "primary_value_fallback_record_counts",
+                "conflicting_candidate_records_skipped", "unusable_candidate_records_skipped",
+                "candidate_opportunity_count",
                 "fdr_screen_positive_count", "analysis_profile"
             )}
             for scenario in candidate_sensitivity["scenarios"]
