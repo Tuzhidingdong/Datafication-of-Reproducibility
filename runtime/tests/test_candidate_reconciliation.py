@@ -212,8 +212,8 @@ class CandidatePairwiseReconciliationTests(unittest.TestCase):
         row = build_candidate_pairwise_reconciliation(bundle, semantic_registry=registry)["pairwise_rows"][0]
         self.assertEqual(row["unit_comparison_status"], "APPROVED_INCOMPATIBLE_DIMENSIONS")
         self.assertEqual(row["overall_comparison_status"], "INCOMPATIBLE_UNIT_DIMENSIONS_REVIEW")
-        self.assertIsNone(row["canonical_value_a"])
-        self.assertIsNone(row["canonical_value_b"])
+        self.assertIsNone(row["comparable_value_a"])
+        self.assertIsNone(row["comparable_value_b"])
 
     def test_unapproved_unit_definitions_do_not_enable_conversion(self):
         registry = _approved_registry([
