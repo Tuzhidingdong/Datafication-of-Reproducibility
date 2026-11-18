@@ -1,0 +1,34 @@
+# External Semantic Registry
+
+## Purpose and boundary
+
+The Semantic Registry is an optional, independently versioned data asset for reviewed meanings attached to exact Canonical Target and Condition identifiers. It does not replace the Canonical Bundle, change its bytes, infer meanings from labels, or decide whether a scientific relationship is causal.
+
+Keep this file outside production Skills. Do not put concrete study data, project-specific IDs, experimental values, or paper examples into Skill instructions. A project-specific registry is the correct place to store reviewed project semantics; synthetic examples belong only in test fixtures.
+
+## Record contract
+
+Each record binds one exact identifier to one entity type:
+
+- `TARGET` matches `observations[].target_id`.
+- `CONDITION` matches `conditions[].condition_type`.
+
+Identifiers are matched exactly. Case, punctuation, and whitespace are not normalized. A registry entry that matches no Canonical record is an error. Duplicate entries for the same entity type and identifier are rejected.
+
+Semantic metadata may declare a concept identifier, display name, definition, measurement basis/context, derivation type and exact `derived_from` identifiers. Only consistently supplied metadata with `review_status=APPROVED` can support the existing conservative semantic self-association rules. Matching concepts without a shared, non-empty measurement context remain unresolved. A declared derivation is only considered where `derivation_type=CALCULATED` and the dependency is explicit.
+
+An APPROVED record must include reviewer, review timestamp, rationale, and at least one hash-bound source reference. A source reference contains a stable source ID, SHA-256, and opaque locator. The Runtime does not open, parse, or dereference the source. It verifies the shape and hash syntax only; the human reviewer remains responsible for the provenance decision.
+
+## Validate and use
+
+Validate the independent asset before use:
+
+    dor validate-semantic-registry --registry <semantic_registry.json>
+
+Use it for an explicitly requested exploratory scan:
+
+    dor discover-opportunities --bundle <canonical_bundle.json> --semantic-registry <semantic_registry.json> --out-dir <new_discovery_directory>
+
+The Runtime overlays the metadata onto an in-memory copy for the analysis, hashes the registry before and after the run, and records its ID, hash, counts, and application status in the Discovery manifest/report. It does not write metadata back to the Canonical Bundle. If an entry conflicts with inline Canonical metadata, matches no Canonical attribute, or fails validation, the scan stops rather than guessing.
+
+Without a registry, the existing behavior remains: missing, partial, conflicting, or unapproved semantics are reported as requiring domain review and are never interpreted as evidence that no semantic relationship exists.
