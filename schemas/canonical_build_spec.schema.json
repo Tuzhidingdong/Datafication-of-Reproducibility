@@ -215,12 +215,6 @@
             },
             "additionalProperties": false
           }
-        },
-        "candidate_value_mappings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/candidate_value_mapping"
-          }
         }
       },
       "allOf": [
@@ -299,44 +293,6 @@
           }
         }
       ],
-      "additionalProperties": false
-    },
-    "candidate_value_mapping": {
-      "type": "object",
-      "required": [
-        "candidate_source",
-        "raw_value_rule_id"
-      ],
-      "properties": {
-        "candidate_source": {
-          "type": "string",
-          "minLength": 1
-        },
-        "unit_rule_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "normalized_value_rule_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "normalized_unit_rule_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "quoted_text_rule_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "candidate_state_rule_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "raw_value_rule_id": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
       "additionalProperties": false
     }
   }
