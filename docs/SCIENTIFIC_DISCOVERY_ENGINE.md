@@ -30,6 +30,23 @@ The engine reports Study, System, Condition, Experiment, Observation, and target
 
 Target IDs, endpoint definitions, and condition labels remain canonical identifiers. The Runtime does not infer a physical meaning from an identifier or guess unit conversions. The optional `semantic_metadata` object on target Observations and Condition records can carry a reviewed concept ID, definition, measurement basis, measurement context (for example, distinct measurement stages or contexts), derivation type/inputs, review status, reviewer and review date. Metadata is used only when consistently present for all records of that canonical attribute and marked `APPROVED`. Same-concept metadata is excluded as a structural self-relation only when both sides also declare the same non-empty `measurement_context`; if the context is missing or different, the candidate is retained and explicitly marked for domain review. A declared dependency is excluded only when its metadata says `derivation_type=CALCULATED` and lists the other attribute in `derived_from`. Missing, partial, conflicting or unapproved metadata never triggers semantic exclusion. When no approved metadata is present, opportunities retain CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW.
 
+## Candidate-value evidence and sensitivity mining
+
+The Canonical Bundle may preserve multiple extraction alternatives on the same Condition or Observation through its optional `value_candidates` array. Each candidate is separately identified by candidate ID and candidate-source ID and may carry its own raw/normalized value and unit, a short supplied quotation, and opaque source locators.
+
+This is a parallel evidence path, not a replacement for the primary reported-value path:
+
+- The existing primary scientific screens continue to use only the parent record's `value_state=REPORTED` and its complete value/unit pair. Candidate alternatives do not silently enter the primary estimates, p-values, q-values, or FDR denominators.
+- `candidate_value_inventory.csv` keeps every supplied candidate attached to its original Observation or Condition, with Study/System/Experiment context, quoted excerpt, and source locators.
+- `candidate_value_reconciliation.csv` distinguishes exact value/unit agreement from value conflicts, unit conflicts, and records without a usable candidate. It never averages candidates or chooses a preferred extractor.
+- `missingness_opportunity_profile.csv` profiles record states, candidate coverage, value/unit availability, quotes, and locator coverage by canonical feature. Missingness is reported as data about the corpus, not silently treated as scientific absence.
+- `candidate_sensitivity_opportunities.json` runs one isolated alternative scenario per candidate source. Only one source's candidates are overlaid into a copy of the bundle at a time; same-source conflicts on one parent record are retained in the inventory and excluded from that scenario.
+- `candidate_sensitivity_profile.json` reports overlay coverage and scenario-specific support and screening results.
+
+Candidate-source scenarios are explicitly labelled `CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY`. Their p/q values are calculated within each scenario and are not pooled across candidate sources or combined with the primary FDR family. Candidate alternatives never become extra Observations, replicates, Systems, or independent Studies. A high degree of extraction agreement is not proof that a value is source-accurate, scientifically valid, or semantically comparable. Candidate values with missing units remain available for inventory and reconciliation but cannot enter numeric screens that require an explicit unit.
+
+This design lets DoR exploit existing incomplete and conflicting structured evidence without asking the user to first turn it into a complete machine-learning table. It does not permit the Runtime to open original papers/SI or dereference source locators.
+
 ## Study-aware statistical screens
 
 ### Shared aggregation rules
@@ -104,7 +121,12 @@ A screen-positive result is labelled FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW.
 - evidence_ledger.jsonl — one record per opportunity/Study with supporting System, Experiment, and Observation IDs.
 - scientific_analysis_profile.json — algorithm versions, thresholds, test-family descriptions, and limitations.
 - signal_catalogue.csv and discovery_report.json — aggregate signal catalogue and machine-readable summary.
-- agent_research_brief.md — bounded aggregate summary with DOR-generated candidates; it contains no raw Observation rows, full papers, or source-document text.
+- candidate_value_inventory.csv — source-specific candidate values, quotes, units, and opaque locators attached to their original Condition/Observation records.
+- candidate_value_reconciliation.csv — per-record agreement/conflict status without silent selection or averaging.
+- missingness_opportunity_profile.csv — feature/state-specific record and evidence-coverage profile.
+- candidate_sensitivity_opportunities.json — separately labelled source-specific sensitivity results; never merged into primary findings.
+- candidate_sensitivity_profile.json — bounded aggregate summary of candidate-source overlay coverage and sensitivity results.
+- agent_research_brief.md — bounded aggregate summary with DOR-generated candidates; it contains no raw Observation rows, candidate quotes, full papers, or source-document text.
 
 ## Research scope and downstream workflow
 
