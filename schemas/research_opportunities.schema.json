@@ -450,7 +450,10 @@
                   "type": "string"
                 },
                 "timepoint": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "number"
+                  ]
                 },
                 "outcome_unit": {
                   "type": "string"
