@@ -38,6 +38,8 @@ def _validate_source_refs(source_refs: Any, prefix: str, errors: list[str]) -> N
     if not isinstance(source_refs, list):
         errors.append(f"{prefix} must be an array.")
         return
+    if not source_refs:
+        errors.append(f"{prefix} must contain at least one source reference when supplied.")
     for source_index, source_ref in enumerate(source_refs):
         source_prefix = f"{prefix}[{source_index}]"
         if not isinstance(source_ref, dict):
