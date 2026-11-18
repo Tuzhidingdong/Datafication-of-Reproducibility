@@ -13,6 +13,15 @@ from pathlib import Path
 from typing import Any
 
 _SHA256 = re.compile(r"^[a-fA-F0-9]{64}$")
+class _PreciseJsonFloat(float):
+    """Keep the source decimal token while retaining normal JSON-number behavior."""
+
+    def __new__(cls, raw_text: str):
+        value = super().__new__(cls, raw_text)
+        value.raw_decimal_text = raw_text
+        return value
+
+
 _ENTITY_TYPES = {"TARGET", "TARGET_ENDPOINT", "CONDITION"}
 _REVIEW_STATES = {"APPROVED", "PENDING", "REJECTED", "UNREVIEWED"}
 _METADATA_FIELDS = {
@@ -58,8 +67,9 @@ def _validate_source_refs(source_refs: Any, prefix: str, errors: list[str]) -> N
 def _decimal_value(value: Any) -> Decimal | None:
     if isinstance(value, bool) or value is None:
         return None
+    raw_text = value.raw_decimal_text if isinstance(value, _PreciseJsonFloat) else str(value).strip()
     try:
-        number = Decimal(str(value).strip())
+        number = Decimal(raw_text)
     except (InvalidOperation, TypeError, ValueError):
         return None
     return number if number.is_finite() else None
@@ -265,8 +275,8 @@ def approved_unit_symbol_lookup(registry: dict[str, Any] | None) -> dict[str, di
                 "unit_id": definition["unit_id"],
                 "dimension_id": definition["dimension_id"],
                 "canonical_unit": definition["canonical_unit"],
-                "scale_to_canonical": str(symbol["scale_to_canonical"]),
-                "offset_to_canonical": str(symbol.get("offset_to_canonical", 0)),
+                "scale_to_canonical": str(_decimal_value(symbol["scale_to_canonical"])),
+                "offset_to_canonical": str(_decimal_value(symbol.get("offset_to_canonical", 0))),
             }
     return lookup
 
@@ -274,7 +284,7 @@ def approved_unit_symbol_lookup(registry: dict[str, Any] | None) -> dict[str, di
 def load_semantic_registry(path: Path) -> dict[str, Any]:
     """Load and validate a registry file without dereferencing its source locators."""
     path = path.expanduser().resolve()
-    payload = json.loads(path.read_text(encoding="utf-8-sig"), parse_float=Decimal)
+    payload = json.loads(path.read_text(encoding="utf-8-sig"), parse_float=_PreciseJsonFloat)
     report = validate_semantic_registry_data(payload)
     if not report["valid"]:
         raise ValueError("Semantic Registry validation failed: " + "; ".join(report["errors"][:12]))
