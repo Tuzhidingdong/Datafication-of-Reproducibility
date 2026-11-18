@@ -65,11 +65,56 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
             errors.append({"code":"REFERENCE_LIST_NOT_ARRAY","path":path,"message":"Expected an array of IDs."})
             return
         for i, value in enumerate(values): ref(f"{path}[{i}]", value, collection)
+    def validate_value_candidates(path: str, row: dict[str, Any]) -> None:
+        if "value_candidates" not in row:
+            return
+        candidates = row.get("value_candidates")
+        if not isinstance(candidates, list):
+            errors.append({"code":"VALUE_CANDIDATES_NOT_ARRAY","path":f"{path}.value_candidates","message":"value_candidates must be an array."})
+            return
+        seen_candidate_ids: set[str] = set()
+        for candidate_index, candidate in enumerate(candidates):
+            candidate_path = f"{path}.value_candidates[{candidate_index}]"
+            if not isinstance(candidate, dict):
+                errors.append({"code":"VALUE_CANDIDATE_NOT_OBJECT","path":candidate_path,"message":"A value candidate must be an object."})
+                continue
+            candidate_id = candidate.get("candidate_id")
+            candidate_source = candidate.get("candidate_source")
+            if not isinstance(candidate_id, str) or not candidate_id.strip():
+                errors.append({"code":"INVALID_VALUE_CANDIDATE_ID","path":f"{candidate_path}.candidate_id","message":"candidate_id must be a non-empty string."})
+            elif candidate_id in seen_candidate_ids:
+                errors.append({"code":"DUPLICATE_VALUE_CANDIDATE_ID","path":f"{candidate_path}.candidate_id","message":"candidate_id must be unique within its parent record."})
+            else:
+                seen_candidate_ids.add(candidate_id)
+            if not isinstance(candidate_source, str) or not candidate_source.strip():
+                errors.append({"code":"INVALID_VALUE_CANDIDATE_SOURCE","path":f"{candidate_path}.candidate_source","message":"candidate_source must be a non-empty string."})
+            if not any(candidate.get(field) not in (None, "") for field in ("raw_value", "normalized_value")):
+                errors.append({"code":"VALUE_CANDIDATE_WITHOUT_VALUE","path":candidate_path,"message":"A candidate must contain a non-empty raw_value or normalized_value."})
+            locators = candidate.get("source_locators", [])
+            if not isinstance(locators, list):
+                errors.append({"code":"VALUE_CANDIDATE_LOCATORS_NOT_ARRAY","path":f"{candidate_path}.source_locators","message":"source_locators must be an array."})
+            else:
+                for locator_index, locator in enumerate(locators):
+                    locator_path = f"{candidate_path}.source_locators[{locator_index}]"
+                    if not isinstance(locator, dict):
+                        errors.append({"code":"INVALID_VALUE_CANDIDATE_LOCATOR","path":locator_path,"message":"A source locator must be an object."})
+                        continue
+                    if not isinstance(locator.get("source_file"), str) or not locator.get("source_file", "").strip():
+                        errors.append({"code":"INVALID_VALUE_CANDIDATE_LOCATOR_FILE","path":f"{locator_path}.source_file","message":"source_file must be a non-empty string."})
+                    digest = locator.get("source_sha256")
+                    if not isinstance(digest, str) or len(digest) != 64 or any(char not in "0123456789abcdefABCDEF" for char in digest):
+                        errors.append({"code":"INVALID_VALUE_CANDIDATE_LOCATOR_HASH","path":f"{locator_path}.source_sha256","message":"source_sha256 must be a 64-character hexadecimal SHA-256."})
+                    if locator.get("locator_type") not in LOCATOR_TYPES:
+                        errors.append({"code":"INVALID_VALUE_CANDIDATE_LOCATOR_TYPE","path":f"{locator_path}.locator_type","message":"Unknown source locator type."})
+                    if locator.get("locator") in (None, ""):
+                        errors.append({"code":"INVALID_VALUE_CANDIDATE_LOCATOR_VALUE","path":f"{locator_path}.locator","message":"locator must be non-empty."})
+
     for i, row in enumerate(records["systems"].values()):
         refs(f"systems[{i}].study_ids", row.get("study_ids"), "studies")
         if not isinstance(row.get("study_ids"), list) or not row.get("study_ids"):
             errors.append({"code":"SYSTEM_WITHOUT_STUDY","path":f"systems[{i}].study_ids","message":"A system must link to at least one study."})
     for i, row in enumerate(records["conditions"].values()):
+        validate_value_candidates(f"conditions[{i}]", row)
         refs(f"conditions[{i}].system_ids", row.get("system_ids", []), "systems")
         if not isinstance(row.get("system_ids"), list) or not row.get("system_ids"):
             errors.append({"code":"CONDITION_WITHOUT_SYSTEM","path":f"conditions[{i}].system_ids","message":"A condition must link to at least one system."})
@@ -90,6 +135,7 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
             if condition and row.get("system_id") not in condition.get("system_ids", []):
                 errors.append({"code":"EXPERIMENT_CONDITION_SYSTEM_MISMATCH","path":f"experiments[{i}].condition_ids","message":f"Condition {condition_id} is not linked to the experiment system."})
     for i, row in enumerate(records["observations"].values()):
+        validate_value_candidates(f"observations[{i}]", row)
         ref(f"observations[{i}].experiment_id", row.get("experiment_id"), "experiments")
         refs(f"observations[{i}].evidence_ids", row.get("evidence_ids"), "evidence")
         if not isinstance(row.get("value_state"), str) or row.get("value_state") not in MISSINGNESS:
