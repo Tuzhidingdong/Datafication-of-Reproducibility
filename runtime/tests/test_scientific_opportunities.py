@@ -4,6 +4,7 @@ import unittest
 
 from dor.scientific_opportunities import (
     _apply_bh,
+    _identifier_key,
     _sign_test_p,
     build_scientific_opportunities,
 )
@@ -564,6 +565,54 @@ class ScientificOpportunityTests(unittest.TestCase):
             item["spearman_rho_with_primary_condition"] == 1.0
             for item in finding["study_details"]
         ))
+
+
+    def test_canonical_identifier_matching_does_not_fold_case_or_punctuation(self):
+        self.assertEqual(_identifier_key("Exact-ID.1"), "Exact-ID.1")
+        self.assertNotEqual(_identifier_key("Exact-ID.1"), _identifier_key("exactid1"))
+
+    def test_identifier_variants_are_not_excluded_as_the_same_attribute(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            _add_system_level_study(
+                bundle, study, [1.0, 2.0, 3.0, 4.0], [2.0, 4.0, 6.0, 8.0],
+                condition_type="target-y", condition_unit="outcome-unit",
+            )
+        result = build_scientific_opportunities(bundle, bootstrap_iterations=0)
+        self.assertEqual(result["self_association_exclusions"], [])
+        self.assertGreaterEqual(len(result["opportunities"]), 1)
+
+    def test_reciprocal_pattern_with_different_endpoint_is_related_not_deduplicated(self):
+        bundle = _bundle()
+        for study in range(1, 5):
+            _add_bidirectional_feature_study(
+                bundle, study, [1.0, 2.0, 3.0, 4.0], [4.0, 3.0, 2.0, 1.0]
+            )
+        for observation in bundle["observations"]:
+            if observation["target_id"] == "FEATURE_B":
+                observation["endpoint_definition"] = "distinct-endpoint"
+        result = build_scientific_opportunities(
+            bundle, minimum_paired_studies=3, bootstrap_iterations=0
+        )
+        between_rows = [
+            row for row in result["correlations"]
+            if row["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+        ]
+        between_opportunities = [
+            item for item in result["opportunities"]
+            if item["analysis_family"] == "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
+        ]
+        self.assertEqual(len(between_rows), 2)
+        self.assertEqual(len(between_opportunities), 2)
+        self.assertTrue(all(row["p_value"] is not None for row in between_rows))
+        self.assertEqual(result["mirror_duplicates"], [])
+        self.assertEqual(result["profile"]["numeric_trend_fdr_test_count"], 2)
+        self.assertEqual(len(result["related_opportunity_groups"]), 1)
+        group = result["related_opportunity_groups"][0]
+        self.assertEqual(len(group["member_opportunity_ids"]), 2)
+        self.assertEqual(group["review_status"], "REQUIRES_DOMAIN_REVIEW")
+        self.assertEqual(group["statistical_action"], "NO_DEDUPLICATION_NO_FDR_CHANGE")
+        self.assertEqual(group["proof"]["context_dimensions_differ"], ["endpoint_definition"])
 
     def test_high_cardinality_conditions_keep_full_coverage_but_bound_pairwise_screen(self):
         bundle = _bundle()
