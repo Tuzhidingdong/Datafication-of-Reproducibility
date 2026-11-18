@@ -497,6 +497,38 @@
         "measurement_context": {
           "type": "string",
           "minLength": 1
+        },
+        "review_rationale": {
+          "type": "string"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semantic_source_ref"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "semantic_source_ref": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "source_sha256",
+        "locator"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false
