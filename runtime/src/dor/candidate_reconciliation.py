@@ -33,8 +33,10 @@ def _decimal(value: Any) -> Decimal | None:
 def _decimal_text(value: Decimal | None) -> str | None:
     if value is None:
         return None
-    normalized = value.normalize()
-    return format(normalized, "f") if normalized == normalized.to_integral() else str(normalized)
+    text = format(value, "f")
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text or "0"
 
 
 def _affine_exact(value: Decimal, scale: Decimal, offset: Decimal) -> Decimal:
@@ -93,8 +95,8 @@ def _unit_comparison(
         return {
             "unit_comparison_status": "EXACT_UNIT_LABEL_MATCH",
             "comparable_unit": unit_a,
-            "canonical_value_a": _decimal_text(parsed_a),
-            "canonical_value_b": _decimal_text(parsed_b),
+            "comparable_value_a": _decimal_text(parsed_a),
+            "comparable_value_b": _decimal_text(parsed_b),
             "unit_adjusted_comparison_status": comparable_status,
         }
 
@@ -103,17 +105,17 @@ def _unit_comparison(
     if definition_a is None or definition_b is None:
         return {
             "unit_comparison_status": "UNIT_LABELS_DIFFER_UNRESOLVED",
-            "canonical_unit": None,
-            "canonical_value_a": None,
-            "canonical_value_b": None,
+            "comparable_unit": None,
+            "comparable_value_a": None,
+            "comparable_value_b": None,
             "unit_adjusted_comparison_status": "NOT_COMPARABLE_UNRESOLVED_UNIT_LABELS",
         }
     if definition_a["dimension_id"] != definition_b["dimension_id"]:
         return {
             "unit_comparison_status": "APPROVED_INCOMPATIBLE_DIMENSIONS",
-            "canonical_unit": None,
-            "canonical_value_a": None,
-            "canonical_value_b": None,
+            "comparable_unit": None,
+            "comparable_value_a": None,
+            "comparable_value_b": None,
             "unit_adjusted_comparison_status": "NOT_COMPARABLE_INCOMPATIBLE_DIMENSIONS",
         }
 
@@ -136,9 +138,9 @@ def _unit_comparison(
         comparable_status = "NUMERICALLY_EQUAL" if canonical_a == canonical_b else "NUMERICALLY_DIFFERENT"
     return {
         "unit_comparison_status": "APPROVED_SAME_DIMENSION_CONVERSION",
-        "canonical_unit": definition_a["canonical_unit"],
-        "canonical_value_a": _decimal_text(canonical_a),
-        "canonical_value_b": _decimal_text(canonical_b),
+        "comparable_unit": definition_a["canonical_unit"],
+        "comparable_value_a": _decimal_text(canonical_a),
+        "comparable_value_b": _decimal_text(canonical_b),
         "unit_adjusted_comparison_status": comparable_status,
     }
 
@@ -292,9 +294,9 @@ def build_candidate_pairwise_reconciliation(
                     ),
                     "value_comparison_status": value_status,
                     "unit_comparison_status": unit_result["unit_comparison_status"],
-                    "canonical_unit": unit_result["canonical_unit"],
-                    "canonical_value_a": unit_result["canonical_value_a"],
-                    "canonical_value_b": unit_result["canonical_value_b"],
+                    "comparable_unit": unit_result["canonical_unit"],
+                    "comparable_value_a": unit_result["canonical_value_a"],
+                    "comparable_value_b": unit_result["canonical_value_b"],
                     "unit_adjusted_comparison_status": unit_result["unit_adjusted_comparison_status"],
                     "parent_semantic_status": semantic_status,
                     "overall_comparison_status": _overall_status(
