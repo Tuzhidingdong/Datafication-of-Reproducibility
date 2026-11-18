@@ -37,6 +37,16 @@ An entity definition lists mapping rule IDs. Every rule must be APPROVED, point 
 
 Within a grouped entity, every nonblank transformed value for a mapped field must agree. If values differ, or a group mixes blank and nonblank values, the build fails. Define a finer entity grouping or resolve the source mapping; no arbitrary first-value selection, aggregation, or imputation is performed. Fully blank or missing fields remain null and retain per-value provenance.
 
+## Candidate-value bindings
+
+For `conditions` and `observations`, an entity definition may declare `value_candidate_bindings` separately from its primary `field_rule_ids`. Each binding names a stable `candidate_source`, a binding ID, and the exact source-inventory fields for the candidate value, optional unit, optional quoted text, and optional scalar metadata fields. All bound fields must belong to the same source file and selected record scope as the entity definition.
+
+The builder emits one candidate record per binding and selected source record, attached to the parent Condition/Observation. Candidate IDs are deterministic; every supplied field contributes its exact source file hash and concrete row/JSON locator. Source metadata is kept opaque (for example extraction review state/reason or source evidence references) and is not interpreted or used to approve the value.
+
+A blank candidate value is not silently dropped. The builder retains a provenance-only candidate slot with its candidate-source ID and the locator of the blank value field; optional blank unit/quote/metadata fields also retain their locators and explicit null metadata values. Such entries are counted in candidate coverage but cannot enter numeric sensitivity analysis. Multiple candidate sources never become extra canonical Observations or independent Studies.
+
+These bindings do not change the parent record's primary `value_state`, `raw_value`, or `normalized_value`. The ordinary primary-field grouping/conflict rules remain unchanged; candidate disagreement is preserved in `value_candidates` rather than causing an arbitrary primary-value choice.
+
 ## Relationships
 
 Links are explicitly declared from a child entity definition to a parent definition. Two matching modes are supported:
