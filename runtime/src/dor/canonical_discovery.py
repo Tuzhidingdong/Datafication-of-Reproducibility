@@ -400,7 +400,7 @@ def run_canonical_discovery_scan(
         ],
     }
     (output_dir / "candidate_sensitivity_opportunities.json").write_text(
-        json.dumps(candidate_payload, indent=2, ensure_ascii=False, sort_keys=True) + "\\n", encoding="utf-8")
+        json.dumps(candidate_payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     candidate_profile = {
         "candidate_inventory": candidate_mining["inventory_profile"],
         "scenario_count": candidate_sensitivity["scenario_count"],
@@ -414,7 +414,7 @@ def run_canonical_discovery_scan(
         ],
     }
     (output_dir / "candidate_sensitivity_profile.json").write_text(
-        json.dumps(candidate_profile, indent=2, ensure_ascii=False, sort_keys=True) + "\\n", encoding="utf-8")
+        json.dumps(candidate_profile, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     _write_csv(output_dir / "signal_catalogue.csv",
         ["signal_id", "signal_type", "target_id", "target_a", "target_b", "unit",
          "condition_type", "supporting_observation_count", "supporting_study_count",
