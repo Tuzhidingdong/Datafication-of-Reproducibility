@@ -155,6 +155,9 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "condition_level_support", "condition_outcome_contrasts",
             "condition_outcome_correlations", "research_opportunities",
             "evidence_ledger", "scientific_analysis_profile",
+            "candidate_value_inventory", "candidate_value_reconciliation",
+            "missingness_opportunity_profile", "candidate_sensitivity_opportunities",
+            "candidate_sensitivity_profile",
         }
         for path in (
             "templates/run_plan.example.json",
@@ -169,7 +172,15 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             with self.subTest(path=path):
                 output_ids = {item["artifact_id"] for item in discovery["outputs"]}
                 self.assertEqual(output_ids, expected)
-                self.assertTrue(expected.issubset(set(scope["inputs"])))
+                scope_expected = expected - {
+                    "candidate_value_inventory", "candidate_value_reconciliation",
+                    "candidate_sensitivity_opportunities",
+                }
+                self.assertTrue(scope_expected.issubset(set(scope["inputs"])))
+                self.assertFalse({
+                    "candidate_value_inventory", "candidate_value_reconciliation",
+                    "candidate_sensitivity_opportunities",
+                }.intersection(scope["inputs"]))
                 for artifact_id in expected:
                     output = next(item for item in discovery["outputs"] if item["artifact_id"] == artifact_id)
                     self.assertTrue(output["path"].startswith("04_discovery/"))
@@ -186,6 +197,9 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "condition_level_support", "condition_outcome_contrasts",
             "condition_outcome_correlations", "research_opportunities",
             "evidence_ledger", "scientific_analysis_profile",
+            "candidate_value_inventory", "candidate_value_reconciliation",
+            "missingness_opportunity_profile", "candidate_sensitivity_opportunities",
+            "candidate_sensitivity_profile",
         }
         discovery = stages["exploratory_discovery"]
         scope = stages["research_scope_selection"]
@@ -195,9 +209,17 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                     {item["artifact_id"] for item in variant["outputs"]},
                     expected,
                 )
+        scope_expected = expected - {
+            "candidate_value_inventory", "candidate_value_reconciliation",
+            "candidate_sensitivity_opportunities",
+        }
         for variant in scope["route_variants"]:
             with self.subTest(scope_route=variant["route"]):
-                self.assertTrue(expected.issubset(set(variant["inputs"])))
+                self.assertTrue(scope_expected.issubset(set(variant["inputs"])))
+                self.assertFalse({
+                    "candidate_value_inventory", "candidate_value_reconciliation",
+                    "candidate_sensitivity_opportunities",
+                }.intersection(variant["inputs"]))
 
     def test_canonical_route_uses_materialized_bundle_as_the_bundle_producer(self):
         plan = self._load_plan("templates/run_plan.canonical_adapter.example.json")
