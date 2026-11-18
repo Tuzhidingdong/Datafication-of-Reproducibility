@@ -198,8 +198,10 @@ def validate_semantic_registry_data(registry: Any) -> dict[str, Any]:
                 errors.append(f"{symbol_prefix}.symbol duplicates the globally defined symbol {name!r}.")
             elif isinstance(name, str):
                 seen_symbols.add(name)
-            scale = _decimal_value(symbol.get("scale_to_canonical"))
-            offset = _decimal_value(symbol.get("offset_to_canonical", 0))
+            raw_scale = symbol.get("scale_to_canonical")
+            raw_offset = symbol.get("offset_to_canonical", 0)
+            scale = _decimal_value(raw_scale) if isinstance(raw_scale, (int, float)) and not isinstance(raw_scale, bool) else None
+            offset = _decimal_value(raw_offset) if isinstance(raw_offset, (int, float)) and not isinstance(raw_offset, bool) else None
             if scale is None or scale <= 0:
                 errors.append(f"{symbol_prefix}.scale_to_canonical must be a finite positive number.")
             if offset is None:
@@ -265,6 +267,7 @@ def approved_unit_symbol_lookup(registry: dict[str, Any] | None) -> dict[str, di
                 "offset_to_canonical": str(symbol.get("offset_to_canonical", 0)),
             }
     return lookup
+
 
 def load_semantic_registry(path: Path) -> dict[str, Any]:
     """Load and validate a registry file without dereferencing its source locators."""
