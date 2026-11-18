@@ -9,6 +9,7 @@ from dor.project_setup import initialize_project_run_plan
 from dor.adapter_handoff import (prepare_adapter_handoff_files, canonical_bundle_from_handoff,
     materialize_adapter_artifacts_files)
 from dor.canonical_discovery import run_canonical_discovery_scan
+from dor.semantic_registry import validate_semantic_registry_file
 from dor.cohort import build_modeling_cohort_files
 from dor.cohort_review import validate_cohort_review_record, enforce_cohort_review
 from dor.controlled_scope import (
@@ -191,6 +192,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum condition levels screened pairwise per target/endpoint/condition; full level coverage is retained")
     discovery.add_argument("--seed", type=int, default=42,
         help="Deterministic seed for Study-level bootstrap intervals")
+    discovery.add_argument("--semantic-registry", type=Path,
+        help="Optional, independently maintained and validated Semantic Registry; applied in memory only")
+    semantic_registry = subparsers.add_parser(
+        "validate-semantic-registry", help="Validate an independent, provenance-bound Semantic Registry"
+    )
+    semantic_registry.add_argument("--registry", type=Path, required=True,
+        help="Path to semantic_registry.json; source locators are never dereferenced")
     audit = subparsers.add_parser("audit", help="Perform a read-only structural audit of CSV/JSON inputs")
     audit.add_argument("--csv", type=Path, help="Path to a source CSV file")
     audit.add_argument("--json", type=Path, help="Path to a source JSON file")
@@ -732,12 +740,17 @@ def main() -> int:
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
+        if args.command == "validate-semantic-registry":
+            result = validate_semantic_registry_file(args.registry)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0 if result["valid"] else 2
         if args.command == "discover-opportunities":
             bundle_path = args.bundle if args.bundle is not None else canonical_bundle_from_handoff(args.adapter_handoff)
             result = run_canonical_discovery_scan(
                 bundle_path, args.out_dir, args.minimum_studies, args.maximum_pairs,
                 args.minimum_paired_studies, args.fdr_alpha, args.bootstrap_iterations,
                 args.maximum_opportunities, args.maximum_levels_per_condition, args.seed,
+                args.semantic_registry,
             )
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
