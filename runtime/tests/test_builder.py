@@ -126,6 +126,32 @@ class CanonicalBuilderTests(unittest.TestCase):
         conversion=next(item for item in condition["field_provenance"] if item["target_field_id"]=="normalized_value")
         self.assertEqual(conversion["source_unit_provenance"]["source_unit"],"unit_01")
 
+    def test_blank_candidate_slot_is_preserved_with_source_locators(self):
+        rows = list(csv.reader(self.source.open("r", encoding="utf-8", newline="")))
+        # Leave the second candidate source's value, unit, and quote empty for E1.
+        rows[1][13] = ""
+        rows[1][14] = ""
+        rows[1][15] = ""
+        with self.source.open("w", encoding="utf-8", newline="") as handle:
+            csv.writer(handle).writerows(rows)
+        new_hash = sha256_file(self.source)
+        self.source_hash = new_hash
+        for item in self.inventory["items"]:
+            item["source_sha256"] = new_hash
+
+        bundle, report = build_canonical_bundle(
+            self.mapping, self.inventory, self.spec, self.root,
+            self.plan_hash, self.inventory_path_hash, self.spec_hash
+        )
+        self.assertTrue(report["valid"], report)
+        candidates = bundle["observations"][0]["value_candidates"]
+        beta = next(item for item in candidates if item["candidate_source"] == "extractor-b")
+        self.assertNotIn("raw_value", beta)
+        self.assertIsNone(beta["raw_unit"])
+        self.assertIsNone(beta["quoted_text"])
+        self.assertEqual(len(beta["source_locators"]), 3)
+        self.assertTrue(any(item["locator"].endswith("column:ValueB") for item in beta["source_locators"]))
+
     def test_candidate_binding_rejects_source_fields_outside_inventory(self):
         self.spec["entity_definitions"][-1]["value_candidate_bindings"][0]["value_source_item_id"] = "UNKNOWN_VALUE"
         bundle, report = build_canonical_bundle(
