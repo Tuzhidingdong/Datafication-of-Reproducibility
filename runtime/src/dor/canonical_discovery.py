@@ -364,6 +364,7 @@ def run_canonical_discovery_scan(
     semantic_registry_path: Path | None = None,
     minimum_deep_experiments_per_system: int = 8,
     minimum_deep_triplet_experiments_per_system: int = 12,
+    minimum_deep_between_systems_per_study: int = 8,
     maximum_deep_condition_pairs: int = 100,
     maximum_deep_condition_triplets: int = 40,
     maximum_deep_multiobjective_pairs: int = 100,
