@@ -585,6 +585,18 @@
           "items": {
             "$ref": "#/$defs/locator"
           }
+        },
+        "source_metadata": {
+          "type": "object",
+          "description": "Opaque source-extraction metadata such as review states, reasons, evidence file references, or table/page locations. The Runtime preserves but does not interpret or dereference these values.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
         }
       },
       "anyOf": [
