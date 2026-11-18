@@ -1002,6 +1002,16 @@
               "artifact_id": "candidate_sensitivity_profile",
               "path": "04_discovery/candidate_sensitivity_profile.json",
               "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_pairwise_reconciliation",
+              "path": "04_discovery/candidate_pairwise_reconciliation.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_reconciliation_profile",
+              "path": "04_discovery/candidate_reconciliation_profile.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -1132,6 +1142,16 @@
               "artifact_id": "candidate_sensitivity_profile",
               "path": "04_discovery/candidate_sensitivity_profile.json",
               "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_pairwise_reconciliation",
+              "path": "04_discovery/candidate_pairwise_reconciliation.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_reconciliation_profile",
+              "path": "04_discovery/candidate_reconciliation_profile.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -1182,7 +1202,8 @@
             "evidence_ledger",
             "scientific_analysis_profile",
             "missingness_opportunity_profile",
-            "candidate_sensitivity_profile"
+            "candidate_sensitivity_profile",
+            "candidate_reconciliation_profile"
           ],
           "outputs": [
             {
@@ -1222,7 +1243,8 @@
             "evidence_ledger",
             "scientific_analysis_profile",
             "missingness_opportunity_profile",
-            "candidate_sensitivity_profile"
+            "candidate_sensitivity_profile",
+            "candidate_reconciliation_profile"
           ],
           "outputs": [
             {
