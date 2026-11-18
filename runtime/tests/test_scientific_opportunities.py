@@ -5,7 +5,9 @@ import unittest
 from dor.scientific_opportunities import (
     _apply_bh,
     _identifier_key,
+    _semantic_metadata_index,
     _sign_test_p,
+    _target_semantic_key,
     build_scientific_opportunities,
 )
 
@@ -570,6 +572,33 @@ class ScientificOpportunityTests(unittest.TestCase):
     def test_canonical_identifier_matching_does_not_fold_case_or_punctuation(self):
         self.assertEqual(_identifier_key("Exact-ID.1"), "Exact-ID.1")
         self.assertNotEqual(_identifier_key("Exact-ID.1"), _identifier_key("exactid1"))
+
+
+    def test_target_semantic_metadata_is_scoped_by_exact_endpoint_and_timepoint_type(self):
+        records = [
+            {
+                "target_id": "Target-A",
+                "endpoint_definition": "endpoint-a",
+                "timepoint": 100,
+                "semantic_metadata": {"review_status": "APPROVED", "canonical_concept_id": "concept:numeric"},
+            },
+            {
+                "target_id": "Target-A",
+                "endpoint_definition": "endpoint-a",
+                "timepoint": "100",
+                "semantic_metadata": {"review_status": "APPROVED", "canonical_concept_id": "concept:string"},
+            },
+        ]
+        index = _semantic_metadata_index(
+            records, ("target_id", "endpoint_definition", "timepoint")
+        )
+        numeric_key = _target_semantic_key("Target-A", "endpoint-a", 100)
+        string_key = _target_semantic_key("Target-A", "endpoint-a", "100")
+        self.assertNotEqual(numeric_key, string_key)
+        self.assertEqual(index[numeric_key]["status"], "APPROVED")
+        self.assertEqual(index[string_key]["status"], "APPROVED")
+        self.assertEqual(index[numeric_key]["metadata"]["canonical_concept_id"], "concept:numeric")
+        self.assertEqual(index[string_key]["metadata"]["canonical_concept_id"], "concept:string")
 
     def test_identifier_variants_are_not_excluded_as_the_same_attribute(self):
         bundle = _bundle()
