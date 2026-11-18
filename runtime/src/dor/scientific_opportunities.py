@@ -45,11 +45,28 @@ def _identifier_key(value: Any) -> str:
     return str(value) if value is not None else ""
 
 
-def _semantic_metadata_index(records: list[dict[str, Any]], key_field: str) -> dict[str, dict[str, Any]]:
+def _target_semantic_key(target_id: Any, endpoint: Any, timepoint: Any) -> str:
+    """Return the exact target/endpoint/timepoint semantic scope used by Discovery."""
+    target = str(target_id or "UNSPECIFIED_TARGET")
+    endpoint_label = str(endpoint or "UNSPECIFIED_ENDPOINT_DEFINITION")
+    timepoint_label = (
+        str(timepoint) if timepoint not in (None, "") else "UNSPECIFIED_TIMEPOINT"
+    )
+    return _label([target, endpoint_label, timepoint_label])
+
+
+def _semantic_metadata_index(
+    records: list[dict[str, Any]], key_field: str | tuple[str, ...]
+) -> dict[str, dict[str, Any]]:
     """Summarize optional, explicitly reviewed semantic metadata without guessing."""
     grouped: dict[str, list[Any]] = defaultdict(list)
     for record in records:
-        key = str(record.get(key_field) or "")
+        if isinstance(key_field, tuple):
+            key = _target_semantic_key(
+                record.get(key_field[0]), record.get(key_field[1]), record.get(key_field[2])
+            )
+        else:
+            key = str(record.get(key_field) or "")
         if key:
             grouped[key].append(record.get("semantic_metadata"))
     result: dict[str, dict[str, Any]] = {}
@@ -625,7 +642,9 @@ def build_scientific_opportunities(
     experiments = {row["experiment_id"]: row for row in bundle.get("experiments", [])}
     systems = {row["system_id"]: row for row in bundle.get("systems", [])}
     conditions = {row["condition_id"]: row for row in bundle.get("conditions", [])}
-    target_semantic_index = _semantic_metadata_index(bundle.get("observations", []), "target_id")
+    target_semantic_index = _semantic_metadata_index(
+        bundle.get("observations", []), ("target_id", "endpoint_definition", "timepoint")
+    )
     condition_semantic_index = _semantic_metadata_index(bundle.get("conditions", []), "condition_type")
 
     # Experiment-level outcomes: several Observations in one Experiment are
@@ -744,7 +763,9 @@ def build_scientific_opportunities(
         condition_type, condition_unit = condition_base
         reason = _self_association_reason(
             target_id, condition_type, outcome_unit, condition_unit, levels_by_label,
-            target_metadata=target_semantic_index.get(target_id),
+            target_metadata=target_semantic_index.get(
+                _target_semantic_key(target_id, endpoint, timepoint)
+            ),
             condition_metadata=condition_semantic_index.get(condition_type),
         )
         if reason is None:
@@ -777,7 +798,9 @@ def build_scientific_opportunities(
             "condition_unit": condition_unit,
             "semantic_review": _semantic_review(
                 target_id, condition_type,
-                target_semantic_index.get(target_id),
+                target_semantic_index.get(
+                    _target_semantic_key(target_id, endpoint, timepoint)
+                ),
                 condition_semantic_index.get(condition_type),
             ),
             "independent_study_count": len(study_ids),
@@ -1439,7 +1462,9 @@ def build_scientific_opportunities(
             opportunity["recommendation"] = "priority_3"
         opportunity["semantic_review"] = _semantic_review(
             opportunity["target_id"], opportunity["condition_type"],
-            target_semantic_index.get(opportunity["target_id"]),
+            target_semantic_index.get(_target_semantic_key(
+                opportunity["target_id"], opportunity["endpoint_definition"], opportunity["timepoint"]
+            )),
             condition_semantic_index.get(opportunity["condition_type"]),
         )
         opportunity["semantic_status"] = (
