@@ -719,6 +719,7 @@ def _pareto_front(
     points: list[dict[str, Any]], maximize_a: bool, maximize_b: bool
 ) -> set[str]:
     frontier = set()
+    key_field = "experiment_id" if points and "experiment_id" in points[0] else "system_id"
     for candidate in points:
         a = candidate["a"] if maximize_a else -candidate["a"]
         b = candidate["b"] if maximize_b else -candidate["b"]
@@ -732,7 +733,7 @@ def _pareto_front(
                 dominated = True
                 break
         if not dominated:
-            frontier.add(candidate["experiment_id"])
+            frontier.add(candidate[key_field])
     return frontier
 
 
