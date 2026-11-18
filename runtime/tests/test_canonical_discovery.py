@@ -73,6 +73,15 @@ def make_bundle():
             "raw_unit": "unit-x",
         },
     ]
+    bundle["observations"][1]["value_candidates"] = [
+        {
+            "candidate_id": "O1B-CAND-A",
+            "candidate_source": "extractor-alpha",
+            "quoted_text": "Synthetic evidence exists but extractor returned no value",
+            "source_metadata": {"review_state": "NOT_EXTRACTED", "review_reason": "No parseable numeric candidate"},
+            "source_locators": [],
+        }
+    ]
     bundle["observations"][2]["value_candidates"] = [
         {
             "candidate_id": "O2A-CAND-A1",
@@ -146,11 +155,14 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         bundle = make_bundle()
         result = summarize_canonical_bundle(bundle, minimum_studies=3)
         mining = result["candidate_mining"]
-        self.assertEqual(mining["inventory_profile"]["candidate_record_count"], 3)
+        self.assertEqual(mining["inventory_profile"]["candidate_record_count"], 4)
+        self.assertEqual(mining["inventory_profile"]["candidate_entry_count"], 6)
         self.assertEqual(mining["inventory_profile"]["candidate_value_count"], 5)
+        self.assertEqual(mining["inventory_profile"]["candidate_entries_without_value_count"], 1)
+        self.assertEqual(mining["inventory_profile"]["candidate_evidence_only_entry_count"], 1)
         self.assertEqual(mining["inventory_profile"]["candidate_source_count"], 2)
-        self.assertEqual(mining["inventory_profile"]["candidate_values_with_metadata_count"], 1)
-        self.assertEqual(mining["inventory_profile"]["candidate_metadata_key_counts"]["review_state"], 1)
+        self.assertEqual(mining["inventory_profile"]["candidate_entries_with_metadata_count"], 2)
+        self.assertEqual(mining["inventory_profile"]["candidate_metadata_key_counts"]["review_state"], 2)
         self.assertEqual(result["profile"]["reported_numeric_observation_count"], 6)
         reconciliation = next(
             row for row in mining["reconciliation_rows"]
@@ -166,6 +178,7 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(alpha["overlay_counts"]["conditions"], 1)
         self.assertEqual(alpha["primary_value_fallback_record_counts"]["observations"], 5)
         self.assertEqual(alpha["primary_value_fallback_record_counts"]["conditions"], 2)
+        self.assertEqual(alpha["unusable_candidate_records_skipped"]["observations"], 1)
         self.assertEqual(alpha["conflicting_candidate_records_skipped"]["observations"], 1)
         self.assertEqual(alpha["analysis_profile"]["numeric_observation_count_used"], 6)
         self.assertEqual(result["scientific"]["profile"]["numeric_observation_count_used"], 6)
@@ -200,7 +213,8 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             brief = (output / "agent_research_brief.md").read_text(encoding="utf-8")
             self.assertNotIn("Synthetic structured quote A", brief)
             report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
-            self.assertEqual(report["candidate_value_record_count"], 3)
+            self.assertEqual(report["candidate_value_record_count"], 4)
+            self.assertEqual(report["candidate_value_count"], 5)
             self.assertEqual(report["candidate_sensitivity_scenario_count"], 2)
             manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
             output_names = {item["path"] for item in manifest["output_files"]}
