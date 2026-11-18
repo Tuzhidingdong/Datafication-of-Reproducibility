@@ -383,7 +383,7 @@ def run_canonical_discovery_scan(
     _write_csv(output_dir / "missingness_opportunity_profile.csv",
         ["entity_type", "feature_id", "value_state", "record_count", "study_count",
          "system_count", "experiment_count", "records_with_candidates", "candidate_count",
-         "records_with_locators", "candidate_quote_count", "candidate_metadata_count",
+         "candidate_values_with_locators", "candidate_quote_count", "candidate_metadata_count",
          "records_with_value", "records_with_unit"],
         candidate_mining["missingness_rows"])
     candidate_sensitivity = candidate_mining["sensitivity"]
