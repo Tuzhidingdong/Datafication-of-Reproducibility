@@ -16,11 +16,20 @@
     "evidence_ledger_file",
     "evidence_ledger_row_count",
     "interpretation_boundary",
-    "related_opportunity_group_count"
+    "related_opportunity_group_count",
+    "candidate_value_inventory_file",
+    "candidate_value_reconciliation_file",
+    "missingness_opportunity_profile_file",
+    "candidate_sensitivity_profile_file",
+    "candidate_sensitivity_opportunities_file",
+    "candidate_value_record_count",
+    "candidate_value_count",
+    "candidate_source_count",
+    "candidate_sensitivity_scenario_count"
   ],
   "properties": {
     "schema_version": {
-      "const": "1.3"
+      "const": "1.4"
     },
     "input_type": {
       "const": "CANONICAL_BUNDLE"
@@ -289,8 +298,44 @@
     "related_opportunity_group_count": {
       "type": "integer",
       "minimum": 0
+    },
+    "candidate_value_inventory_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_value_reconciliation_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "missingness_opportunity_profile_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_sensitivity_profile_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_sensitivity_opportunities_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_value_record_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidate_value_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidate_source_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidate_sensitivity_scenario_count": {
+      "type": "integer",
+      "minimum": 0
     }
   },
   "additionalProperties": false,
-  "schema_version": "1.3"
+  "schema_version": "1.4"
 }

@@ -11,11 +11,17 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.source = self.root / "source.csv"
         with self.source.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.writer(handle)
-            writer.writerow(["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value"])
-            writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E1","TARGET_01","100"])
-            writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E2","TARGET_01","110"])
+            writer.writerow(["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value",
+                             "ValueA","ValueAUnit","QuoteA","ValueB","ValueBUnit","QuoteB","ReviewStateA","ReviewReasonA","EvidenceRefA"])
+            writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E1","TARGET_01","100",
+                             "99","unit-x","Synthetic extractor A quote 1","102","unit-x","Synthetic extractor B quote 1",
+                             "UNRESOLVED","two candidate readings","Table 2"])
+            writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E2","TARGET_01","110",
+                             "","unit-x","Synthetic extractor A quote 2","113","unit-x","Synthetic extractor B quote 2",
+                             "REVIEW_REQUIRED","unit needs checking","Figure 3"])
         self.source_hash = sha256_file(self.source)
-        columns = ["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value"]
+        columns = ["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value",
+                   "ValueA","ValueAUnit","QuoteA","ValueB","ValueBUnit","QuoteB","ReviewStateA","ReviewReasonA","EvidenceRefA"]
         self.inventory = {"schema_version":"1.0","items":[
             {"inventory_id":f"SRC_{name}","source_file":"source.csv","source_sha256":self.source_hash,
              "source_format":"csv","locator_type":"csv_column","locator":name}
@@ -58,7 +64,19 @@ class CanonicalBuilderTests(unittest.TestCase):
             {"definition_id":"D_EXPERIMENT","entity_type":"experiments","source_file":"source.csv",
              "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment"]},"field_rule_ids":["R_EXP_KEY"]},
             {"definition_id":"D_OBSERVATION","entity_type":"observations","source_file":"source.csv",
-             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment","SRC_Target"]},"field_rule_ids":["R_TARGET","R_OBS_STATE","R_VALUE"]}
+             "grouping":{"mode":"GROUP_BY_FIELDS","source_item_ids":["SRC_Experiment","SRC_Target"]},
+             "field_rule_ids":["R_TARGET","R_OBS_STATE","R_VALUE"],
+             "value_candidate_bindings":[
+               {"binding_id":"BIND_A","candidate_source":"extractor-a","value_source_item_id":"SRC_ValueA",
+                "unit_source_item_id":"SRC_ValueAUnit","quoted_text_source_item_id":"SRC_QuoteA",
+                "metadata_source_bindings":[
+                  {"metadata_key":"review_state","source_item_id":"SRC_ReviewStateA"},
+                  {"metadata_key":"review_reason","source_item_id":"SRC_ReviewReasonA"},
+                  {"metadata_key":"evidence_reference","source_item_id":"SRC_EvidenceRefA"}
+                ]},
+               {"binding_id":"BIND_B","candidate_source":"extractor-b","value_source_item_id":"SRC_ValueB",
+                "unit_source_item_id":"SRC_ValueBUnit","quoted_text_source_item_id":"SRC_QuoteB"}
+             ]}
           ],
           "links":[
             {"child_definition_id":"D_SYSTEM","parent_definition_id":"D_STUDY","field_id":"study_ids"},
@@ -81,6 +99,24 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertEqual(len(bundle["experiments"]),2)
         self.assertEqual(len(bundle["observations"]),2)
         self.assertEqual(bundle["observations"][0]["raw_value"],100)
+        candidates = bundle["observations"][0]["value_candidates"]
+        self.assertEqual(len(candidates), 2)
+        by_source = {item["candidate_source"]: item for item in candidates}
+        self.assertEqual(by_source["extractor-a"]["raw_value"], "99")
+        self.assertEqual(by_source["extractor-a"]["raw_unit"], "unit-x")
+        self.assertEqual(by_source["extractor-a"]["quoted_text"], "Synthetic extractor A quote 1")
+        self.assertEqual(by_source["extractor-a"]["source_metadata"]["review_state"], "UNRESOLVED")
+        self.assertEqual(by_source["extractor-a"]["source_metadata"]["review_reason"], "two candidate readings")
+        self.assertEqual(by_source["extractor-a"]["source_metadata"]["evidence_reference"], "Table 2")
+        self.assertEqual(len(by_source["extractor-a"]["source_locators"]), 6)
+        self.assertTrue(all(item["source_sha256"] == self.source_hash
+                            for item in by_source["extractor-a"]["source_locators"]))
+        second_by_source = {
+            item["candidate_source"]: item for item in bundle["observations"][1]["value_candidates"]
+        }
+        self.assertNotIn("raw_value", second_by_source["extractor-a"])
+        self.assertEqual(second_by_source["extractor-a"]["quoted_text"], "Synthetic extractor A quote 2")
+        self.assertEqual(second_by_source["extractor-a"]["source_metadata"]["review_state"], "REVIEW_REQUIRED")
         self.assertEqual(bundle["experiments"][0]["study_id"],bundle["studies"][0]["study_id"])
         self.assertEqual(bundle["build_provenance"]["build_spec_sha256"],self.spec_hash)
         self.assertEqual(bundle["observations"][0]["_provenance"]["mapping_plan_sha256"],self.plan_hash)
@@ -89,6 +125,42 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertEqual(condition["normalized_unit"],"unit_02")
         conversion=next(item for item in condition["field_provenance"] if item["target_field_id"]=="normalized_value")
         self.assertEqual(conversion["source_unit_provenance"]["source_unit"],"unit_01")
+
+    def test_blank_candidate_slot_is_preserved_with_source_locators(self):
+        rows = list(csv.reader(self.source.open("r", encoding="utf-8", newline="")))
+        # Leave the second candidate source's value, unit, and quote empty for E1.
+        rows[1][13] = ""
+        rows[1][14] = ""
+        rows[1][15] = ""
+        with self.source.open("w", encoding="utf-8", newline="") as handle:
+            csv.writer(handle).writerows(rows)
+        new_hash = sha256_file(self.source)
+        self.source_hash = new_hash
+        for item in self.inventory["items"]:
+            item["source_sha256"] = new_hash
+
+        bundle, report = build_canonical_bundle(
+            self.mapping, self.inventory, self.spec, self.root,
+            self.plan_hash, self.inventory_path_hash, self.spec_hash
+        )
+        self.assertTrue(report["valid"], report)
+        candidates = bundle["observations"][0]["value_candidates"]
+        beta = next(item for item in candidates if item["candidate_source"] == "extractor-b")
+        self.assertNotIn("raw_value", beta)
+        self.assertIsNone(beta["raw_unit"])
+        self.assertIsNone(beta["quoted_text"])
+        self.assertEqual(len(beta["source_locators"]), 3)
+        self.assertTrue(any(item["locator"].endswith("column:ValueB") for item in beta["source_locators"]))
+
+    def test_candidate_binding_rejects_source_fields_outside_inventory(self):
+        self.spec["entity_definitions"][-1]["value_candidate_bindings"][0]["value_source_item_id"] = "UNKNOWN_VALUE"
+        bundle, report = build_canonical_bundle(
+            self.mapping, self.inventory, self.spec, self.root,
+            self.plan_hash, self.inventory_path_hash, self.spec_hash
+        )
+        self.assertIsNone(bundle)
+        self.assertTrue(any(item["code"] == "CANDIDATE_BINDING_SOURCE_ITEM_UNKNOWN"
+                            for item in report["errors"]))
 
     def _switch_observations_to_json(self):
         json_path = self.root / "observations.json"
@@ -115,6 +187,7 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.add_rule("R_J_STATE","unused","observations","value_state",source_item="SRC_J_STATE")
         self.add_rule("R_J_VALUE","unused","observations","raw_value","NUMERIC_PARSE",source_item="SRC_J_VALUE")
         observation=self.spec["entity_definitions"][-1]
+        observation.pop("value_candidate_bindings", None)
         observation.update({"source_file":"observations.json","source_format":"json",
                             "record_selector":"/observations/*",
                             "grouping":{"mode":"SOURCE_ROW","source_item_ids":[]},

@@ -306,6 +306,67 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
         if has_unit_conversion and "normalized_unit" in seen_fields:
             errors.append(_issue("UNIT_CONVERSION_UNIT_FIELD_CONFLICT", f"{path}.field_rule_ids", "UNIT_CONVERSION generates normalized_unit from target_unit; do not map normalized_unit separately."))
 
+        candidate_bindings = definition.get("value_candidate_bindings", [])
+        if not isinstance(candidate_bindings, list):
+            errors.append(_issue("CANDIDATE_BINDINGS_NOT_ARRAY", f"{path}.value_candidate_bindings", "value_candidate_bindings must be an array."))
+            candidate_bindings = []
+        if candidate_bindings and etype not in {"conditions", "observations"}:
+            errors.append(_issue("CANDIDATE_BINDINGS_ENTITY_UNSUPPORTED", f"{path}.value_candidate_bindings", "Candidate value bindings are supported only for conditions and observations."))
+        seen_binding_ids: set[str] = set()
+        seen_candidate_sources: set[str] = set()
+        for binding_index, binding in enumerate(candidate_bindings):
+            binding_path = f"{path}.value_candidate_bindings[{binding_index}]"
+            if not isinstance(binding, dict):
+                errors.append(_issue("CANDIDATE_BINDING_NOT_OBJECT", binding_path, "Candidate binding must be an object."))
+                continue
+            binding_id = binding.get("binding_id")
+            candidate_source = binding.get("candidate_source")
+            if not isinstance(binding_id, str) or not binding_id.strip() or binding_id in seen_binding_ids:
+                errors.append(_issue("CANDIDATE_BINDING_ID_INVALID", f"{binding_path}.binding_id", "binding_id must be non-empty and unique within the entity definition."))
+            else:
+                seen_binding_ids.add(binding_id)
+            if not isinstance(candidate_source, str) or not candidate_source.strip():
+                errors.append(_issue("CANDIDATE_SOURCE_INVALID", f"{binding_path}.candidate_source", "candidate_source must be a non-empty stable source identifier."))
+            elif candidate_source in seen_candidate_sources:
+                errors.append(_issue("CANDIDATE_SOURCE_DUPLICATED", f"{binding_path}.candidate_source", "Use one binding per candidate_source within an entity definition."))
+            else:
+                seen_candidate_sources.add(candidate_source)
+            candidate_item_ids = [
+                ("value_source_item_id", True),
+                ("unit_source_item_id", False),
+                ("quoted_text_source_item_id", False),
+            ]
+            for field_name, required in candidate_item_ids:
+                source_item_id = binding.get(field_name)
+                if source_item_id is None and not required:
+                    continue
+                source_item = item_by_id.get(source_item_id) if isinstance(source_item_id, str) else None
+                if source_item is None:
+                    errors.append(_issue("CANDIDATE_BINDING_SOURCE_ITEM_UNKNOWN", f"{binding_path}.{field_name}", f"{field_name} must reference an item in the exact source inventory."))
+                elif not _source_item_matches_definition(source_item, definition, selector_tokens):
+                    errors.append(_issue("CANDIDATE_BINDING_SOURCE_ITEM_INCOMPATIBLE", f"{binding_path}.{field_name}", "Candidate source fields must belong to the entity definition's selected file and record selector."))
+            metadata_bindings = binding.get("metadata_source_bindings", [])
+            if not isinstance(metadata_bindings, list):
+                errors.append(_issue("CANDIDATE_METADATA_BINDINGS_NOT_ARRAY", f"{binding_path}.metadata_source_bindings", "metadata_source_bindings must be an array."))
+                metadata_bindings = []
+            seen_metadata_keys: set[str] = set()
+            for metadata_index, metadata_binding in enumerate(metadata_bindings):
+                metadata_path = f"{binding_path}.metadata_source_bindings[{metadata_index}]"
+                if not isinstance(metadata_binding, dict):
+                    errors.append(_issue("CANDIDATE_METADATA_BINDING_NOT_OBJECT", metadata_path, "Metadata source binding must be an object."))
+                    continue
+                metadata_key = metadata_binding.get("metadata_key")
+                source_item_id = metadata_binding.get("source_item_id")
+                if not isinstance(metadata_key, str) or not metadata_key.strip() or metadata_key in seen_metadata_keys:
+                    errors.append(_issue("CANDIDATE_METADATA_KEY_INVALID", f"{metadata_path}.metadata_key", "metadata_key must be non-empty and unique within a candidate binding."))
+                else:
+                    seen_metadata_keys.add(metadata_key)
+                source_item = item_by_id.get(source_item_id) if isinstance(source_item_id, str) else None
+                if source_item is None:
+                    errors.append(_issue("CANDIDATE_METADATA_SOURCE_ITEM_UNKNOWN", f"{metadata_path}.source_item_id", "Metadata source item must reference the exact source inventory."))
+                elif not _source_item_matches_definition(source_item, definition, selector_tokens):
+                    errors.append(_issue("CANDIDATE_METADATA_SOURCE_ITEM_INCOMPATIBLE", f"{metadata_path}.source_item_id", "Metadata source fields must belong to the entity definition's selected file and record selector."))
+
     links = spec.get("links")
     if not isinstance(links, list):
         errors.append(_issue("LINKS_NOT_ARRAY", "links", "links must be an array."))
@@ -546,6 +607,88 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
             entity_key = list(key)
             entity_id = _canonical_id(digest, definition["definition_id"], entity_key)
             record[ID_FIELDS[entity_type]] = entity_id
+
+            candidate_bindings = definition.get("value_candidate_bindings", [])
+            candidate_records: list[dict[str, Any]] = []
+            for binding in candidate_bindings:
+                value_item = item_by_id[binding["value_source_item_id"]]
+                unit_item = item_by_id.get(binding.get("unit_source_item_id"))
+                quote_item = item_by_id.get(binding.get("quoted_text_source_item_id"))
+                for grouped_unit in grouped_units:
+                    try:
+                        raw_value, value_locator_type, value_locator = _resolve_item(
+                            value_item, definition, grouped_unit
+                        )
+                        candidate = {
+                            "candidate_id": "CAND_" + hashlib.sha256(
+                                _stable([entity_id, binding["binding_id"], grouped_unit["unit_key"]]).encode("utf-8")
+                            ).hexdigest()[:20].upper(),
+                            "candidate_source": binding["candidate_source"],
+                        }
+                        if not _is_blank(raw_value):
+                            candidate["raw_value"] = raw_value
+                        candidate_locators = [{
+                            "source_file": filename,
+                            "source_sha256": digest,
+                            "locator_type": value_locator_type,
+                            "locator": value_locator,
+                        }]
+                        if unit_item is not None:
+                            raw_unit, unit_locator_type, unit_locator = _resolve_item(
+                                unit_item, definition, grouped_unit
+                            )
+                            candidate["raw_unit"] = raw_unit if not _is_blank(raw_unit) else None
+                            candidate_locators.append({
+                                "source_file": filename,
+                                "source_sha256": digest,
+                                "locator_type": unit_locator_type,
+                                "locator": unit_locator,
+                            })
+                        if quote_item is not None:
+                            quoted_text, quote_locator_type, quote_locator = _resolve_item(
+                                quote_item, definition, grouped_unit
+                            )
+                            candidate["quoted_text"] = quoted_text if not _is_blank(quoted_text) else None
+                            candidate_locators.append({
+                                "source_file": filename,
+                                "source_sha256": digest,
+                                "locator_type": quote_locator_type,
+                                "locator": quote_locator,
+                            })
+                        metadata_values: dict[str, Any] = {}
+                        for metadata_binding in binding.get("metadata_source_bindings", []):
+                            metadata_item = item_by_id[metadata_binding["source_item_id"]]
+                            metadata_value, metadata_locator_type, metadata_locator = _resolve_item(
+                                metadata_item, definition, grouped_unit
+                            )
+                            metadata_values[metadata_binding["metadata_key"]] = (
+                                None if _is_blank(metadata_value) else metadata_value
+                            )
+                            candidate_locators.append({
+                                "source_file": filename,
+                                "source_sha256": digest,
+                                "locator_type": metadata_locator_type,
+                                "locator": metadata_locator,
+                            })
+                        if metadata_values:
+                            candidate["source_metadata"] = metadata_values
+                        # Preserve even an empty candidate slot: its source ID and
+                        # exact value-field locator are evidence about extraction coverage.
+                        unique_locators = {
+                            _stable(locator): locator for locator in candidate_locators
+                        }
+                        candidate["source_locators"] = [
+                            unique_locators[key] for key in sorted(unique_locators)
+                        ]
+                        candidate_records.append(candidate)
+                    except Exception as exc:
+                        errors.append(_issue(
+                            "CANDIDATE_VALUE_EXTRACTION_FAILED",
+                            f"{definition['definition_id']}:{grouped_unit['locator']}",
+                            f"{binding['binding_id']}: {exc}",
+                        ))
+            if candidate_records:
+                record["value_candidates"] = candidate_records
             for generated_field in GENERATED_FIELDS.get(entity_type, set()):
                 if generated_field.endswith("_ids"):
                     record.setdefault(generated_field, [])

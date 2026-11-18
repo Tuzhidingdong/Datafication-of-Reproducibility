@@ -257,6 +257,12 @@
         },
         "semantic_metadata": {
           "$ref": "#/$defs/semantic_metadata"
+        },
+        "value_candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value_candidate"
+          }
         }
       },
       "additionalProperties": true
@@ -370,6 +376,12 @@
         },
         "semantic_metadata": {
           "$ref": "#/$defs/semantic_metadata"
+        },
+        "value_candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value_candidate"
+          }
         }
       },
       "additionalProperties": true
@@ -532,6 +544,126 @@
         }
       },
       "additionalProperties": false
+    },
+    "value_candidate": {
+      "type": "object",
+      "required": [
+        "candidate_id",
+        "candidate_source"
+      ],
+      "properties": {
+        "candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw_value": {},
+        "raw_unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "normalized_value": {},
+        "normalized_unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quoted_text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_locators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          }
+        },
+        "source_metadata": {
+          "type": "object",
+          "description": "Opaque source-extraction metadata such as review states, reasons, evidence file references, or table/page locations. The Runtime preserves but does not interpret or dereference these values.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "raw_value"
+          ],
+          "properties": {
+            "raw_value": {
+              "not": {
+                "enum": [
+                  null,
+                  ""
+                ]
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "normalized_value"
+          ],
+          "properties": {
+            "normalized_value": {
+              "not": {
+                "enum": [
+                  null,
+                  ""
+                ]
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "quoted_text"
+          ],
+          "properties": {
+            "quoted_text": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "source_metadata"
+          ],
+          "properties": {
+            "source_metadata": {
+              "type": "object",
+              "minProperties": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "source_locators"
+          ],
+          "properties": {
+            "source_locators": {
+              "minItems": 1
+            }
+          }
+        }
+      ]
     }
   }
 }

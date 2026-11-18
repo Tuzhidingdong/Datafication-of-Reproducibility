@@ -977,6 +977,31 @@
               "artifact_id": "scientific_analysis_profile",
               "path": "04_discovery/scientific_analysis_profile.json",
               "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_value_inventory",
+              "path": "04_discovery/candidate_value_inventory.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_value_reconciliation",
+              "path": "04_discovery/candidate_value_reconciliation.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "missingness_opportunity_profile",
+              "path": "04_discovery/missingness_opportunity_profile.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_sensitivity_opportunities",
+              "path": "04_discovery/candidate_sensitivity_opportunities.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_sensitivity_profile",
+              "path": "04_discovery/candidate_sensitivity_profile.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -1082,6 +1107,31 @@
               "artifact_id": "scientific_analysis_profile",
               "path": "04_discovery/scientific_analysis_profile.json",
               "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_value_inventory",
+              "path": "04_discovery/candidate_value_inventory.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_value_reconciliation",
+              "path": "04_discovery/candidate_value_reconciliation.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "missingness_opportunity_profile",
+              "path": "04_discovery/missingness_opportunity_profile.csv",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_sensitivity_opportunities",
+              "path": "04_discovery/candidate_sensitivity_opportunities.json",
+              "kind": "derived"
+            },
+            {
+              "artifact_id": "candidate_sensitivity_profile",
+              "path": "04_discovery/candidate_sensitivity_profile.json",
+              "kind": "derived"
             }
           ],
           "activation": null,
@@ -1130,7 +1180,9 @@
             "condition_outcome_correlations",
             "research_opportunities",
             "evidence_ledger",
-            "scientific_analysis_profile"
+            "scientific_analysis_profile",
+            "missingness_opportunity_profile",
+            "candidate_sensitivity_profile"
           ],
           "outputs": [
             {
@@ -1168,7 +1220,9 @@
             "condition_outcome_correlations",
             "research_opportunities",
             "evidence_ledger",
-            "scientific_analysis_profile"
+            "scientific_analysis_profile",
+            "missingness_opportunity_profile",
+            "candidate_sensitivity_profile"
           ],
           "outputs": [
             {

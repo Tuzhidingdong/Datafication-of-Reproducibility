@@ -30,6 +30,25 @@ The engine reports Study, System, Condition, Experiment, Observation, and target
 
 Target IDs, endpoint definitions, and condition labels remain canonical identifiers. The Runtime does not infer a physical meaning from an identifier or guess unit conversions. The optional `semantic_metadata` object on target Observations and Condition records can carry a reviewed concept ID, definition, measurement basis, measurement context (for example, distinct measurement stages or contexts), derivation type/inputs, review status, reviewer and review date. Metadata is used only when consistently present for all records of that canonical attribute and marked `APPROVED`. Same-concept metadata is excluded as a structural self-relation only when both sides also declare the same non-empty `measurement_context`; if the context is missing or different, the candidate is retained and explicitly marked for domain review. A declared dependency is excluded only when its metadata says `derivation_type=CALCULATED` and lists the other attribute in `derived_from`. Missing, partial, conflicting or unapproved metadata never triggers semantic exclusion. When no approved metadata is present, opportunities retain CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW.
 
+## Candidate-value evidence and sensitivity mining
+
+The Canonical Bundle may preserve multiple extraction-source entries on the same Condition or Observation through its optional `value_candidates` array. Each entry has its own candidate ID and stable source ID. It can carry a raw or normalized value/unit, supplied quote, opaque source locators, and scalar source metadata such as extraction review state, review reason, evidence-file reference, or table/page pointer. An entry can also represent an extraction slot for which no value was returned: a blank value is retained with its source-field locator instead of being discarded.
+
+For existing CSV/JSON input, the hash-bound Build Spec supports explicit `value_candidate_bindings`. Each binding selects one candidate source and maps its value field plus optional unit, quote, and metadata fields from the same source file/selected record. This attaches the extraction alternatives to their original canonical Condition/Observation; it does not create new scientific records or ask the user to prepare another table. The binding's source fields must already exist in the source inventory. No semantic meaning is guessed from column names.
+
+This is a parallel evidence path, not a replacement for the primary reported-value path:
+
+- The existing primary scientific screens continue to use only the parent record's `value_state=REPORTED` and its reported value/unit pair. Candidate alternatives do not silently enter the primary estimates, p-values, q-values, or FDR denominators.
+- `candidate_value_inventory.csv` retains every candidate entry attached to its original Observation or Condition, including candidate source, value/unit, quote, source metadata, locator, and Study/System/Experiment context.
+- `candidate_value_reconciliation.csv` distinguishes value/unit agreement from value conflicts, unit conflicts, value-and-unit conflicts, and records with no usable candidate value. It never averages candidates or chooses a preferred extractor.
+- `missingness_opportunity_profile.csv` profiles record states, candidate-entry coverage, extracted-value and numeric-value coverage, unit availability, populated quote/metadata/locator coverage, and Study/System/Experiment support by canonical feature. Missingness is information about extraction and reporting, not silently treated as scientific absence.
+- `candidate_sensitivity_opportunities.json` runs one isolated alternative scenario per candidate source on a copy of the bundle. A unique candidate value overlays the same parent record; records without a candidate from that source, with an empty candidate slot, or with unresolved same-source conflicts retain their original primary reported values when available. Conflicts and unusable candidate slots are counted rather than silently resolved.
+- `candidate_sensitivity_profile.json` reports each scenario's candidate overlay, primary-value fallback, conflict and unusable-slot counts, plus scenario-specific support and screening results.
+
+Candidate-source scenarios are explicitly labelled `CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY`. Their inferential results are calculated within each scenario and are not pooled across candidate sources or combined with the primary FDR family. Candidate alternatives never become extra Observations, replicates, Systems, or independent Studies. A high degree of extraction agreement is not proof that a value is source-accurate, scientifically valid, or semantically comparable. Candidate values with missing units remain in the inventory and reconciliation but cannot enter numeric outcome screens that require an explicit unit. A candidate source with no usable value for a record does not erase an existing primary result in that sensitivity scenario.
+
+This design lets DoR exploit existing incomplete and conflicting structured evidence without asking the user to turn it into a complete machine-learning table first. It does not permit the Runtime to open original papers/SI or dereference source locators.
+
 ## Study-aware statistical screens
 
 ### Shared aggregation rules
@@ -104,7 +123,12 @@ A screen-positive result is labelled FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW.
 - evidence_ledger.jsonl — one record per opportunity/Study with supporting System, Experiment, and Observation IDs.
 - scientific_analysis_profile.json — algorithm versions, thresholds, test-family descriptions, and limitations.
 - signal_catalogue.csv and discovery_report.json — aggregate signal catalogue and machine-readable summary.
-- agent_research_brief.md — bounded aggregate summary with DOR-generated candidates; it contains no raw Observation rows, full papers, or source-document text.
+- candidate_value_inventory.csv — source-specific candidate values, quotes, units, and opaque locators attached to their original Condition/Observation records.
+- candidate_value_reconciliation.csv — per-record agreement/conflict status without silent selection or averaging.
+- missingness_opportunity_profile.csv — feature/state-specific record and evidence-coverage profile.
+- candidate_sensitivity_opportunities.json — separately labelled source-specific sensitivity results; never merged into primary findings.
+- candidate_sensitivity_profile.json — bounded aggregate summary of candidate-source overlay coverage and sensitivity results.
+- agent_research_brief.md — bounded aggregate summary with DOR-generated candidates; it contains no raw Observation rows, candidate quotes, full papers, or source-document text.
 
 ## Research scope and downstream workflow
 

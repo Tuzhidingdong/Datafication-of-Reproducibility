@@ -4,6 +4,8 @@ An Antigravity-native, cross-disciplinary Skill for building traceable and repro
 
 DoR separates source-specific ingestion and domain semantics from the reusable scientific workflow. External adapters prepare data packages; project-provided profiles and reviewed mappings supply domain meaning; the DoR Runtime validates provenance and executes general-purpose data construction, analysis, validation, and publication operations.
 
+Before any development work, read the [DoR Development Working Agreement](docs/DEVELOPMENT_WORKING_AGREEMENT.md). It defines the enduring product objective and role split: ChatGPT develops directly in GitHub; the local Agent synchronizes and tests the specified commit; the user provides scientific direction and final acceptance.
+
 ## Non-negotiable architecture boundaries
 
 - **Cross-disciplinary core:** no built-in subject-area vocabulary, material system, protocol, target definitions, domain mappings, or discipline-specific retrieval rules.

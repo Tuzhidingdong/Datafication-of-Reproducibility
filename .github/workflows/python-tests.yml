@@ -2,9 +2,9 @@ name: Python runtime tests
 
 on:
   push:
-    branches: [main, v0.1-foundation, feat/scientific-discovery-engine, feat/scientific-opportunity-engine, feat/discovery-brief-condition-diagnostics-20261114, feat/generic-data-adapter-interface-20261114]
+    branches: [main, v0.1-foundation, feat/scientific-discovery-engine, feat/scientific-opportunity-engine, feat/discovery-brief-condition-diagnostics-20261114, feat/generic-data-adapter-interface-20261114, feat/existing-data-scientific-mining]
   pull_request:
-    branches: [main, feat/scientific-discovery-engine, dev/fix-zinc-full-analysis-vquery-8b2ef27, feat/generic-data-adapter-interface-20261114]
+    branches: [main, feat/scientific-discovery-engine, dev/fix-zinc-full-analysis-vquery-8b2ef27, feat/generic-data-adapter-interface-20261114, feat/scientific-opportunity-engine]
   workflow_dispatch:
 
 jobs:
