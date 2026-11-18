@@ -145,6 +145,7 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.add_rule("R_J_STATE","unused","observations","value_state",source_item="SRC_J_STATE")
         self.add_rule("R_J_VALUE","unused","observations","raw_value","NUMERIC_PARSE",source_item="SRC_J_VALUE")
         observation=self.spec["entity_definitions"][-1]
+        observation.pop("value_candidate_bindings", None)
         observation.update({"source_file":"observations.json","source_format":"json",
                             "record_selector":"/observations/*",
                             "grouping":{"mode":"SOURCE_ROW","source_item_ids":[]},
