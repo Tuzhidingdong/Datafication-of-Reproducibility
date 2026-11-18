@@ -211,6 +211,10 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "candidate_pairwise_reconciliation", "candidate_reconciliation_profile",
             "missingness_opportunity_profile", "candidate_sensitivity_opportunities",
             "candidate_sensitivity_profile",
+            "deep_research_opportunities", "deep_scientific_discovery_profile",
+            "deep_condition_response", "deep_interaction_candidates",
+            "multiobjective_tradeoff_candidates", "multiobjective_frontiers",
+            "deep_evidence_ledger",
         }
         discovery = stages["exploratory_discovery"]
         scope = stages["research_scope_selection"]
