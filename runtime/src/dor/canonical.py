@@ -92,8 +92,10 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
             metadata_for_value = candidate.get("source_metadata")
             has_metadata = isinstance(metadata_for_value, dict) and bool(metadata_for_value)
             has_quote = isinstance(candidate.get("quoted_text"), str) and bool(candidate["quoted_text"].strip())
-            if not (has_value or has_metadata or has_quote):
-                errors.append({"code":"VALUE_CANDIDATE_WITHOUT_VALUE_OR_EVIDENCE","path":candidate_path,"message":"A candidate entry must contain a value, quoted text, or source metadata."})
+            candidate_locators = candidate.get("source_locators")
+            has_locator = isinstance(candidate_locators, list) and bool(candidate_locators)
+            if not (has_value or has_metadata or has_quote or has_locator):
+                errors.append({"code":"VALUE_CANDIDATE_WITHOUT_VALUE_OR_EVIDENCE","path":candidate_path,"message":"A candidate entry must contain a value, quoted text, source metadata, or a source locator."})
             locators = candidate.get("source_locators", [])
             if not isinstance(locators, list):
                 errors.append({"code":"VALUE_CANDIDATE_LOCATORS_NOT_ARRAY","path":f"{candidate_path}.source_locators","message":"source_locators must be an array."})
