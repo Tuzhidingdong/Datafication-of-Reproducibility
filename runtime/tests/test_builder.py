@@ -17,7 +17,7 @@ class CanonicalBuilderTests(unittest.TestCase):
                              "99","unit-x","Synthetic extractor A quote 1","102","unit-x","Synthetic extractor B quote 1",
                              "UNRESOLVED","two candidate readings","Table 2"])
             writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E2","TARGET_01","110",
-                             "109","unit-x","Synthetic extractor A quote 2","113","unit-x","Synthetic extractor B quote 2",
+                             "","unit-x","Synthetic extractor A quote 2","113","unit-x","Synthetic extractor B quote 2",
                              "REVIEW_REQUIRED","unit needs checking","Figure 3"])
         self.source_hash = sha256_file(self.source)
         columns = ["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value",
@@ -111,6 +111,12 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertEqual(len(by_source["extractor-a"]["source_locators"]), 6)
         self.assertTrue(all(item["source_sha256"] == self.source_hash
                             for item in by_source["extractor-a"]["source_locators"]))
+        second_by_source = {
+            item["candidate_source"]: item for item in bundle["observations"][1]["value_candidates"]
+        }
+        self.assertNotIn("raw_value", second_by_source["extractor-a"])
+        self.assertEqual(second_by_source["extractor-a"]["quoted_text"], "Synthetic extractor A quote 2")
+        self.assertEqual(second_by_source["extractor-a"]["source_metadata"]["review_state"], "REVIEW_REQUIRED")
         self.assertEqual(bundle["experiments"][0]["study_id"],bundle["studies"][0]["study_id"])
         self.assertEqual(bundle["build_provenance"]["build_spec_sha256"],self.spec_hash)
         self.assertEqual(bundle["observations"][0]["_provenance"]["mapping_plan_sha256"],self.plan_hash)
