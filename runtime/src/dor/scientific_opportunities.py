@@ -50,7 +50,7 @@ def _target_semantic_key(target_id: Any, endpoint: Any, timepoint: Any) -> str:
     target = str(target_id or "UNSPECIFIED_TARGET")
     endpoint_label = str(endpoint or "UNSPECIFIED_ENDPOINT_DEFINITION")
     timepoint_label = (
-        str(timepoint) if timepoint not in (None, "") else "UNSPECIFIED_TIMEPOINT"
+        timepoint if timepoint not in (None, "") else "UNSPECIFIED_TIMEPOINT"
     )
     return _label([target, endpoint_label, timepoint_label])
 
@@ -649,10 +649,10 @@ def build_scientific_opportunities(
 
     # Experiment-level outcomes: several Observations in one Experiment are
     # summarized first, so repeated rows cannot inflate independent sample size.
-    observations_by_experiment: dict[str, dict[tuple[str, str, str, str], list[tuple[float, str]]]] = defaultdict(
+    observations_by_experiment: dict[str, dict[tuple[str, str, Any, str], list[tuple[float, str]]]] = defaultdict(
         lambda: defaultdict(list)
     )
-    all_observation_counts: dict[tuple[str, str, str, str], int] = defaultdict(int)
+    all_observation_counts: dict[tuple[str, str, Any, str], int] = defaultdict(int)
     reported_numeric_count = 0
     for observation in bundle.get("observations", []):
         if observation.get("value_state") != "REPORTED":
@@ -663,7 +663,11 @@ def build_scientific_opportunities(
             continue
         target_id = str(observation.get("target_id") or "UNSPECIFIED_TARGET")
         endpoint = str(observation.get("endpoint_definition") or "UNSPECIFIED_ENDPOINT_DEFINITION")
-        timepoint = str(observation.get("timepoint")) if observation.get("timepoint") not in (None, "") else "UNSPECIFIED_TIMEPOINT"
+        timepoint = (
+            observation.get("timepoint")
+            if observation.get("timepoint") not in (None, "")
+            else "UNSPECIFIED_TIMEPOINT"
+        )
         outcome_key = (target_id, endpoint, timepoint, unit)
         experiment_id = observation.get("experiment_id")
         if experiment_id not in experiments:
