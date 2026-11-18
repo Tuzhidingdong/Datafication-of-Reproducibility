@@ -20,7 +20,7 @@ def _json_key(value: Any) -> str:
 
 
 def _nonblank(value: Any) -> bool:
-    return value is not None and value != ""
+    return value is not None and not (isinstance(value, str) and not value.strip())
 
 
 def _finite_number(value: Any) -> float | None:
