@@ -14,6 +14,10 @@
     {
       "artifact_id": "publication_plan_template",
       "path": "D:/Research/Project/configuration/publication_package_plan.json"
+    },
+    {
+      "artifact_id": "semantic_registry",
+      "path": "D:/Research/Project/configuration/semantic_registry.json"
     }
   ],
   "stages": [
@@ -295,7 +299,8 @@
         "canonical_bundle_validation"
       ],
       "inputs": [
-        "canonical_bundle"
+        "canonical_bundle",
+        "semantic_registry"
       ],
       "outputs": [
         {
