@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from dor.canonical import validate_canonical_bundle
+from dor.candidate_mining import inventory_candidate_values, build_candidate_source_sensitivities
 from dor.scientific_opportunities import build_scientific_opportunities
 from dor.semantic_registry import load_semantic_registry
 
@@ -248,6 +249,20 @@ def summarize_canonical_bundle(
     )
     signals.extend(scientific["signals"])
 
+    # Candidate alternatives are inventoried separately and never enter the
+    # primary reported-value analysis or its inferential denominator.
+    candidate_inventory = inventory_candidate_values(bundle)
+    candidate_sensitivity = build_candidate_source_sensitivities(
+        bundle,
+        minimum_paired_studies=minimum_paired_studies,
+        fdr_alpha=fdr_alpha,
+        bootstrap_iterations=bootstrap_iterations,
+        maximum_opportunities=maximum_opportunities,
+        maximum_levels_per_condition=maximum_levels_per_condition,
+        seed=seed,
+        semantic_registry=semantic_registry,
+    )
+
     studies_with_observations = {
         study_by_experiment[item["experiment_id"]]
         for item in observations
@@ -266,6 +281,10 @@ def summarize_canonical_bundle(
         "observation_count": len(observations),
         "target_count": len({str(item.get("target_id") or "UNSPECIFIED_TARGET") for item in observations}),
         "reported_numeric_observation_count": reported_numeric,
+        "candidate_value_record_count": candidate_inventory["profile"]["candidate_record_count"],
+        "candidate_value_count": candidate_inventory["profile"]["candidate_value_count"],
+        "candidate_source_count": candidate_inventory["profile"]["candidate_source_count"],
+        "candidate_sensitivity_scenario_count": candidate_sensitivity["scenario_count"],
         "minimum_studies_for_cross_study_signal": minimum_studies,
     }
     return {
@@ -276,6 +295,13 @@ def summarize_canonical_bundle(
         "joint_rows": joint_rows,
         "signals": signals,
         "scientific": scientific,
+        "candidate_mining": {
+            "inventory_profile": candidate_inventory["profile"],
+            "inventory_rows": candidate_inventory["inventory_rows"],
+            "reconciliation_rows": candidate_inventory["reconciliation_rows"],
+            "missingness_rows": candidate_inventory["missingness_rows"],
+            "sensitivity": candidate_sensitivity,
+        },
         "interpretation_boundary": [
             "Summaries use the canonical entity links supplied by the adapter or approved mapping.",
             "Units are kept as exact strings; no implicit conversion is performed.",
@@ -340,6 +366,55 @@ def run_canonical_discovery_scan(
         ["target_id", "condition_type", "observation_count_with_condition", "study_count"], result["condition_rows"])
     _write_csv(output_dir / "joint_support.csv",
         ["target_a", "target_b", "supporting_study_count", "linkage_basis"], result["joint_rows"])
+
+    candidate_mining = result["candidate_mining"]
+    _write_csv(output_dir / "candidate_value_inventory.csv",
+        ["entity_type", "record_id", "feature_id", "study_ids_json", "system_ids_json",
+         "experiment_ids_json", "endpoint_definition", "timepoint", "primary_value_state",
+         "candidate_id", "candidate_source", "candidate_value", "candidate_unit",
+         "candidate_numeric_value", "quoted_text", "source_locators_json"],
+        candidate_mining["inventory_rows"])
+    _write_csv(output_dir / "candidate_value_reconciliation.csv",
+        ["entity_type", "record_id", "feature_id", "primary_value_state", "candidate_count",
+         "candidate_source_count", "usable_candidate_count", "distinct_candidate_value_count",
+         "distinct_candidate_unit_count", "reconciliation_status", "candidate_sources_json",
+         "candidate_value_unit_pairs_json"],
+        candidate_mining["reconciliation_rows"])
+    _write_csv(output_dir / "missingness_opportunity_profile.csv",
+        ["entity_type", "feature_id", "value_state", "record_count", "study_count",
+         "system_count", "experiment_count", "records_with_candidates", "candidate_count",
+         "records_with_locators", "candidate_quote_count", "records_with_value", "records_with_unit"],
+        candidate_mining["missingness_rows"])
+    candidate_sensitivity = candidate_mining["sensitivity"]
+    candidate_payload = {
+        "schema_version": candidate_sensitivity["schema_version"],
+        "status": candidate_sensitivity["status"],
+        "scenario_count": candidate_sensitivity["scenario_count"],
+        "candidate_inventory_profile": candidate_sensitivity["candidate_inventory_profile"],
+        "scenarios": candidate_sensitivity["scenarios"],
+        "interpretation_boundary": [
+            "All candidate-derived statistics are sensitivity-only and are not primary results.",
+            "Candidate alternatives are never counted as extra independent observations or Studies.",
+            "Each candidate source is analysed in a separate scenario; scenario p/q values are not pooled.",
+            "Conflicting values from the same candidate source and record are preserved in the inventory and excluded from that source's overlay.",
+        ],
+    }
+    (output_dir / "candidate_sensitivity_opportunities.json").write_text(
+        json.dumps(candidate_payload, indent=2, ensure_ascii=False, sort_keys=True) + "\\n", encoding="utf-8")
+    candidate_profile = {
+        "candidate_inventory": candidate_mining["inventory_profile"],
+        "scenario_count": candidate_sensitivity["scenario_count"],
+        "scenarios": [
+            {key: scenario[key] for key in (
+                "candidate_source", "scenario_status", "overlay_counts",
+                "conflicting_candidate_records_skipped", "candidate_opportunity_count",
+                "fdr_screen_positive_count", "analysis_profile"
+            )}
+            for scenario in candidate_sensitivity["scenarios"]
+        ],
+    }
+    (output_dir / "candidate_sensitivity_profile.json").write_text(
+        json.dumps(candidate_profile, indent=2, ensure_ascii=False, sort_keys=True) + "\\n", encoding="utf-8")
     _write_csv(output_dir / "signal_catalogue.csv",
         ["signal_id", "signal_type", "target_id", "target_a", "target_b", "unit",
          "condition_type", "supporting_observation_count", "supporting_study_count",
@@ -416,6 +491,13 @@ def run_canonical_discovery_scan(
         "scientific_analysis": scientific_profile,
         "research_opportunities_file": "research_opportunities.json",
         "research_opportunity_count": len(scientific["opportunities"]),
+        "candidate_value_inventory_file": "candidate_value_inventory.csv",
+        "candidate_value_record_count": candidate_profile["candidate_record_count"],
+        "candidate_value_count": candidate_profile["candidate_value_count"],
+        "candidate_source_count": candidate_profile["candidate_source_count"],
+        "candidate_sensitivity_profile_file": "candidate_sensitivity_profile.json",
+        "candidate_sensitivity_scenario_count": candidate_sensitivity["scenario_count"],
+        "candidate_sensitivity_opportunities_file": "candidate_sensitivity_opportunities.json",
         "excluded_self_association_count": len(scientific["self_association_exclusions"]),
         "mirror_duplicate_opportunity_count": scientific["profile"]["mirror_duplicate_opportunity_count"],
         "mirror_duplicate_group_count": scientific["profile"]["mirror_duplicate_group_count"],
@@ -439,7 +521,21 @@ def run_canonical_discovery_scan(
     ]
     for key, value in result["profile"].items():
         brief_lines.append(f"- {key}: {value}")
-    brief_lines.extend(["", "## DOR-generated research opportunities", ""])
+    candidate_profile = result["candidate_mining"]["inventory_profile"]
+    brief_lines.extend([
+        "",
+        "## Existing candidate values and incomplete evidence",
+        "",
+        f"- Candidate records: {candidate_profile['candidate_record_count']}",
+        f"- Candidate values: {candidate_profile['candidate_value_count']}",
+        f"- Distinct candidate sources: {candidate_profile['candidate_source_count']}",
+        f"- Candidate-source sensitivity scenarios: {candidate_mining['sensitivity']['scenario_count']}",
+        "- Candidate alternatives are kept separate from primary reported values; see candidate_value_inventory.csv and candidate_sensitivity_profile.json.",
+        "- This aggregate brief does not expose row-level candidate values, quotations, or source locators.",
+        "",
+        "## DOR-generated research opportunities",
+        "",
+    ])
     for opportunity in scientific["opportunities"][:25]:
         brief_lines.append(
             f"- {opportunity['opportunity_id']}: {opportunity['scientific_question']} "
@@ -500,7 +596,9 @@ def run_canonical_discovery_scan(
         "output_files": [
             {"path": item.name, "sha256": _sha256(item)} for item in output_files
         ],
-        "scope": "READ_ONLY_CANONICAL_BUNDLE_EXPLORATORY_PROFILE",
+        "scope": "READ_ONLY_CANONICAL_BUNDLE_EXPLORATORY_PROFILE_AND_CANDIDATE_SENSITIVITY",
+        "candidate_values_enter_primary_analysis": False,
+        "candidate_alternatives_counted_as_independent_observations": False,
     }
     (output_dir / "discovery_manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -511,6 +609,9 @@ def run_canonical_discovery_scan(
         "profile": result["profile"],
         "signal_count": len(result["signals"]),
         "research_opportunity_count": len(scientific["opportunities"]),
+        "candidate_value_record_count": candidate_profile["candidate_record_count"],
+        "candidate_value_count": candidate_profile["candidate_value_count"],
+        "candidate_sensitivity_scenario_count": candidate_sensitivity["scenario_count"],
         "mirror_duplicate_opportunity_count": scientific["profile"]["mirror_duplicate_opportunity_count"],
         "mirror_duplicate_group_count": scientific["profile"]["mirror_duplicate_group_count"],
         "related_opportunity_group_count": scientific["profile"]["related_opportunity_group_count"],
