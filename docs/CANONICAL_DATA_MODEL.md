@@ -39,6 +39,8 @@ Replicates must be represented only when the source supports replicate identity.
 
 The allowed value states are REPORTED, NOT_REPORTED, NOT_APPLICABLE, AMBIGUOUS, CONFLICTING, and NOT_ASSESSED. Raw reported values and units are retained. Normalized values and units are additional fields and require an approved conversion rule. Never replace an absent condition with zero, a literature convention, or an assumed default.
 
+A Condition or Observation may also carry an optional `value_candidates` array. Each candidate has its own stable candidate ID, candidate-source ID, raw and/or normalized value/unit pair, optional quoted excerpt, and opaque source locators. This is how multiple extraction outputs, unresolved values, and disagreements remain attached to the same scientific record without creating duplicate Observations. Candidate alternatives do not change the parent record's `value_state` and are not primary reported values. Never average candidates, select the first candidate, or treat candidate rows as independent measurements. Discovery inventories and reconciles them separately, then may run one explicitly labelled sensitivity scenario per candidate source. A scenario does not approve that source's values; source-specific conflicts remain in the inventory and are skipped from that scenario's overlay.
+
 ## Provenance
 
 Each source locator records the source file, its SHA-256, locator type, and locator value. Evidence records retain a source-study link and evidence type. Extraction confidence or verification state is recorded separately from scientific validity.
