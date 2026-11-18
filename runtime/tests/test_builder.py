@@ -12,14 +12,16 @@ class CanonicalBuilderTests(unittest.TestCase):
         with self.source.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.writer(handle)
             writer.writerow(["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value",
-                             "ValueA","ValueAUnit","QuoteA","ValueB","ValueBUnit","QuoteB"])
+                             "ValueA","ValueAUnit","QuoteA","ValueB","ValueBUnit","QuoteB","ReviewStateA","ReviewReasonA","EvidenceRefA"])
             writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E1","TARGET_01","100",
-                             "99","unit-x","Synthetic extractor A quote 1","102","unit-x","Synthetic extractor B quote 1"])
+                             "99","unit-x","Synthetic extractor A quote 1","102","unit-x","Synthetic extractor B quote 1",
+                             "UNRESOLVED","two candidate readings","Table 2"])
             writer.writerow(["10.1000/a","Study A","System A","25","unit_01","feature_01","REPORTED","E2","TARGET_01","110",
-                             "109","unit-x","Synthetic extractor A quote 2","113","unit-x","Synthetic extractor B quote 2"])
+                             "109","unit-x","Synthetic extractor A quote 2","113","unit-x","Synthetic extractor B quote 2",
+                             "REVIEW_REQUIRED","unit needs checking","Figure 3"])
         self.source_hash = sha256_file(self.source)
         columns = ["DOI","Title","System","Feature01","FeatureUnit","ConditionType","ValueState","Experiment","Target","Value",
-                   "ValueA","ValueAUnit","QuoteA","ValueB","ValueBUnit","QuoteB"]
+                   "ValueA","ValueAUnit","QuoteA","ValueB","ValueBUnit","QuoteB","ReviewStateA","ReviewReasonA","EvidenceRefA"]
         self.inventory = {"schema_version":"1.0","items":[
             {"inventory_id":f"SRC_{name}","source_file":"source.csv","source_sha256":self.source_hash,
              "source_format":"csv","locator_type":"csv_column","locator":name}
@@ -66,7 +68,12 @@ class CanonicalBuilderTests(unittest.TestCase):
              "field_rule_ids":["R_TARGET","R_OBS_STATE","R_VALUE"],
              "value_candidate_bindings":[
                {"binding_id":"BIND_A","candidate_source":"extractor-a","value_source_item_id":"SRC_ValueA",
-                "unit_source_item_id":"SRC_ValueAUnit","quoted_text_source_item_id":"SRC_QuoteA"},
+                "unit_source_item_id":"SRC_ValueAUnit","quoted_text_source_item_id":"SRC_QuoteA",
+                "metadata_source_bindings":[
+                  {"metadata_key":"review_state","source_item_id":"SRC_ReviewStateA"},
+                  {"metadata_key":"review_reason","source_item_id":"SRC_ReviewReasonA"},
+                  {"metadata_key":"evidence_reference","source_item_id":"SRC_EvidenceRefA"}
+                ]},
                {"binding_id":"BIND_B","candidate_source":"extractor-b","value_source_item_id":"SRC_ValueB",
                 "unit_source_item_id":"SRC_ValueBUnit","quoted_text_source_item_id":"SRC_QuoteB"}
              ]}
@@ -98,7 +105,10 @@ class CanonicalBuilderTests(unittest.TestCase):
         self.assertEqual(by_source["extractor-a"]["raw_value"], "99")
         self.assertEqual(by_source["extractor-a"]["raw_unit"], "unit-x")
         self.assertEqual(by_source["extractor-a"]["quoted_text"], "Synthetic extractor A quote 1")
-        self.assertEqual(len(by_source["extractor-a"]["source_locators"]), 3)
+        self.assertEqual(by_source["extractor-a"]["source_metadata"]["review_state"], "UNRESOLVED")
+        self.assertEqual(by_source["extractor-a"]["source_metadata"]["review_reason"], "two candidate readings")
+        self.assertEqual(by_source["extractor-a"]["source_metadata"]["evidence_reference"], "Table 2")
+        self.assertEqual(len(by_source["extractor-a"]["source_locators"]), 6)
         self.assertTrue(all(item["source_sha256"] == self.source_hash
                             for item in by_source["extractor-a"]["source_locators"]))
         self.assertEqual(bundle["experiments"][0]["study_id"],bundle["studies"][0]["study_id"])
