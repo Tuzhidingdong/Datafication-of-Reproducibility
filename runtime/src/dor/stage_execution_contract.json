@@ -899,7 +899,8 @@
           "executor": "local",
           "required_gate": null,
           "inputs": [
-            "canonical_bundle"
+            "canonical_bundle",
+            "semantic_registry"
           ],
           "outputs": [
             {
@@ -988,6 +989,10 @@
             {
               "artifact": "canonical_bundle"
             },
+            "--semantic-registry",
+            {
+              "artifact": "semantic_registry"
+            },
             "--out-dir",
             {
               "artifact_parent": "discovery_manifest"
@@ -999,7 +1004,8 @@
           "executor": "local",
           "required_gate": null,
           "inputs": [
-            "canonical_bundle"
+            "canonical_bundle",
+            "semantic_registry"
           ],
           "outputs": [
             {
@@ -1087,6 +1093,10 @@
             "--bundle",
             {
               "artifact": "canonical_bundle"
+            },
+            "--semantic-registry",
+            {
+              "artifact": "semantic_registry"
             },
             "--out-dir",
             {
