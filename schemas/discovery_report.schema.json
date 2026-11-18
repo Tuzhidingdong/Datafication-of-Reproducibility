@@ -15,7 +15,8 @@
     "research_opportunity_count",
     "evidence_ledger_file",
     "evidence_ledger_row_count",
-    "interpretation_boundary"
+    "interpretation_boundary",
+    "related_opportunity_group_count"
   ],
   "properties": {
     "schema_version": {
