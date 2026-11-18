@@ -22,6 +22,16 @@ Semantic metadata may declare a concept identifier, display name, definition, me
 
 An APPROVED record must include reviewer, review timestamp, rationale, and at least one hash-bound source reference. A source reference contains a stable source ID, SHA-256, and opaque locator. The Runtime does not open, parse, or dereference the source. It verifies the shape and hash syntax only; the human reviewer remains responsible for the provenance decision.
 
+## Reviewed unit definitions (Semantic Registry v1.1)
+
+Schema version 1.1 adds an optional `unit_definitions` array. A unit definition declares one exact `dimension_id`, one exact `canonical_unit`, and the complete set of exact unit symbols accepted for that dimension. Each symbol declares a finite positive `scale_to_canonical` and an optional finite `offset_to_canonical` (default zero). The canonical symbol must map to itself with scale 1 and offset 0. Unit IDs, dimension IDs, and symbols must be unique in the registry.
+
+Only definitions with `review_status=APPROVED` and reviewer, timestamp, rationale, and at least one hash-bound source reference are eligible for diagnostic conversion. Symbols are matched exactly: no trimming, case folding, Unicode normalization, prefix inference, or external unit-library lookup is performed. Unapproved, missing, or unknown definitions never enable conversion.
+
+Discovery uses these definitions only to explain candidate-pair unit disagreements. It may calculate diagnostic values in the declared canonical unit and distinguish convertible aliases from incompatible dimensions. It never rewrites the Canonical Bundle, changes primary values, changes candidate-source sensitivity inputs, or selects a preferred candidate. Every conversion remains traceable to the registry hash and approved unit definition. Candidate quotation scope still requires separate review; a parent Target/Condition semantic definition does not prove two extraction quotes describe the same measurement context.
+
+Version 1.0 remains valid and retains its original meaning. It has no `unit_definitions` field; adding that field requires schema version 1.1. An empty or absent unit-definition list means that differing unit labels remain unresolved.
+
 ## Validate and use
 
 Validate the independent asset before use:
