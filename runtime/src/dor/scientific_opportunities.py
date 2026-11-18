@@ -15,7 +15,7 @@ import statistics
 from collections import defaultdict
 from typing import Any
 
-ENGINE_VERSION = "1.2.0"
+ENGINE_VERSION = "1.3.0"
 
 
 def _finite_number(value: Any) -> float | None:
@@ -41,8 +41,8 @@ def _label(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
 
 def _identifier_key(value: Any) -> str:
-    """Normalize an identifier only for conservative same-attribute detection."""
-    return "".join(character for character in str(value or "") if character.isalnum()).casefold()
+    """Keep canonical identifiers exact; never case-fold or strip punctuation."""
+    return str(value) if value is not None else ""
 
 
 def _semantic_metadata_index(records: list[dict[str, Any]], key_field: str) -> dict[str, dict[str, Any]]:
@@ -97,6 +97,8 @@ def _semantic_metadata_summary(entry: dict[str, Any] | None) -> dict[str, Any]:
         "derived_from": metadata.get("derived_from", []),
         "reviewer": metadata.get("reviewer"),
         "reviewed_at": metadata.get("reviewed_at"),
+        "review_rationale": metadata.get("review_rationale"),
+        "source_refs": metadata.get("source_refs", []),
     }
 
 
@@ -293,16 +295,14 @@ def _correlation_opportunity_id(row: dict[str, Any]) -> str:
     return _opportunity_id(["BETWEEN_SYSTEM_SPEARMAN", outcome_key, condition_base])
 
 
-def _exact_mirror_proof(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any] | None:
-    """Prove reciprocal rows use the same Study/System/Experiment pairs with swapped values."""
+def _reciprocal_pattern_proof(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any] | None:
+    """Prove reciprocal values and exact support while retaining endpoint/timepoint context."""
     if (left.get("analysis_family") != "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"
             or right.get("analysis_family") != "CONDITION_OUTCOME_BETWEEN_SYSTEM_SPEARMAN"):
         return None
     if not (
         left.get("target_id") == right.get("condition_type")
         and left.get("condition_type") == right.get("target_id")
-        and left.get("endpoint_definition") == right.get("endpoint_definition")
-        and left.get("timepoint") == right.get("timepoint")
         and left.get("outcome_unit") == right.get("condition_unit")
         and left.get("condition_unit") == right.get("outcome_unit")
     ):
@@ -330,17 +330,86 @@ def _exact_mirror_proof(left: dict[str, Any], right: dict[str, Any]) -> dict[str
             matched_experiments.update(a.get("supporting_experiment_ids", []))
             matched_observations.update(a.get("supporting_observation_ids", []))
             matched_observations.update(b.get("supporting_observation_ids", []))
+    same_endpoint = left.get("endpoint_definition") == right.get("endpoint_definition")
+    same_timepoint = left.get("timepoint") == right.get("timepoint")
     return {
         "exact_reciprocal_values": True,
         "identical_study_support": True,
         "identical_system_support_within_each_study": True,
         "identical_experiment_support_within_each_system": True,
         "unit_strings_cross_match_exactly": True,
+        "same_endpoint_definition": same_endpoint,
+        "same_timepoint": same_timepoint,
+        "context_dimensions_differ": [
+            key for key, same in (
+                ("endpoint_definition", same_endpoint),
+                ("timepoint", same_timepoint),
+            ) if not same
+        ],
         "supporting_study_ids": sorted(left_studies),
         "matched_system_count": matched_systems,
         "matched_experiment_count": len(matched_experiments),
         "matched_observation_count": len(matched_observations),
     }
+
+
+def _exact_mirror_proof(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any] | None:
+    """Deduplication proof additionally requires identical endpoint and timepoint."""
+    proof = _reciprocal_pattern_proof(left, right)
+    if proof is None or not proof["same_endpoint_definition"] or not proof["same_timepoint"]:
+        return None
+    return {
+        key: value for key, value in proof.items()
+        if key not in {"same_endpoint_definition", "same_timepoint", "context_dimensions_differ"}
+    }
+
+
+def _related_opportunity_groups(
+    opportunities: list[dict[str, Any]],
+    correlation_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Group exact reciprocal data patterns with differing context, without statistical merging."""
+    opportunity_by_id = {item["opportunity_id"]: item for item in opportunities}
+    groups = []
+    for left_index, left in enumerate(correlation_rows):
+        left_id = _correlation_opportunity_id(left)
+        if left_id not in opportunity_by_id:
+            continue
+        for right in correlation_rows[left_index + 1:]:
+            right_id = _correlation_opportunity_id(right)
+            if right_id not in opportunity_by_id:
+                continue
+            proof = _reciprocal_pattern_proof(left, right)
+            if proof is None or not proof["context_dimensions_differ"]:
+                continue
+            member_ids = sorted([left_id, right_id])
+            group_id = "REL-" + hashlib.sha256(_label(member_ids).encode("utf-8")).hexdigest()[:12].upper()
+            members = []
+            for opportunity_id in member_ids:
+                item = opportunity_by_id[opportunity_id]
+                item.setdefault("related_group_ids", []).append(group_id)
+                members.append({
+                    "opportunity_id": opportunity_id,
+                    "target_id": item["target_id"],
+                    "condition_type": item["condition_type"],
+                    "endpoint_definition": item["endpoint_definition"],
+                    "timepoint": item["timepoint"],
+                    "outcome_unit": item["outcome_unit"],
+                    "condition_unit": item["condition_unit"],
+                    "p_value": item.get("p_value"),
+                    "q_value": item.get("q_value"),
+                })
+            groups.append({
+                "related_group_id": group_id,
+                "relationship_type": "RECIPROCAL_DATA_PATTERN_CONTEXT_VARIANT",
+                "member_opportunity_ids": member_ids,
+                "members": members,
+                "proof": proof,
+                "review_status": "REQUIRES_DOMAIN_REVIEW",
+                "decision": "KEEP_ALL_MEMBERS_AS_DISTINCT_HYPOTHESES",
+                "statistical_action": "NO_DEDUPLICATION_NO_FDR_CHANGE",
+            })
+    return sorted(groups, key=lambda item: item["related_group_id"])
 
 
 def _mark_exact_mirror_duplicates(correlation_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -522,6 +591,7 @@ def build_scientific_opportunities(
     maximum_opportunities: int = 500,
     maximum_levels_per_condition: int = 20,
     seed: int = 42,
+    semantic_registry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Screen within-Study/System condition contrasts and numeric condition trends.
 
@@ -536,6 +606,21 @@ def build_scientific_opportunities(
         raise ValueError("fdr_alpha must be between 0 and 1.")
     if bootstrap_iterations < 0 or maximum_opportunities < 1 or maximum_levels_per_condition < 2:
         raise ValueError("bootstrap_iterations must be non-negative, maximum_opportunities positive, and maximum_levels_per_condition >= 2.")
+
+    semantic_registry_summary = {
+        "status": "NOT_SUPPLIED",
+        "registry_id": None,
+        "record_count": 0,
+        "approved_record_count": 0,
+        "applied_record_count": 0,
+        "target_record_count": 0,
+        "condition_record_count": 0,
+        "bundle_modified": False,
+        "source_locators_dereferenced": False,
+    }
+    if semantic_registry is not None:
+        from dor.semantic_registry import overlay_semantic_registry
+        bundle, semantic_registry_summary = overlay_semantic_registry(bundle, semantic_registry)
 
     experiments = {row["experiment_id"]: row for row in bundle.get("experiments", [])}
     systems = {row["system_id"]: row for row in bundle.get("systems", [])}
@@ -1453,6 +1538,9 @@ def build_scientific_opportunities(
         item["opportunity_id"],
     ))
     opportunities = raw_opportunities[:maximum_opportunities]
+    for opportunity in opportunities:
+        opportunity["related_group_ids"] = []
+    related_opportunity_groups = _related_opportunity_groups(opportunities, correlation_rows)
 
     signals = []
     evidence_ledger = []
@@ -1510,12 +1598,14 @@ def build_scientific_opportunities(
         "opportunity_count_before_mirror_deduplication": opportunity_count_before_mirror_deduplication,
         "mirror_duplicate_opportunity_count": len(mirror_duplicate_ids),
         "mirror_duplicate_group_count": len(mirror_duplicates),
+        "related_opportunity_group_count": len(related_opportunity_groups),
         "opportunity_count_before_limit": len(raw_opportunities),
         "opportunity_count_written": len(opportunities),
         "fdr_screen_positive_count": sum(
             item["q_value"] is not None and item["q_value"] <= fdr_alpha for item in opportunities
         ),
         "semantic_policy": "IDENTIFIERS_RETAINED; NO_AUTOMATIC_TARGET_OR_CONDITION_INTERPRETATION",
+        "semantic_registry": semantic_registry_summary,
     }
     limitations = [
         "The independent inferential unit is Study; Observation rows are aggregated within Experiment, System, and Study before cross-Study tests.",
@@ -1537,8 +1627,10 @@ def build_scientific_opportunities(
         "evidence_ledger": evidence_ledger,
         "self_association_exclusions": self_association_exclusions,
         "mirror_duplicates": mirror_duplicates,
+        "related_opportunity_groups": related_opportunity_groups,
         "limitations": limitations + [
-            "Exact reciprocal between-System rank relations are merged into one hypothesis only when canonical identifiers, endpoint/timepoint, cross-matched exact unit strings, Study/System support, Experiment support, and every per-System value pair prove an exact mirror; duplicate rows remain diagnostic and are excluded from BH-FDR.",
+            "Exact reciprocal between-System rank relations are deduplicated only when canonical identifiers, endpoint/timepoint, cross-matched exact unit strings, Study/System support, Experiment support, and every per-System value pair prove an exact mirror. When the same reciprocal data pattern differs in endpoint or timepoint, it is grouped for domain review while all hypotheses and BH-FDR entries remain distinct.",
+            "Canonical identifiers are compared exactly; case-folding, punctuation removal, and other identifier normalization are prohibited for identity or dependency decisions.",
             "Optional semantic_metadata is used only when consistently supplied and explicitly marked APPROVED; identifier-only or incomplete semantics remain unresolved and require domain review.",
             "Recorded numeric Condition covariates with exact monotonic co-variation are flagged as potential co-exposures; this is not an adjusted model and unstructured/unmeasured confounders remain unassessed.",
             "Canonical target/condition identity and exact same-unit value identity are excluded before inferential testing and FDR correction.",
