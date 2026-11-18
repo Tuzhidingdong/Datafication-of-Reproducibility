@@ -63,6 +63,7 @@ def make_bundle():
             "raw_value": 10.0,
             "raw_unit": "unit-x",
             "quoted_text": "Synthetic structured quote A",
+            "source_metadata": {"review_state": "UNRESOLVED", "evidence_reference": "Table 2"},
             "source_locators": [],
         },
         {
@@ -148,6 +149,8 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(mining["inventory_profile"]["candidate_record_count"], 3)
         self.assertEqual(mining["inventory_profile"]["candidate_value_count"], 5)
         self.assertEqual(mining["inventory_profile"]["candidate_source_count"], 2)
+        self.assertEqual(mining["inventory_profile"]["candidate_values_with_metadata_count"], 1)
+        self.assertEqual(mining["inventory_profile"]["candidate_metadata_key_counts"]["review_state"], 1)
         self.assertEqual(result["profile"]["reported_numeric_observation_count"], 6)
         reconciliation = next(
             row for row in mining["reconciliation_rows"]
@@ -161,6 +164,8 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(alpha["scenario_status"], "CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY")
         self.assertEqual(alpha["overlay_counts"]["observations"], 1)
         self.assertEqual(alpha["overlay_counts"]["conditions"], 1)
+        self.assertEqual(alpha["primary_value_fallback_record_counts"]["observations"], 5)
+        self.assertEqual(alpha["primary_value_fallback_record_counts"]["conditions"], 2)
         self.assertEqual(alpha["conflicting_candidate_records_skipped"]["observations"], 1)
         self.assertEqual(alpha["analysis_profile"]["numeric_observation_count_used"], 6)
         self.assertEqual(result["scientific"]["profile"]["numeric_observation_count_used"], 6)
@@ -189,6 +194,9 @@ class CanonicalDiscoveryTests(unittest.TestCase):
                 "candidate_sensitivity_profile.json",
             ):
                 self.assertTrue((output / name).is_file(), name)
+            candidate_rows = (output / "candidate_value_inventory.csv").read_text(encoding="utf-8")
+            self.assertIn("source_metadata_json", candidate_rows.splitlines()[0])
+            self.assertIn("review_state", candidate_rows)
             brief = (output / "agent_research_brief.md").read_text(encoding="utf-8")
             self.assertNotIn("Synthetic structured quote A", brief)
             report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
