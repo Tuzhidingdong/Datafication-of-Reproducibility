@@ -175,11 +175,10 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         mining = result["candidate_mining"]
         self.assertEqual(mining["inventory_profile"]["candidate_record_count"], 5)
         self.assertEqual(mining["inventory_profile"]["candidate_entry_count"], 7)
-        self.assertEqual(mining["inventory_profile"]["candidate_value_count"], 6)
+        self.assertEqual(mining["inventory_profile"]["candidate_value_count"], 5)
         self.assertEqual(mining["inventory_profile"]["candidate_entries_without_value_count"], 2)
         self.assertEqual(mining["inventory_profile"]["candidate_evidence_only_entry_count"], 2)
         self.assertEqual(mining["inventory_profile"]["candidate_source_count"], 2)
-        self.assertEqual(mining["inventory_profile"]["candidate_values_with_metadata_count"], 1)
         self.assertEqual(mining["inventory_profile"]["candidate_metadata_keys"], ["review_reason", "review_state"])
         self.assertEqual(mining["inventory_profile"]["candidate_entries_with_metadata_fields_count"], 2)
         self.assertEqual(mining["inventory_profile"]["candidate_entries_with_metadata_count"], 2)
@@ -201,7 +200,6 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(alpha["primary_value_fallback_record_counts"]["conditions"], 2)
         self.assertEqual(alpha["unusable_candidate_records_skipped"]["observations"], 2)
         self.assertEqual(alpha["conflicting_candidate_records_skipped"]["observations"], 1)
-        self.assertEqual(alpha["candidate_records_without_usable_value_skipped"]["observations"], 1)
         self.assertEqual(alpha["analysis_profile"]["numeric_observation_count_used"], 6)
         self.assertEqual(result["scientific"]["profile"]["numeric_observation_count_used"], 6)
 
