@@ -229,7 +229,7 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertTrue((output / "scientific_analysis_profile.json").is_file())
             self.assertTrue((output / "agent_research_brief.md").is_file())
             discovery_report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
-            self.assertEqual(discovery_report["schema_version"], "1.3")
+            self.assertEqual(discovery_report["schema_version"], "1.4")
             self.assertEqual(discovery_report["related_opportunity_group_count"], 0)
             self.assertEqual(discovery_report["research_opportunity_count"], 0)
             opportunity_payload = json.loads((output / "research_opportunities.json").read_text(encoding="utf-8"))
@@ -331,7 +331,7 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertEqual(manifest["semantic_registry_sha256"], registry_hash)
             self.assertFalse(manifest["semantic_registry"]["bundle_modified"])
             report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
-            self.assertEqual(report["schema_version"], "1.3")
+            self.assertEqual(report["schema_version"], "1.4")
             self.assertEqual(report["scientific_analysis"]["profile"]["semantic_registry"]["registry_id"], "registry:scan-test")
 
     def test_profile_preserves_studies_without_observations(self):
