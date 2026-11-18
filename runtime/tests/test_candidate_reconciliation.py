@@ -147,9 +147,9 @@ class CandidatePairwiseReconciliationTests(unittest.TestCase):
         result = build_candidate_pairwise_reconciliation(bundle, semantic_registry=registry)
         row = result["pairwise_rows"][0]
         self.assertEqual(row["unit_comparison_status"], "APPROVED_SAME_DIMENSION_CONVERSION")
-        self.assertEqual(row["canonical_unit"], "V")
-        self.assertEqual(row["canonical_value_a"], "1")
-        self.assertEqual(row["canonical_value_b"], "1")
+        self.assertEqual(row["comparable_unit"], "V")
+        self.assertEqual(row["comparable_value_a"], "1")
+        self.assertEqual(row["comparable_value_b"], "1")
         self.assertEqual(row["unit_adjusted_comparison_status"], "NUMERICALLY_EQUAL")
         self.assertEqual(row["overall_comparison_status"], "NUMERICALLY_EQUIVALENT_WITHIN_DECLARED_UNIT_BASIS")
         self.assertEqual(
@@ -158,6 +158,27 @@ class CandidatePairwiseReconciliationTests(unittest.TestCase):
         )
         self.assertEqual(bundle["observations"][0]["value_candidates"][0]["raw_value"], before)
         self.assertEqual(result["profile"]["unit_conversion_applied_comparison_count"], 1)
+
+    def test_approved_unit_conversion_preserves_high_precision_decimal_values(self):
+        registry = _approved_registry([
+            _unit_definition(
+                "unit:potential",
+                "dimension:potential",
+                "V",
+                [
+                    {"symbol": "V", "scale_to_canonical": 1},
+                    {"symbol": "mV", "scale_to_canonical": 0.001},
+                ],
+            )
+        ])
+        bundle = _bundle([
+            _candidate("candidate-mv", "extractor-a", "1234.5678901234567890123456789", "mV", "high precision mV"),
+            _candidate("candidate-v", "extractor-b", "1.2345678901234567890123456789", "V", "high precision V"),
+        ])
+        row = build_candidate_pairwise_reconciliation(bundle, semantic_registry=registry)["pairwise_rows"][0]
+        self.assertEqual(row["comparable_value_a"], "1.2345678901234567890123456789")
+        self.assertEqual(row["comparable_value_b"], "1.2345678901234567890123456789")
+        self.assertEqual(row["unit_adjusted_comparison_status"], "NUMERICALLY_EQUAL")
 
     def test_different_unknown_unit_labels_remain_unresolved(self):
         bundle = _bundle([
