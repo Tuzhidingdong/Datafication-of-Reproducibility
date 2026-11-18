@@ -202,8 +202,8 @@ def validate_semantic_registry_data(registry: Any) -> dict[str, Any]:
                 seen_symbols.add(name)
             raw_scale = symbol.get("scale_to_canonical")
             raw_offset = symbol.get("offset_to_canonical", 0)
-            scale = _decimal_value(raw_scale) if isinstance(raw_scale, (int, float)) and not isinstance(raw_scale, bool) else None
-            offset = _decimal_value(raw_offset) if isinstance(raw_offset, (int, float)) and not isinstance(raw_offset, bool) else None
+            scale = _decimal_value(raw_scale) if isinstance(raw_scale, (int, float, Decimal)) and not isinstance(raw_scale, bool) else None
+            offset = _decimal_value(raw_offset) if isinstance(raw_offset, (int, float, Decimal)) and not isinstance(raw_offset, bool) else None
             if scale is None or scale <= 0:
                 errors.append(f"{symbol_prefix}.scale_to_canonical must be a finite positive number.")
             if offset is None:
@@ -274,7 +274,7 @@ def approved_unit_symbol_lookup(registry: dict[str, Any] | None) -> dict[str, di
 def load_semantic_registry(path: Path) -> dict[str, Any]:
     """Load and validate a registry file without dereferencing its source locators."""
     path = path.expanduser().resolve()
-    payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    payload = json.loads(path.read_text(encoding="utf-8-sig"), parse_float=Decimal)
     report = validate_semantic_registry_data(payload)
     if not report["valid"]:
         raise ValueError("Semantic Registry validation failed: " + "; ".join(report["errors"][:12]))
@@ -285,7 +285,7 @@ def validate_semantic_registry_file(path: Path) -> dict[str, Any]:
     """Return a deterministic validation report for a registry file."""
     path = path.expanduser().resolve()
     try:
-        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        payload = json.loads(path.read_text(encoding="utf-8-sig"), parse_float=Decimal)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         return {"valid": False, "registry_path": str(path), "errors": [str(exc)]}
     report = validate_semantic_registry_data(payload)
