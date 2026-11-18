@@ -1274,6 +1274,14 @@ def build_deep_scientific_discovery(
             "condition_features_omitted_from_pair_and_triplet_combinatorics": omitted_feature_count,
             "eligible_model_evaluations": screened_model_evaluation_count,
             "opportunity_count": len(opportunities),
+            "within_system_opportunity_count": sum(
+                item.get("analysis_design") == "WITHIN_SYSTEM_REPEATED_EXPERIMENTS"
+                for item in opportunities
+            ),
+            "between_system_cross_sectional_opportunity_count": sum(
+                item.get("analysis_design") == "BETWEEN_SYSTEM_CROSS_SECTIONAL_WITHIN_STUDY"
+                for item in opportunities
+            ),
             "fdr_screen_positive_count": sum(
                 item["screen_status"] == "FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW"
                 for item in opportunities
