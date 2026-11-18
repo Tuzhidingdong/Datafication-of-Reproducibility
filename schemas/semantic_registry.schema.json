@@ -148,6 +148,7 @@
         "entity_type": {
           "enum": [
             "TARGET",
+            "TARGET_ENDPOINT",
             "CONDITION"
           ]
         },
@@ -157,9 +158,73 @@
         },
         "semantic_metadata": {
           "$ref": "#/$defs/semantic_metadata"
+        },
+        "endpoint_definition": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timepoint": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "entity_type": {
+                "const": "TARGET_ENDPOINT"
+              }
+            },
+            "required": [
+              "entity_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "endpoint_definition",
+              "timepoint"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "entity_type": {
+                "enum": [
+                  "TARGET",
+                  "CONDITION"
+                ]
+              }
+            },
+            "required": [
+              "entity_type"
+            ]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "endpoint_definition"
+                  ]
+                },
+                {
+                  "required": [
+                    "timepoint"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   },
   "additionalProperties": false
