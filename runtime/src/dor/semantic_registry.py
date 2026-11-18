@@ -71,7 +71,7 @@ def validate_semantic_registry_data(registry: Any) -> dict[str, Any]:
     if not isinstance(registry, dict):
         return {"valid": False, "errors": ["Registry root must be an object."]}
     schema_version = registry.get("schema_version")
-    if schema_version not in {"1.0", "1.1"}:
+    if not isinstance(schema_version, str) or schema_version not in ("1.0", "1.1"):
         errors.append("schema_version must be '1.0' or '1.1'.")
     if not isinstance(registry.get("registry_id"), str) or not registry["registry_id"].strip():
         errors.append("registry_id must be a non-empty string.")
