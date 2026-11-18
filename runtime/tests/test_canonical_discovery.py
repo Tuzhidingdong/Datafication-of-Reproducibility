@@ -82,6 +82,24 @@ def make_bundle():
             "source_locators": [],
         }
     ]
+    bundle["observations"][4]["value_candidates"] = [
+        {
+            "candidate_id": "O3A-CAND-A-MISSING",
+            "candidate_source": "extractor-alpha",
+            "source_locators": [
+                {
+                    "source_file": "existing-structured-data.csv",
+                    "source_sha256": "a" * 64,
+                    "locator_type": "csv_row",
+                    "locator": "data_row:3;column:worker_value",
+                }
+            ],
+        }
+    ]
+    bundle["observations"][0]["value_candidates"][0]["source_metadata"] = {
+        "review_state": "REVIEW_REQUIRED",
+        "review_reason": "The extracted candidate remains unresolved.",
+    }
     bundle["observations"][2]["value_candidates"] = [
         {
             "candidate_id": "O2A-CAND-A1",
@@ -157,10 +175,12 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         mining = result["candidate_mining"]
         self.assertEqual(mining["inventory_profile"]["candidate_record_count"], 4)
         self.assertEqual(mining["inventory_profile"]["candidate_entry_count"], 6)
-        self.assertEqual(mining["inventory_profile"]["candidate_value_count"], 5)
+        self.assertEqual(mining["inventory_profile"]["candidate_value_count"], 6)
         self.assertEqual(mining["inventory_profile"]["candidate_entries_without_value_count"], 1)
         self.assertEqual(mining["inventory_profile"]["candidate_evidence_only_entry_count"], 1)
         self.assertEqual(mining["inventory_profile"]["candidate_source_count"], 2)
+        self.assertEqual(mining["inventory_profile"]["candidate_values_with_metadata_count"], 1)
+        self.assertEqual(mining["inventory_profile"]["candidate_metadata_keys"], ["review_reason", "review_state"])
         self.assertEqual(mining["inventory_profile"]["candidate_entries_with_metadata_count"], 2)
         self.assertEqual(mining["inventory_profile"]["candidate_metadata_key_counts"]["review_state"], 2)
         self.assertEqual(result["profile"]["reported_numeric_observation_count"], 6)
@@ -180,6 +200,7 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(alpha["primary_value_fallback_record_counts"]["conditions"], 2)
         self.assertEqual(alpha["unusable_candidate_records_skipped"]["observations"], 1)
         self.assertEqual(alpha["conflicting_candidate_records_skipped"]["observations"], 1)
+        self.assertEqual(alpha["candidate_records_without_usable_value_skipped"]["observations"], 1)
         self.assertEqual(alpha["analysis_profile"]["numeric_observation_count_used"], 6)
         self.assertEqual(result["scientific"]["profile"]["numeric_observation_count_used"], 6)
 
@@ -207,6 +228,8 @@ class CanonicalDiscoveryTests(unittest.TestCase):
                 "candidate_sensitivity_profile.json",
             ):
                 self.assertTrue((output / name).is_file(), name)
+            inventory_rows = list(__import__("csv").DictReader((output / "candidate_value_inventory.csv").open(encoding="utf-8")))
+            self.assertTrue(any(row["source_metadata_json"] != "{}" for row in inventory_rows))
             candidate_rows = (output / "candidate_value_inventory.csv").read_text(encoding="utf-8")
             self.assertIn("source_metadata_json", candidate_rows.splitlines()[0])
             self.assertIn("review_state", candidate_rows)
