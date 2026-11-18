@@ -174,7 +174,8 @@
                 "target_record_count",
                 "condition_record_count",
                 "bundle_modified",
-                "source_locators_dereferenced"
+                "source_locators_dereferenced",
+                "target_endpoint_record_count"
               ],
               "properties": {
                 "status": {
@@ -214,6 +215,10 @@
                 },
                 "source_locators_dereferenced": {
                   "const": false
+                },
+                "target_endpoint_record_count": {
+                  "type": "integer",
+                  "minimum": 0
                 }
               },
               "additionalProperties": false
