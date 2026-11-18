@@ -14,6 +14,7 @@ from typing import Any
 
 from dor.adapter_handoff import prepare_adapter_handoff_files
 from dor.run_manager import _validate_plan
+from dor.semantic_registry import validate_semantic_registry_file
 
 _PROFILES = {"CONTROLLED_SINGLE_STUDY", "FULL_ANALYSIS"}
 _ACCEPTANCE_ROLES = {
@@ -200,12 +201,34 @@ def initialize_project_run_plan(
     repository_templates = _repository_root() / "templates"
     run_template_path = repository_templates / run_template_name
     bundled_publication_template = repository_templates / publication_template_name
+    bundled_semantic_registry_template = repository_templates / "semantic_registry.example.json"
     if not run_template_path.is_file():
         raise FileNotFoundError(f"Bundled Run Plan template is unavailable: {run_template_path}")
     if not bundled_publication_template.is_file():
         raise FileNotFoundError(
             f"Bundled Publication Plan template is unavailable: {bundled_publication_template}"
         )
+    if not bundled_semantic_registry_template.is_file():
+        raise FileNotFoundError(
+            f"Bundled Semantic Registry template is unavailable: {bundled_semantic_registry_template}"
+        )
+
+    semantic_registry_path = (config_root / "semantic_registry.json").resolve(strict=False)
+    semantic_registry_created = False
+    if semantic_registry_path.exists() or semantic_registry_path.is_symlink():
+        if semantic_registry_path.is_symlink() or not semantic_registry_path.is_file():
+            raise FileExistsError(
+                f"Refusing to replace non-regular Semantic Registry: {semantic_registry_path}"
+            )
+        registry_validation = validate_semantic_registry_file(semantic_registry_path)
+        if not registry_validation["valid"]:
+            raise ValueError(
+                "Existing project Semantic Registry is invalid: "
+                + "; ".join(registry_validation.get("errors", [])[:12])
+            )
+    else:
+        shutil.copyfile(bundled_semantic_registry_template, semantic_registry_path)
+        semantic_registry_created = True
 
     if publication_plan_template is not None:
         publication_path = publication_plan_template.expanduser().resolve(strict=True)
@@ -250,7 +273,7 @@ def initialize_project_run_plan(
     if not ledger_path.is_absolute():
         raise ValueError("workflow ledger path must be absolute.")
 
-    source_roots = [package_root.resolve(strict=True), publication_path.parent]
+    source_roots = [package_root.resolve(strict=True), publication_path.parent, config_root]
     # Protect external provenance sources declared by the Adapter Manifest too;
     # the package directory alone may not contain original paper/SI files.
     source_roots.extend(Path(item["path"]).parent for item in refreshed.get("sources", []))
@@ -267,6 +290,10 @@ def initialize_project_run_plan(
         {
             "artifact_id": "publication_plan_template",
             "path": str(publication_path.resolve(strict=True)),
+        },
+        {
+            "artifact_id": "semantic_registry",
+            "path": str(semantic_registry_path.resolve(strict=True)),
         },
     ]
 
@@ -322,6 +349,9 @@ def initialize_project_run_plan(
         "workflow_ledger_path": str(ledger_path),
         "publication_plan_template": str(publication_path.resolve(strict=True)),
         "publication_template_created": publication_created,
+        "semantic_registry_path": str(semantic_registry_path.resolve(strict=True)),
+        "semantic_registry_sha256": hashlib.sha256(semantic_registry_path.read_bytes()).hexdigest(),
+        "semantic_registry_created": semantic_registry_created,
         "virtual_query_reference": str(virtual_path) if virtual_path is not None else None,
         "acceptance_source_count": len(acceptance_records),
         "run_init_command": (
