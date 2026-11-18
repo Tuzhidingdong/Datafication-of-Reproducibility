@@ -130,8 +130,9 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                 "_experiment_ids": set(),
                 "_candidate_record_ids": set(),
                 "candidate_count": 0,
-                "candidate_values_with_locators": 0,
+                "candidate_entries_with_locator_count": 0,
                 "candidate_quote_count": 0,
+                "candidate_metadata_fields_count": 0,
                 "candidate_metadata_count": 0,
                 "records_with_value": 0,
                 "records_with_unit": 0,
@@ -158,7 +159,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                 candidate_source = str(candidate.get("candidate_source") or "UNSPECIFIED_CANDIDATE_SOURCE")
                 locators = candidate.get("source_locators", [])
                 if isinstance(locators, list) and locators:
-                    aggregate["candidate_values_with_locators"] += 1
+                    aggregate["candidate_entries_with_locator_count"] += 1
                 quote = candidate.get("quoted_text")
                 if isinstance(quote, str) and quote.strip():
                     aggregate["candidate_quote_count"] += 1
@@ -185,7 +186,6 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                     "quoted_text": quote,
                     "source_metadata_json": json.dumps(source_metadata if isinstance(source_metadata, dict) else {}, ensure_ascii=False, sort_keys=True),
                     "source_locators_json": json.dumps(locators if isinstance(locators, list) else [], ensure_ascii=False, sort_keys=True),
-                    "source_metadata_json": json.dumps(source_metadata if isinstance(source_metadata, dict) else {}, ensure_ascii=False, sort_keys=True),
                 })
 
             if candidates:
@@ -233,8 +233,9 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
             "experiment_count": len(row["_experiment_ids"]),
             "records_with_candidates": len(row["_candidate_record_ids"]),
             "candidate_count": row["candidate_count"],
-            "candidate_values_with_locators": row["candidate_values_with_locators"],
+            "candidate_entries_with_locator_count": row["candidate_entries_with_locator_count"],
             "candidate_quote_count": row["candidate_quote_count"],
+            "candidate_metadata_fields_count": row["candidate_metadata_fields_count"],
             "candidate_metadata_count": row["candidate_metadata_count"],
             "records_with_value": row["records_with_value"],
             "records_with_unit": row["records_with_unit"],
