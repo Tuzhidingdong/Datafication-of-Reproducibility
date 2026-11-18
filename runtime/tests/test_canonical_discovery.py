@@ -456,7 +456,7 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertEqual(manifest["semantic_registry_sha256"], registry_hash)
             self.assertFalse(manifest["semantic_registry"]["bundle_modified"])
             report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
-            self.assertEqual(report["schema_version"], "1.4")
+            self.assertEqual(report["schema_version"], "1.5")
             self.assertEqual(report["scientific_analysis"]["profile"]["semantic_registry"]["registry_id"], "registry:scan-test")
 
     def test_profile_preserves_studies_without_observations(self):
