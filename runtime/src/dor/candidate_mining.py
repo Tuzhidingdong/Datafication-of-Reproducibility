@@ -48,6 +48,14 @@ def _record_candidates(record: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in candidates if isinstance(item, dict)] if isinstance(candidates, list) else []
 
 
+def _has_primary_value(record: dict[str, Any]) -> bool:
+    normalized_value = record.get("normalized_value")
+    normalized_unit = record.get("normalized_unit")
+    if _nonblank(normalized_value) and _nonblank(normalized_unit):
+        return True
+    return _nonblank(record.get("raw_value"))
+
+
 def _candidate_status(candidates: list[dict[str, Any]]) -> str:
     usable = [_candidate_pair(item) for item in candidates if _nonblank(_candidate_pair(item)[0])]
     if not usable:
@@ -126,6 +134,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                 "candidate_count": 0,
                 "records_with_locators": 0,
                 "candidate_quote_count": 0,
+                "candidate_metadata_count": 0,
                 "records_with_value": 0,
                 "records_with_unit": 0,
             })
@@ -155,6 +164,9 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                 quote = candidate.get("quoted_text")
                 if isinstance(quote, str) and quote.strip():
                     aggregate["candidate_quote_count"] += 1
+                source_metadata = candidate.get("source_metadata", {})
+                if isinstance(source_metadata, dict) and source_metadata:
+                    aggregate["candidate_metadata_count"] += 1
                 inventory.append({
                     "entity_type": entity_type,
                     "record_id": record_id,
@@ -171,6 +183,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                     "candidate_unit": candidate_unit,
                     "candidate_numeric_value": _finite_number(candidate_value),
                     "quoted_text": quote,
+                    "source_metadata_json": json.dumps(source_metadata if isinstance(source_metadata, dict) else {}, ensure_ascii=False, sort_keys=True),
                     "source_locators_json": json.dumps(locators if isinstance(locators, list) else [], ensure_ascii=False, sort_keys=True),
                 })
 
@@ -209,6 +222,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
             "candidate_count": row["candidate_count"],
             "records_with_locators": row["records_with_locators"],
             "candidate_quote_count": row["candidate_quote_count"],
+            "candidate_metadata_count": row["candidate_metadata_count"],
             "records_with_value": row["records_with_value"],
             "records_with_unit": row["records_with_unit"],
         })
@@ -231,6 +245,15 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
         "candidate_values_with_numeric_value_count": sum(1 for row in inventory if row["candidate_numeric_value"] is not None),
         "candidate_values_with_unit_count": sum(1 for row in inventory if row["candidate_unit"] != "UNSPECIFIED_UNIT"),
         "candidate_values_with_quote_count": sum(1 for row in inventory if isinstance(row["quoted_text"], str) and row["quoted_text"].strip()),
+        "candidate_values_with_metadata_count": sum(1 for row in inventory if row["source_metadata_json"] != "{}"),
+        "candidate_metadata_key_counts": dict(sorted({
+            key: sum(1 for row in inventory if key in json.loads(row["source_metadata_json"]))
+            for key in {
+                metadata_key
+                for row in inventory
+                for metadata_key in json.loads(row["source_metadata_json"])
+            }
+        }.items())),
         "candidate_values_with_locator_count": sum(1 for row in inventory if row["source_locators_json"] != "[]"),
         "missingness_group_count": len(missingness_rows),
     }
@@ -262,6 +285,8 @@ def build_candidate_source_sensitivities(
         scenario_bundle = copy.deepcopy(bundle)
         overlay_counts = {"observations": 0, "conditions": 0}
         conflicts_skipped = {"observations": 0, "conditions": 0}
+        unusable_candidates_skipped = {"observations": 0, "conditions": 0}
+        primary_fallback_counts = {"observations": 0, "conditions": 0}
 
         for collection, entity_type, id_field in (
             ("observations", "observations", "observation_id"),
@@ -273,6 +298,8 @@ def build_candidate_source_sensitivities(
                     if str(candidate.get("candidate_source") or "UNSPECIFIED_CANDIDATE_SOURCE") == candidate_source
                 ]
                 if not matching:
+                    if _has_primary_value(record):
+                        primary_fallback_counts[entity_type] += 1
                     continue
                 usable = [
                     _candidate_pair(candidate)
@@ -281,7 +308,12 @@ def build_candidate_source_sensitivities(
                 ]
                 unique_pairs = {_json_key([value, unit]): (value, unit) for value, unit in usable}
                 if len(unique_pairs) != 1:
-                    conflicts_skipped[entity_type] += 1
+                    if len(unique_pairs) > 1:
+                        conflicts_skipped[entity_type] += 1
+                    else:
+                        unusable_candidates_skipped[entity_type] += 1
+                    if _has_primary_value(record):
+                        primary_fallback_counts[entity_type] += 1
                     continue
                 selected_value, selected_unit = next(iter(unique_pairs.values()))
                 matching_with_normalized_pair = [
@@ -318,8 +350,11 @@ def build_candidate_source_sensitivities(
         scenarios.append({
             "candidate_source": candidate_source,
             "scenario_status": "CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY",
+            "scenario_data_composition": "CANDIDATE_SOURCE_WHERE_UNIQUE_WITH_PRIMARY_VALUE_FALLBACK_ELSEWHERE",
             "overlay_counts": overlay_counts,
+            "primary_value_fallback_record_counts": primary_fallback_counts,
             "conflicting_candidate_records_skipped": conflicts_skipped,
+            "unusable_candidate_records_skipped": unusable_candidates_skipped,
             "candidate_opportunity_count": len(analysis["opportunities"]),
             "fdr_screen_positive_count": analysis["profile"]["fdr_screen_positive_count"],
             "analysis_profile": analysis["profile"],
