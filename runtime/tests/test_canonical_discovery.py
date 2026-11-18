@@ -8,6 +8,7 @@ from pathlib import Path
 
 from dor.canonical_discovery import run_canonical_discovery_scan, summarize_canonical_bundle
 from dor.cli import build_parser
+from dor.canonical import validate_canonical_bundle
 
 
 def make_bundle():
@@ -55,6 +56,44 @@ def make_bundle():
                 "normalized_unit": "unit-y", "evidence_ids": []
             }
         ])
+    bundle["observations"][0]["value_candidates"] = [
+        {
+            "candidate_id": "O1A-CAND-A",
+            "candidate_source": "extractor-alpha",
+            "raw_value": 10.0,
+            "raw_unit": "unit-x",
+            "quoted_text": "Synthetic structured quote A",
+            "source_locators": [],
+        },
+        {
+            "candidate_id": "O1A-CAND-B",
+            "candidate_source": "extractor-beta",
+            "raw_value": 12.0,
+            "raw_unit": "unit-x",
+        },
+    ]
+    bundle["observations"][2]["value_candidates"] = [
+        {
+            "candidate_id": "O2A-CAND-A1",
+            "candidate_source": "extractor-alpha",
+            "raw_value": 20.0,
+            "raw_unit": "unit-x",
+        },
+        {
+            "candidate_id": "O2A-CAND-A2",
+            "candidate_source": "extractor-alpha",
+            "raw_value": 200.0,
+            "raw_unit": "unit-x",
+        },
+    ]
+    bundle["conditions"][1]["value_candidates"] = [
+        {
+            "candidate_id": "C2-CAND-A",
+            "candidate_source": "extractor-alpha",
+            "raw_value": 2.0,
+            "raw_unit": "unit-condition",
+        }
+    ]
     return bundle
 
 
@@ -101,6 +140,65 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         target = next(item for item in result["target_rows"] if item["target_id"] == "TARGET_A")
         self.assertEqual(target["unit"], "unit-x")
         self.assertEqual(target["numeric_median"], 20.0)
+
+    def test_candidate_values_are_inventoried_and_source_scenarios_are_isolated(self):
+        bundle = make_bundle()
+        result = summarize_canonical_bundle(bundle, minimum_studies=3)
+        mining = result["candidate_mining"]
+        self.assertEqual(mining["inventory_profile"]["candidate_record_count"], 3)
+        self.assertEqual(mining["inventory_profile"]["candidate_value_count"], 5)
+        self.assertEqual(mining["inventory_profile"]["candidate_source_count"], 2)
+        self.assertEqual(result["profile"]["reported_numeric_observation_count"], 6)
+        reconciliation = next(
+            row for row in mining["reconciliation_rows"]
+            if row["record_id"] == "O2A"
+        )
+        self.assertEqual(reconciliation["reconciliation_status"], "VALUE_CONFLICT")
+        alpha = next(
+            row for row in mining["sensitivity"]["scenarios"]
+            if row["candidate_source"] == "extractor-alpha"
+        )
+        self.assertEqual(alpha["scenario_status"], "CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY")
+        self.assertEqual(alpha["overlay_counts"]["observations"], 1)
+        self.assertEqual(alpha["overlay_counts"]["conditions"], 1)
+        self.assertEqual(alpha["conflicting_candidate_records_skipped"]["observations"], 1)
+        self.assertEqual(alpha["analysis_profile"]["study_count"], 3)
+        self.assertEqual(result["scientific"]["profile"]["reported_numeric_observation_count"], 6)
+
+    def test_canonical_validation_rejects_candidate_without_source_identity(self):
+        bundle = make_bundle()
+        bundle["observations"][0]["value_candidates"][0]["candidate_source"] = ""
+        result = validate_canonical_bundle(bundle)
+        self.assertFalse(result["valid"])
+        self.assertIn("INVALID_VALUE_CANDIDATE_SOURCE", {item["code"] for item in result["errors"]})
+
+    def test_scan_writes_candidate_outputs_without_exposing_rows_in_agent_brief(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle_path = root / "bundle.json"
+            bundle_path.write_text(json.dumps(make_bundle()), encoding="utf-8")
+            before = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+            output = root / "discovery"
+            run_canonical_discovery_scan(bundle_path, output)
+            self.assertEqual(before, hashlib.sha256(bundle_path.read_bytes()).hexdigest())
+            for name in (
+                "candidate_value_inventory.csv",
+                "candidate_value_reconciliation.csv",
+                "missingness_opportunity_profile.csv",
+                "candidate_sensitivity_opportunities.json",
+                "candidate_sensitivity_profile.json",
+            ):
+                self.assertTrue((output / name).is_file(), name)
+            brief = (output / "agent_research_brief.md").read_text(encoding="utf-8")
+            self.assertNotIn("Synthetic structured quote A", brief)
+            report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["candidate_value_record_count"], 3)
+            self.assertEqual(report["candidate_sensitivity_scenario_count"], 2)
+            manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
+            output_names = {item["path"] for item in manifest["output_files"]}
+            self.assertIn("candidate_value_inventory.csv", output_names)
+            self.assertFalse(manifest["candidate_values_enter_primary_analysis"])
+            self.assertFalse(manifest["candidate_alternatives_counted_as_independent_observations"])
 
     def test_scan_writes_aggregate_outputs_and_preserves_bundle(self):
         with tempfile.TemporaryDirectory() as tmp:
