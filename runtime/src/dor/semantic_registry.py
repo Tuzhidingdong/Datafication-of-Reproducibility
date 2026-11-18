@@ -245,7 +245,10 @@ def overlay_semantic_registry(
         raise ValueError("Semantic Registry entries do not match any Canonical records: " + "; ".join(missing[:12]))
 
     summary = {
-        "status": "VALIDATED_AND_APPLIED_IN_MEMORY",
+        "status": (
+            "VALIDATED_EMPTY_REGISTRY" if not registry["records"]
+            else "VALIDATED_AND_APPLIED_IN_MEMORY"
+        ),
         "registry_id": registry["registry_id"],
         "record_count": len(registry["records"]),
         "approved_record_count": report["approved_record_count"],
