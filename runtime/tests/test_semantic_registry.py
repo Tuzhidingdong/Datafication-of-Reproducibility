@@ -130,6 +130,56 @@ class SemanticRegistryTests(unittest.TestCase):
         self.assertEqual(report["target_endpoint_record_count"], 2)
         self.assertFalse(report["bundle_modified"])
 
+
+    def test_endpoint_scope_overrides_global_target_definition_without_leaking(self):
+        bundle = {
+            "observations": [
+                {"target_id": "Target-A", "endpoint_definition": "endpoint-a", "timepoint": 10},
+                {"target_id": "Target-A", "endpoint_definition": "endpoint-b", "timepoint": "10"},
+            ],
+            "conditions": [],
+        }
+        registry = {
+            "schema_version": "1.0",
+            "registry_id": "registry:global-and-specific",
+            "records": [
+                {
+                    "entity_type": "TARGET",
+                    "canonical_identifier": "Target-A",
+                    "semantic_metadata": _metadata(canonical_concept_id="concept:general"),
+                },
+                {
+                    "entity_type": "TARGET_ENDPOINT",
+                    "canonical_identifier": "Target-A",
+                    "endpoint_definition": "endpoint-a",
+                    "timepoint": 10,
+                    "semantic_metadata": _metadata(
+                        canonical_concept_id="concept:endpoint-a",
+                        measurement_context="context:endpoint-a",
+                    ),
+                },
+            ],
+        }
+        overlaid, report = overlay_semantic_registry(bundle, registry)
+        self.assertEqual(
+            overlaid["observations"][0]["semantic_metadata"]["canonical_concept_id"],
+            "concept:endpoint-a",
+        )
+        self.assertEqual(
+            overlaid["observations"][1]["semantic_metadata"]["canonical_concept_id"],
+            "concept:general",
+        )
+        self.assertEqual(report["target_record_count"], 1)
+        self.assertEqual(report["target_endpoint_record_count"], 1)
+
+    def test_empty_registry_is_reported_as_validated_empty_when_overlaid(self):
+        bundle = {"observations": [], "conditions": []}
+        registry = {"schema_version": "1.0", "registry_id": "registry:empty", "records": []}
+        overlaid, report = overlay_semantic_registry(bundle, registry)
+        self.assertEqual(report["status"], "VALIDATED_EMPTY_REGISTRY")
+        self.assertEqual(report["applied_record_count"], 0)
+        self.assertEqual(overlaid, bundle)
+
     def test_endpoint_scoped_registry_requires_exact_endpoint_and_timepoint(self):
         bundle = {
             "observations": [
