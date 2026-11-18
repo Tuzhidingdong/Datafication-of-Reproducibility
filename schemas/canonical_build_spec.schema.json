@@ -190,6 +190,27 @@
               "quoted_text_source_item_id": {
                 "type": "string",
                 "minLength": 1
+              },
+              "metadata_source_bindings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "metadata_key",
+                    "source_item_id"
+                  ],
+                  "properties": {
+                    "metadata_key": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "source_item_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
               }
             },
             "additionalProperties": false
