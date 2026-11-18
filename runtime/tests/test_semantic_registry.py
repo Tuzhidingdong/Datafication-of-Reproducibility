@@ -204,7 +204,7 @@ class SemanticRegistryTests(unittest.TestCase):
     def test_overlay_does_not_normalize_identifier_case_or_punctuation(self):
         bundle = {"observations": [{"target_id": "Target-A"}], "conditions": []}
         registry = _registry(identifier="targeta")
-        with self.assertRaisesRegex(ValueError, "does not match any Canonical record"):
+        with self.assertRaisesRegex(ValueError, "do not match any Canonical records"):
             overlay_semantic_registry(bundle, registry)
 
     def test_inline_metadata_conflict_fails_closed(self):
