@@ -624,7 +624,12 @@
         {
           "required": [
             "source_locators"
-          ]
+          ],
+          "properties": {
+            "source_locators": {
+              "minItems": 1
+            }
+          }
         }
       ]
     }
