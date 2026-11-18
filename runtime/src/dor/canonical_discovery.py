@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from dor.canonical import validate_canonical_bundle
+from dor.scientific_opportunities import build_scientific_opportunities
+from dor.semantic_registry import load_semantic_registry
 
 
 def _sha256(path: Path) -> str:
@@ -71,6 +73,13 @@ def summarize_canonical_bundle(
     bundle: dict[str, Any],
     minimum_studies: int = 3,
     maximum_pairs: int = 250,
+    minimum_paired_studies: int = 3,
+    fdr_alpha: float = 0.10,
+    bootstrap_iterations: int = 1000,
+    maximum_opportunities: int = 500,
+    maximum_levels_per_condition: int = 20,
+    seed: int = 42,
+    semantic_registry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Summarize canonical entities without interpreting target or condition semantics."""
     if minimum_studies < 2 or maximum_pairs < 1:
@@ -227,9 +236,31 @@ def summarize_canonical_bundle(
                 "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION",
             })
 
+    scientific = build_scientific_opportunities(
+        bundle,
+        minimum_paired_studies=minimum_paired_studies,
+        fdr_alpha=fdr_alpha,
+        bootstrap_iterations=bootstrap_iterations,
+        maximum_opportunities=maximum_opportunities,
+        maximum_levels_per_condition=maximum_levels_per_condition,
+        seed=seed,
+        semantic_registry=semantic_registry,
+    )
+    signals.extend(scientific["signals"])
+
+    studies_with_observations = {
+        study_by_experiment[item["experiment_id"]]
+        for item in observations
+        if item.get("experiment_id") in study_by_experiment
+    }
+    systems_with_experiments = {item["system_id"] for item in bundle["experiments"]}
     profile = {
         "study_count": len(studies),
+        "study_count_with_observations": len(studies_with_observations),
+        "study_count_without_observations": len(set(studies) - studies_with_observations),
         "system_count": len(bundle["systems"]),
+        "system_count_with_experiments": len(systems_with_experiments),
+        "system_count_without_experiments": len(set(item["system_id"] for item in bundle["systems"]) - systems_with_experiments),
         "condition_count": len(conditions),
         "experiment_count": len(experiments),
         "observation_count": len(observations),
@@ -244,12 +275,13 @@ def summarize_canonical_bundle(
         "condition_rows": condition_rows,
         "joint_rows": joint_rows,
         "signals": signals,
+        "scientific": scientific,
         "interpretation_boundary": [
             "Summaries use the canonical entity links supplied by the adapter or approved mapping.",
             "Units are kept as exact strings; no implicit conversion is performed.",
             "Study-level summaries are descriptive and are not inferential heterogeneity tests.",
             "Co-observation within one canonical experiment does not establish causality or interaction.",
-            "No causal, mechanistic, novelty, or statistical-significance claims are generated.",
+            "Statistical screens and q-values are prioritization evidence only; they do not establish scientific significance, causality, mechanism, novelty, or publication-worthiness.",
         ],
     }
 
@@ -259,6 +291,13 @@ def run_canonical_discovery_scan(
     output_dir: Path,
     minimum_studies: int = 3,
     maximum_pairs: int = 250,
+    minimum_paired_studies: int = 3,
+    fdr_alpha: float = 0.10,
+    bootstrap_iterations: int = 1000,
+    maximum_opportunities: int = 500,
+    maximum_levels_per_condition: int = 20,
+    seed: int = 42,
+    semantic_registry_path: Path | None = None,
 ) -> dict[str, Any]:
     """Create a read-only exploratory report from a canonical bundle."""
     bundle_path = bundle_path.expanduser().resolve()
@@ -267,6 +306,9 @@ def run_canonical_discovery_scan(
         raise FileNotFoundError(f"Canonical bundle does not exist: {bundle_path}")
     if output_dir == bundle_path or output_dir.is_relative_to(bundle_path):
         raise ValueError("Discovery output must be separate from the canonical bundle.")
+    registry_path = semantic_registry_path.expanduser().resolve() if semantic_registry_path is not None else None
+    if registry_path is not None and (output_dir == registry_path or registry_path.is_relative_to(output_dir)):
+        raise ValueError("Discovery output must not contain or overwrite the Semantic Registry.")
     if output_dir.exists():
         if not output_dir.is_dir():
             raise NotADirectoryError(f"Output path is not a directory: {output_dir}")
@@ -274,10 +316,18 @@ def run_canonical_discovery_scan(
             raise FileExistsError(f"Refusing to overwrite a non-empty output directory: {output_dir}")
 
     input_hash = _sha256(bundle_path)
+    registry_hash = _sha256(registry_path) if registry_path is not None else None
+    semantic_registry = load_semantic_registry(registry_path) if registry_path is not None else None
     bundle = json.loads(bundle_path.read_text(encoding="utf-8-sig"))
-    result = summarize_canonical_bundle(bundle, minimum_studies, maximum_pairs)
+    result = summarize_canonical_bundle(
+        bundle, minimum_studies, maximum_pairs, minimum_paired_studies,
+        fdr_alpha, bootstrap_iterations, maximum_opportunities,
+        maximum_levels_per_condition, seed, semantic_registry,
+    )
     if _sha256(bundle_path) != input_hash:
         raise RuntimeError("Canonical bundle changed during discovery scan.")
+    if registry_path is not None and _sha256(registry_path) != registry_hash:
+        raise RuntimeError("Semantic Registry changed during discovery scan.")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     _write_csv(output_dir / "target_support.csv",
@@ -294,16 +344,85 @@ def run_canonical_discovery_scan(
         ["signal_id", "signal_type", "target_id", "target_a", "target_b", "unit",
          "condition_type", "supporting_observation_count", "supporting_study_count",
          "study_median_min", "study_median_median", "study_median_max",
-         "interpretation_status"], result["signals"])
+         "effect_size", "p_value", "q_value", "screen_status", "interpretation_status"], result["signals"])
+
+    scientific = result["scientific"]
+    _write_csv(output_dir / "condition_outcome_contrasts.csv",
+        ["analysis_family", "target_id", "endpoint_definition", "timepoint", "outcome_unit",
+         "condition_type", "condition_unit", "level_a", "level_b", "contrast_orientation",
+         "level_a_study_count", "level_b_study_count", "level_a_system_count", "level_b_system_count",
+         "independent_study_count", "paired_study_count", "paired_system_count", "experiment_count",
+         "observation_count", "median_study_difference_b_minus_a", "study_difference_ci95",
+         "positive_study_count", "negative_study_count", "zero_study_count", "p_value", "q_value",
+         "interpretation_status", "study_effects_json"],
+        [{**{key: value for key, value in row.items() if key != "study_effects"},
+          "study_difference_ci95": json.dumps(row.get("study_difference_ci95"), ensure_ascii=False),
+          "study_effects_json": json.dumps(row.get("study_effects", []), ensure_ascii=False, sort_keys=True)}
+         for row in scientific["contrasts"]])
+    _write_csv(output_dir / "condition_level_support.csv",
+        ["target_id", "endpoint_definition", "timepoint", "outcome_unit",
+         "condition_type", "condition_unit", "condition_level", "study_count",
+         "system_count", "experiment_count"], scientific["condition_level_support"])
+    _write_csv(output_dir / "condition_outcome_correlations.csv",
+        ["analysis_family", "target_id", "endpoint_definition", "timepoint", "outcome_unit",
+         "condition_type", "condition_unit", "independent_study_count", "system_correlation_count",
+         "experiment_count", "observation_count", "median_study_spearman_rho", "study_spearman_ci95",
+         "positive_study_count", "negative_study_count", "zero_study_count", "p_value", "q_value",
+         "deduplication_status", "mirror_group_id", "mirror_duplicate_of_opportunity_id",
+         "confounding_review_json", "interpretation_status", "study_effects_json"],
+        [{**{key: value for key, value in row.items() if key != "study_effects"},
+          "study_spearman_ci95": json.dumps(row.get("study_spearman_ci95"), ensure_ascii=False),
+          "confounding_review_json": json.dumps(row.get("confounding_review"), ensure_ascii=False, sort_keys=True),
+          "study_effects_json": json.dumps(row.get("study_effects", []), ensure_ascii=False, sort_keys=True)}
+         for row in scientific["correlations"]])
+
+    opportunity_payload = {
+        "schema_version": "1.1",
+        "engine_version": scientific["profile"]["engine_version"],
+        "input_bundle_sha256": input_hash,
+        "candidate_count_before_limit": scientific["profile"]["opportunity_count_before_limit"],
+        "candidate_count_written": len(scientific["opportunities"]),
+        "opportunities": scientific["opportunities"],
+        "excluded_self_associations": scientific["self_association_exclusions"],
+        "mirror_duplicates": scientific["mirror_duplicates"],
+        "related_opportunity_groups": scientific["related_opportunity_groups"],
+        "limitations": scientific["limitations"],
+    }
+    (output_dir / "research_opportunities.json").write_text(
+        json.dumps(opportunity_payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    (output_dir / "evidence_ledger.jsonl").write_text(
+        "".join(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n" for item in scientific["evidence_ledger"]),
+        encoding="utf-8",
+    )
+    scientific_profile = {
+        "profile": scientific["profile"],
+        "limitations": scientific["limitations"],
+        "analysis_families": {
+            "paired_contrast": "Study-level exact two-sided sign test; within-System paired contrasts; BH correction",
+            "numeric_trend": "Within-System and between-System within-Study Spearman screens; one effect per Study; exact sign test and BH correction",
+            "between_system_contrast": "Cross-sectional System-level group medians within each Study; independent Study sign test; BH correction",
+        },
+    }
+    (output_dir / "scientific_analysis_profile.json").write_text(
+        json.dumps(scientific_profile, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
 
     report = {
-        "schema_version": "1.0",
+        "schema_version": "1.3",
         "input_type": "CANONICAL_BUNDLE",
         "input_bundle_sha256": input_hash,
         "profile": result["profile"],
         "signal_count": len(result["signals"]),
         "signals": result["signals"],
-        "interpretation_boundary": result["interpretation_boundary"],
+        "scientific_analysis": scientific_profile,
+        "research_opportunities_file": "research_opportunities.json",
+        "research_opportunity_count": len(scientific["opportunities"]),
+        "excluded_self_association_count": len(scientific["self_association_exclusions"]),
+        "mirror_duplicate_opportunity_count": scientific["profile"]["mirror_duplicate_opportunity_count"],
+        "mirror_duplicate_group_count": scientific["profile"]["mirror_duplicate_group_count"],
+        "related_opportunity_group_count": scientific["profile"]["related_opportunity_group_count"],
+        "evidence_ledger_file": "evidence_ledger.jsonl",
+        "evidence_ledger_row_count": len(scientific["evidence_ledger"]),
+        "interpretation_boundary": result["interpretation_boundary"] + scientific["limitations"],
     }
     (output_dir / "discovery_data_profile.json").write_text(
         json.dumps(result["profile"], indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -320,6 +439,41 @@ def run_canonical_discovery_scan(
     ]
     for key, value in result["profile"].items():
         brief_lines.append(f"- {key}: {value}")
+    brief_lines.extend(["", "## DOR-generated research opportunities", ""])
+    for opportunity in scientific["opportunities"][:25]:
+        brief_lines.append(
+            f"- {opportunity['opportunity_id']}: {opportunity['scientific_question']} "
+            f"| studies={opportunity['independent_study_count']} "
+            f"| effect={opportunity['effect_size']} "
+            f"| p={opportunity['p_value']} | q={opportunity['q_value']} "
+            f"| status={opportunity['screen_status']}"
+        )
+    brief_lines.extend(["", "These candidates are generated by deterministic Runtime analysis. Agent review may challenge interpretation but must not replace, fabricate, or silently promote these evidence records.", ""])
+    brief_lines.extend(["", "## Excluded structural self-associations", ""])
+    for exclusion in scientific["self_association_exclusions"]:
+        brief_lines.append("- " + json.dumps(exclusion, ensure_ascii=False, sort_keys=True))
+    if not scientific["self_association_exclusions"]:
+        brief_lines.append("- None detected by the conservative identity checks.")
+    brief_lines.extend(["", "## Exact mirror-duplicate relationships", ""])
+    for duplicate in scientific["mirror_duplicates"]:
+        brief_lines.append("- " + json.dumps(duplicate, ensure_ascii=False, sort_keys=True))
+    if not scientific["mirror_duplicates"]:
+        brief_lines.append("- None proven by the exact reciprocal-value and support checks.")
+    brief_lines.extend(["", "## Related opportunity groups requiring domain review", ""])
+    for group in scientific["related_opportunity_groups"]:
+        brief_lines.append(
+            f"- {group['related_group_id']}: members={', '.join(group['member_opportunity_ids'])}; "
+            f"context_differences={', '.join(group['proof']['context_dimensions_differ'])}; "
+            "both hypotheses and their FDR results are retained"
+        )
+    if not scientific["related_opportunity_groups"]:
+        brief_lines.append("- No exact reciprocal context-variant groups were proven.")
+    brief_lines.extend(["", "## Candidate semantic and confounding review", ""])
+    for opportunity in scientific["opportunities"]:
+        brief_lines.append(
+            f"- {opportunity['opportunity_id']}: semantic={opportunity['semantic_review']['status']}; "
+            f"confounding={opportunity['confounding_review']['status']}"
+        )
     brief_lines.extend(["", "## Candidate signals", ""])
     for signal in result["signals"][:40]:
         brief_lines.append("- " + json.dumps(signal, ensure_ascii=False, sort_keys=True))
@@ -339,6 +493,10 @@ def run_canonical_discovery_scan(
         "input_bundle_sha256": input_hash,
         "source_files_modified": False,
         "raw_observations_in_agent_brief": False,
+        "scientific_discovery_engine": scientific["profile"],
+        "semantic_registry_path": str(registry_path) if registry_path is not None else None,
+        "semantic_registry_sha256": registry_hash,
+        "semantic_registry": scientific["profile"]["semantic_registry"],
         "output_files": [
             {"path": item.name, "sha256": _sha256(item)} for item in output_files
         ],
@@ -352,6 +510,12 @@ def run_canonical_discovery_scan(
         "input_bundle_sha256": input_hash,
         "profile": result["profile"],
         "signal_count": len(result["signals"]),
+        "research_opportunity_count": len(scientific["opportunities"]),
+        "mirror_duplicate_opportunity_count": scientific["profile"]["mirror_duplicate_opportunity_count"],
+        "mirror_duplicate_group_count": scientific["profile"]["mirror_duplicate_group_count"],
+        "related_opportunity_group_count": scientific["profile"]["related_opportunity_group_count"],
+        "semantic_registry": scientific["profile"]["semantic_registry"],
+        "fdr_screen_positive_count": scientific["profile"]["fdr_screen_positive_count"],
         "manifest_path": str(output_dir / "discovery_manifest.json"),
         "report_path": str(output_dir / "discovery_report.json"),
         "brief_path": str(brief_path),

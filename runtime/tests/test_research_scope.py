@@ -73,5 +73,54 @@ class ResearchScopeValidationTests(unittest.TestCase):
         self.assertIn("SCOPE_HAS_NO_SELECTED_SIGNAL", [item["code"] for item in result["errors"]])
 
 
+    def test_dor_generated_opportunity_can_be_selected(self):
+        report = {
+            "signals": [{
+                "signal_id": "OPP-ABC123",
+                "signal_type": "WITHIN_STUDY_SYSTEM_CONDITION_OUTCOME_CONTRAST",
+                "target_id": "TARGET_01",
+            }]
+        }
+        record = dict(self.record)
+        record["selected_signal_ids"] = ["OPP-ABC123"]
+        record["not_selected_signal_ids"] = []
+        result = self.validate(record=record, report=report)
+        self.assertTrue(result["valid"], result)
+        self.assertEqual(result["selected_opportunity_ids"], ["OPP-ABC123"])
+
+    def test_between_system_opportunity_is_reported_as_a_selected_opportunity(self):
+        report = {
+            "signals": [{
+                "signal_id": "OPP-BETWEEN",
+                "signal_type": "WITHIN_STUDY_BETWEEN_SYSTEM_CONDITION_OUTCOME_CONTRAST",
+                "target_id": "TARGET_01",
+            }]
+        }
+        record = dict(self.record)
+        record["selected_signal_ids"] = ["OPP-BETWEEN"]
+        record["not_selected_signal_ids"] = []
+        result = self.validate(record=record, report=report)
+        self.assertTrue(result["valid"], result)
+        self.assertEqual(result["selected_opportunity_ids"], ["OPP-BETWEEN"])
+
+    def test_selected_opportunity_target_must_match_modeling_task(self):
+        report = {
+            "signals": [{
+                "signal_id": "OPP-OTHER",
+                "signal_type": "WITHIN_STUDY_SYSTEM_NUMERIC_CONDITION_TREND",
+                "target_id": "TARGET_OTHER",
+            }]
+        }
+        record = dict(self.record)
+        record["selected_signal_ids"] = ["OPP-OTHER"]
+        record["not_selected_signal_ids"] = []
+        result = self.validate(record=record, report=report)
+        self.assertFalse(result["valid"])
+        self.assertIn(
+            "SCOPE_SELECTED_SIGNAL_TARGET_MISMATCH",
+            [item["code"] for item in result["errors"]],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

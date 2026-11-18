@@ -134,10 +134,17 @@ class FormalRunPlanCliTests(unittest.TestCase):
         plan = json.loads((ROOT / relative_path).read_text(encoding="utf-8"))
         plan["source_roots"] = [str(package_root.resolve()), str(config_root.resolve())]
         plan["workflow_ledger_path"] = str((root / "workflow_gate_ledger.jsonl").resolve())
+        semantic_registry = config_root / "semantic_registry.json"
+        write_json(semantic_registry, {
+            "schema_version": "1.0",
+            "registry_id": "registry:formal-cli-test",
+            "records": [],
+        })
         source_paths = {
             "adapter_package_manifest": manifest_path,
             "virtual_query_input": config_root / "virtual_reproduction_query.json",
             "publication_plan_template": config_root / "publication_package_plan.json",
+            "semantic_registry": semantic_registry,
         }
         for artifact in plan["source_artifacts"]:
             artifact["path"] = str(source_paths[artifact["artifact_id"]].resolve())

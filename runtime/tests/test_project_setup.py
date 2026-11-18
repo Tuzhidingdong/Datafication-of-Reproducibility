@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -69,7 +70,11 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertNotIn("virtual_query_input", {item["artifact_id"] for item in plan["source_artifacts"]})
             self.assertIn("adapter_package_manifest", {item["artifact_id"] for item in plan["source_artifacts"]})
             self.assertIn("publication_plan_template", {item["artifact_id"] for item in plan["source_artifacts"]})
+            self.assertIn("semantic_registry", {item["artifact_id"] for item in plan["source_artifacts"]})
             self.assertTrue(Path(result["publication_plan_template"]).is_file())
+            self.assertTrue(Path(result["semantic_registry_path"]).is_file())
+            self.assertTrue(result["semantic_registry_created"])
+            self.assertEqual(result["semantic_registry_sha256"], hashlib.sha256(Path(result["semantic_registry_path"]).read_bytes()).hexdigest())
             self.assertTrue(Path(result["workflow_ledger_path"]).is_absolute())
             self.assertIn("dor run-init", result["run_init_command"])
             self.assertTrue(any(Path(item) == (project / "raw_sources" / "adapter_package").resolve()
@@ -95,7 +100,9 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertNotIn("execution_profile", plan)
             source_artifacts = {item["artifact_id"]: item["path"] for item in plan["source_artifacts"]}
             self.assertNotIn("virtual_query_input", source_artifacts)
+            self.assertIn("semantic_registry", source_artifacts)
             self.assertIsNone(result.get("virtual_query_reference"))
+            self.assertTrue(result["semantic_registry_created"])
 
             # optional external query may be kept as non-authoritative reference only
             query = project / "configuration" / "virtual_query.json"
@@ -110,6 +117,7 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             source_artifacts2 = {item["artifact_id"]: item["path"] for item in plan2["source_artifacts"]}
             self.assertNotIn("virtual_query_input", source_artifacts2)
             self.assertEqual(result2.get("virtual_query_reference"), str(query.resolve()))
+            self.assertFalse(result2["semantic_registry_created"])
 
     def test_single_study_rejects_unused_virtual_query(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -50,9 +50,15 @@ class StageExecutionContractTests(unittest.TestCase):
                     plan = self._load_plan(relative_path)
                     plan["source_roots"] = [str(package_root), str(config_root)]
                     plan["workflow_ledger_path"] = str(root / "workflow_gate_ledger.jsonl")
+                    semantic_registry = config_root / "semantic_registry.json"
+                    semantic_registry.write_text(
+                        json.dumps({"schema_version": "1.0", "registry_id": "registry:empty", "records": []}) + "\n",
+                        encoding="utf-8",
+                    )
                     source_paths = {
                         "adapter_package_manifest": adapter_manifest,
                         "publication_plan_template": publication_plan_template,
+                        "semantic_registry": semantic_registry,
                     }
                     for artifact in plan["source_artifacts"]:
                         artifact["path"] = str(source_paths[artifact["artifact_id"]])

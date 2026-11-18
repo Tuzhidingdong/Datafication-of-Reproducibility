@@ -114,6 +114,494 @@
     },
     "recommendation_rationale": {
       "type": "string"
+    },
+    "signal_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "analysis_family": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint_definition": {
+      "type": "string"
+    },
+    "timepoint": {
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "outcome_unit": {
+      "type": "string"
+    },
+    "condition_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "condition_unit": {
+      "type": "string"
+    },
+    "level_a": {
+      "type": "string"
+    },
+    "level_b": {
+      "type": "string"
+    },
+    "condition_levels": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "independent_study_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "effect_size": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "confidence_interval_95": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "number"
+      }
+    },
+    "p_value": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "q_value": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "screen_status": {
+      "enum": [
+        "FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW",
+        "NOT_FDR_SCREEN_POSITIVE_REQUIRES_REVIEW",
+        "DESCRIPTIVE_CANDIDATE_INSUFFICIENT_INDEPENDENT_STUDY_SUPPORT"
+      ]
+    },
+    "semantic_status": {
+      "type": "string"
+    },
+    "study_effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "study_id"
+        ],
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "study_id"
+        ],
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence_feasibility": {
+      "type": "object",
+      "properties": {
+        "study_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "system_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "experiment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observation_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "contrast_orientation": {
+      "type": "string",
+      "enum": [
+        "NUMERIC_ASCENDING",
+        "SERIALIZED_LABEL_ORDER"
+      ]
+    },
+    "semantic_review": {
+      "type": "object",
+      "required": [
+        "status",
+        "relationship_status",
+        "target",
+        "condition",
+        "interpretation"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "APPROVED_METADATA_AVAILABLE_FOR_DOMAIN_REVIEW",
+            "DOMAIN_SEMANTIC_REVIEW_REQUIRED"
+          ]
+        },
+        "relationship_status": {
+          "enum": [
+            "DISTINCT_APPROVED_CONCEPTS",
+            "SAME_APPROVED_CONCEPT",
+            "UNRESOLVED_FROM_AVAILABLE_METADATA",
+            "SAME_APPROVED_CONCEPT_SAME_MEASUREMENT_CONTEXT",
+            "SAME_APPROVED_CONCEPT_CONTEXT_UNRESOLVED"
+          ]
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "identifier",
+            "status"
+          ],
+          "properties": {
+            "identifier": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "MISSING",
+                "PARTIAL",
+                "CONFLICTING",
+                "UNAPPROVED",
+                "APPROVED"
+              ]
+            },
+            "canonical_concept_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "display_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "definition": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_basis": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "derivation_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "derived_from": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reviewer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reviewed_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_context": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "review_rationale": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "source_id",
+                  "source_sha256",
+                  "locator"
+                ],
+                "properties": {
+                  "source_id": {
+                    "type": "string"
+                  },
+                  "source_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  },
+                  "locator": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "condition": {
+          "type": "object",
+          "required": [
+            "identifier",
+            "status"
+          ],
+          "properties": {
+            "identifier": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "MISSING",
+                "PARTIAL",
+                "CONFLICTING",
+                "UNAPPROVED",
+                "APPROVED"
+              ]
+            },
+            "canonical_concept_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "display_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "definition": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_basis": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "derivation_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "derived_from": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reviewer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reviewed_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_context": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "review_rationale": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "source_id",
+                  "source_sha256",
+                  "locator"
+                ],
+                "properties": {
+                  "source_id": {
+                    "type": "string"
+                  },
+                  "source_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  },
+                  "locator": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "interpretation": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "confounding_review": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "screen_method": {
+          "type": "string"
+        },
+        "recorded_condition_covariate_types_examined": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "unassessed_confounder_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitation": {
+          "type": "string"
+        },
+        "covariate_coverage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "condition_type",
+              "condition_unit",
+              "complete_numeric_coverage_study_count",
+              "incomplete_or_ambiguous_study_ids",
+              "rank_screen_eligible_study_ids",
+              "status"
+            ],
+            "properties": {
+              "condition_type": {
+                "type": "string"
+              },
+              "condition_unit": {
+                "type": "string"
+              },
+              "complete_numeric_coverage_study_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "complete_numeric_coverage_study_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "incomplete_or_ambiguous_study_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "rank_screen_eligible_study_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "status": {
+                "enum": [
+                  "EXACT_MONOTONIC_CO_VARIATION_DETECTED",
+                  "NO_EXACT_MONOTONIC_CO_VARIATION_IN_EVALUABLE_STUDIES",
+                  "INSUFFICIENT_OR_INCOMPLETE_COVARIATE_COVERAGE"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "related_group_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     }
   },
   "additionalProperties": false

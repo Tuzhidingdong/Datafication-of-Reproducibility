@@ -115,7 +115,25 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertEqual(result["profile"]["study_count"], 3)
             self.assertTrue((output / "discovery_manifest.json").is_file())
             self.assertTrue((output / "target_support.csv").is_file())
+            self.assertTrue((output / "condition_outcome_contrasts.csv").is_file())
+            self.assertTrue((output / "condition_level_support.csv").is_file())
+            self.assertTrue((output / "condition_outcome_correlations.csv").is_file())
+            self.assertTrue((output / "research_opportunities.json").is_file())
+            self.assertTrue((output / "evidence_ledger.jsonl").is_file())
+            self.assertTrue((output / "scientific_analysis_profile.json").is_file())
             self.assertTrue((output / "agent_research_brief.md").is_file())
+            discovery_report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(discovery_report["schema_version"], "1.3")
+            self.assertEqual(discovery_report["related_opportunity_group_count"], 0)
+            self.assertEqual(discovery_report["research_opportunity_count"], 0)
+            opportunity_payload = json.loads((output / "research_opportunities.json").read_text(encoding="utf-8"))
+            self.assertEqual(opportunity_payload["excluded_self_associations"], [])
+            self.assertEqual(opportunity_payload["mirror_duplicates"], [])
+            self.assertEqual(opportunity_payload["schema_version"], "1.1")
+            self.assertEqual(opportunity_payload["related_opportunity_groups"], [])
+            self.assertEqual(discovery_report["excluded_self_association_count"], 0)
+            self.assertEqual(discovery_report["mirror_duplicate_opportunity_count"], 0)
+            self.assertEqual(discovery_report["mirror_duplicate_group_count"], 0)
             brief = (output / "agent_research_brief.md").read_text(encoding="utf-8")
             self.assertNotIn("O1A", brief)
             manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
@@ -128,6 +146,106 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         ])
         self.assertEqual(args.bundle, Path("canonical_bundle.json"))
         self.assertEqual(args.maximum_pairs, 250)
+        self.assertEqual(args.minimum_paired_studies, 3)
+        self.assertEqual(args.fdr_alpha, 0.10)
+        self.assertEqual(args.bootstrap_iterations, 1000)
+        self.assertEqual(args.maximum_opportunities, 500)
+        self.assertEqual(args.maximum_levels_per_condition, 20)
+        self.assertEqual(args.seed, 42)
+        self.assertIsNone(args.semantic_registry)
+
+    def test_cli_accepts_optional_semantic_registry(self):
+        args = build_parser().parse_args([
+            "discover-opportunities", "--bundle", "canonical_bundle.json",
+            "--semantic-registry", "semantic_registry.json", "--out-dir", "discovery"
+        ])
+        self.assertEqual(args.semantic_registry, Path("semantic_registry.json"))
+        validation_args = build_parser().parse_args([
+            "validate-semantic-registry", "--registry", "semantic_registry.json"
+        ])
+        self.assertEqual(validation_args.command, "validate-semantic-registry")
+        self.assertEqual(validation_args.registry, Path("semantic_registry.json"))
+
+    def test_scan_applies_external_registry_without_modifying_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle_path = root / "bundle.json"
+            registry_path = root / "semantic_registry.json"
+            bundle_path.write_text(json.dumps(make_bundle()), encoding="utf-8")
+            registry = {
+                "schema_version": "1.0",
+                "registry_id": "registry:scan-test",
+                "records": [
+                    {
+                        "entity_type": "TARGET",
+                        "canonical_identifier": "TARGET_A",
+                        "semantic_metadata": {
+                            "canonical_concept_id": "concept:target-a",
+                            "review_status": "APPROVED",
+                            "reviewer": "reviewer-label",
+                            "reviewed_at": "2026-11-18T00:00:00Z",
+                            "review_rationale": "Reviewed using the supplied source locator.",
+                            "source_refs": [{
+                                "source_id": "source:target-a",
+                                "source_sha256": "b" * 64,
+                                "locator": "opaque:target-a",
+                            }],
+                        },
+                    },
+                    {
+                        "entity_type": "CONDITION",
+                        "canonical_identifier": "condition_type_x",
+                        "semantic_metadata": {
+                            "canonical_concept_id": "concept:condition-x",
+                            "review_status": "APPROVED",
+                            "reviewer": "reviewer-label",
+                            "reviewed_at": "2026-11-18T00:00:00Z",
+                            "review_rationale": "Reviewed using the supplied source locator.",
+                            "source_refs": [{
+                                "source_id": "source:condition-x",
+                                "source_sha256": "c" * 64,
+                                "locator": "opaque:condition-x",
+                            }],
+                        },
+                    },
+                ],
+            }
+            registry_path.write_text(json.dumps(registry), encoding="utf-8")
+            before = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+            registry_hash = hashlib.sha256(registry_path.read_bytes()).hexdigest()
+            output = root / "discovery"
+            result = run_canonical_discovery_scan(
+                bundle_path, output, semantic_registry_path=registry_path
+            )
+            after = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+            self.assertEqual(before, after)
+            self.assertEqual(result["semantic_registry"]["registry_id"], "registry:scan-test")
+            self.assertEqual(result["semantic_registry"]["applied_record_count"], 2)
+            manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["semantic_registry_sha256"], registry_hash)
+            self.assertFalse(manifest["semantic_registry"]["bundle_modified"])
+            report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["schema_version"], "1.3")
+            self.assertEqual(report["scientific_analysis"]["profile"]["semantic_registry"]["registry_id"], "registry:scan-test")
+
+    def test_profile_preserves_studies_without_observations(self):
+        bundle = make_bundle()
+        bundle["studies"].append({"study_id": "S_WITH_EXPERIMENT_NO_OBSERVATION", "source_locators": []})
+        bundle["systems"].append({
+            "system_id": "SYS_WITHOUT_OBSERVATION",
+            "study_ids": ["S_WITH_EXPERIMENT_NO_OBSERVATION"],
+            "system_type": "unspecified",
+        })
+        bundle["experiments"].append({
+            "experiment_id": "E_WITHOUT_OBSERVATION",
+            "study_id": "S_WITH_EXPERIMENT_NO_OBSERVATION",
+            "system_id": "SYS_WITHOUT_OBSERVATION",
+            "condition_ids": [],
+        })
+        result = summarize_canonical_bundle(bundle, minimum_studies=3)
+        self.assertEqual(result["profile"]["study_count"], 4)
+        self.assertEqual(result["profile"]["study_count_with_observations"], 3)
+        self.assertEqual(result["profile"]["study_count_without_observations"], 1)
 
     def test_invalid_bundle_fails_without_creating_output(self):
         with tempfile.TemporaryDirectory() as tmp:

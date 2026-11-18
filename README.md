@@ -55,7 +55,7 @@ The supported workflow starts from an external Adapter Package. DoR does not ing
 
        dor init-run-plan --adapter-handoff <project_root>/run_control/adapter_route_preflight.json --project-root <project_root> --run-root <new_run_root>
 
-   This selects the correct Structured Dataset or Canonical Bundle template, copies its matching Publication Plan blueprint into project configuration, sets exact source roots and manifest paths, and validates the result with the Runtime's own Run Plan validator. It does not approve scientific scope or create Gate decisions. For a multi-Study analysis whose independent Study structure is already established, explicitly choose `FULL_ANALYSIS` and provide the existing virtual query:
+   This selects the correct Structured Dataset or Canonical Bundle template, copies its matching Publication Plan blueprint into project configuration, creates an empty `configuration/semantic_registry.json` only when none exists, validates and preserves existing Registry content, binds the Registry as a hash-protected source input to Discovery, sets exact source roots and manifest paths, and validates the result with the Runtime's own Run Plan validator. Populate the Registry with reviewed metadata before `dor run-init`; the empty Registry is valid and means semantic review data have not been supplied. It does not approve scientific scope or create Gate decisions. For a multi-Study analysis whose independent Study structure is already established, explicitly choose `FULL_ANALYSIS` and provide the existing virtual query:
 
        dor init-run-plan --adapter-handoff <project_root>/run_control/adapter_route_preflight.json --project-root <project_root> --run-root <new_run_root> --profile FULL_ANALYSIS --virtual-query-input <project_root>/configuration/virtual_reproduction_query.json
 
@@ -106,11 +106,14 @@ The validator checks package structure, path safety, file availability, and exac
 
 ## Exploratory discovery
 
-The domain-neutral discovery entry point accepts a validated Canonical Bundle:
+The domain-neutral discovery entry point accepts a validated Canonical Bundle and an optional independent Semantic Registry:
 
-    dor discover-opportunities --bundle path/to/canonical_bundle.json --out-dir path/to/new/discovery_run
+    dor validate-semantic-registry --registry path/to/semantic_registry.json
+    dor discover-opportunities --bundle path/to/canonical_bundle.json --semantic-registry path/to/semantic_registry.json --out-dir path/to/new/discovery_run
 
-It produces aggregate-only profiles and candidate signals. The same canonical data artifact can be registered in a formal Run Plan and passed into downstream reconciliation, cohort construction, modelling, validation, and publication. Exploratory results do not approve a formal analysis task or cross G0-G4 gates. See docs/SCIENTIFIC_DISCOVERY_ENGINE.md.
+Formal Runs consume their hash-protected `semantic_registry` source artifact automatically.
+
+DOR itself profiles the full Canonical Bundle and generates Study-aware condition/outcome contrasts, within-Study/System numeric trends, exact Study-level sign tests, Benjamini-Hochberg q-values, Study-bootstrap intervals, ranked research opportunities, and an Observation-to-Study evidence ledger. It does not rely on an Agent to calculate or invent research questions. Before inferential testing and FDR correction, the Runtime excludes explicit target/condition identity and exact same-unit value identity as structural self-associations; these exclusions are retained in `research_opportunities.json` with reason codes and coverage counts. A perfect rank correlation alone is not sufficient for exclusion. Broader deterministic derivations require explicit provenance metadata and domain review. Canonical IDs are compared exactly; case, punctuation, and whitespace are not normalized for identity decisions. Exact reciprocal patterns across different endpoint/timepoint contexts are reported in `related_opportunity_groups` for review while preserving both hypotheses and their separate inferential results. An external Semantic Registry is applied to an in-memory Bundle copy, hash-recorded, and never written back to the Canonical Bundle. The Agent reviews and challenges these Runtime-generated candidates; the user selects a direction before a Modeling Task and endpoint-specific Cohort are initialized. Exploratory outputs do not approve a formal analysis task or cross G0-G4 gates. See docs/SCIENTIFIC_DISCOVERY_ENGINE.md.
 
 ## Run Manager
 
