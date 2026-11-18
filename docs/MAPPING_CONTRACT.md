@@ -17,6 +17,8 @@ Every rule contains:
 - `transformation`: explicit operation and parameters. No implicit unit conversion or parsing is permitted.
 - `review`: reviewer, review timestamp, and decision note for approved rules.
 
+Condition and Observation entity definitions may additionally declare `value_candidate_bindings`. Each binding names one stable candidate-source identifier and explicit source-inventory items for the candidate value, optional unit, and optional quoted excerpt. The fields must belong to the same selected source file/record selector as the entity definition. These bindings are part of the hash-bound Build Spec and are validated against the exact source inventory; they do not replace or compete with the primary mapping rules. The builder preserves each nonblank source-row candidate on its parent canonical record with a deterministic candidate ID and opaque source locators. It never promotes a candidate to the primary value or resolves disagreement. A reviewer should use the actual extraction-source identity as `candidate_source`, not a guessed scientific interpretation.
+
 A source item may have multiple rules when it legitimately maps to different canonical fields. The same source item cannot have two approved rules targeting the same canonical entity and field; resolve that conflict explicitly instead of letting the builder choose.
 
 ## Transformation types
