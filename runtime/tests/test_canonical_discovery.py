@@ -179,6 +179,13 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(mining["inventory_profile"]["candidate_entries_without_value_count"], 2)
         self.assertEqual(mining["inventory_profile"]["candidate_evidence_only_entry_count"], 2)
         self.assertEqual(mining["inventory_profile"]["candidate_source_count"], 2)
+        self.assertEqual(mining["pairwise_profile"]["pairwise_comparison_count"], 2)
+        self.assertEqual(mining["pairwise_profile"]["same_source_comparison_count"], 1)
+        self.assertEqual(mining["pairwise_profile"]["cross_source_comparison_count"], 1)
+        self.assertEqual(
+            mining["pairwise_profile"]["status_counts"]["overall_comparison_status"],
+            {"NUMERICALLY_DIFFERENT_WITHIN_DECLARED_UNIT_BASIS": 2},
+        )
         self.assertEqual(mining["inventory_profile"]["candidate_metadata_keys"], ["review_reason", "review_state"])
         self.assertEqual(mining["inventory_profile"]["candidate_entries_with_metadata_fields_count"], 2)
         self.assertEqual(mining["inventory_profile"]["candidate_entries_with_metadata_count"], 2)
@@ -222,6 +229,8 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             for name in (
                 "candidate_value_inventory.csv",
                 "candidate_value_reconciliation.csv",
+                "candidate_pairwise_reconciliation.csv",
+                "candidate_reconciliation_profile.json",
                 "missingness_opportunity_profile.csv",
                 "candidate_sensitivity_opportunities.json",
                 "candidate_sensitivity_profile.json",
@@ -239,6 +248,18 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertEqual(report["candidate_value_record_count"], 5)
             self.assertEqual(report["candidate_value_count"], 5)
             self.assertEqual(report["candidate_sensitivity_scenario_count"], 2)
+            self.assertEqual(report["candidate_pairwise_comparison_count"], 2)
+            self.assertEqual(
+                report["candidate_pairwise_overall_status_counts"],
+                {"NUMERICALLY_DIFFERENT_WITHIN_DECLARED_UNIT_BASIS": 2},
+            )
+            pairwise = (output / "candidate_pairwise_reconciliation.csv").read_text(encoding="utf-8")
+            self.assertIn("candidate_a_source_locators_json", pairwise.splitlines()[0])
+            self.assertIn("candidate_b_source_locators_json", pairwise.splitlines()[0])
+            candidate_profile = json.loads((output / "candidate_reconciliation_profile.json").read_text(encoding="utf-8"))
+            self.assertEqual(candidate_profile["pairwise_comparison_count"], 2)
+            self.assertNotIn("Synthetic structured quote A", json.dumps(candidate_profile))
+            self.assertNotIn("candidate-a", json.dumps(candidate_profile))
             manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
             output_names = {item["path"] for item in manifest["output_files"]}
             self.assertIn("candidate_value_inventory.csv", output_names)

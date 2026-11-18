@@ -49,6 +49,38 @@ Candidate-source scenarios are explicitly labelled `CANDIDATE_SOURCE_SENSITIVITY
 
 This design lets DoR exploit existing incomplete and conflicting structured evidence without asking the user to turn it into a complete machine-learning table first. It does not permit the Runtime to open original papers/SI or dereference source locators.
 
+### Pairwise candidate conflict diagnostics
+
+A separate pairwise reconciliation layer compares candidate entries only when they are attached to the same Canonical Observation or Condition. It does not compare arbitrary rows across different parents and does not create additional experimental records.
+
+The diagnostic distinguishes:
+
+- exact numeric equality using finite `Decimal` values (so numerically equal representations such as `1` and `1.0` are not treated as a numeric disagreement);
+- numeric difference under an identical exact unit label;
+- units that can be compared through an explicitly approved Semantic Registry v1.1 same-dimension affine conversion;
+- unresolved unit-label equivalence, incompatible approved dimensions, and missing/unspecified units;
+- non-numeric exact-text matches versus unresolved non-numeric differences.
+
+The unit conversion is used only to show a diagnostic canonical comparison value. Original candidate values, original unit strings, quotes, source metadata, and locators remain in the pairwise report. No rounding tolerance, implicit unit parsing, fuzzy alias resolution, or automatic selection is applied. The primary reported-value path and the candidate-source sensitivity overlays remain unchanged.
+
+The parent Target/Condition semantic definition is also not enough to certify candidate quote equivalence. The output explicitly marks candidate quote scope as unverified because a candidate may refer to another endpoint definition, measurement basis, test stage, protocol, sample, or timepoint even when it is attached to the same canonical parent. A reviewed semantic registry can clarify the parent attribute but cannot retroactively validate every source quotation.
+
+`candidate_pairwise_reconciliation.csv` contains the provenance-bearing pairwise details. `candidate_reconciliation_profile.json` contains bounded status counts and is the only new reconciliation artifact exposed to Scope Review; raw pairwise rows and candidate quotations are not injected into the Scope Agent context. These counts are comparisons, not independent Observations or Studies.
+
+## Pairwise candidate conflict diagnostics
+
+Candidate inventory and source-specific sensitivity are complemented by a separate pairwise diagnostic layer. It compares candidate pairs only when they are attached to the same Canonical Observation or Condition, and labels whether the pair comes from the same extractor source or different sources. It does not compare candidates from unrelated parent records.
+
+The layer reports value comparison, unit comparability, and parent-attribute semantic review as separate dimensions:
+- Numeric strings and numeric scalars are compared with exact decimal arithmetic. Values such as `1` and `1.0` are numerically equal; no rounding, tolerance, locale-specific thousands/decimal parsing, or imputation is applied.
+- Equal unit labels are compared as supplied. Different labels are only converted when both exact symbols are covered by approved, hash-bound unit definitions in Semantic Registry v1.1 and declare the same dimension. Different approved dimensions are reported as incompatible. Missing definitions or unknown labels remain unresolved.
+- Approved unit conversions are diagnostics only. They never alter primary values or the independently generated candidate-source sensitivity scenarios.
+- Parent semantic metadata can show that a canonical attribute has an approved definition, but it cannot prove that two candidate quotations refer to the same measurement stage, endpoint, sample, protocol, or context. Candidate quote scope is therefore explicitly left unverified by this layer.
+
+The row-level `candidate_pairwise_reconciliation.csv` retains both candidates' IDs, source IDs, raw/normalized value-unit pair, quotes, source metadata, opaque locators, pair relationship, comparison statuses, and any diagnostic canonical values. Keep this file out of Scope Agent context. `candidate_reconciliation_profile.json` contains only aggregate status counts and the approved unit-registry summary; this aggregate may be provided to scope review.
+
+No pair is automatically accepted, rejected, averaged, corrected, or promoted. The existing candidate reconciliation, primary Discovery, FDR families, and source-specific sensitivity behavior remain separate and unchanged.
+
 ## Study-aware statistical screens
 
 ### Shared aggregation rules
@@ -125,6 +157,10 @@ A screen-positive result is labelled FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW.
 - signal_catalogue.csv and discovery_report.json — aggregate signal catalogue and machine-readable summary.
 - candidate_value_inventory.csv — source-specific candidate values, quotes, units, and opaque locators attached to their original Condition/Observation records.
 - candidate_value_reconciliation.csv — per-record agreement/conflict status without silent selection or averaging.
+- candidate_pairwise_reconciliation.csv — per-parent pairwise candidate comparison retaining both source evidence chains, diagnostic numeric/unit comparison, and unresolved quote-scope status.
+- candidate_reconciliation_profile.json — bounded aggregate pairwise status counts and approved unit-registry coverage; only this aggregate profile is exposed to Scope Review.
+- candidate_pairwise_reconciliation.csv — row-level pairwise candidate comparison with both provenance chains and diagnostic-only approved unit conversions.
+- candidate_reconciliation_profile.json — aggregate pairwise value/unit/semantic-status counts; safe for bounded scope-review context.
 - missingness_opportunity_profile.csv — feature/state-specific record and evidence-coverage profile.
 - candidate_sensitivity_opportunities.json — separately labelled source-specific sensitivity results; never merged into primary findings.
 - candidate_sensitivity_profile.json — bounded aggregate summary of candidate-source overlay coverage and sensitivity results.

@@ -382,6 +382,14 @@
         {
           "artifact_id": "candidate_sensitivity_profile",
           "path": "04_discovery/candidate_sensitivity_profile.json"
+        },
+        {
+          "artifact_id": "candidate_pairwise_reconciliation",
+          "path": "04_discovery/candidate_pairwise_reconciliation.csv"
+        },
+        {
+          "artifact_id": "candidate_reconciliation_profile",
+          "path": "04_discovery/candidate_reconciliation_profile.json"
         }
       ]
     },
@@ -408,7 +416,8 @@
         "evidence_ledger",
         "scientific_analysis_profile",
         "missingness_opportunity_profile",
-        "candidate_sensitivity_profile"
+        "candidate_sensitivity_profile",
+        "candidate_reconciliation_profile"
       ],
       "outputs": [
         {

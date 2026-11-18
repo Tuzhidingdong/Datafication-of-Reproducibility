@@ -22,6 +22,34 @@ Semantic metadata may declare a concept identifier, display name, definition, me
 
 An APPROVED record must include reviewer, review timestamp, rationale, and at least one hash-bound source reference. A source reference contains a stable source ID, SHA-256, and opaque locator. The Runtime does not open, parse, or dereference the source. It verifies the shape and hash syntax only; the human reviewer remains responsible for the provenance decision.
 
+## Reviewed unit definitions (schema version 1.1)
+
+The optional `unit_definitions` array adds an explicit, reviewable unit-equivalence contract without changing the meaning of Canonical values. Use registry schema version `1.1` when this array is present; schema version `1.0` remains supported for existing semantic-only registries.
+
+Each unit definition declares one `unit_id`, one `dimension_id`, a `canonical_unit`, and the exact accepted `unit_symbols`. Each symbol declares a positive `scale_to_canonical` and an optional `offset_to_canonical`. The diagnostic transform is:
+
+```
+canonical_value = value * scale_to_canonical + offset_to_canonical
+```
+
+The canonical symbol must map to itself (scale 1, offset 0). A dimension has one definition and an exact symbol may occur only once in the registry; ambiguous abbreviations must not be registered as though they were globally unambiguous. Use explicit, stable unit labels in the source data. Definitions with `PENDING`, `UNREVIEWED`, or `REJECTED` status are preserved as registry records but are never used for conversion. An `APPROVED` unit definition requires a reviewer, timestamp, rationale, and at least one hash-bound opaque source reference.
+
+This contract supports only explicit affine conversions between units declared under the same dimension. It does not infer dimensions, parse unit expressions, resolve aliases, handle compound-unit algebra, or convert logarithmic/otherwise non-affine scales. A unit not declared with an approved definition remains unresolved. A pair of registered units under different dimensions is reported as incompatible rather than compared numerically.
+
+Unit definitions are used by candidate-pair reconciliation as a diagnostic only. They do not rewrite Candidate values, Canonical Bundle values, mapping rules, primary Discovery values, or candidate-source sensitivity scenarios. The report retains both original values and units alongside diagnostic canonical values. A numerical match after a reviewed conversion is not proof that the candidate quotations describe the same endpoint, measurement basis, protocol, sample, or timepoint.
+
+The Registry's reviewed attribute semantics are also deliberately conservative: an approved definition for the parent Canonical Target or Condition does **not** prove that each attached candidate quote refers to that same operational definition. Candidate quote scope is explicitly reported as unverified until independently represented and reviewed.
+
+## Reviewed unit definitions (Semantic Registry v1.1)
+
+Schema version 1.1 adds an optional `unit_definitions` array. A unit definition declares one exact `dimension_id`, one exact `canonical_unit`, and the complete set of exact unit symbols accepted for that dimension. Each symbol declares a finite positive `scale_to_canonical` and an optional finite `offset_to_canonical` (default zero). The canonical symbol must map to itself with scale 1 and offset 0. Unit IDs, dimension IDs, and symbols must be unique in the registry.
+
+Only definitions with `review_status=APPROVED` and reviewer, timestamp, rationale, and at least one hash-bound source reference are eligible for diagnostic conversion. Symbols are matched exactly: no trimming, case folding, Unicode normalization, prefix inference, or external unit-library lookup is performed. Unapproved, missing, or unknown definitions never enable conversion.
+
+Discovery uses these definitions only to explain candidate-pair unit disagreements. It may calculate diagnostic values in the declared canonical unit and distinguish convertible aliases from incompatible dimensions. It never rewrites the Canonical Bundle, changes primary values, changes candidate-source sensitivity inputs, or selects a preferred candidate. Every conversion remains traceable to the registry hash and approved unit definition. Candidate quotation scope still requires separate review; a parent Target/Condition semantic definition does not prove two extraction quotes describe the same measurement context.
+
+Version 1.0 remains valid and retains its original meaning. It has no `unit_definitions` field; adding that field requires schema version 1.1. An empty or absent unit-definition list means that differing unit labels remain unresolved.
+
 ## Validate and use
 
 Validate the independent asset before use:
@@ -37,3 +65,12 @@ The same registry is consumed automatically by the formal Run's `exploratory_dis
 The Runtime overlays the metadata onto an in-memory copy for the analysis, hashes the registry before and after the run, and records its ID, hash, global Target/endpoint-scoped Target/Condition counts, and application status in the Discovery manifest/report. It does not write metadata back to the Canonical Bundle. If an entry conflicts with inline Canonical metadata, matches no Canonical attribute, or fails validation, the scan stops rather than guessing.
 
 An empty registry, or missing entries for some attributes, does not establish that semantic relationships are absent. Missing, partial, conflicting, or unapproved semantics remain flagged for domain review and are never interpreted as evidence that no semantic relationship exists.
+
+## Candidate-pair reconciliation outputs
+
+A Discovery run emits:
+
+- `candidate_pairwise_reconciliation.csv`: pairwise comparisons only among candidates attached to the same Canonical Observation or Condition. It retains both candidate sources, values, units, quotes, metadata, and source locators.
+- `candidate_reconciliation_profile.json`: bounded aggregate counts by comparison status and the approved unit-registry coverage. This is the only new candidate-reconciliation artifact passed into the Scope Review stage.
+
+The comparison distinguishes exact unit-label matches, approved same-dimension conversions, unresolved labels, incompatible dimensions, and missing units. Finite numeric values are compared as exact decimal quantities without rounding or a tolerance. Non-numeric values remain explicitly unclassified or exact-text comparisons. No result selects, averages, rejects, or promotes a candidate. Candidate-pair counts are not Observation counts, replicate counts, or independent Study counts.
