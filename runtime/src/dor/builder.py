@@ -345,6 +345,27 @@ def _validate_build_spec(spec: Any, mapping_plan: dict[str, Any], inventory: dic
                     errors.append(_issue("CANDIDATE_BINDING_SOURCE_ITEM_UNKNOWN", f"{binding_path}.{field_name}", f"{field_name} must reference an item in the exact source inventory."))
                 elif not _source_item_matches_definition(source_item, definition, selector_tokens):
                     errors.append(_issue("CANDIDATE_BINDING_SOURCE_ITEM_INCOMPATIBLE", f"{binding_path}.{field_name}", "Candidate source fields must belong to the entity definition's selected file and record selector."))
+            metadata_bindings = binding.get("metadata_source_bindings", [])
+            if not isinstance(metadata_bindings, list):
+                errors.append(_issue("CANDIDATE_METADATA_BINDINGS_NOT_ARRAY", f"{binding_path}.metadata_source_bindings", "metadata_source_bindings must be an array."))
+                metadata_bindings = []
+            seen_metadata_keys: set[str] = set()
+            for metadata_index, metadata_binding in enumerate(metadata_bindings):
+                metadata_path = f"{binding_path}.metadata_source_bindings[{metadata_index}]"
+                if not isinstance(metadata_binding, dict):
+                    errors.append(_issue("CANDIDATE_METADATA_BINDING_NOT_OBJECT", metadata_path, "Metadata source binding must be an object."))
+                    continue
+                metadata_key = metadata_binding.get("metadata_key")
+                source_item_id = metadata_binding.get("source_item_id")
+                if not isinstance(metadata_key, str) or not metadata_key.strip() or metadata_key in seen_metadata_keys:
+                    errors.append(_issue("CANDIDATE_METADATA_KEY_INVALID", f"{metadata_path}.metadata_key", "metadata_key must be non-empty and unique within a candidate binding."))
+                else:
+                    seen_metadata_keys.add(metadata_key)
+                source_item = item_by_id.get(source_item_id) if isinstance(source_item_id, str) else None
+                if source_item is None:
+                    errors.append(_issue("CANDIDATE_METADATA_SOURCE_ITEM_UNKNOWN", f"{metadata_path}.source_item_id", "Metadata source item must reference the exact source inventory."))
+                elif not _source_item_matches_definition(source_item, definition, selector_tokens):
+                    errors.append(_issue("CANDIDATE_METADATA_SOURCE_ITEM_INCOMPATIBLE", f"{metadata_path}.source_item_id", "Metadata source fields must belong to the entity definition's selected file and record selector."))
 
     links = spec.get("links")
     if not isinstance(links, list):
@@ -637,6 +658,23 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                                     "locator_type": quote_locator_type,
                                     "locator": quote_locator,
                                 })
+                        metadata_values: dict[str, Any] = {}
+                        for metadata_binding in binding.get("metadata_source_bindings", []):
+                            metadata_item = item_by_id[metadata_binding["source_item_id"]]
+                            metadata_value, metadata_locator_type, metadata_locator = _resolve_item(
+                                metadata_item, definition, grouped_unit
+                            )
+                            if _is_blank(metadata_value):
+                                continue
+                            metadata_values[metadata_binding["metadata_key"]] = metadata_value
+                            candidate_locators.append({
+                                "source_file": filename,
+                                "source_sha256": digest,
+                                "locator_type": metadata_locator_type,
+                                "locator": metadata_locator,
+                            })
+                        if metadata_values:
+                            candidate["source_metadata"] = metadata_values
                         unique_locators = {
                             _stable(locator): locator for locator in candidate_locators
                         }
