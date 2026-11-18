@@ -183,6 +183,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                     "quoted_text": quote,
                     "source_metadata_json": json.dumps(source_metadata if isinstance(source_metadata, dict) else {}, ensure_ascii=False, sort_keys=True),
                     "source_locators_json": json.dumps(locators if isinstance(locators, list) else [], ensure_ascii=False, sort_keys=True),
+                    "source_metadata_json": json.dumps(source_metadata if isinstance(source_metadata, dict) else {}, ensure_ascii=False, sort_keys=True),
                 })
 
             if candidates:
@@ -203,6 +204,18 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                     "candidate_sources_json": json.dumps(sorted({str(item.get("candidate_source") or "UNSPECIFIED_CANDIDATE_SOURCE") for item in candidates}), ensure_ascii=False),
                     "candidate_value_unit_pairs_json": json.dumps([
                         {"value": value, "unit": unit} for value, unit in pairs
+                    ], ensure_ascii=False, sort_keys=True),
+                    "candidate_metadata_keys_json": json.dumps(sorted({
+                        key for candidate in candidates
+                        for key in (candidate.get("source_metadata", {}) if isinstance(candidate.get("source_metadata"), dict) else {})
+                    }), ensure_ascii=False),
+                    "candidate_source_metadata_json": json.dumps([
+                        {
+                            "candidate_id": candidate.get("candidate_id"),
+                            "candidate_source": candidate.get("candidate_source"),
+                            "source_metadata": candidate.get("source_metadata", {}),
+                        }
+                        for candidate in candidates
                     ], ensure_ascii=False, sort_keys=True),
                 })
 
@@ -253,6 +266,11 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
             }
         }.items())),
         "candidate_values_with_locator_count": sum(1 for row in inventory if row["source_locators_json"] != "[]"),
+        "candidate_values_with_metadata_count": sum(1 for row in inventory if row["source_metadata_json"] != "{}"),
+        "candidate_metadata_keys": sorted({
+            key for row in inventory
+            for key in json.loads(row["source_metadata_json"])
+        }),
         "missingness_group_count": len(missingness_rows),
     }
     return {
