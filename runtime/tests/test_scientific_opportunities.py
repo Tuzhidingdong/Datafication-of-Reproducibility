@@ -328,7 +328,7 @@ class ScientificOpportunityTests(unittest.TestCase):
             x_values = [1.0, 2.0, 3.0, 4.0]
             _add_system_level_study(
                 bundle, study, x_values, [value * 2 for value in x_values],
-                condition_type="target-y", condition_unit="outcome-unit",
+                condition_type="TARGET_Y", condition_unit="outcome-unit",
             )
         result = build_scientific_opportunities(
             bundle, minimum_paired_studies=3, bootstrap_iterations=200
