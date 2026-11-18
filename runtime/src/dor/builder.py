@@ -638,34 +638,32 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                                 unit_item, definition, grouped_unit
                             )
                             candidate["raw_unit"] = raw_unit if not _is_blank(raw_unit) else None
-                            if not _is_blank(raw_unit):
-                                candidate_locators.append({
-                                    "source_file": filename,
-                                    "source_sha256": digest,
-                                    "locator_type": unit_locator_type,
-                                    "locator": unit_locator,
-                                })
+                            candidate_locators.append({
+                                "source_file": filename,
+                                "source_sha256": digest,
+                                "locator_type": unit_locator_type,
+                                "locator": unit_locator,
+                            })
                         if quote_item is not None:
                             quoted_text, quote_locator_type, quote_locator = _resolve_item(
                                 quote_item, definition, grouped_unit
                             )
                             candidate["quoted_text"] = quoted_text if not _is_blank(quoted_text) else None
-                            if not _is_blank(quoted_text):
-                                candidate_locators.append({
-                                    "source_file": filename,
-                                    "source_sha256": digest,
-                                    "locator_type": quote_locator_type,
-                                    "locator": quote_locator,
-                                })
+                            candidate_locators.append({
+                                "source_file": filename,
+                                "source_sha256": digest,
+                                "locator_type": quote_locator_type,
+                                "locator": quote_locator,
+                            })
                         metadata_values: dict[str, Any] = {}
                         for metadata_binding in binding.get("metadata_source_bindings", []):
                             metadata_item = item_by_id[metadata_binding["source_item_id"]]
                             metadata_value, metadata_locator_type, metadata_locator = _resolve_item(
                                 metadata_item, definition, grouped_unit
                             )
-                            if _is_blank(metadata_value):
-                                continue
-                            metadata_values[metadata_binding["metadata_key"]] = metadata_value
+                            metadata_values[metadata_binding["metadata_key"]] = (
+                                None if _is_blank(metadata_value) else metadata_value
+                            )
                             candidate_locators.append({
                                 "source_file": filename,
                                 "source_sha256": digest,
@@ -674,8 +672,8 @@ def build_canonical_bundle(mapping_plan: Any, inventory: Any, build_spec: Any,
                             })
                         if metadata_values:
                             candidate["source_metadata"] = metadata_values
-                        if not any(key in candidate for key in ("raw_value", "quoted_text", "source_metadata")):
-                            continue
+                        # Preserve even an empty candidate slot: its source ID and
+                        # exact value-field locator are evidence about extraction coverage.
                         unique_locators = {
                             _stable(locator): locator for locator in candidate_locators
                         }
