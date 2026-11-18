@@ -247,16 +247,23 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
     })
     profile = {
         "candidate_record_count": len(reconciliation),
-        "candidate_value_count": len(inventory),
+        "candidate_entry_count": len(inventory),
+        "candidate_value_count": sum(1 for row in inventory if _nonblank(row["candidate_value"])),
         "candidate_source_count": len(candidate_sources),
+        "candidate_entries_without_value_count": sum(1 for row in inventory if not _nonblank(row["candidate_value"])),
         "candidate_sources": candidate_sources,
         "reconciliation_status_counts": dict(sorted(reconciliation_counts.items())),
         "candidate_observation_count": sum(1 for row in reconciliation if row["entity_type"] == "OBSERVATION"),
         "candidate_condition_count": sum(1 for row in reconciliation if row["entity_type"] == "CONDITION"),
-        "candidate_values_with_numeric_value_count": sum(1 for row in inventory if row["candidate_numeric_value"] is not None),
-        "candidate_values_with_unit_count": sum(1 for row in inventory if row["candidate_unit"] != "UNSPECIFIED_UNIT"),
-        "candidate_values_with_quote_count": sum(1 for row in inventory if isinstance(row["quoted_text"], str) and row["quoted_text"].strip()),
-        "candidate_values_with_metadata_count": sum(1 for row in inventory if row["source_metadata_json"] != "{}"),
+        "candidate_entries_with_numeric_value_count": sum(1 for row in inventory if row["candidate_numeric_value"] is not None),
+        "candidate_entries_with_unit_count": sum(1 for row in inventory if row["candidate_unit"] != "UNSPECIFIED_UNIT"),
+        "candidate_entries_with_quote_count": sum(1 for row in inventory if isinstance(row["quoted_text"], str) and row["quoted_text"].strip()),
+        "candidate_entries_with_metadata_count": sum(1 for row in inventory if row["source_metadata_json"] != "{}"),
+        "candidate_evidence_only_entry_count": sum(
+            1 for row in inventory
+            if not _nonblank(row["candidate_value"])
+            and (bool(row["quoted_text"]) or row["source_metadata_json"] != "{}")
+        ),
         "candidate_metadata_key_counts": dict(sorted({
             key: sum(1 for row in inventory if key in json.loads(row["source_metadata_json"]))
             for key in {
@@ -265,7 +272,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                 for metadata_key in json.loads(row["source_metadata_json"])
             }
         }.items())),
-        "candidate_values_with_locator_count": sum(1 for row in inventory if row["source_locators_json"] != "[]"),
+        "candidate_entries_with_locator_count": sum(1 for row in inventory if row["source_locators_json"] != "[]"),
         "candidate_values_with_metadata_count": sum(1 for row in inventory if row["source_metadata_json"] != "{}"),
         "candidate_metadata_keys": sorted({
             key for row in inventory
