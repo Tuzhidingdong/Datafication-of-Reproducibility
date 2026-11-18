@@ -162,8 +162,8 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(alpha["overlay_counts"]["observations"], 1)
         self.assertEqual(alpha["overlay_counts"]["conditions"], 1)
         self.assertEqual(alpha["conflicting_candidate_records_skipped"]["observations"], 1)
-        self.assertEqual(alpha["analysis_profile"]["study_count"], 3)
-        self.assertEqual(result["scientific"]["profile"]["reported_numeric_observation_count"], 6)
+        self.assertEqual(alpha["analysis_profile"]["numeric_observation_count_used"], 6)
+        self.assertEqual(result["scientific"]["profile"]["numeric_observation_count_used"], 6)
 
     def test_canonical_validation_rejects_candidate_without_source_identity(self):
         bundle = make_bundle()
