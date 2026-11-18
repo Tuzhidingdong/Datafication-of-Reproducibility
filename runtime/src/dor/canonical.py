@@ -109,6 +109,17 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
                     if locator.get("locator") in (None, ""):
                         errors.append({"code":"INVALID_VALUE_CANDIDATE_LOCATOR_VALUE","path":f"{locator_path}.locator","message":"locator must be non-empty."})
 
+            metadata = candidate.get("source_metadata")
+            if metadata is not None:
+                if not isinstance(metadata, dict):
+                    errors.append({"code":"VALUE_CANDIDATE_METADATA_NOT_OBJECT","path":f"{candidate_path}.source_metadata","message":"source_metadata must be an object."})
+                else:
+                    for metadata_key, metadata_value in metadata.items():
+                        if not isinstance(metadata_key, str) or not metadata_key.strip():
+                            errors.append({"code":"VALUE_CANDIDATE_METADATA_KEY_INVALID","path":candidate_path,"message":"source_metadata keys must be non-empty strings."})
+                        if isinstance(metadata_value, (dict, list)):
+                            errors.append({"code":"VALUE_CANDIDATE_METADATA_VALUE_INVALID","path":f"{candidate_path}.source_metadata.{metadata_key}","message":"source_metadata values must be scalar values or null."})
+
     for i, row in enumerate(records["systems"].values()):
         refs(f"systems[{i}].study_ids", row.get("study_ids"), "studies")
         if not isinstance(row.get("study_ids"), list) or not row.get("study_ids"):
