@@ -103,6 +103,46 @@ class ResearchScopeValidationTests(unittest.TestCase):
         self.assertTrue(result["valid"], result)
         self.assertEqual(result["selected_opportunity_ids"], ["OPP-BETWEEN"])
 
+
+    def test_deep_discovery_opportunity_can_be_selected(self):
+        report = {
+            "signals": [],
+            "deep_discovery_signals": [{
+                "signal_id": "DEEP-ABC123",
+                "opportunity_id": "DEEP-ABC123",
+                "signal_source": "DEEP_DISCOVERY",
+                "signal_type": "NONLINEAR_QUADRATIC_RESPONSE",
+                "target_id": "TARGET_01",
+            }],
+        }
+        record = dict(self.record)
+        record["selected_signal_ids"] = ["DEEP-ABC123"]
+        record["not_selected_signal_ids"] = []
+        result = self.validate(record=record, report=report)
+        self.assertTrue(result["valid"], result)
+        self.assertEqual(result["selected_opportunity_ids"], ["DEEP-ABC123"])
+
+    def test_multiobjective_deep_signal_requires_one_of_its_objectives(self):
+        report = {
+            "signals": [],
+            "deep_discovery_signals": [{
+                "signal_id": "DEEP-PARETO",
+                "signal_source": "DEEP_DISCOVERY",
+                "signal_type": "MULTIOBJECTIVE_COVARIATION_AND_PARETO_FRONTIER",
+                "target_ids": ["TARGET_01", "TARGET_02"],
+            }],
+        }
+        record = dict(self.record)
+        record["selected_signal_ids"] = ["DEEP-PARETO"]
+        record["not_selected_signal_ids"] = []
+        valid = self.validate(record=record, report=report)
+        self.assertTrue(valid["valid"], valid)
+        other_task = {"task_id": "TASK_01", "target_id": "TARGET_OTHER"}
+        invalid = self.validate(record=record, report=report, task=other_task)
+        self.assertFalse(invalid["valid"])
+        self.assertIn("SCOPE_SELECTED_SIGNAL_TARGET_MISMATCH",
+                      [item["code"] for item in invalid["errors"]])
+
     def test_selected_opportunity_target_must_match_modeling_task(self):
         report = {
             "signals": [{

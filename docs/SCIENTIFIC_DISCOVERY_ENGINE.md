@@ -18,6 +18,13 @@ For a bundle registered by an adapter handoff:
 
 The command validates canonical structure and references, hashes the bundle before and after analysis, reads only the declared Canonical Bundle entities and links, and refuses to overwrite a non-empty output directory. Source data are read-only.
 
+Deep-screen support and candidate-search bounds are explicit CLI controls:
+- `--minimum-deep-experiments-per-system`: repeated Experiments required within a Study/System (default 8).
+- `--minimum-deep-triplet-experiments-per-system`: repeated Experiments required within a Study/System for three-way screens (default 12).
+- `--minimum-deep-between-systems-per-study`: eligible Systems required for between-System nonlinear and two-way screens (default 8); three-way screens require at least 12.
+- `--maximum-deep-condition-pairs`, `--maximum-deep-condition-triplets`, and `--maximum-deep-multiobjective-pairs`: per-outcome candidate caps.
+- `--minimum-deep-model-improvement`: minimum relative leave-one-out RMSE gain for the positive-gain label; lower-gain candidates remain as counterevidence.
+
 The discovery scan is independent of a selected Modeling Task or Cohort. It must run over the entire supplied Canonical Bundle, not a previously narrowed modeling cohort. A later task-specific Cohort is created only after the user selects a research opportunity and approves the resulting analysis scope.
 
 The Engine does not merge Systems or rewrite Experiment/System relationships to make an analysis eligible. The reviewed Build Spec remains the authority for entity grain. If a bundle contains one Experiment per System, the Engine can still screen cross-sectional associations between Systems within the same Study, while retaining separate within-System analyses for Systems that genuinely contain repeated condition levels. Whether two source records belong to one canonical System remains a mapping decision supported by source evidence, not a statistical convenience.
@@ -140,6 +147,49 @@ The question is deliberately phrased in terms of the declared canonical identifi
 
 A screen-positive result is labelled FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW. A candidate with insufficient independent Study support is labelled DESCRIPTIVE_CANDIDATE_INSUFFICIENT_INDEPENDENT_STUDY_SUPPORT. Neither status is an accepted scientific finding.
 
+
+## Deep full-bundle scientific screens
+
+The primary Study-aware screens above remain unchanged. The same Discovery pass also runs a separate, deterministic deep-screen layer over the **complete Canonical Bundle**. This is not a Cohort/modeling-task screen and it does not require a globally complete feature table.
+
+### Pairwise-available response subsets
+
+For each exact outcome key (target ID, endpoint definition, timepoint, and unit), the Runtime links experiment-level outcome medians to each explicitly reported numeric Condition through the Experiment's declared \`condition_ids\`. Every outcome/Condition hypothesis uses only the Experiments where that particular pair is available. A conflicting assignment for one Condition type/unit inside an Experiment is excluded for that feature; other features and that Experiment's other usable outcomes remain eligible.
+
+### Nonlinear and threshold response
+
+Two complementary designs are evaluated separately:
+- **Within-System repeated-experiment design:** at least eight pairwise-available Experiments and five distinct exposure levels within a Study/System; leave-one-Experiment-out RMSE.
+- **Between-System cross-sectional design:** at least eight eligible Systems within one Study, each with one constant numeric exposure level for that outcome/feature, and at least five distinct System exposure levels; leave-one-System-out RMSE over one median outcome per System.
+
+For both designs the Runtime compares a linear response against a quadratic response and against a continuous one-breakpoint piecewise-linear response. The threshold model chooses its breakpoint from training data within each fold; its reported breakpoint summary is descriptive and is not asserted to be a universal physical threshold. Each eligible System contributes a relative RMSE improvement; multiple System effects within a Study are reduced to one median Study effect. Study—not the Experiment or System—is the independent inferential unit. The two designs use separate analysis families, each with its own exact two-sided Study sign test, deterministic Study bootstrap interval, and BH-FDR family. Cross-sectional between-System results may be confounded by System composition, protocol, source, or other Study-level differences and are explicitly labelled for domain review.
+
+The output retains systems/Studies where the more complex model does not improve prediction. \`BELOW_MINIMUM_PREDICTIVE_GAIN_RETAINED_FOR_COUNTEREVIDENCE\` means the median Study improvement did not reach the configured minimum gain; it is not silently removed from the results or FDR catalogue.
+
+### Two-way and three-way condition interactions
+
+Numeric Condition combinations are screened only where the corresponding two/three Conditions and outcome are jointly available. The two-way model compares additive main effects against main effects plus the product term. The three-way model compares all main effects plus all pairwise product terms against that lower-order model plus the three-way product term.
+
+Both designs are run separately. Within-System repeated-experiment screens use leave-one-Experiment-out RMSE (at least eight Experiments per Study/System for two-way and twelve for three-way). Between-System cross-sectional screens require each selected feature to be constant within a System, then use one median outcome and one condition vector per System with leave-one-System-out RMSE (at least eight Systems per Study for nonlinear/two-way and twelve for three-way by default; the nonlinear/two-way threshold is configurable with `--minimum-deep-between-systems-per-study`). Each Study contributes one median System effect to cross-Study inference. All features require at least three distinct values. The Runtime ranks hypotheses by joint Experiment and Study support and applies explicit per-outcome caps (100 two-way pairs and 40 three-way triplets by default). The best-covered 18 numeric Condition features per outcome bound both pairwise and triplet combinatorics; features outside this bounded set remain visible in the omission count and remain eligible for their separate one-feature nonlinear screen. Screened and omitted hypothesis counts are reported; an omitted combination is not described as a negative result. The candidate limits and support thresholds are configurable through the \`discover-opportunities\` CLI.
+
+These are predictive model-comparison signals, not causal interaction effects, synergy estimates, mechanisms, or proof of generalization to new Systems. Per-Study support, model improvements, and counterexample Studies remain in the opportunity record and evidence ledger.
+
+### Multi-objective co-variation and Pareto frontiers
+
+The Runtime identifies distinct numeric outcome pairs co-recorded in the same Experiment. It separately calculates (1) within-System Spearman co-variation over pairwise-available repeated Experiments and (2) between-System Spearman co-variation within a Study using one median pair of outcomes per System. A Study contributes one median System correlation to each analysis design. Outcome keys retain exact target, endpoint, timepoint, and unit; no unit conversion or cross-endpoint collapsing is inferred.
+
+For every screened pair, Pareto membership is calculated separately for each available within-System Experiment population and between-System population within a Study, under all four direction scenarios: \`MAX_MAX\`, \`MAX_MIN\`, \`MIN_MAX\`, and \`MIN_MIN\`. The Runtime **does not infer whether an outcome should be maximized or minimized**. These frontiers are descriptive candidate operating envelopes, not a recommendation or an optimized experimental recipe. The user must select the intended objective direction and domain meaning before interpreting a frontier.
+
+Multi-objective pairs have their own Study-level sign tests, bootstrap intervals, and BH-FDR family. The aggregate effect direction is labelled positive or negative from the median Study effect; counterexample Study IDs are those whose effect points in the opposite direction, not simply all negative effects. Within a Study, Systems are reduced to one median effect before this comparison. The scope record may select a multi-objective opportunity for a single-target Modeling Task only when that task's target is one of the two declared objective targets; this binds the subsequent analysis to an explicit objective rather than pretending that the pair is one outcome.
+
+### Candidate-source deep sensitivity
+
+The same nonlinear, two-way, three-way, and multi-objective screens run inside each existing candidate-source sensitivity copy. Each source remains isolated; unique candidate values overlay their original parent records, while absent, empty, or conflicting source values follow the existing primary-value fallback/skip rules. The resulting deep reports are nested under that source in \`candidate_sensitivity_opportunities.json\` and marked \`CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY\`. Candidate alternatives never create new Observations, Experiments, Systems, or independent Studies, and their p/q values are not pooled with primary results or other source scenarios. The aggregate candidate sensitivity profile exposes only bounded counts/profile fields.
+
+Deep opportunity IDs are exposed through \`discovery_report.json\` as \`deep_discovery_signals\`, bound by the exact report hash and the SHA-256 of \`deep_research_opportunities.json\`. Nonlinear and interaction opportunities declare one \`target_id\`; a multi-objective opportunity declares both \`target_ids\`. The existing Research Scope validator requires a selected Modeling Task target to match the declared target (or one of the two multi-objective targets).
+
+All deep outputs retain canonical Study/System/Experiment/Observation identifiers. They do not dereference source locators, read quotes from raw files, inspect papers/SI, infer semantic meaning, or certify causality. Exact unit strings, endpoint definitions, timepoints, and canonical entity relationships remain authoritative.
+
 ## Outputs
 
 - discovery_manifest.json — input/output SHA-256 values, read-only scope, and engine configuration.
@@ -153,7 +203,14 @@ A screen-positive result is labelled FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW.
 - condition_outcome_correlations.csv — within-System and between-System within-Study numeric-condition Spearman screens and cross-Study direction-consistency tests.
 - research_opportunities.json — DOR-generated, ranked, structured candidate research questions, explicit self-association exclusions, and proof records for exact mirror duplicates.
 - evidence_ledger.jsonl — one record per opportunity/Study with supporting System, Experiment, and Observation IDs.
-- scientific_analysis_profile.json — algorithm versions, thresholds, test-family descriptions, and limitations.
+- scientific_analysis_profile.json — primary-screen algorithm versions, thresholds, test-family descriptions, and limitations.
+- deep_research_opportunities.json — nonlinear response, threshold, two-way and three-way interaction, and multi-objective candidate opportunities with Study-level effects, intervals, p/q values, counterexamples, and supporting identifiers.
+- deep_scientific_discovery_profile.json — deep-screen algorithms, support thresholds, candidate caps, and omissions.
+- deep_condition_response.csv — nonlinear/threshold model comparisons and evidence support.
+- deep_interaction_candidates.csv — two-way and three-way model comparisons and evidence support.
+- multiobjective_tradeoff_candidates.csv — Study-aware outcome-pair co-variation candidates.
+- multiobjective_frontiers.csv — within-System Experiment-level and between-System System-level frontier membership under all four objective-direction scenarios.
+- deep_evidence_ledger.jsonl — one record per deep opportunity/Study with System, Experiment, Observation support.
 - signal_catalogue.csv and discovery_report.json — aggregate signal catalogue and machine-readable summary.
 - candidate_value_inventory.csv — source-specific candidate values, quotes, units, and opaque locators attached to their original Condition/Observation records.
 - candidate_value_reconciliation.csv — per-record agreement/conflict status without silent selection or averaging.
@@ -168,7 +225,7 @@ A screen-positive result is labelled FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW.
 
 ## Research scope and downstream workflow
 
-The user selects or rejects the generated opportunity IDs. An opportunity is also exposed as a Discovery signal, so the existing research_scope_record.selected_signal_ids contract can bind it to the exact Discovery report hash. The scope validator checks that a selected opportunity's target ID matches the Modeling Task target ID.
+The user selects or rejects generated primary or deep opportunity IDs. Primary signals remain in `signals`; deep opportunities are exposed in `deep_discovery_signals`. Both are bound to the exact Discovery report hash, and the report also records the SHA-256 of `deep_research_opportunities.json`. The scope validator checks that a selected single-target opportunity matches the Modeling Task target ID. A multi-objective selection is valid only when the task target is one of that opportunity's two declared objective targets.
 
 Only after that human selection and scope review should the formal Run create the endpoint-specific Cohort and Modeling Task, then continue through G0-G4, validation, and publication. The original full-bundle Discovery output remains immutable and is not replaced by a narrow Cohort.
 

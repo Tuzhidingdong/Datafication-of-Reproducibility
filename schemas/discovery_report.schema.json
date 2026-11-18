@@ -25,11 +25,14 @@
     "candidate_value_record_count",
     "candidate_value_count",
     "candidate_source_count",
-    "candidate_sensitivity_scenario_count"
+    "candidate_sensitivity_scenario_count",
+    "deep_discovery_signals",
+    "deep_research_opportunities_sha256",
+    "deep_scientific_discovery"
   ],
   "properties": {
     "schema_version": {
-      "const": "1.4"
+      "const": "1.5"
     },
     "input_type": {
       "const": "CANONICAL_BUNDLE"
@@ -334,8 +337,113 @@
     "candidate_sensitivity_scenario_count": {
       "type": "integer",
       "minimum": 0
+    },
+    "deep_discovery_signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "signal_id",
+          "opportunity_id",
+          "signal_source",
+          "signal_type"
+        ],
+        "properties": {
+          "signal_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "opportunity_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "signal_source": {
+            "const": "DEEP_DISCOVERY"
+          },
+          "signal_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "target_id"
+            ],
+            "not": {
+              "required": [
+                "target_ids"
+              ]
+            }
+          },
+          {
+            "required": [
+              "target_ids"
+            ],
+            "not": {
+              "required": [
+                "target_id"
+              ]
+            }
+          }
+        ],
+        "additionalProperties": true
+      }
+    },
+    "deep_research_opportunities_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "deep_scientific_discovery": {
+      "type": "object",
+      "required": [
+        "profile",
+        "opportunities_file",
+        "nonlinear_file",
+        "interaction_file",
+        "multiobjective_file",
+        "pareto_frontier_file",
+        "evidence_ledger_file"
+      ],
+      "properties": {
+        "profile": {
+          "type": "object"
+        },
+        "opportunities_file": {
+          "const": "deep_research_opportunities.json"
+        },
+        "nonlinear_file": {
+          "const": "deep_condition_response.csv"
+        },
+        "interaction_file": {
+          "const": "deep_interaction_candidates.csv"
+        },
+        "multiobjective_file": {
+          "const": "multiobjective_tradeoff_candidates.csv"
+        },
+        "pareto_frontier_file": {
+          "const": "multiobjective_frontiers.csv"
+        },
+        "evidence_ledger_file": {
+          "const": "deep_evidence_ledger.jsonl"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false,
-  "schema_version": "1.4"
+  "schema_version": "1.5"
 }

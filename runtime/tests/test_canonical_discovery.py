@@ -234,6 +234,13 @@ class CanonicalDiscoveryTests(unittest.TestCase):
                 "missingness_opportunity_profile.csv",
                 "candidate_sensitivity_opportunities.json",
                 "candidate_sensitivity_profile.json",
+                "deep_research_opportunities.json",
+                "deep_scientific_discovery_profile.json",
+                "deep_condition_response.csv",
+                "deep_interaction_candidates.csv",
+                "multiobjective_tradeoff_candidates.csv",
+                "multiobjective_frontiers.csv",
+                "deep_evidence_ledger.jsonl",
             ):
                 self.assertTrue((output / name).is_file(), name)
             with (output / "candidate_value_inventory.csv").open(encoding="utf-8", newline="") as handle:
@@ -248,6 +255,12 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertEqual(report["candidate_value_record_count"], 5)
             self.assertEqual(report["candidate_value_count"], 5)
             self.assertEqual(report["candidate_sensitivity_scenario_count"], 2)
+            self.assertEqual(report["deep_scientific_discovery"]["opportunities_file"],
+                             "deep_research_opportunities.json")
+            self.assertEqual(
+                report["deep_research_opportunities_sha256"],
+                hashlib.sha256((output / "deep_research_opportunities.json").read_bytes()).hexdigest(),
+            )
             self.assertEqual(report["candidate_pairwise_comparison_count"], 2)
             self.assertEqual(
                 report["candidate_pairwise_overall_status_counts"],
@@ -258,6 +271,23 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertIn("candidate_b_source_locators_json", pairwise.splitlines()[0])
             candidate_profile = json.loads((output / "candidate_reconciliation_profile.json").read_text(encoding="utf-8"))
             self.assertEqual(candidate_profile["pairwise_comparison_count"], 2)
+            sensitivity_profile = json.loads((output / "candidate_sensitivity_profile.json").read_text(encoding="utf-8"))
+            self.assertTrue(all(
+                item["deep_sensitivity_status"] == "CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY"
+                for item in sensitivity_profile["scenarios"]
+            ))
+            candidate_sensitivity = json.loads(
+                (output / "candidate_sensitivity_opportunities.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(all(
+                item["additional_scenario_analysis"]["scenario_status"]
+                == "CANDIDATE_SOURCE_SENSITIVITY_ONLY_NOT_PRIMARY"
+                for item in candidate_sensitivity["scenarios"]
+            ))
+            self.assertTrue(all(
+                "profile" in item["additional_scenario_analysis"]["result"]
+                for item in candidate_sensitivity["scenarios"]
+            ))
             self.assertNotIn("Synthetic structured quote A", json.dumps(candidate_profile))
             self.assertNotIn("candidate-a", json.dumps(candidate_profile))
             manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
@@ -285,9 +315,39 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             self.assertTrue((output / "research_opportunities.json").is_file())
             self.assertTrue((output / "evidence_ledger.jsonl").is_file())
             self.assertTrue((output / "scientific_analysis_profile.json").is_file())
+            self.assertTrue((output / "deep_research_opportunities.json").is_file())
+            deep_payload = json.loads((output / "deep_research_opportunities.json").read_text(encoding="utf-8"))
+            self.assertEqual(deep_payload["profile"]["analysis_unit"], "INDEPENDENT_STUDY")
+            self.assertEqual(
+                deep_payload["profile"]["data_subset_policy"],
+                "PAIRWISE_AVAILABLE_SUBSETS_NO_GLOBAL_COMPLETE_CASE_REQUIREMENT",
+            )
+            self.assertTrue((output / "deep_evidence_ledger.jsonl").is_file())
+            deep_response_header = (output / "deep_condition_response.csv").read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("analysis_design", deep_response_header)
+            self.assertIn("threshold_value_median_across_eligible_studies", deep_response_header)
+            deep_interaction_header = (output / "deep_interaction_candidates.csv").read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("analysis_design", deep_interaction_header)
+            pareto_header = (output / "multiobjective_frontiers.csv").read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("population_type", pareto_header)
+            self.assertIn("supporting_experiment_ids_json", pareto_header)
+            tradeoff_header = (output / "multiobjective_tradeoff_candidates.csv").read_text(encoding="utf-8").splitlines()[0]
+            self.assertIn("effect_direction", tradeoff_header)
+            self.assertIn("counterexample_study_ids_json", tradeoff_header)
             self.assertTrue((output / "agent_research_brief.md").is_file())
             discovery_report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
-            self.assertEqual(discovery_report["schema_version"], "1.4")
+            self.assertEqual(discovery_report["schema_version"], "1.5")
+            schema_path = Path(__file__).resolve().parents[2] / "schemas" / "discovery_report.schema.json"
+            report_schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                discovery_report["schema_version"],
+                report_schema["properties"]["schema_version"]["const"],
+            )
+            self.assertTrue({
+                "deep_discovery_signals",
+                "deep_research_opportunities_sha256",
+                "deep_scientific_discovery",
+            }.issubset(set(report_schema["required"])))
             self.assertEqual(discovery_report["related_opportunity_group_count"], 0)
             self.assertEqual(discovery_report["research_opportunity_count"], 0)
             opportunity_payload = json.loads((output / "research_opportunities.json").read_text(encoding="utf-8"))
@@ -315,6 +375,13 @@ class CanonicalDiscoveryTests(unittest.TestCase):
         self.assertEqual(args.bootstrap_iterations, 1000)
         self.assertEqual(args.maximum_opportunities, 500)
         self.assertEqual(args.maximum_levels_per_condition, 20)
+        self.assertEqual(args.minimum_deep_experiments_per_system, 8)
+        self.assertEqual(args.minimum_deep_triplet_experiments_per_system, 12)
+        self.assertEqual(args.minimum_deep_between_systems_per_study, 8)
+        self.assertEqual(args.maximum_deep_condition_pairs, 100)
+        self.assertEqual(args.maximum_deep_condition_triplets, 40)
+        self.assertEqual(args.maximum_deep_multiobjective_pairs, 100)
+        self.assertEqual(args.minimum_deep_model_improvement, 0.10)
         self.assertEqual(args.seed, 42)
         self.assertIsNone(args.semantic_registry)
 
