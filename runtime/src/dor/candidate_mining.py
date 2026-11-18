@@ -258,11 +258,19 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
         "candidate_entries_with_numeric_value_count": sum(1 for row in inventory if row["candidate_numeric_value"] is not None),
         "candidate_entries_with_unit_count": sum(1 for row in inventory if row["candidate_unit"] != "UNSPECIFIED_UNIT"),
         "candidate_entries_with_quote_count": sum(1 for row in inventory if isinstance(row["quoted_text"], str) and row["quoted_text"].strip()),
-        "candidate_entries_with_metadata_count": sum(1 for row in inventory if row["source_metadata_json"] != "{}"),
+        "candidate_entries_with_metadata_fields_count": sum(1 for row in inventory if row["source_metadata_json"] != "{}"),
+        "candidate_entries_with_metadata_count": sum(
+            1 for row in inventory
+            if any(value not in (None, "") for value in json.loads(row["source_metadata_json"]).values())
+        ),
         "candidate_evidence_only_entry_count": sum(
             1 for row in inventory
             if not _nonblank(row["candidate_value"])
-            and (bool(row["quoted_text"]) or row["source_metadata_json"] != "{}")
+            and (
+                bool(row["quoted_text"])
+                or any(value not in (None, "") for value in json.loads(row["source_metadata_json"]).values())
+                or row["source_locators_json"] != "[]"
+            )
         ),
         "candidate_metadata_key_counts": dict(sorted({
             key: sum(1 for row in inventory if key in json.loads(row["source_metadata_json"]))
@@ -273,7 +281,6 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
             }
         }.items())),
         "candidate_entries_with_locator_count": sum(1 for row in inventory if row["source_locators_json"] != "[]"),
-        "candidate_values_with_metadata_count": sum(1 for row in inventory if row["source_metadata_json"] != "{}"),
         "candidate_metadata_keys": sorted({
             key for row in inventory
             for key in json.loads(row["source_metadata_json"])
