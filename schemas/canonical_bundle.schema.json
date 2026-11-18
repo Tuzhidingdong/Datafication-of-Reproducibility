@@ -599,6 +599,7 @@
           }
         }
       },
+      "additionalProperties": false,
       "anyOf": [
         {
           "required": [
@@ -609,9 +610,18 @@
           "required": [
             "normalized_value"
           ]
+        },
+        {
+          "required": [
+            "quoted_text"
+          ]
+        },
+        {
+          "required": [
+            "source_metadata"
+          ]
         }
-      ],
-      "additionalProperties": false
+      ]
     }
   }
 }
