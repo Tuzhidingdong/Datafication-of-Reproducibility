@@ -69,7 +69,11 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertNotIn("virtual_query_input", {item["artifact_id"] for item in plan["source_artifacts"]})
             self.assertIn("adapter_package_manifest", {item["artifact_id"] for item in plan["source_artifacts"]})
             self.assertIn("publication_plan_template", {item["artifact_id"] for item in plan["source_artifacts"]})
+            self.assertIn("semantic_registry", {item["artifact_id"] for item in plan["source_artifacts"]})
             self.assertTrue(Path(result["publication_plan_template"]).is_file())
+            self.assertTrue(Path(result["semantic_registry_path"]).is_file())
+            self.assertTrue(result["semantic_registry_created"])
+            self.assertEqual(result["semantic_registry_sha256"], __import__("hashlib").sha256(Path(result["semantic_registry_path"]).read_bytes()).hexdigest())
             self.assertTrue(Path(result["workflow_ledger_path"]).is_absolute())
             self.assertIn("dor run-init", result["run_init_command"])
             self.assertTrue(any(Path(item) == (project / "raw_sources" / "adapter_package").resolve()
@@ -95,7 +99,9 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertNotIn("execution_profile", plan)
             source_artifacts = {item["artifact_id"]: item["path"] for item in plan["source_artifacts"]}
             self.assertNotIn("virtual_query_input", source_artifacts)
+            self.assertIn("semantic_registry", source_artifacts)
             self.assertIsNone(result.get("virtual_query_reference"))
+            self.assertFalse(result["semantic_registry_created"])
 
             # optional external query may be kept as non-authoritative reference only
             query = project / "configuration" / "virtual_query.json"
