@@ -156,6 +156,7 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "condition_outcome_correlations", "research_opportunities",
             "evidence_ledger", "scientific_analysis_profile",
             "candidate_value_inventory", "candidate_value_reconciliation",
+            "candidate_pairwise_reconciliation", "candidate_reconciliation_profile",
             "missingness_opportunity_profile", "candidate_sensitivity_opportunities",
             "candidate_sensitivity_profile",
         }
@@ -174,13 +175,14 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 self.assertEqual(output_ids, expected)
                 scope_expected = expected - {
                     "candidate_value_inventory", "candidate_value_reconciliation",
-                    "candidate_sensitivity_opportunities",
+                    "candidate_pairwise_reconciliation", "candidate_sensitivity_opportunities",
                 }
                 self.assertTrue(scope_expected.issubset(set(scope["inputs"])))
                 self.assertFalse({
                     "candidate_value_inventory", "candidate_value_reconciliation",
-                    "candidate_sensitivity_opportunities",
+                    "candidate_pairwise_reconciliation", "candidate_sensitivity_opportunities",
                 }.intersection(scope["inputs"]))
+                self.assertIn("candidate_reconciliation_profile", scope["inputs"])
                 for artifact_id in expected:
                     output = next(item for item in discovery["outputs"] if item["artifact_id"] == artifact_id)
                     self.assertTrue(output["path"].startswith("04_discovery/"))
@@ -198,6 +200,7 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
             "condition_outcome_correlations", "research_opportunities",
             "evidence_ledger", "scientific_analysis_profile",
             "candidate_value_inventory", "candidate_value_reconciliation",
+            "candidate_pairwise_reconciliation", "candidate_reconciliation_profile",
             "missingness_opportunity_profile", "candidate_sensitivity_opportunities",
             "candidate_sensitivity_profile",
         }
@@ -211,15 +214,16 @@ class ConditionalRunPlanTemplateTests(unittest.TestCase):
                 )
         scope_expected = expected - {
             "candidate_value_inventory", "candidate_value_reconciliation",
-            "candidate_sensitivity_opportunities",
+            "candidate_pairwise_reconciliation", "candidate_sensitivity_opportunities",
         }
         for variant in scope["route_variants"]:
             with self.subTest(scope_route=variant["route"]):
                 self.assertTrue(scope_expected.issubset(set(variant["inputs"])))
                 self.assertFalse({
                     "candidate_value_inventory", "candidate_value_reconciliation",
-                    "candidate_sensitivity_opportunities",
+                    "candidate_pairwise_reconciliation", "candidate_sensitivity_opportunities",
                 }.intersection(variant["inputs"]))
+                self.assertIn("candidate_reconciliation_profile", variant["inputs"])
 
     def test_canonical_route_uses_materialized_bundle_as_the_bundle_producer(self):
         plan = self._load_plan("templates/run_plan.canonical_adapter.example.json")
