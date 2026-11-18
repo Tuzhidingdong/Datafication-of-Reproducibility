@@ -8,10 +8,13 @@ Keep this file outside production Skills. Do not put concrete study data, projec
 
 ## Record contract
 
-Each record binds one exact identifier to one entity type:
+Each record binds an exact Canonical identity and optional measurement scope:
 
-- `TARGET` matches `observations[].target_id`.
+- `TARGET` matches `observations[].target_id` across all endpoint/timepoint contexts.
+- `TARGET_ENDPOINT` matches the exact tuple `observations[].target_id`, `endpoint_definition`, and `timepoint`; both context fields are required and preserve their JSON value types.
 - `CONDITION` matches `conditions[].condition_type`.
+
+A `TARGET_ENDPOINT` definition overrides the matching fields from a broader `TARGET` definition for that exact scope. It does not leak into other endpoints or timepoints. The Runtime does not normalize identifier case, punctuation, whitespace, endpoint labels, or timepoint types.
 
 Identifiers are matched exactly. Case, punctuation, and whitespace are not normalized. A registry entry that matches no Canonical record is an error. Duplicate entries for the same entity type and identifier are rejected.
 
@@ -29,6 +32,6 @@ Use it for an explicitly requested exploratory scan:
 
     dor discover-opportunities --bundle <canonical_bundle.json> --semantic-registry <semantic_registry.json> --out-dir <new_discovery_directory>
 
-The Runtime overlays the metadata onto an in-memory copy for the analysis, hashes the registry before and after the run, and records its ID, hash, counts, and application status in the Discovery manifest/report. It does not write metadata back to the Canonical Bundle. If an entry conflicts with inline Canonical metadata, matches no Canonical attribute, or fails validation, the scan stops rather than guessing.
+The Runtime overlays the metadata onto an in-memory copy for the analysis, hashes the registry before and after the run, and records its ID, hash, global Target/endpoint-scoped Target/Condition counts, and application status in the Discovery manifest/report. It does not write metadata back to the Canonical Bundle. If an entry conflicts with inline Canonical metadata, matches no Canonical attribute, or fails validation, the scan stops rather than guessing.
 
 Without a registry, the existing behavior remains: missing, partial, conflicting, or unapproved semantics are reported as requiring domain review and are never interpreted as evidence that no semantic relationship exists.
