@@ -12,6 +12,7 @@ from typing import Any
 
 from dor.canonical import validate_canonical_bundle
 from dor.candidate_mining import inventory_candidate_values, build_candidate_source_sensitivities
+from dor.candidate_reconciliation import build_candidate_pairwise_reconciliation
 from dor.scientific_opportunities import build_scientific_opportunities
 from dor.semantic_registry import load_semantic_registry
 
@@ -252,6 +253,10 @@ def summarize_canonical_bundle(
     # Candidate alternatives are inventoried separately and never enter the
     # primary reported-value analysis or its inferential denominator.
     candidate_inventory = inventory_candidate_values(bundle)
+    candidate_pairwise = build_candidate_pairwise_reconciliation(
+        bundle,
+        semantic_registry=semantic_registry,
+    )
     candidate_sensitivity = build_candidate_source_sensitivities(
         bundle,
         minimum_paired_studies=minimum_paired_studies,
@@ -300,6 +305,8 @@ def summarize_canonical_bundle(
             "inventory_rows": candidate_inventory["inventory_rows"],
             "reconciliation_rows": candidate_inventory["reconciliation_rows"],
             "missingness_rows": candidate_inventory["missingness_rows"],
+            "pairwise_profile": candidate_pairwise["profile"],
+            "pairwise_rows": candidate_pairwise["pairwise_rows"],
             "sensitivity": candidate_sensitivity,
         },
         "interpretation_boundary": [
@@ -381,6 +388,26 @@ def run_canonical_discovery_scan(
          "candidate_value_unit_pairs_json", "candidate_metadata_keys_json",
          "candidate_source_metadata_json"],
         candidate_mining["reconciliation_rows"])
+    pairwise_fields = [
+        "entity_type", "record_id", "feature_id", "study_ids_json", "system_ids_json",
+        "experiment_ids_json", "endpoint_definition", "timepoint", "candidate_source_relation",
+        "candidate_a_id", "candidate_a_source", "candidate_a_value", "candidate_a_unit",
+        "candidate_a_quoted_text", "candidate_a_source_metadata_json", "candidate_a_source_locators_json",
+        "candidate_b_id", "candidate_b_source", "candidate_b_value", "candidate_b_unit",
+        "candidate_b_quoted_text", "candidate_b_source_metadata_json", "candidate_b_source_locators_json",
+        "value_comparison_status", "unit_comparison_status", "canonical_unit",
+        "canonical_value_a", "canonical_value_b", "unit_adjusted_comparison_status",
+        "parent_semantic_status", "overall_comparison_status",
+    ]
+    _write_csv(
+        output_dir / "candidate_pairwise_reconciliation.csv",
+        pairwise_fields,
+        candidate_mining["pairwise_rows"],
+    )
+    (output_dir / "candidate_reconciliation_profile.json").write_text(
+        json.dumps(candidate_mining["pairwise_profile"], indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     _write_csv(output_dir / "missingness_opportunity_profile.csv",
         ["entity_type", "feature_id", "value_state", "record_count", "study_count",
          "system_count", "experiment_count", "records_with_candidates", "candidate_count",
@@ -501,6 +528,10 @@ def run_canonical_discovery_scan(
         "missingness_opportunity_profile_file": "missingness_opportunity_profile.csv",
         "candidate_sensitivity_profile_file": "candidate_sensitivity_profile.json",
         "candidate_sensitivity_opportunities_file": "candidate_sensitivity_opportunities.json",
+        "candidate_pairwise_reconciliation_file": "candidate_pairwise_reconciliation.csv",
+        "candidate_reconciliation_profile_file": "candidate_reconciliation_profile.json",
+        "candidate_pairwise_comparison_count": candidate_mining["pairwise_profile"]["pairwise_comparison_count"],
+        "candidate_pairwise_overall_status_counts": candidate_mining["pairwise_profile"]["status_counts"]["overall_comparison_status"],
         "candidate_value_record_count": candidate_mining["inventory_profile"]["candidate_record_count"],
         "candidate_value_count": candidate_mining["inventory_profile"]["candidate_value_count"],
         "candidate_source_count": candidate_mining["inventory_profile"]["candidate_source_count"],
@@ -544,7 +575,10 @@ def run_canonical_discovery_scan(
         f"- Entries with metadata fields / populated metadata: {candidate_profile['candidate_entries_with_metadata_fields_count']} / {candidate_profile['candidate_entries_with_metadata_count']}",
         f"- Candidate metadata fields: {', '.join(candidate_profile['candidate_metadata_keys']) or 'none supplied'}",
         f"- Candidate-source sensitivity scenarios: {candidate_mining['sensitivity']['scenario_count']}",
-        "- Candidate alternatives are kept separate from primary reported values; see candidate_value_inventory.csv and candidate_sensitivity_profile.json.",
+        f"- Pairwise candidate comparisons: {candidate_mining['pairwise_profile']['pairwise_comparison_count']}",
+        f"- Pairwise overall comparison states: {json.dumps(candidate_mining['pairwise_profile']['status_counts']['overall_comparison_status'], ensure_ascii=False, sort_keys=True)}",
+        "- Pairwise comparisons are diagnostic only; approved unit conversions do not change primary or sensitivity values.",
+        "- Candidate alternatives are kept separate from primary reported values; see candidate_value_inventory.csv, candidate_pairwise_reconciliation.csv, and candidate_sensitivity_profile.json.",
         "- This aggregate brief does not expose row-level candidate values, quotations, or source locators.",
         "",
         "## DOR-generated research opportunities",
