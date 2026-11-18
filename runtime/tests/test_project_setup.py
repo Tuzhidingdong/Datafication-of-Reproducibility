@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -73,7 +74,7 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertTrue(Path(result["publication_plan_template"]).is_file())
             self.assertTrue(Path(result["semantic_registry_path"]).is_file())
             self.assertTrue(result["semantic_registry_created"])
-            self.assertEqual(result["semantic_registry_sha256"], __import__("hashlib").sha256(Path(result["semantic_registry_path"]).read_bytes()).hexdigest())
+            self.assertEqual(result["semantic_registry_sha256"], hashlib.sha256(Path(result["semantic_registry_path"]).read_bytes()).hexdigest())
             self.assertTrue(Path(result["workflow_ledger_path"]).is_absolute())
             self.assertIn("dor run-init", result["run_init_command"])
             self.assertTrue(any(Path(item) == (project / "raw_sources" / "adapter_package").resolve()
