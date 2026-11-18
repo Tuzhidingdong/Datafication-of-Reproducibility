@@ -90,7 +90,7 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
                 errors.append({"code":"INVALID_VALUE_CANDIDATE_SOURCE","path":f"{candidate_path}.candidate_source","message":"candidate_source must be a non-empty string."})
             has_value = any(candidate.get(field) not in (None, "") for field in ("raw_value", "normalized_value"))
             metadata_for_value = candidate.get("source_metadata")
-            has_metadata = isinstance(metadata_for_value, dict) and bool(metadata_for_value)
+            has_metadata = isinstance(metadata_for_value, dict) and any(value not in (None, "") for value in metadata_for_value.values())
             has_quote = isinstance(candidate.get("quoted_text"), str) and bool(candidate["quoted_text"].strip())
             candidate_locators = candidate.get("source_locators")
             has_locator = isinstance(candidate_locators, list) and bool(candidate_locators)
