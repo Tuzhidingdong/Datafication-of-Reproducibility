@@ -584,7 +584,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/locator"
-          }
+          },
+          "minItems": 1
         },
         "source_metadata": {
           "type": "object",
