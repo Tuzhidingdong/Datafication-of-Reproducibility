@@ -88,8 +88,12 @@ def validate_canonical_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
                 seen_candidate_ids.add(candidate_id)
             if not isinstance(candidate_source, str) or not candidate_source.strip():
                 errors.append({"code":"INVALID_VALUE_CANDIDATE_SOURCE","path":f"{candidate_path}.candidate_source","message":"candidate_source must be a non-empty string."})
-            if not any(candidate.get(field) not in (None, "") for field in ("raw_value", "normalized_value")):
-                errors.append({"code":"VALUE_CANDIDATE_WITHOUT_VALUE","path":candidate_path,"message":"A candidate must contain a non-empty raw_value or normalized_value."})
+            has_value = any(candidate.get(field) not in (None, "") for field in ("raw_value", "normalized_value"))
+            metadata_for_value = candidate.get("source_metadata")
+            has_metadata = isinstance(metadata_for_value, dict) and bool(metadata_for_value)
+            has_quote = isinstance(candidate.get("quoted_text"), str) and bool(candidate["quoted_text"].strip())
+            if not (has_value or has_metadata or has_quote):
+                errors.append({"code":"VALUE_CANDIDATE_WITHOUT_VALUE_OR_EVIDENCE","path":candidate_path,"message":"A candidate entry must contain a value, quoted text, or source metadata."})
             locators = candidate.get("source_locators", [])
             if not isinstance(locators, list):
                 errors.append({"code":"VALUE_CANDIDATE_LOCATORS_NOT_ARRAY","path":f"{candidate_path}.source_locators","message":"source_locators must be an array."})
