@@ -29,7 +29,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.3"
+      "const": "1.4"
     },
     "input_type": {
       "const": "CANONICAL_BUNDLE"
@@ -337,5 +337,5 @@
     }
   },
   "additionalProperties": false,
-  "schema_version": "1.3"
+  "schema_version": "1.4"
 }
