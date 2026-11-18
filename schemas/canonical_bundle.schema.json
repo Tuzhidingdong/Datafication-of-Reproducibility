@@ -620,6 +620,11 @@
           "required": [
             "source_metadata"
           ]
+        },
+        {
+          "required": [
+            "source_locators"
+          ]
         }
       ]
     }
