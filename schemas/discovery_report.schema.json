@@ -181,6 +181,7 @@
                 "status": {
                   "enum": [
                     "NOT_SUPPLIED",
+                    "VALIDATED_EMPTY_REGISTRY",
                     "VALIDATED_AND_APPLIED_IN_MEMORY"
                   ]
                 },
