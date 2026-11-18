@@ -89,6 +89,68 @@ class SemanticRegistryTests(unittest.TestCase):
         self.assertFalse(report["bundle_modified"])
         self.assertFalse(report["source_locators_dereferenced"])
 
+
+    def test_endpoint_scoped_registry_metadata_does_not_leak_across_contexts(self):
+        bundle = {
+            "observations": [
+                {"target_id": "Target-A", "endpoint_definition": "endpoint-a", "timepoint": "initial"},
+                {"target_id": "Target-A", "endpoint_definition": "endpoint-b", "timepoint": "final"},
+            ],
+            "conditions": [],
+        }
+        registry = {
+            "schema_version": "1.0",
+            "registry_id": "registry:endpoint-scoped",
+            "records": [
+                {
+                    "entity_type": "TARGET_ENDPOINT",
+                    "canonical_identifier": "Target-A",
+                    "endpoint_definition": "endpoint-a",
+                    "timepoint": "initial",
+                    "semantic_metadata": _metadata(canonical_concept_id="concept:initial"),
+                },
+                {
+                    "entity_type": "TARGET_ENDPOINT",
+                    "canonical_identifier": "Target-A",
+                    "endpoint_definition": "endpoint-b",
+                    "timepoint": "final",
+                    "semantic_metadata": _metadata(canonical_concept_id="concept:final"),
+                },
+            ],
+        }
+        overlaid, report = overlay_semantic_registry(bundle, registry)
+        self.assertEqual(
+            overlaid["observations"][0]["semantic_metadata"]["canonical_concept_id"],
+            "concept:initial",
+        )
+        self.assertEqual(
+            overlaid["observations"][1]["semantic_metadata"]["canonical_concept_id"],
+            "concept:final",
+        )
+        self.assertEqual(report["target_endpoint_record_count"], 2)
+        self.assertFalse(report["bundle_modified"])
+
+    def test_endpoint_scoped_registry_requires_exact_endpoint_and_timepoint(self):
+        bundle = {
+            "observations": [
+                {"target_id": "Target-A", "endpoint_definition": "endpoint-a", "timepoint": "initial"}
+            ],
+            "conditions": [],
+        }
+        registry = {
+            "schema_version": "1.0",
+            "registry_id": "registry:wrong-context",
+            "records": [{
+                "entity_type": "TARGET_ENDPOINT",
+                "canonical_identifier": "Target-A",
+                "endpoint_definition": "endpoint-a",
+                "timepoint": "final",
+                "semantic_metadata": _metadata(),
+            }],
+        }
+        with self.assertRaisesRegex(ValueError, "do not match any Canonical records"):
+            overlay_semantic_registry(bundle, registry)
+
     def test_overlay_does_not_normalize_identifier_case_or_punctuation(self):
         bundle = {"observations": [{"target_id": "Target-A"}], "conditions": []}
         registry = _registry(identifier="targeta")
