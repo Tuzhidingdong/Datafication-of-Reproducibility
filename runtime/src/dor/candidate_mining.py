@@ -49,11 +49,9 @@ def _record_candidates(record: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _has_primary_value(record: dict[str, Any]) -> bool:
-    normalized_value = record.get("normalized_value")
-    normalized_unit = record.get("normalized_unit")
-    if _nonblank(normalized_value) and _nonblank(normalized_unit):
-        return True
-    return _nonblank(record.get("raw_value"))
+    if record.get("value_state") != "REPORTED":
+        return False
+    return _nonblank(record.get("normalized_value")) or _nonblank(record.get("raw_value"))
 
 
 def _candidate_status(candidates: list[dict[str, Any]]) -> str:
@@ -132,7 +130,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                 "_experiment_ids": set(),
                 "_candidate_record_ids": set(),
                 "candidate_count": 0,
-                "records_with_locators": 0,
+                "candidate_values_with_locators": 0,
                 "candidate_quote_count": 0,
                 "candidate_metadata_count": 0,
                 "records_with_value": 0,
@@ -160,7 +158,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
                 candidate_source = str(candidate.get("candidate_source") or "UNSPECIFIED_CANDIDATE_SOURCE")
                 locators = candidate.get("source_locators", [])
                 if isinstance(locators, list) and locators:
-                    aggregate["records_with_locators"] += 1
+                    aggregate["candidate_values_with_locators"] += 1
                 quote = candidate.get("quoted_text")
                 if isinstance(quote, str) and quote.strip():
                     aggregate["candidate_quote_count"] += 1
@@ -220,7 +218,7 @@ def inventory_candidate_values(bundle: dict[str, Any]) -> dict[str, Any]:
             "experiment_count": len(row["_experiment_ids"]),
             "records_with_candidates": len(row["_candidate_record_ids"]),
             "candidate_count": row["candidate_count"],
-            "records_with_locators": row["records_with_locators"],
+            "candidate_values_with_locators": row["candidate_values_with_locators"],
             "candidate_quote_count": row["candidate_quote_count"],
             "candidate_metadata_count": row["candidate_metadata_count"],
             "records_with_value": row["records_with_value"],
