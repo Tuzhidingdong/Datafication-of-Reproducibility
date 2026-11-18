@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter, defaultdict
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, localcontext
 from itertools import combinations
 from typing import Any
 
@@ -35,6 +35,17 @@ def _decimal_text(value: Decimal | None) -> str | None:
         return None
     normalized = value.normalize()
     return format(normalized, "f") if normalized == normalized.to_integral() else str(normalized)
+
+
+def _affine_exact(value: Decimal, scale: Decimal, offset: Decimal) -> Decimal:
+    product_exponent = value.as_tuple().exponent + scale.as_tuple().exponent
+    product_adjusted = value.adjusted() + scale.adjusted()
+    minimum_exponent = min(product_exponent, offset.as_tuple().exponent)
+    maximum_adjusted = max(product_adjusted, offset.adjusted())
+    precision = max(28, maximum_adjusted - minimum_exponent + 4)
+    with localcontext() as context:
+        context.prec = precision
+        return value * scale + offset
 
 
 def _parent_semantic_status(record: dict[str, Any]) -> str:
@@ -70,9 +81,9 @@ def _unit_comparison(
     if missing_a or missing_b:
         return {
             "unit_comparison_status": "UNIT_MISSING_OR_UNSPECIFIED",
-            "canonical_unit": None,
-            "canonical_value_a": None,
-            "canonical_value_b": None,
+            "comparable_unit": None,
+            "comparable_value_a": None,
+            "comparable_value_b": None,
             "unit_adjusted_comparison_status": "NOT_COMPARABLE_MISSING_UNIT",
         }
     if unit_a == unit_b:
@@ -81,7 +92,7 @@ def _unit_comparison(
             comparable_status = "NUMERICALLY_EQUAL" if parsed_a == parsed_b else "NUMERICALLY_DIFFERENT"
         return {
             "unit_comparison_status": "EXACT_UNIT_LABEL_MATCH",
-            "canonical_unit": unit_a,
+            "comparable_unit": unit_a,
             "canonical_value_a": _decimal_text(parsed_a),
             "canonical_value_b": _decimal_text(parsed_b),
             "unit_adjusted_comparison_status": comparable_status,
@@ -109,14 +120,16 @@ def _unit_comparison(
     canonical_a = None
     canonical_b = None
     if parsed_a is not None:
-        canonical_a = (
-            parsed_a * Decimal(definition_a["scale_to_canonical"])
-            + Decimal(definition_a["offset_to_canonical"])
+        canonical_a = _affine_exact(
+            parsed_a,
+            Decimal(definition_a["scale_to_canonical"]),
+            Decimal(definition_a["offset_to_canonical"]),
         )
     if parsed_b is not None:
-        canonical_b = (
-            parsed_b * Decimal(definition_b["scale_to_canonical"])
-            + Decimal(definition_b["offset_to_canonical"])
+        canonical_b = _affine_exact(
+            parsed_b,
+            Decimal(definition_b["scale_to_canonical"]),
+            Decimal(definition_b["offset_to_canonical"]),
         )
     comparable_status = "NOT_COMPARABLE_NON_NUMERIC_VALUE"
     if canonical_a is not None and canonical_b is not None:
