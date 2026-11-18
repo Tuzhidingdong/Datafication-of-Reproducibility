@@ -294,9 +294,9 @@ def build_candidate_pairwise_reconciliation(
                     ),
                     "value_comparison_status": value_status,
                     "unit_comparison_status": unit_result["unit_comparison_status"],
-                    "comparable_unit": unit_result["canonical_unit"],
-                    "comparable_value_a": unit_result["canonical_value_a"],
-                    "comparable_value_b": unit_result["canonical_value_b"],
+                    "comparable_unit": unit_result["comparable_unit"],
+                    "comparable_value_a": unit_result["comparable_value_a"],
+                    "comparable_value_b": unit_result["comparable_value_b"],
                     "unit_adjusted_comparison_status": unit_result["unit_adjusted_comparison_status"],
                     "parent_semantic_status": semantic_status,
                     "overall_comparison_status": _overall_status(
