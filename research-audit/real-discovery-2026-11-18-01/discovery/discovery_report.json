@@ -1,0 +1,2684 @@
+{
+  "schema_version": "1.3",
+  "input_type": "CANONICAL_BUNDLE",
+  "input_bundle_sha256": "d82367721d0d764c3cba2673cbd8566dbf92d8567a7404e2496985120dd0919d",
+  "profile": {
+    "study_count": 2213,
+    "study_count_with_observations": 2213,
+    "study_count_without_observations": 0,
+    "system_count": 44209,
+    "system_count_with_experiments": 44209,
+    "system_count_without_experiments": 0,
+    "condition_count": 66405,
+    "experiment_count": 44209,
+    "observation_count": 66405,
+    "target_count": 25,
+    "reported_numeric_observation_count": 7102,
+    "minimum_studies_for_cross_study_signal": 3
+  },
+  "signal_count": 286,
+  "signals": [
+    {
+      "signal_id": "VAR-0001",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_CAP_RET",
+      "unit": "%",
+      "supporting_study_count": 322,
+      "study_median_min": 17.8,
+      "study_median_median": 81.695,
+      "study_median_max": 101.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0002",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_CDL",
+      "unit": "uF cm-2",
+      "supporting_study_count": 39,
+      "study_median_min": 0.22225,
+      "study_median_median": 54.565,
+      "study_median_max": 56500.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0003",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_CE",
+      "unit": "%",
+      "supporting_study_count": 283,
+      "study_median_min": 65.0,
+      "study_median_median": 99.4,
+      "study_median_max": 100.32,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0004",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "unit": "degree",
+      "supporting_study_count": 85,
+      "study_median_min": 11.0,
+      "study_median_median": 75.14,
+      "study_median_max": 137.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0005",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "unit": "degree (°)",
+      "supporting_study_count": 149,
+      "study_median_min": 0.0,
+      "study_median_median": 77.5,
+      "study_median_max": 144.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0006",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "unit": "°",
+      "supporting_study_count": 39,
+      "study_median_min": 18.3,
+      "study_median_median": 77.05,
+      "study_median_max": 168.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0007",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_CORR_RATE",
+      "unit": "mm a-1",
+      "supporting_study_count": 3,
+      "study_median_min": 0.0903,
+      "study_median_median": 0.3307,
+      "study_median_max": 4.77,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0008",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_EA",
+      "unit": "kJ mol-1",
+      "supporting_study_count": 162,
+      "study_median_min": 5.850000000000001,
+      "study_median_median": 35.725,
+      "study_median_max": 173.65,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0009",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_ECORR",
+      "unit": "V",
+      "supporting_study_count": 133,
+      "study_median_min": -1.975,
+      "study_median_median": -0.9675,
+      "study_median_max": 2.572,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0010",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_ECORR",
+      "unit": "V (vs. Ag/AgCl or Zn2+/Zn)",
+      "supporting_study_count": 3,
+      "study_median_min": -0.999,
+      "study_median_median": -0.9744999999999999,
+      "study_median_max": -0.9715,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0011",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_ECORR",
+      "unit": "mV",
+      "supporting_study_count": 3,
+      "study_median_min": -1.1,
+      "study_median_median": 10.5,
+      "study_median_max": 31.549999999999997,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0012",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_ENG_DENS",
+      "unit": "Wh kg-1",
+      "supporting_study_count": 82,
+      "study_median_min": 10.1,
+      "study_median_median": 154.87,
+      "study_median_max": 1084.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0013",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_E_ADS",
+      "unit": "eV",
+      "supporting_study_count": 141,
+      "study_median_min": -24.7,
+      "study_median_median": -0.93,
+      "study_median_max": 5.86,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0014",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_E_MOD",
+      "unit": "MPa",
+      "supporting_study_count": 39,
+      "study_median_min": 0.0495,
+      "study_median_median": 3400.0,
+      "study_median_max": 89600.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0015",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_ICORR",
+      "unit": "mA",
+      "supporting_study_count": 4,
+      "study_median_min": 0.0655,
+      "study_median_median": 0.33625000000000005,
+      "study_median_max": 2.0495,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0016",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_ICORR",
+      "unit": "mA cm-2",
+      "supporting_study_count": 185,
+      "study_median_min": 1e-05,
+      "study_median_median": 1.4300000000000002,
+      "study_median_max": 43.5,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0017",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_IO",
+      "unit": "mA cm-2",
+      "supporting_study_count": 54,
+      "study_median_min": 0.032,
+      "study_median_median": 5.553750000000001,
+      "study_median_max": 91.845,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0018",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_IONIC_COND",
+      "unit": "mS cm-1",
+      "supporting_study_count": 262,
+      "study_median_min": 0.000545,
+      "study_median_median": 17.265,
+      "study_median_max": 501.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0019",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_I_RATIO_XRD",
+      "unit": "dimensionless",
+      "supporting_study_count": 51,
+      "study_median_min": 0.05,
+      "study_median_median": 0.77,
+      "study_median_max": 9.48,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0020",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_LIFE_SYM",
+      "unit": "cycles",
+      "supporting_study_count": 4,
+      "study_median_min": 3000.0,
+      "study_median_median": 5350.0,
+      "study_median_max": 8000.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0021",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_LIFE_SYM",
+      "unit": "h",
+      "supporting_study_count": 333,
+      "study_median_min": 16.5,
+      "study_median_median": 600.0,
+      "study_median_max": 8000.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0022",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_LUMO",
+      "unit": "eV",
+      "supporting_study_count": 84,
+      "study_median_min": -8.15,
+      "study_median_median": 0.1,
+      "study_median_max": 2.87,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0023",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_MSD_D",
+      "unit": "A2 ps-1",
+      "supporting_study_count": 6,
+      "study_median_min": 0.0055,
+      "study_median_median": 0.045927499999999996,
+      "study_median_max": 0.6402,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0024",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_MSD_D",
+      "unit": "cm2 s-1",
+      "supporting_study_count": 3,
+      "study_median_min": 9.7e-09,
+      "study_median_median": 1.495e-06,
+      "study_median_max": 9.81e-06,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0025",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "unit": "mV",
+      "supporting_study_count": 172,
+      "study_median_min": -64.0,
+      "study_median_median": 51.0,
+      "study_median_max": 350.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0026",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "unit": "mV",
+      "supporting_study_count": 204,
+      "study_median_min": 8.0,
+      "study_median_median": 65.95,
+      "study_median_max": 1303.5,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0027",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_RCT",
+      "unit": "Ω",
+      "supporting_study_count": 148,
+      "study_median_min": 0.45999999999999996,
+      "study_median_median": 168.275,
+      "study_median_max": 100000.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0028",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_ROUGH_RA",
+      "unit": "nm",
+      "supporting_study_count": 51,
+      "study_median_min": 4.07,
+      "study_median_median": 197.25,
+      "study_median_max": 14350.0,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0029",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_T_ZN",
+      "unit": "dimensionless",
+      "supporting_study_count": 168,
+      "study_median_min": 0.185,
+      "study_median_median": 0.5205,
+      "study_median_max": 0.91,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "VAR-0030",
+      "signal_type": "CROSS_STUDY_DESCRIPTIVE_VARIATION",
+      "target_id": "FEAT_T_ZN",
+      "unit": "dimensionless (0 to 1)",
+      "supporting_study_count": 45,
+      "study_median_min": 0.22,
+      "study_median_median": 0.52,
+      "study_median_max": 0.95,
+      "interpretation_status": "DESCRIPTIVE_ONLY_NOT_AN_INFERENTIAL_TEST"
+    },
+    {
+      "signal_id": "COND-0031",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CAP_RET",
+      "condition_type": "FEAT_CAP_RET",
+      "supporting_observation_count": 612,
+      "supporting_study_count": 322,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0032",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CAP_RET",
+      "condition_type": "FEAT_CE",
+      "supporting_observation_count": 8,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0033",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CAP_RET",
+      "condition_type": "FEAT_ENG_DENS",
+      "supporting_observation_count": 37,
+      "supporting_study_count": 31,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0034",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CAP_RET",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 14,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0035",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CAP_RET",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 42,
+      "supporting_study_count": 25,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0036",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CDL",
+      "condition_type": "FEAT_CDL",
+      "supporting_observation_count": 88,
+      "supporting_study_count": 42,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0037",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CDL",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 8,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0038",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CDL",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 12,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0039",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CDL",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 9,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0040",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CDL",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 17,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0041",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CDL",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 4,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0042",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CDL",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 6,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0043",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CDL",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 9,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0044",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CE",
+      "condition_type": "FEAT_CAP_RET",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0045",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CE",
+      "condition_type": "FEAT_CE",
+      "supporting_observation_count": 449,
+      "supporting_study_count": 283,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0046",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CE",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 5,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0047",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CE",
+      "condition_type": "FEAT_ENG_DENS",
+      "supporting_observation_count": 3,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0048",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CE",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 39,
+      "supporting_study_count": 26,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0049",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CE",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 72,
+      "supporting_study_count": 47,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0050",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 583,
+      "supporting_study_count": 273,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0051",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 20,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0052",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 42,
+      "supporting_study_count": 23,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0053",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_E_ADS",
+      "supporting_observation_count": 9,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0054",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 43,
+      "supporting_study_count": 23,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0055",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 13,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0056",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_I_RATIO_XRD",
+      "supporting_observation_count": 9,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0057",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 6,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0058",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 23,
+      "supporting_study_count": 14,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0059",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0060",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 8,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0061",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_ROUGH_RA",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0062",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CONTACT_ANGLE",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 24,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0063",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_CORR_RATE",
+      "condition_type": "FEAT_CORR_RATE",
+      "supporting_observation_count": 21,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0064",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_CDL",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 8,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0065",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_CE",
+      "supporting_observation_count": 5,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0066",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 20,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0067",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 351,
+      "supporting_study_count": 164,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0068",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 33,
+      "supporting_study_count": 16,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0069",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_E_ADS",
+      "supporting_observation_count": 3,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0070",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 50,
+      "supporting_study_count": 27,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0071",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 32,
+      "supporting_study_count": 16,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0072",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_IONIC_COND",
+      "supporting_observation_count": 26,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0073",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 73,
+      "supporting_study_count": 40,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0074",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 42,
+      "supporting_study_count": 22,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0075",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 34,
+      "supporting_study_count": 21,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0076",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 31,
+      "supporting_study_count": 19,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0077",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_EA",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 94,
+      "supporting_study_count": 49,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0078",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_CDL",
+      "supporting_observation_count": 12,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0079",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 42,
+      "supporting_study_count": 23,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0080",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 33,
+      "supporting_study_count": 16,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0081",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 284,
+      "supporting_study_count": 146,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0082",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 170,
+      "supporting_study_count": 84,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0083",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 13,
+      "supporting_study_count": 8,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0084",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_I_RATIO_XRD",
+      "supporting_observation_count": 5,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0085",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 16,
+      "supporting_study_count": 10,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0086",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 21,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0087",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 12,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0088",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0089",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_ROUGH_RA",
+      "supporting_observation_count": 6,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0090",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 29,
+      "supporting_study_count": 15,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0091",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ENG_DENS",
+      "condition_type": "FEAT_CAP_RET",
+      "supporting_observation_count": 37,
+      "supporting_study_count": 31,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0092",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ENG_DENS",
+      "condition_type": "FEAT_CE",
+      "supporting_observation_count": 3,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0093",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ENG_DENS",
+      "condition_type": "FEAT_ENG_DENS",
+      "supporting_observation_count": 139,
+      "supporting_study_count": 83,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0094",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ENG_DENS",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 5,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0095",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_E_ADS",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 9,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0096",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_E_ADS",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 3,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0097",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_E_ADS",
+      "condition_type": "FEAT_E_ADS",
+      "supporting_observation_count": 365,
+      "supporting_study_count": 142,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0098",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_E_ADS",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0099",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_E_MOD",
+      "condition_type": "FEAT_E_MOD",
+      "supporting_observation_count": 73,
+      "supporting_study_count": 40,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0100",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_E_MOD",
+      "condition_type": "FEAT_IONIC_COND",
+      "supporting_observation_count": 6,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0101",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_GAS_EVOL",
+      "condition_type": "FEAT_GAS_EVOL",
+      "supporting_observation_count": 14,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0102",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_CDL",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 9,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0103",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 43,
+      "supporting_study_count": 23,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0104",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 50,
+      "supporting_study_count": 27,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0105",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 168,
+      "supporting_study_count": 84,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0106",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_E_ADS",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0107",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 391,
+      "supporting_study_count": 193,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0108",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 9,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0109",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_IONIC_COND",
+      "supporting_observation_count": 10,
+      "supporting_study_count": 8,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0110",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_I_RATIO_XRD",
+      "supporting_observation_count": 6,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0111",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 21,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0112",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 35,
+      "supporting_study_count": 17,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0113",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0114",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 18,
+      "supporting_study_count": 9,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0115",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 35,
+      "supporting_study_count": 20,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0116",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_CDL",
+      "supporting_observation_count": 17,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0117",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 13,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0118",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 32,
+      "supporting_study_count": 16,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0119",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 13,
+      "supporting_study_count": 8,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0120",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 9,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0121",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 121,
+      "supporting_study_count": 54,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0122",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_IONIC_COND",
+      "supporting_observation_count": 5,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0123",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 20,
+      "supporting_study_count": 12,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0124",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 13,
+      "supporting_study_count": 8,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0125",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 11,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0126",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 14,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0127",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_ROUGH_RA",
+      "supporting_observation_count": 3,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0128",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IO",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 25,
+      "supporting_study_count": 13,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0129",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IONIC_COND",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 26,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0130",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IONIC_COND",
+      "condition_type": "FEAT_E_MOD",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0131",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IONIC_COND",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 10,
+      "supporting_study_count": 8,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0132",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IONIC_COND",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 5,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0133",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IONIC_COND",
+      "condition_type": "FEAT_IONIC_COND",
+      "supporting_observation_count": 551,
+      "supporting_study_count": 266,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0134",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IONIC_COND",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0135",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_IONIC_COND",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 40,
+      "supporting_study_count": 31,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0136",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_I_RATIO_XRD",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 12,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0137",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_I_RATIO_XRD",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 10,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0138",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_I_RATIO_XRD",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 11,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0139",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_I_RATIO_XRD",
+      "condition_type": "FEAT_I_RATIO_XRD",
+      "supporting_observation_count": 131,
+      "supporting_study_count": 51,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0140",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_CDL",
+      "supporting_observation_count": 18,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0141",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 9,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0142",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 139,
+      "supporting_study_count": 40,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0143",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 36,
+      "supporting_study_count": 10,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0144",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 38,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0145",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 44,
+      "supporting_study_count": 12,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0146",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 882,
+      "supporting_study_count": 336,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0147",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 46,
+      "supporting_study_count": 21,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0148",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 233,
+      "supporting_study_count": 92,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0149",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 61,
+      "supporting_study_count": 32,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0150",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LIFE_SYM",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 110,
+      "supporting_study_count": 38,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0151",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_LUMO",
+      "condition_type": "FEAT_LUMO",
+      "supporting_observation_count": 154,
+      "supporting_study_count": 84,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0152",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_MSD_D",
+      "condition_type": "FEAT_MSD_D",
+      "supporting_observation_count": 26,
+      "supporting_study_count": 10,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0153",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_CDL",
+      "supporting_observation_count": 6,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0154",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_CE",
+      "supporting_observation_count": 41,
+      "supporting_study_count": 26,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0155",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 23,
+      "supporting_study_count": 14,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0156",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 47,
+      "supporting_study_count": 22,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0157",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 21,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0158",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 36,
+      "supporting_study_count": 17,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0159",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 13,
+      "supporting_study_count": 8,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0160",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_IONIC_COND",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0161",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 34,
+      "supporting_study_count": 21,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0162",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 360,
+      "supporting_study_count": 172,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0163",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 34,
+      "supporting_study_count": 21,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0164",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 18,
+      "supporting_study_count": 12,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0165",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_NUC",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 31,
+      "supporting_study_count": 15,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0166",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_CAP_RET",
+      "supporting_observation_count": 11,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0167",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_CE",
+      "supporting_observation_count": 72,
+      "supporting_study_count": 47,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0168",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 19,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0169",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 58,
+      "supporting_study_count": 21,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0170",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 24,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0171",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 17,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0172",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 16,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0173",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 234,
+      "supporting_study_count": 92,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0174",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 50,
+      "supporting_study_count": 21,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0175",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 562,
+      "supporting_study_count": 204,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0176",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 38,
+      "supporting_study_count": 18,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0177",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_OVERPOT_PLAT",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 57,
+      "supporting_study_count": 22,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0178",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_CAP_RET",
+      "supporting_observation_count": 38,
+      "supporting_study_count": 25,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0179",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 17,
+      "supporting_study_count": 4,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0180",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 55,
+      "supporting_study_count": 19,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0181",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 32,
+      "supporting_study_count": 7,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0182",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_ENG_DENS",
+      "supporting_observation_count": 6,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0183",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 28,
+      "supporting_study_count": 9,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0184",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 16,
+      "supporting_study_count": 6,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0185",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 73,
+      "supporting_study_count": 32,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0186",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 38,
+      "supporting_study_count": 12,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0187",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 42,
+      "supporting_study_count": 18,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0188",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 414,
+      "supporting_study_count": 151,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0189",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_RCT",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 31,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0190",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ROUGH_RA",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 7,
+      "supporting_study_count": 5,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0191",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ROUGH_RA",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 6,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0192",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ROUGH_RA",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 3,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0193",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ROUGH_RA",
+      "condition_type": "FEAT_ROUGH_RA",
+      "supporting_observation_count": 120,
+      "supporting_study_count": 53,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0194",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_ROUGH_RA",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 4,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0195",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_CDL",
+      "supporting_observation_count": 15,
+      "supporting_study_count": 9,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0196",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_CONTACT_ANGLE",
+      "supporting_observation_count": 24,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0197",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_EA",
+      "supporting_observation_count": 94,
+      "supporting_study_count": 49,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0198",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_ECORR",
+      "supporting_observation_count": 29,
+      "supporting_study_count": 15,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0199",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_ICORR",
+      "supporting_observation_count": 35,
+      "supporting_study_count": 20,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0200",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_IO",
+      "supporting_observation_count": 25,
+      "supporting_study_count": 13,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0201",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_IONIC_COND",
+      "supporting_observation_count": 38,
+      "supporting_study_count": 31,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0202",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_LIFE_SYM",
+      "supporting_observation_count": 60,
+      "supporting_study_count": 38,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0203",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_OVERPOT_NUC",
+      "supporting_observation_count": 28,
+      "supporting_study_count": 15,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0204",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_OVERPOT_PLAT",
+      "supporting_observation_count": 33,
+      "supporting_study_count": 22,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0205",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_RCT",
+      "supporting_observation_count": 20,
+      "supporting_study_count": 11,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0206",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_ROUGH_RA",
+      "supporting_observation_count": 4,
+      "supporting_study_count": 3,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "COND-0207",
+      "signal_type": "CONDITION_COVERAGE",
+      "target_id": "FEAT_T_ZN",
+      "condition_type": "FEAT_T_ZN",
+      "supporting_observation_count": 411,
+      "supporting_study_count": 213,
+      "interpretation_status": "COVERAGE_ONLY_NO_CONDITION_EFFECT_ESTIMATED"
+    },
+    {
+      "signal_id": "PAIR-0208",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_LIFE_SYM",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 92,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0209",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_ICORR",
+      "supporting_study_count": 84,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0210",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 49,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0211",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CE",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 47,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0212",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_LIFE_SYM",
+      "supporting_study_count": 40,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0213",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_LIFE_SYM",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 38,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0214",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_LIFE_SYM",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 32,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0215",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CAP_RET",
+      "target_b": "FEAT_ENG_DENS",
+      "supporting_study_count": 31,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0216",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IONIC_COND",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 31,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0217",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_ICORR",
+      "supporting_study_count": 27,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0218",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CE",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 26,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0219",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CAP_RET",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 25,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0220",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_ECORR",
+      "supporting_study_count": 23,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0221",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_ICORR",
+      "supporting_study_count": 23,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0222",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 22,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0223",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_OVERPOT_PLAT",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 22,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0224",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 21,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0225",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_LIFE_SYM",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 21,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0226",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_OVERPOT_NUC",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 21,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0227",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ICORR",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 20,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0228",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 19,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0229",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_OVERPOT_PLAT",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 18,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0230",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ICORR",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 17,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0231",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_ECORR",
+      "supporting_study_count": 16,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0232",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_IO",
+      "supporting_study_count": 16,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0233",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 15,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0234",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_OVERPOT_NUC",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 15,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0235",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 14,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0236",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IO",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 13,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0237",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IO",
+      "target_b": "FEAT_LIFE_SYM",
+      "supporting_study_count": 12,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0238",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_OVERPOT_NUC",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 12,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0239",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_EA",
+      "supporting_study_count": 11,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0240",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 11,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0241",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_IONIC_COND",
+      "supporting_study_count": 11,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0242",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 11,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0243",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ICORR",
+      "target_b": "FEAT_LIFE_SYM",
+      "supporting_study_count": 11,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0244",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_RCT",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 11,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0245",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_LIFE_SYM",
+      "supporting_study_count": 10,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0246",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CDL",
+      "target_b": "FEAT_ICORR",
+      "supporting_study_count": 9,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0247",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CDL",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 9,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0248",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ICORR",
+      "target_b": "FEAT_IO",
+      "supporting_study_count": 9,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0249",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ICORR",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 9,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0250",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CDL",
+      "target_b": "FEAT_EA",
+      "supporting_study_count": 8,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0251",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_IO",
+      "supporting_study_count": 8,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0252",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ICORR",
+      "target_b": "FEAT_IONIC_COND",
+      "supporting_study_count": 8,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0253",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IO",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 8,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0254",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CDL",
+      "target_b": "FEAT_ECORR",
+      "supporting_study_count": 7,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0255",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CDL",
+      "target_b": "FEAT_IO",
+      "supporting_study_count": 7,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0256",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_IO",
+      "supporting_study_count": 7,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0257",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 7,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0258",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CAP_RET",
+      "target_b": "FEAT_CE",
+      "supporting_study_count": 6,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0259",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 6,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0260",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ICORR",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 6,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0261",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IO",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 6,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0262",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IO",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 6,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0263",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_E_ADS",
+      "supporting_study_count": 5,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0264",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_I_RATIO_XRD",
+      "supporting_study_count": 5,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0265",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_ROUGH_RA",
+      "supporting_study_count": 5,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0266",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_I_RATIO_XRD",
+      "supporting_study_count": 5,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0267",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ICORR",
+      "target_b": "FEAT_I_RATIO_XRD",
+      "supporting_study_count": 5,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0268",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CAP_RET",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 4,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0269",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CDL",
+      "target_b": "FEAT_LIFE_SYM",
+      "supporting_study_count": 4,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0270",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CE",
+      "target_b": "FEAT_EA",
+      "supporting_study_count": 4,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0271",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_LIFE_SYM",
+      "supporting_study_count": 4,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0272",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_OVERPOT_PLAT",
+      "supporting_study_count": 4,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0273",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CONTACT_ANGLE",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 4,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0274",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IONIC_COND",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 4,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0275",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CDL",
+      "target_b": "FEAT_OVERPOT_NUC",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0276",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_CE",
+      "target_b": "FEAT_ENG_DENS",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0277",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_EA",
+      "target_b": "FEAT_E_ADS",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0278",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ECORR",
+      "target_b": "FEAT_ROUGH_RA",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0279",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ENG_DENS",
+      "target_b": "FEAT_RCT",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0280",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_E_ADS",
+      "target_b": "FEAT_ICORR",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0281",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_E_MOD",
+      "target_b": "FEAT_IONIC_COND",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0282",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IO",
+      "target_b": "FEAT_IONIC_COND",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0283",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_IO",
+      "target_b": "FEAT_ROUGH_RA",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "PAIR-0284",
+      "signal_type": "CO_OBSERVED_TARGET_PAIR",
+      "target_a": "FEAT_ROUGH_RA",
+      "target_b": "FEAT_T_ZN",
+      "supporting_study_count": 3,
+      "interpretation_status": "CO_OBSERVATION_ONLY_NOT_AN_INTERACTION"
+    },
+    {
+      "signal_id": "OPP-3E4ECC3E829A",
+      "signal_type": "WITHIN_STUDY_BETWEEN_SYSTEM_NUMERIC_CONDITION_TREND",
+      "target_id": "FEAT_ECORR",
+      "condition_type": "FEAT_ICORR",
+      "supporting_study_count": 7,
+      "effect_size": -1.0,
+      "p_value": 0.015625,
+      "q_value": 0.015625,
+      "screen_status": "FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW",
+      "interpretation_status": "CANDIDATE_ONLY_REQUIRES_DOMAIN_REVIEW_NOT_CAUSAL"
+    },
+    {
+      "signal_id": "OPP-FC09138862D5",
+      "signal_type": "WITHIN_STUDY_BETWEEN_SYSTEM_NUMERIC_CONDITION_TREND",
+      "target_id": "FEAT_ICORR",
+      "condition_type": "FEAT_ECORR",
+      "supporting_study_count": 7,
+      "effect_size": -1.0,
+      "p_value": 0.015625,
+      "q_value": 0.015625,
+      "screen_status": "FDR_SCREEN_POSITIVE_REQUIRES_DOMAIN_REVIEW",
+      "interpretation_status": "CANDIDATE_ONLY_REQUIRES_DOMAIN_REVIEW_NOT_CAUSAL"
+    }
+  ],
+  "scientific_analysis": {
+    "profile": {
+      "engine_version": "1.3.0",
+      "analysis_unit": "INDEPENDENT_STUDY",
+      "minimum_paired_studies": 3,
+      "fdr_method": "BENJAMINI_HOCHBERG_WITHIN_ANALYSIS_FAMILY",
+      "fdr_alpha": 0.1,
+      "bootstrap_iterations": 1000,
+      "seed": 42,
+      "numeric_observation_count_used": 7102,
+      "ambiguous_condition_experiment_assignments_excluded": 619,
+      "paired_contrast_test_count": 0,
+      "between_system_contrast_test_count": 0,
+      "numeric_trend_test_count": 300,
+      "numeric_trend_fdr_test_count": 2,
+      "within_system_numeric_trend_test_count": 235,
+      "between_system_numeric_trend_test_count": 65,
+      "between_system_numeric_group_count": 235,
+      "between_system_numeric_eligible_study_count": 88,
+      "between_system_categorical_pair_count": 44,
+      "between_system_categorical_eligible_study_count": 0,
+      "maximum_levels_per_condition": 20,
+      "condition_level_count_total": 3213,
+      "categorical_level_count_excluded_from_pairwise_screen": 0,
+      "self_association_exclusion_count": 66,
+      "self_association_exclusion_reason_counts": {
+        "SAME_CANONICAL_ATTRIBUTE": 66
+      },
+      "opportunity_count_before_mirror_deduplication": 2,
+      "mirror_duplicate_opportunity_count": 0,
+      "mirror_duplicate_group_count": 0,
+      "related_opportunity_group_count": 1,
+      "opportunity_count_before_limit": 2,
+      "opportunity_count_written": 2,
+      "fdr_screen_positive_count": 2,
+      "semantic_policy": "IDENTIFIERS_RETAINED; NO_AUTOMATIC_TARGET_OR_CONDITION_INTERPRETATION",
+      "semantic_registry": {
+        "status": "NOT_SUPPLIED",
+        "registry_id": null,
+        "record_count": 0,
+        "approved_record_count": 0,
+        "applied_record_count": 0,
+        "target_record_count": 0,
+        "condition_record_count": 0,
+        "bundle_modified": false,
+        "source_locators_dereferenced": false
+      }
+    },
+    "limitations": [
+      "The independent inferential unit is Study; Observation rows are aggregated within Experiment, System, and Study before cross-Study tests.",
+      "Condition contrasts require the same canonical System to contain both levels within a Study.",
+      "Numeric-condition trends use a separate Spearman correlation within each Study/System and combine one median rho per Study.",
+      "Two-sided exact sign tests assess consistency across independent Studies; Benjamini-Hochberg q-values are calculated separately by analysis family.",
+      "Bootstrap intervals resample independent Study effects; they do not account for all upstream measurement or mapping uncertainty.",
+      "The screen is observational and exploratory. It cannot establish causality, mechanisms, novelty, or experimental validity.",
+      "Target IDs, endpoint definitions, and condition labels are not assigned scientific meanings by this engine.",
+      "No implicit unit conversion, endpoint merging, timepoint merging, missing-value imputation, or condition conflict resolution is performed.",
+      "Exact reciprocal between-System rank relations are deduplicated only when canonical identifiers, endpoint/timepoint, cross-matched exact unit strings, Study/System support, Experiment support, and every per-System value pair prove an exact mirror. When the same reciprocal data pattern differs in endpoint or timepoint, it is grouped for domain review while all hypotheses and BH-FDR entries remain distinct.",
+      "Canonical identifiers are compared exactly; case-folding, punctuation removal, and other identifier normalization are prohibited for identity or dependency decisions.",
+      "Optional semantic_metadata is used only when consistently supplied and explicitly marked APPROVED; identifier-only or incomplete semantics remain unresolved and require domain review.",
+      "Recorded numeric Condition covariates with exact monotonic co-variation are flagged as potential co-exposures; this is not an adjusted model and unstructured/unmeasured confounders remain unassessed.",
+      "Canonical target/condition identity and exact same-unit value identity are excluded before inferential testing and FDR correction.",
+      "Perfect correlation alone is not treated as proof of self-association; broader deterministic derivation requires explicit provenance metadata and human review."
+    ],
+    "analysis_families": {
+      "paired_contrast": "Study-level exact two-sided sign test; within-System paired contrasts; BH correction",
+      "numeric_trend": "Within-System and between-System within-Study Spearman screens; one effect per Study; exact sign test and BH correction",
+      "between_system_contrast": "Cross-sectional System-level group medians within each Study; independent Study sign test; BH correction"
+    }
+  },
+  "research_opportunities_file": "research_opportunities.json",
+  "research_opportunity_count": 2,
+  "excluded_self_association_count": 66,
+  "mirror_duplicate_opportunity_count": 0,
+  "mirror_duplicate_group_count": 0,
+  "related_opportunity_group_count": 1,
+  "evidence_ledger_file": "evidence_ledger.jsonl",
+  "evidence_ledger_row_count": 14,
+  "interpretation_boundary": [
+    "Summaries use the canonical entity links supplied by the adapter or approved mapping.",
+    "Units are kept as exact strings; no implicit conversion is performed.",
+    "Study-level summaries are descriptive and are not inferential heterogeneity tests.",
+    "Co-observation within one canonical experiment does not establish causality or interaction.",
+    "Statistical screens and q-values are prioritization evidence only; they do not establish scientific significance, causality, mechanism, novelty, or publication-worthiness.",
+    "The independent inferential unit is Study; Observation rows are aggregated within Experiment, System, and Study before cross-Study tests.",
+    "Condition contrasts require the same canonical System to contain both levels within a Study.",
+    "Numeric-condition trends use a separate Spearman correlation within each Study/System and combine one median rho per Study.",
+    "Two-sided exact sign tests assess consistency across independent Studies; Benjamini-Hochberg q-values are calculated separately by analysis family.",
+    "Bootstrap intervals resample independent Study effects; they do not account for all upstream measurement or mapping uncertainty.",
+    "The screen is observational and exploratory. It cannot establish causality, mechanisms, novelty, or experimental validity.",
+    "Target IDs, endpoint definitions, and condition labels are not assigned scientific meanings by this engine.",
+    "No implicit unit conversion, endpoint merging, timepoint merging, missing-value imputation, or condition conflict resolution is performed.",
+    "Exact reciprocal between-System rank relations are deduplicated only when canonical identifiers, endpoint/timepoint, cross-matched exact unit strings, Study/System support, Experiment support, and every per-System value pair prove an exact mirror. When the same reciprocal data pattern differs in endpoint or timepoint, it is grouped for domain review while all hypotheses and BH-FDR entries remain distinct.",
+    "Canonical identifiers are compared exactly; case-folding, punctuation removal, and other identifier normalization are prohibited for identity or dependency decisions.",
+    "Optional semantic_metadata is used only when consistently supplied and explicitly marked APPROVED; identifier-only or incomplete semantics remain unresolved and require domain review.",
+    "Recorded numeric Condition covariates with exact monotonic co-variation are flagged as potential co-exposures; this is not an adjusted model and unstructured/unmeasured confounders remain unassessed.",
+    "Canonical target/condition identity and exact same-unit value identity are excluded before inferential testing and FDR correction.",
+    "Perfect correlation alone is not treated as proof of self-association; broader deterministic derivation requires explicit provenance metadata and human review."
+  ]
+}

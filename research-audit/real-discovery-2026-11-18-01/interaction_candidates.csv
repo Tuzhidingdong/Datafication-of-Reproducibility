@@ -1,0 +1,14 @@
+﻿candidate_id,question_zh,condition_a,unit_a,condition_b,unit_b,joint_studies,same_experiment_studies,crossed_studies,distinct_combinations,grade,reason,source,status
+RQ1,电流密度 × 基底形貌/粗糙度,FEAT_IO,mA cm-2,FEAT_ROUGH_RA,nm,,,,,C,仅 3 个 Study 同 Experiment 共观测且无 Study 内交叉变化；FEAT_IO 的‘电流密度’语义未获批准,canonical bundle structural scan,可识别性线索（非 DOR 预测性交互模型）
+RQ2,电流密度 × 单次面容量,FEAT_IO,mA cm-2,(absent),areal capacity,,,,,D,Canonical Bundle 与源 CSV 均无单次面容量字段,identifiability scan,可识别性线索（非 DOR 预测性交互模型）
+RQ3,单次面容量 × 锌库存/锌厚度,(absent),,(absent),,,,,,D,两个变量均无结构化字段,identifiability scan,可识别性线索（非 DOR 预测性交互模型）
+RQ4,基底材料 × 基底形貌,(absent),,FEAT_ROUGH_RA,nm,,,,,D,基底材料无结构化字段（仅粗糙度代理），不可分层,identifiability scan,可识别性线索（非 DOR 预测性交互模型）
+RQ5,基础锌盐浓度 × 电流密度,(absent),,FEAT_IO,mA cm-2,,,,,D,盐浓度字段缺失,identifiability scan,可识别性线索（非 DOR 预测性交互模型）
+RQ6,CE 测试协议 × 电流密度/面容量,FEAT_CE,%,FEAT_IO,mA cm-2,,,,,D,FEAT_CE 是结果指标而非协议；协议与面容量字段均缺失,identifiability scan,可识别性线索（非 DOR 预测性交互模型）
+RQ7,温度 × 电流密度/面容量,(absent),,FEAT_IO,mA cm-2,,,,,D,温度字段缺失,identifiability scan,可识别性线索（非 DOR 预测性交互模型）
+D1,D1 corrosion-current x roughness,FEAT_ICORR,mA cm-2,FEAT_ROUGH_RA,nm,16,2,1,4,B,来自 unit-scoped 结构覆盖扫描；未运行 DOR 预测性交互模型,support/interaction_identifiability_results.json,可识别性线索
+D2,D2 capacity-retention x roughness,FEAT_CAP_RET,%,FEAT_ROUGH_RA,nm,15,0,0,0,C,来自 unit-scoped 结构覆盖扫描；未运行 DOR 预测性交互模型,support/interaction_identifiability_results.json,可识别性线索
+D3,D3 coulombic-efficiency x roughness,FEAT_CE,%,FEAT_ROUGH_RA,nm,10,0,0,0,C,来自 unit-scoped 结构覆盖扫描；未运行 DOR 预测性交互模型,support/interaction_identifiability_results.json,可识别性线索
+D4,D4 energy-density x capacity-retention,FEAT_ENG_DENS,Wh kg-1,FEAT_CAP_RET,%,45,30,1,31,B,来自 unit-scoped 结构覆盖扫描；未运行 DOR 预测性交互模型,support/interaction_identifiability_results.json,可识别性线索
+D5,D5 corrosion-current x capacity-retention,FEAT_ICORR,mA cm-2,FEAT_CAP_RET,%,69,1,0,1,C,来自 unit-scoped 结构覆盖扫描；未运行 DOR 预测性交互模型,support/interaction_identifiability_results.json,可识别性线索
+D6,D6 DOR opportunity pair,FEAT_ECORR,V,FEAT_ICORR,mA cm-2,78,73,49,142,A*,数据驱动候选；A* 表示设计上可识别但两量疑似定义性互逆，不能分离独立效应,support/interaction_identifiability_results.json,可识别性线索

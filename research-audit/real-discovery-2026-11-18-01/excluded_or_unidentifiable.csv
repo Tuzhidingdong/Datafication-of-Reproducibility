@@ -1,0 +1,78 @@
+﻿item_id,category,canonical_ids,affected_count,reason,source_artifact
+SELF-01,SAME_CANONICAL_ATTRIBUTE,FEAT_CAP_RET|FEAT_CAP_RET,294,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-02,SAME_CANONICAL_ATTRIBUTE,FEAT_IONIC_COND|FEAT_IONIC_COND,255,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-03,SAME_CANONICAL_ATTRIBUTE,FEAT_CE|FEAT_CE,251,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-04,SAME_CANONICAL_ATTRIBUTE,FEAT_LIFE_SYM|FEAT_LIFE_SYM,234,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-05,SAME_CANONICAL_ATTRIBUTE,FEAT_ICORR|FEAT_ICORR,182,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-06,SAME_CANONICAL_ATTRIBUTE,FEAT_T_ZN|FEAT_T_ZN,162,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-07,SAME_CANONICAL_ATTRIBUTE,FEAT_OVERPOT_PLAT|FEAT_OVERPOT_PLAT,156,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-08,SAME_CANONICAL_ATTRIBUTE,FEAT_OVERPOT_NUC|FEAT_OVERPOT_NUC,155,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-09,SAME_CANONICAL_ATTRIBUTE,FEAT_EA|FEAT_EA,151,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-10,SAME_CANONICAL_ATTRIBUTE,FEAT_CONTACT_ANGLE|FEAT_CONTACT_ANGLE,141,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-11,SAME_CANONICAL_ATTRIBUTE,FEAT_E_ADS|FEAT_E_ADS,137,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-12,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,131,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-13,SAME_CANONICAL_ATTRIBUTE,FEAT_RCT|FEAT_RCT,118,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-14,SAME_CANONICAL_ATTRIBUTE,FEAT_LUMO|FEAT_LUMO,84,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-15,SAME_CANONICAL_ATTRIBUTE,FEAT_CONTACT_ANGLE|FEAT_CONTACT_ANGLE,82,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-16,SAME_CANONICAL_ATTRIBUTE,FEAT_ENG_DENS|FEAT_ENG_DENS,69,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-17,SAME_CANONICAL_ATTRIBUTE,FEAT_IO|FEAT_IO,54,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-18,SAME_CANONICAL_ATTRIBUTE,FEAT_ROUGH_RA|FEAT_ROUGH_RA,47,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-19,SAME_CANONICAL_ATTRIBUTE,FEAT_T_ZN|FEAT_T_ZN,43,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-20,SAME_CANONICAL_ATTRIBUTE,FEAT_I_RATIO_XRD|FEAT_I_RATIO_XRD,43,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-21,SAME_CANONICAL_ATTRIBUTE,FEAT_CDL|FEAT_CDL,39,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-22,SAME_CANONICAL_ATTRIBUTE,FEAT_CONTACT_ANGLE|FEAT_CONTACT_ANGLE,36,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-23,SAME_CANONICAL_ATTRIBUTE,FEAT_E_MOD|FEAT_E_MOD,36,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-24,SAME_CANONICAL_ATTRIBUTE,FEAT_MSD_D|FEAT_MSD_D,5,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-25,SAME_CANONICAL_ATTRIBUTE,FEAT_ICORR|FEAT_ICORR,4,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-26,SAME_CANONICAL_ATTRIBUTE,FEAT_LIFE_SYM|FEAT_LIFE_SYM,4,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-27,SAME_CANONICAL_ATTRIBUTE,FEAT_MSD_D|FEAT_MSD_D,3,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-28,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,3,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-29,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,3,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-30,SAME_CANONICAL_ATTRIBUTE,FEAT_GAS_EVOL|FEAT_GAS_EVOL,2,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-31,SAME_CANONICAL_ATTRIBUTE,FEAT_GAS_EVOL|FEAT_GAS_EVOL,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-32,SAME_CANONICAL_ATTRIBUTE,FEAT_EA|FEAT_EA,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-33,SAME_CANONICAL_ATTRIBUTE,FEAT_IONIC_COND|FEAT_IONIC_COND,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-34,SAME_CANONICAL_ATTRIBUTE,FEAT_ICORR|FEAT_ICORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-35,SAME_CANONICAL_ATTRIBUTE,FEAT_GAS_EVOL|FEAT_GAS_EVOL,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-36,SAME_CANONICAL_ATTRIBUTE,FEAT_GAS_EVOL|FEAT_GAS_EVOL,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-37,SAME_CANONICAL_ATTRIBUTE,FEAT_CDL|FEAT_CDL,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-38,SAME_CANONICAL_ATTRIBUTE,FEAT_GAS_EVOL|FEAT_GAS_EVOL,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-39,SAME_CANONICAL_ATTRIBUTE,FEAT_CDL|FEAT_CDL,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-40,SAME_CANONICAL_ATTRIBUTE,FEAT_E_ADS|FEAT_E_ADS,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-41,SAME_CANONICAL_ATTRIBUTE,FEAT_GAS_EVOL|FEAT_GAS_EVOL,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-42,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-43,SAME_CANONICAL_ATTRIBUTE,FEAT_CORR_RATE|FEAT_CORR_RATE,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-44,SAME_CANONICAL_ATTRIBUTE,FEAT_IONIC_COND|FEAT_IONIC_COND,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-45,SAME_CANONICAL_ATTRIBUTE,FEAT_CORR_RATE|FEAT_CORR_RATE,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-46,SAME_CANONICAL_ATTRIBUTE,FEAT_RCT|FEAT_RCT,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-47,SAME_CANONICAL_ATTRIBUTE,FEAT_ICORR|FEAT_ICORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-48,SAME_CANONICAL_ATTRIBUTE,FEAT_MSD_D|FEAT_MSD_D,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-49,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-50,SAME_CANONICAL_ATTRIBUTE,FEAT_ICORR|FEAT_ICORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-51,SAME_CANONICAL_ATTRIBUTE,FEAT_ROUGH_RA|FEAT_ROUGH_RA,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-52,SAME_CANONICAL_ATTRIBUTE,FEAT_CDL|FEAT_CDL,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-53,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-54,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-55,SAME_CANONICAL_ATTRIBUTE,FEAT_ICORR|FEAT_ICORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-56,SAME_CANONICAL_ATTRIBUTE,FEAT_IONIC_COND|FEAT_IONIC_COND,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-57,SAME_CANONICAL_ATTRIBUTE,FEAT_IONIC_COND|FEAT_IONIC_COND,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-58,SAME_CANONICAL_ATTRIBUTE,FEAT_ROUGH_RA|FEAT_ROUGH_RA,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-59,SAME_CANONICAL_ATTRIBUTE,FEAT_ENG_DENS|FEAT_ENG_DENS,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-60,SAME_CANONICAL_ATTRIBUTE,FEAT_EA|FEAT_EA,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-61,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-62,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-63,SAME_CANONICAL_ATTRIBUTE,FEAT_ECORR|FEAT_ECORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-64,SAME_CANONICAL_ATTRIBUTE,FEAT_ICORR|FEAT_ICORR,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-65,SAME_CANONICAL_ATTRIBUTE,FEAT_E_MOD|FEAT_E_MOD,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+SELF-66,SAME_CANONICAL_ATTRIBUTE,FEAT_RCT|FEAT_RCT,1,target 与 condition 为同一 canonical 属性；统计前排除，不入 FDR/账本,research_opportunities.json:excluded_self_associations
+UNID-RQ1,不可识别交互候选,FEAT_IO|FEAT_ROUGH_RA,,仅 3 个 Study 同 Experiment 共观测且无 Study 内交叉变化；FEAT_IO 的‘电流密度’语义未获批准,interaction_candidates.csv
+UNID-RQ2,不可识别交互候选,FEAT_IO|(absent),,Canonical Bundle 与源 CSV 均无单次面容量字段,interaction_candidates.csv
+UNID-RQ3,不可识别交互候选,(absent)|(absent),,两个变量均无结构化字段,interaction_candidates.csv
+UNID-RQ4,不可识别交互候选,(absent)|FEAT_ROUGH_RA,,基底材料无结构化字段（仅粗糙度代理），不可分层,interaction_candidates.csv
+UNID-RQ5,不可识别交互候选,(absent)|FEAT_IO,,盐浓度字段缺失,interaction_candidates.csv
+UNID-RQ6,不可识别交互候选,FEAT_CE|FEAT_IO,,FEAT_CE 是结果指标而非协议；协议与面容量字段均缺失,interaction_candidates.csv
+UNID-RQ7,不可识别交互候选,(absent)|FEAT_IO,,温度字段缺失,interaction_candidates.csv
+UNID-D2,不可识别交互候选,FEAT_CAP_RET|FEAT_ROUGH_RA,15,来自 unit-scoped 结构覆盖扫描；未运行 DOR 预测性交互模型,interaction_candidates.csv
+UNID-D3,不可识别交互候选,FEAT_CE|FEAT_ROUGH_RA,10,来自 unit-scoped 结构覆盖扫描；未运行 DOR 预测性交互模型,interaction_candidates.csv
+UNID-D5,不可识别交互候选,FEAT_ICORR|FEAT_CAP_RET,69,来自 unit-scoped 结构覆盖扫描；未运行 DOR 预测性交互模型,interaction_candidates.csv
+BASELINE-CTRL,基准对照组子集不可识别,(none),,源 CSV 27 列与 Canonical condition_type 均无 additive/baseline/control/protocol/salt/temp 字段；无法界定无添加剂基准对照组，无法分层估计,audit/data_audit_report.md; support/identifiability_scan.txt

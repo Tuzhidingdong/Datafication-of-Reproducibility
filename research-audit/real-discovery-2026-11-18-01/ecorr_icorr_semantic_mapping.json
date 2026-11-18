@@ -1,0 +1,84 @@
+{
+  "export_type": "READ_ONLY_SEMANTIC_MAPPING_SUMMARY",
+  "note": "Domain labels are user-provided interpretations, NOT approved semantic-registry facts. Canonical IDs retained verbatim.",
+  "discovery_semantic_registry": {
+    "applied_record_count": 0,
+    "approved_record_count": 0,
+    "bundle_modified": false,
+    "condition_record_count": 0,
+    "record_count": 0,
+    "registry_id": null,
+    "source_locators_dereferenced": false,
+    "status": "NOT_SUPPLIED",
+    "target_record_count": 0
+  },
+  "features": {
+    "FEAT_ECORR": {
+      "domain_label": "Corrosion Potential (domain label supplied by user; NOT an approved semantic registry definition)",
+      "canonical_id": "FEAT_ECORR",
+      "units_observed_in_opportunities": [
+        "V"
+      ],
+      "role_in_OPP-3E4ECC3E829A": "OUTCOME/target",
+      "role_in_OPP-FC09138862D5": "CONDITION"
+    },
+    "FEAT_ICORR": {
+      "domain_label": "Corrosion Current Density (domain label supplied by user; NOT an approved semantic registry definition)",
+      "canonical_id": "FEAT_ICORR",
+      "units_observed_in_opportunities": [
+        "mA cm-2"
+      ],
+      "role_in_OPP-3E4ECC3E829A": "CONDITION",
+      "role_in_OPP-FC09138862D5": "OUTCOME/target"
+    },
+    "FEAT_IO": {
+      "domain_label": "Exchange Current Density (domain label supplied by user; MUST NOT be conflated with FEAT_ICORR)",
+      "canonical_id": "FEAT_IO",
+      "note": "DIFFERENT canonical feature; must not be conflated with FEAT_ICORR. No FEAT_IO row appears in the two opportunities."
+    }
+  },
+  "target_endpoint_timepoint": {
+    "OPP-3E4ECC3E829A": {
+      "target_id": "FEAT_ECORR",
+      "endpoint_definition": "FEAT_ECORR",
+      "timepoint": "UNSPECIFIED_TIMEPOINT",
+      "outcome_unit": "V",
+      "condition_type": "FEAT_ICORR",
+      "condition_unit": "mA cm-2",
+      "semantic_status": "CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW"
+    },
+    "OPP-FC09138862D5": {
+      "target_id": "FEAT_ICORR",
+      "endpoint_definition": "FEAT_ICORR",
+      "timepoint": "UNSPECIFIED_TIMEPOINT",
+      "outcome_unit": "mA cm-2",
+      "condition_type": "FEAT_ECORR",
+      "condition_unit": "V",
+      "semantic_status": "CANONICAL_IDENTIFIERS_ONLY_REQUIRES_DOMAIN_SEMANTIC_REVIEW"
+    }
+  },
+  "mapping_provenance_from_canonical_bundle": {
+    "mapping_version": "chem-literacy-consolidated-map-4",
+    "bundled_provenance": {
+      "mapping_plan_sha256": "d06047bf45a612e82bd8920539e5d7b21384b6653f12efd90912fa23dcc4e263",
+      "source_inventory_sha256": "1a8b8b51b62410f932040dcf56e7014c0c077776806e323aff42d4313a04a5a8",
+      "build_spec_sha256": "45100682be52236d98d52b299324c1715d48aad54db3cd95787f4095658cf85f"
+    },
+    "example_experiment_provenance_keys": [
+      "definition_id",
+      "source_file",
+      "source_format",
+      "source_sha256",
+      "source_record_locators",
+      "mapping_version",
+      "mapping_plan_sha256",
+      "source_inventory_sha256",
+      "build_spec_sha256"
+    ]
+  },
+  "transformations_observed_in_field_provenance": [
+    "IDENTITY",
+    "NUMERIC_PARSE"
+  ],
+  "no_values_were_recomputed_or_imputed": true
+}

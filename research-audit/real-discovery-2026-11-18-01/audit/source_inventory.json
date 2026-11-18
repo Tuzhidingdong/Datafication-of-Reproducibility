@@ -1,0 +1,1124 @@
+{
+  "schema_version": "1.0",
+  "items": [
+    {
+      "inventory_id": "SRC_FEF6BC8C50D3809C",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "paper_id",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 1.0,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_882FDF926CE55901",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "doi",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.9967171146750997,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_428919A03B4E4B33",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "title",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.9967171146750997,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_4131822E1B1735CD",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "batch_id",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 1.0,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_A5EE15029CDAD56A",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "reconciliation_id",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 1.0,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_0B5D89203EADD805",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "feature_id",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 1.0,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_A554A5402DDB75C1",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "target_system",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 1.0,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_DCD6F3CB316BFCEA",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "status",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 1.0,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_D85E20D1121F94EC",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "resolved_value",
+      "observed_types": [
+        "numeric"
+      ],
+      "coverage": 0.10694977787817182,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_FC7A682A40A90090",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "resolved_unit",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.1350651306377532,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_B2C14B124B91A9F9",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "worker_a_value",
+      "observed_types": [
+        "numeric"
+      ],
+      "coverage": 0.6030419396129809,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_A97526B1F5779E97",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "worker_a_unit",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.6162788946615466,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_00E050A6C9D76B55",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "worker_b_value",
+      "observed_types": [
+        "numeric"
+      ],
+      "coverage": 0.4997214065205933,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_BCD2ED7E05BA5569",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "worker_b_unit",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.515623823507266,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_947FD4FEA2089E60",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "relative_difference",
+      "observed_types": [
+        "numeric"
+      ],
+      "coverage": 0.13372487011520218,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_02FC361F3801DD6B",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "requires_human_review",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 1.0,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_E952FB5496E914A1",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "review_reason",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.8913636021383932,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_9CBE97939306D2E1",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "evidence_file_a",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.558316391837964,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_3853CA43084D5DBF",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "location_a",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.5565996536405391,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_F26BD01FEF0ED19A",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "verbatim_quote_a",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.5561930577516754,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_C2E0BE73D7EB9E24",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "table_reference_a",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.04674346811234094,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_6F6FDB4CE359C3A6",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "grounding_type_a",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.6180859875009412,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_EE85772D65FC8584",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "evidence_file_b",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.4615465702883819,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_678DC34974B8F5CC",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "location_b",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.45998042316090654,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_6656477D2F2CAB52",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "verbatim_quote_b",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.45998042316090654,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_EA0721530085F05E",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "table_reference_b",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.040388524960469845,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_54A6F7BDC73F8296",
+      "source_role": "wide_table",
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "source_format": "csv",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "csv_column",
+      "locator": "grounding_type_b",
+      "observed_types": [
+        "string_or_mixed"
+      ],
+      "coverage": 0.5173255025976959,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_77DA10C99AB7C7F0",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$",
+      "observed_types": [
+        "object"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_11211CB80899F842",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['metadata']",
+      "observed_types": [
+        "object"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_AD54E8FF6F499944",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers']",
+      "observed_types": [
+        "array"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_0D73F0F8B1F7B51A",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]",
+      "observed_types": [
+        "object"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_D54259B9C0C9643F",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['batch_id']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_59DD881E59D3996C",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['doi']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_0CFDB6EACCEFD2F5",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations']",
+      "observed_types": [
+        "array"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_F454902A184BB3BA",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]",
+      "observed_types": [
+        "object"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_ED234ABF69BF4AE7",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['feature_id']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_7BEDA5545F9E0C39",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['reconciliation_id']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_599042B4B36FA192",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['relative_difference']",
+      "observed_types": [
+        "null",
+        "number"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_09525CDABE6E2F77",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['requires_human_review']",
+      "observed_types": [
+        "boolean"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_7ED3993B93A548DD",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['resolved_unit']",
+      "observed_types": [
+        "null",
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_F8360EAB56CC23BE",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['resolved_value']",
+      "observed_types": [
+        "null",
+        "number"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_2BC1E8F93D9FBB82",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['review_reason']",
+      "observed_types": [
+        "null",
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_A215EE8E7365639A",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['status']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_77D3DF87505877C3",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['target_system']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_6E0C8A64BE7970C7",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_evidence']",
+      "observed_types": [
+        "null",
+        "object"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_B87ED336761F4D19",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_evidence']['cell_value']",
+      "observed_types": [
+        "number",
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_24312FC7B90A7769",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_evidence']['col_header']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_49407DF27B3CD74D",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_evidence']['file_path']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_10882B090E966985",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_evidence']['row_header']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_E3314C77F638917E",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_evidence']['section_or_page']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_CF935C0D99C2DC70",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_evidence']['table_id']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_4B10BB548038BF62",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_evidence']['verbatim_quote']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_5D6371ACA6914139",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_grounding_type']",
+      "observed_types": [
+        "null",
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_4B7C5550CBC6CD1B",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_unit']",
+      "observed_types": [
+        "null",
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_CA74A0F3232FAA5B",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_a_value']",
+      "observed_types": [
+        "integer",
+        "null",
+        "number"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_A3C0C2B47F7AD162",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_evidence']",
+      "observed_types": [
+        "null",
+        "object"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_38B61DF2DB710BFB",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_evidence']['cell_value']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_DCFA14B2AFCEAB1E",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_evidence']['col_header']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_78F087CFA49FF3AF",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_evidence']['file_path']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_A015D13C16FFA56C",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_evidence']['row_header']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_8E2C3E61E804CA9D",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_evidence']['section_or_page']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_484B8748367F6669",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_evidence']['table_id']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_9246F13FF033CFD9",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_evidence']['verbatim_quote']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_06F23C6DAA2AAD01",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_grounding_type']",
+      "observed_types": [
+        "null",
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_6C611A020FBA073D",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_unit']",
+      "observed_types": [
+        "null",
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_F6540A0B639F2375",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations'][]['worker_b_value']",
+      "observed_types": [
+        "integer",
+        "null",
+        "number"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_B50031C5E0C93038",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['observations_count']",
+      "observed_types": [
+        "integer"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_9C306ED3176BF042",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['paper_id']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    },
+    {
+      "inventory_id": "SRC_DE0674181B9132BA",
+      "source_role": "evidence_database",
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "source_format": "json",
+      "source_id": null,
+      "artifact_id": null,
+      "locator_type": "json_path",
+      "locator": "$['papers'][]['title']",
+      "observed_types": [
+        "string"
+      ],
+      "coverage": null,
+      "mapping_status": "UNRESOLVED"
+    }
+  ]
+}

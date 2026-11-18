@@ -1,0 +1,675 @@
+{
+  "schema_version": "1.0",
+  "audit_id": "AUDIT_20261118T071229_170966Z",
+  "created_at": "2026-11-18T07:12:29.172125+00:00",
+  "audit_scope": "READ_ONLY_STRUCTURAL_INSPECTION",
+  "sources": [
+    {
+      "role": "wide_table",
+      "format": "csv",
+      "file_name": "consolidated_zinc_battery_database.csv",
+      "size_bytes": 32123467,
+      "sha256": "232d7f44f853ca9488a6a118b2b0ccd5d7f76e29a0d96a5f40dbcabd3a64a0a5",
+      "row_count": 66405,
+      "column_count": 27,
+      "row_shape": {
+        "short_rows": 0,
+        "long_rows": 0,
+        "consistent_rows": 66405
+      },
+      "columns": [
+        {
+          "column": "paper_id",
+          "nonempty_count": 66405,
+          "blank_or_missing_count": 0,
+          "coverage": 1.0,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "doi",
+          "nonempty_count": 66187,
+          "blank_or_missing_count": 218,
+          "coverage": 0.9967171146750997,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "title",
+          "nonempty_count": 66187,
+          "blank_or_missing_count": 218,
+          "coverage": 0.9967171146750997,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "batch_id",
+          "nonempty_count": 66405,
+          "blank_or_missing_count": 0,
+          "coverage": 1.0,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "reconciliation_id",
+          "nonempty_count": 66405,
+          "blank_or_missing_count": 0,
+          "coverage": 1.0,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "feature_id",
+          "nonempty_count": 66405,
+          "blank_or_missing_count": 0,
+          "coverage": 1.0,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "target_system",
+          "nonempty_count": 66405,
+          "blank_or_missing_count": 0,
+          "coverage": 1.0,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "status",
+          "nonempty_count": 66405,
+          "blank_or_missing_count": 0,
+          "coverage": 1.0,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "resolved_value",
+          "nonempty_count": 7102,
+          "blank_or_missing_count": 59303,
+          "coverage": 0.10694977787817182,
+          "sampled_type_hint": "numeric",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "resolved_unit",
+          "nonempty_count": 8969,
+          "blank_or_missing_count": 57436,
+          "coverage": 0.1350651306377532,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "worker_a_value",
+          "nonempty_count": 40045,
+          "blank_or_missing_count": 26360,
+          "coverage": 0.6030419396129809,
+          "sampled_type_hint": "numeric",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "worker_a_unit",
+          "nonempty_count": 40924,
+          "blank_or_missing_count": 25481,
+          "coverage": 0.6162788946615466,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "worker_b_value",
+          "nonempty_count": 33184,
+          "blank_or_missing_count": 33221,
+          "coverage": 0.4997214065205933,
+          "sampled_type_hint": "numeric",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "worker_b_unit",
+          "nonempty_count": 34240,
+          "blank_or_missing_count": 32165,
+          "coverage": 0.515623823507266,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "relative_difference",
+          "nonempty_count": 8880,
+          "blank_or_missing_count": 57525,
+          "coverage": 0.13372487011520218,
+          "sampled_type_hint": "numeric",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "requires_human_review",
+          "nonempty_count": 66405,
+          "blank_or_missing_count": 0,
+          "coverage": 1.0,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "review_reason",
+          "nonempty_count": 59191,
+          "blank_or_missing_count": 7214,
+          "coverage": 0.8913636021383932,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "evidence_file_a",
+          "nonempty_count": 37075,
+          "blank_or_missing_count": 29330,
+          "coverage": 0.558316391837964,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "location_a",
+          "nonempty_count": 36961,
+          "blank_or_missing_count": 29444,
+          "coverage": 0.5565996536405391,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "verbatim_quote_a",
+          "nonempty_count": 36934,
+          "blank_or_missing_count": 29471,
+          "coverage": 0.5561930577516754,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "table_reference_a",
+          "nonempty_count": 3104,
+          "blank_or_missing_count": 63301,
+          "coverage": 0.04674346811234094,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "grounding_type_a",
+          "nonempty_count": 41044,
+          "blank_or_missing_count": 25361,
+          "coverage": 0.6180859875009412,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "evidence_file_b",
+          "nonempty_count": 30649,
+          "blank_or_missing_count": 35756,
+          "coverage": 0.4615465702883819,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "location_b",
+          "nonempty_count": 30545,
+          "blank_or_missing_count": 35860,
+          "coverage": 0.45998042316090654,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "verbatim_quote_b",
+          "nonempty_count": 30545,
+          "blank_or_missing_count": 35860,
+          "coverage": 0.45998042316090654,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "table_reference_b",
+          "nonempty_count": 2682,
+          "blank_or_missing_count": 63723,
+          "coverage": 0.040388524960469845,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        },
+        {
+          "column": "grounding_type_b",
+          "nonempty_count": 34353,
+          "blank_or_missing_count": 32052,
+          "coverage": 0.5173255025976959,
+          "sampled_type_hint": "string_or_mixed",
+          "type_hint_sample_size": 200
+        }
+      ],
+      "source_file": "consolidated_zinc_battery_database.csv",
+      "source_id": null,
+      "artifact_id": null
+    },
+    {
+      "role": "evidence_database",
+      "format": "json",
+      "file_name": "consolidated_zinc_battery_database.json",
+      "size_bytes": 68284939,
+      "sha256": "187853dd43e3299f21f544ce10ca6cef7aa6d159a3ee55ebbd1d6e14ed1a94d6",
+      "top_level_type": "dict",
+      "top_level_length": 2,
+      "top_level_keys": [
+        "metadata",
+        "papers"
+      ],
+      "nested_schema_status": "STRUCTURAL_PROFILED_NOT_SEMANTICALLY_MAPPED",
+      "structure_profile": {
+        "path_count": 42,
+        "max_depth": 12,
+        "max_paths": 5000,
+        "max_nodes": 100000,
+        "visited_nodes": 100000,
+        "truncated_nodes": 13063,
+        "truncated_depth_occurrences": 0,
+        "truncated_paths": false,
+        "paths": [
+          {
+            "path": "$",
+            "occurrences": 1,
+            "value_types": {
+              "object": 1
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['metadata']",
+            "occurrences": 1,
+            "value_types": {
+              "object": 1
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers']",
+            "occurrences": 1,
+            "value_types": {
+              "array": 1
+            },
+            "list_length_min": 2345,
+            "list_length_max": 2345
+          },
+          {
+            "path": "$['papers'][]",
+            "occurrences": 2345,
+            "value_types": {
+              "object": 2345
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['batch_id']",
+            "occurrences": 204,
+            "value_types": {
+              "string": 204
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['doi']",
+            "occurrences": 204,
+            "value_types": {
+              "string": 204
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations']",
+            "occurrences": 204,
+            "value_types": {
+              "array": 204
+            },
+            "list_length_min": 0,
+            "list_length_max": 89
+          },
+          {
+            "path": "$['papers'][]['observations'][]",
+            "occurrences": 4515,
+            "value_types": {
+              "object": 4515
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['feature_id']",
+            "occurrences": 4503,
+            "value_types": {
+              "string": 4503
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['reconciliation_id']",
+            "occurrences": 4503,
+            "value_types": {
+              "string": 4503
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['relative_difference']",
+            "occurrences": 4502,
+            "value_types": {
+              "null": 3974,
+              "number": 528
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['requires_human_review']",
+            "occurrences": 4502,
+            "value_types": {
+              "boolean": 4502
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['resolved_unit']",
+            "occurrences": 4503,
+            "value_types": {
+              "null": 3975,
+              "string": 528
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['resolved_value']",
+            "occurrences": 4503,
+            "value_types": {
+              "null": 4047,
+              "number": 456
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['review_reason']",
+            "occurrences": 4502,
+            "value_types": {
+              "null": 456,
+              "string": 4046
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['status']",
+            "occurrences": 4503,
+            "value_types": {
+              "string": 4503
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['target_system']",
+            "occurrences": 4503,
+            "value_types": {
+              "string": 4503
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_evidence']",
+            "occurrences": 4502,
+            "value_types": {
+              "null": 1542,
+              "object": 2960
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_evidence']['cell_value']",
+            "occurrences": 224,
+            "value_types": {
+              "number": 7,
+              "string": 217
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_evidence']['col_header']",
+            "occurrences": 224,
+            "value_types": {
+              "string": 224
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_evidence']['file_path']",
+            "occurrences": 2736,
+            "value_types": {
+              "string": 2736
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_evidence']['row_header']",
+            "occurrences": 224,
+            "value_types": {
+              "string": 224
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_evidence']['section_or_page']",
+            "occurrences": 2736,
+            "value_types": {
+              "string": 2736
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_evidence']['table_id']",
+            "occurrences": 224,
+            "value_types": {
+              "string": 224
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_evidence']['verbatim_quote']",
+            "occurrences": 2736,
+            "value_types": {
+              "string": 2736
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_grounding_type']",
+            "occurrences": 4502,
+            "value_types": {
+              "null": 1542,
+              "string": 2960
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_unit']",
+            "occurrences": 4503,
+            "value_types": {
+              "null": 1543,
+              "string": 2960
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_a_value']",
+            "occurrences": 4503,
+            "value_types": {
+              "integer": 305,
+              "null": 1543,
+              "number": 2655
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_evidence']",
+            "occurrences": 4502,
+            "value_types": {
+              "null": 2452,
+              "object": 2050
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_evidence']['cell_value']",
+            "occurrences": 108,
+            "value_types": {
+              "string": 108
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_evidence']['col_header']",
+            "occurrences": 108,
+            "value_types": {
+              "string": 108
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_evidence']['file_path']",
+            "occurrences": 1949,
+            "value_types": {
+              "string": 1949
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_evidence']['row_header']",
+            "occurrences": 108,
+            "value_types": {
+              "string": 108
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_evidence']['section_or_page']",
+            "occurrences": 1942,
+            "value_types": {
+              "string": 1942
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_evidence']['table_id']",
+            "occurrences": 108,
+            "value_types": {
+              "string": 108
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_evidence']['verbatim_quote']",
+            "occurrences": 1942,
+            "value_types": {
+              "string": 1942
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_grounding_type']",
+            "occurrences": 4502,
+            "value_types": {
+              "null": 2432,
+              "string": 2070
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_unit']",
+            "occurrences": 4503,
+            "value_types": {
+              "null": 2432,
+              "string": 2071
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations'][]['worker_b_value']",
+            "occurrences": 4503,
+            "value_types": {
+              "integer": 146,
+              "null": 2452,
+              "number": 1905
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['observations_count']",
+            "occurrences": 204,
+            "value_types": {
+              "integer": 204
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['paper_id']",
+            "occurrences": 204,
+            "value_types": {
+              "string": 204
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          },
+          {
+            "path": "$['papers'][]['title']",
+            "occurrences": 204,
+            "value_types": {
+              "string": 204
+            },
+            "list_length_min": null,
+            "list_length_max": null
+          }
+        ],
+        "interpretation": "STRUCTURAL_ONLY_NO_DOMAIN_SEMANTICS"
+      },
+      "source_file": "consolidated_zinc_battery_database.json",
+      "source_id": null,
+      "artifact_id": null
+    }
+  ],
+  "semantic_mapping_status": "NOT_PERFORMED",
+  "warnings": [
+    "Column names and sampled type hints do not establish scientific meaning.",
+    "Nested JSON paths and value types are structural observations, not semantic mappings.",
+    "A CSV row is not assumed to be an independent experimental replicate.",
+    "Short and long CSV rows are counted; extra cell contents are not interpreted.",
+    "No missing-value imputation or source-data modification was performed.",
+    "Original research documents and locator targets were not opened or verified; only declared structured inputs and provenance metadata were inspected."
+  ]
+}

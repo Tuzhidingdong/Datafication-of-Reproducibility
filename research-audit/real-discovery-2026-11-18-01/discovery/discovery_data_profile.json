@@ -1,0 +1,14 @@
+{
+  "study_count": 2213,
+  "study_count_with_observations": 2213,
+  "study_count_without_observations": 0,
+  "system_count": 44209,
+  "system_count_with_experiments": 44209,
+  "system_count_without_experiments": 0,
+  "condition_count": 66405,
+  "experiment_count": 44209,
+  "observation_count": 66405,
+  "target_count": 25,
+  "reported_numeric_observation_count": 7102,
+  "minimum_studies_for_cross_study_signal": 3
+}

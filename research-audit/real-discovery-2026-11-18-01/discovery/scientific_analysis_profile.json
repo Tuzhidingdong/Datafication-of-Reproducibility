@@ -1,0 +1,70 @@
+{
+  "analysis_families": {
+    "between_system_contrast": "Cross-sectional System-level group medians within each Study; independent Study sign test; BH correction",
+    "numeric_trend": "Within-System and between-System within-Study Spearman screens; one effect per Study; exact sign test and BH correction",
+    "paired_contrast": "Study-level exact two-sided sign test; within-System paired contrasts; BH correction"
+  },
+  "limitations": [
+    "The independent inferential unit is Study; Observation rows are aggregated within Experiment, System, and Study before cross-Study tests.",
+    "Condition contrasts require the same canonical System to contain both levels within a Study.",
+    "Numeric-condition trends use a separate Spearman correlation within each Study/System and combine one median rho per Study.",
+    "Two-sided exact sign tests assess consistency across independent Studies; Benjamini-Hochberg q-values are calculated separately by analysis family.",
+    "Bootstrap intervals resample independent Study effects; they do not account for all upstream measurement or mapping uncertainty.",
+    "The screen is observational and exploratory. It cannot establish causality, mechanisms, novelty, or experimental validity.",
+    "Target IDs, endpoint definitions, and condition labels are not assigned scientific meanings by this engine.",
+    "No implicit unit conversion, endpoint merging, timepoint merging, missing-value imputation, or condition conflict resolution is performed.",
+    "Exact reciprocal between-System rank relations are deduplicated only when canonical identifiers, endpoint/timepoint, cross-matched exact unit strings, Study/System support, Experiment support, and every per-System value pair prove an exact mirror. When the same reciprocal data pattern differs in endpoint or timepoint, it is grouped for domain review while all hypotheses and BH-FDR entries remain distinct.",
+    "Canonical identifiers are compared exactly; case-folding, punctuation removal, and other identifier normalization are prohibited for identity or dependency decisions.",
+    "Optional semantic_metadata is used only when consistently supplied and explicitly marked APPROVED; identifier-only or incomplete semantics remain unresolved and require domain review.",
+    "Recorded numeric Condition covariates with exact monotonic co-variation are flagged as potential co-exposures; this is not an adjusted model and unstructured/unmeasured confounders remain unassessed.",
+    "Canonical target/condition identity and exact same-unit value identity are excluded before inferential testing and FDR correction.",
+    "Perfect correlation alone is not treated as proof of self-association; broader deterministic derivation requires explicit provenance metadata and human review."
+  ],
+  "profile": {
+    "ambiguous_condition_experiment_assignments_excluded": 619,
+    "analysis_unit": "INDEPENDENT_STUDY",
+    "between_system_categorical_eligible_study_count": 0,
+    "between_system_categorical_pair_count": 44,
+    "between_system_contrast_test_count": 0,
+    "between_system_numeric_eligible_study_count": 88,
+    "between_system_numeric_group_count": 235,
+    "between_system_numeric_trend_test_count": 65,
+    "bootstrap_iterations": 1000,
+    "categorical_level_count_excluded_from_pairwise_screen": 0,
+    "condition_level_count_total": 3213,
+    "engine_version": "1.3.0",
+    "fdr_alpha": 0.1,
+    "fdr_method": "BENJAMINI_HOCHBERG_WITHIN_ANALYSIS_FAMILY",
+    "fdr_screen_positive_count": 2,
+    "maximum_levels_per_condition": 20,
+    "minimum_paired_studies": 3,
+    "mirror_duplicate_group_count": 0,
+    "mirror_duplicate_opportunity_count": 0,
+    "numeric_observation_count_used": 7102,
+    "numeric_trend_fdr_test_count": 2,
+    "numeric_trend_test_count": 300,
+    "opportunity_count_before_limit": 2,
+    "opportunity_count_before_mirror_deduplication": 2,
+    "opportunity_count_written": 2,
+    "paired_contrast_test_count": 0,
+    "related_opportunity_group_count": 1,
+    "seed": 42,
+    "self_association_exclusion_count": 66,
+    "self_association_exclusion_reason_counts": {
+      "SAME_CANONICAL_ATTRIBUTE": 66
+    },
+    "semantic_policy": "IDENTIFIERS_RETAINED; NO_AUTOMATIC_TARGET_OR_CONDITION_INTERPRETATION",
+    "semantic_registry": {
+      "applied_record_count": 0,
+      "approved_record_count": 0,
+      "bundle_modified": false,
+      "condition_record_count": 0,
+      "record_count": 0,
+      "registry_id": null,
+      "source_locators_dereferenced": false,
+      "status": "NOT_SUPPLIED",
+      "target_record_count": 0
+    },
+    "within_system_numeric_trend_test_count": 235
+  }
+}

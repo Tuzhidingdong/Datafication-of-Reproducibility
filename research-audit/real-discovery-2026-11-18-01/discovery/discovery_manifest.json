@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "input_bundle_path": "E:\\Zinc_batters_datas\\chem-literacy\\runs\\consolidated_vquery_early_acceptance_20261117\\03_canonical\\canonical_bundle.json",
+  "input_bundle_sha256": "d82367721d0d764c3cba2673cbd8566dbf92d8567a7404e2496985120dd0919d",
+  "source_files_modified": false,
+  "raw_observations_in_agent_brief": false,
+  "scientific_discovery_engine": {
+    "engine_version": "1.3.0",
+    "analysis_unit": "INDEPENDENT_STUDY",
+    "minimum_paired_studies": 3,
+    "fdr_method": "BENJAMINI_HOCHBERG_WITHIN_ANALYSIS_FAMILY",
+    "fdr_alpha": 0.1,
+    "bootstrap_iterations": 1000,
+    "seed": 42,
+    "numeric_observation_count_used": 7102,
+    "ambiguous_condition_experiment_assignments_excluded": 619,
+    "paired_contrast_test_count": 0,
+    "between_system_contrast_test_count": 0,
+    "numeric_trend_test_count": 300,
+    "numeric_trend_fdr_test_count": 2,
+    "within_system_numeric_trend_test_count": 235,
+    "between_system_numeric_trend_test_count": 65,
+    "between_system_numeric_group_count": 235,
+    "between_system_numeric_eligible_study_count": 88,
+    "between_system_categorical_pair_count": 44,
+    "between_system_categorical_eligible_study_count": 0,
+    "maximum_levels_per_condition": 20,
+    "condition_level_count_total": 3213,
+    "categorical_level_count_excluded_from_pairwise_screen": 0,
+    "self_association_exclusion_count": 66,
+    "self_association_exclusion_reason_counts": {
+      "SAME_CANONICAL_ATTRIBUTE": 66
+    },
+    "opportunity_count_before_mirror_deduplication": 2,
+    "mirror_duplicate_opportunity_count": 0,
+    "mirror_duplicate_group_count": 0,
+    "related_opportunity_group_count": 1,
+    "opportunity_count_before_limit": 2,
+    "opportunity_count_written": 2,
+    "fdr_screen_positive_count": 2,
+    "semantic_policy": "IDENTIFIERS_RETAINED; NO_AUTOMATIC_TARGET_OR_CONDITION_INTERPRETATION",
+    "semantic_registry": {
+      "status": "NOT_SUPPLIED",
+      "registry_id": null,
+      "record_count": 0,
+      "approved_record_count": 0,
+      "applied_record_count": 0,
+      "target_record_count": 0,
+      "condition_record_count": 0,
+      "bundle_modified": false,
+      "source_locators_dereferenced": false
+    }
+  },
+  "semantic_registry_path": null,
+  "semantic_registry_sha256": null,
+  "semantic_registry": {
+    "status": "NOT_SUPPLIED",
+    "registry_id": null,
+    "record_count": 0,
+    "approved_record_count": 0,
+    "applied_record_count": 0,
+    "target_record_count": 0,
+    "condition_record_count": 0,
+    "bundle_modified": false,
+    "source_locators_dereferenced": false
+  },
+  "output_files": [
+    {
+      "path": "agent_research_brief.md",
+      "sha256": "bf6c5a05bb5256618546b7a72e7628e716ebd1f3d1117823dbb2e55c7fcea5d4"
+    },
+    {
+      "path": "condition_level_support.csv",
+      "sha256": "c6a16e94d94a983b24f301b2232ba79be79863e51fd1d9a2efd7ae058eac0ba5"
+    },
+    {
+      "path": "condition_outcome_contrasts.csv",
+      "sha256": "e97a6584d0ad97671b113cdf9b62a9fb698e132e9a9ecb3733ed03eb3944b664"
+    },
+    {
+      "path": "condition_outcome_correlations.csv",
+      "sha256": "ff48f6e9069988057d6e92c84ed23eee7760aa23346211c1f19cd36cc47d9cfe"
+    },
+    {
+      "path": "condition_support.csv",
+      "sha256": "c7f6f1f091931aac9fcc192ff4b1a1b1a2db0f0eb7bf4f69d42601b6fc543d0c"
+    },
+    {
+      "path": "discovery_data_profile.json",
+      "sha256": "faa5e7e5450ce16bdd8a9932683515f8e7e2ecb2d4be2f010bcf86b429c90e6d"
+    },
+    {
+      "path": "discovery_report.json",
+      "sha256": "94001936659f72a2c8c16d5a0657eba92145cd8253314e455db7ad051f628978"
+    },
+    {
+      "path": "evidence_ledger.jsonl",
+      "sha256": "09905475008186737b3cb70f3091a8c66951c2fdf86432a17a72f9f273ff8237"
+    },
+    {
+      "path": "joint_support.csv",
+      "sha256": "e0e533c637344f8f41ef3b91938d696d6e1bfaa7d9f5b5ce7505b267cf9154a0"
+    },
+    {
+      "path": "research_opportunities.json",
+      "sha256": "0f7d8b845ba71ec6f9e1b236a6bec94f34c980c75c8f675f61f394f7de515f90"
+    },
+    {
+      "path": "scientific_analysis_profile.json",
+      "sha256": "afd770f8f4762803698676a3898e0b7225b991ca4f68cc4507bee3f99297103f"
+    },
+    {
+      "path": "signal_catalogue.csv",
+      "sha256": "ddf6234f18df1cd89556f2c9be20528211cd7e07a4d45dbcca6fd314814c58c2"
+    },
+    {
+      "path": "study_coverage.csv",
+      "sha256": "460aeb78732b396eac2b37d046b9aca428bf929d15c7c16280aae9836a964e7c"
+    },
+    {
+      "path": "target_support.csv",
+      "sha256": "a4580fb68c732323dcba7caedeac0d3acbc20f78af7ea0f3661771a1c19b381f"
+    }
+  ],
+  "scope": "READ_ONLY_CANONICAL_BUNDLE_EXPLORATORY_PROFILE"
+}
