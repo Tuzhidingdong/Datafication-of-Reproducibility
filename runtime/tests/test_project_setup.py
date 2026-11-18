@@ -102,7 +102,7 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             self.assertNotIn("virtual_query_input", source_artifacts)
             self.assertIn("semantic_registry", source_artifacts)
             self.assertIsNone(result.get("virtual_query_reference"))
-            self.assertFalse(result["semantic_registry_created"])
+            self.assertTrue(result["semantic_registry_created"])
 
             # optional external query may be kept as non-authoritative reference only
             query = project / "configuration" / "virtual_query.json"
@@ -117,6 +117,7 @@ class ProjectRunPlanSetupTests(unittest.TestCase):
             source_artifacts2 = {item["artifact_id"]: item["path"] for item in plan2["source_artifacts"]}
             self.assertNotIn("virtual_query_input", source_artifacts2)
             self.assertEqual(result2.get("virtual_query_reference"), str(query.resolve()))
+            self.assertFalse(result2["semantic_registry_created"])
 
     def test_single_study_rejects_unused_virtual_query(self):
         with tempfile.TemporaryDirectory() as tmp:
