@@ -160,14 +160,14 @@ def _value_comparison(value_a: Any, value_b: Any) -> str:
 
 
 def _overall_status(value_status: str, unit_status: str, adjusted_status: str) -> str:
+    if value_status in {"BOTH_VALUES_MISSING", "ONE_VALUE_MISSING"}:
+        return "VALUE_EVIDENCE_INSUFFICIENT"
     if unit_status == "APPROVED_INCOMPATIBLE_DIMENSIONS":
         return "INCOMPATIBLE_UNIT_DIMENSIONS_REVIEW"
     if unit_status == "UNIT_LABELS_DIFFER_UNRESOLVED":
         return "UNIT_EQUIVALENCE_UNRESOLVED"
     if unit_status == "UNIT_MISSING_OR_UNSPECIFIED":
         return "UNIT_MISSING_REVIEW"
-    if value_status in {"BOTH_VALUES_MISSING", "ONE_VALUE_MISSING"}:
-        return "VALUE_EVIDENCE_INSUFFICIENT"
     if value_status.startswith("NON_NUMERIC"):
         return (
             "NON_NUMERIC_EXACT_MATCH_REQUIRES_SEMANTIC_REVIEW"
