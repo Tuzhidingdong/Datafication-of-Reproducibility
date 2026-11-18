@@ -2,7 +2,7 @@
 
 ## Purpose and boundary
 
-The Semantic Registry is an optional, independently versioned data asset for reviewed meanings attached to exact Canonical Target and Condition identifiers. It does not replace the Canonical Bundle, change its bytes, infer meanings from labels, or decide whether a scientific relationship is causal.
+The Semantic Registry is an independently versioned data asset for reviewed meanings attached to exact Canonical Target, endpoint/timepoint, and Condition identifiers. It does not replace the Canonical Bundle, change its bytes, infer meanings from labels, or decide whether a scientific relationship is causal. `dor init-run-plan` creates `configuration/semantic_registry.json` from the empty template when absent, preserves and validates an existing file, and binds it into every formal Run as a protected source artifact. Populate/review it before `dor run-init`; an empty registry is valid and explicitly records that no semantic metadata was supplied.
 
 Keep this file outside production Skills. Do not put concrete study data, project-specific IDs, experimental values, or paper examples into Skill instructions. A project-specific registry is the correct place to store reviewed project semantics; synthetic examples belong only in test fixtures.
 
@@ -28,10 +28,12 @@ Validate the independent asset before use:
 
     dor validate-semantic-registry --registry <semantic_registry.json>
 
-Use it for an explicitly requested exploratory scan:
+Use it for a standalone exploratory scan:
 
     dor discover-opportunities --bundle <canonical_bundle.json> --semantic-registry <semantic_registry.json> --out-dir <new_discovery_directory>
 
+The same registry is consumed automatically by the formal Run's `exploratory_discovery` stage through its hash-protected `semantic_registry` source artifact; the Run Plan does not need manual editing. Once `dor run-init` has captured its hash, do not change the file in place. A changed registry is a changed scientific input and requires a new Run.
+
 The Runtime overlays the metadata onto an in-memory copy for the analysis, hashes the registry before and after the run, and records its ID, hash, global Target/endpoint-scoped Target/Condition counts, and application status in the Discovery manifest/report. It does not write metadata back to the Canonical Bundle. If an entry conflicts with inline Canonical metadata, matches no Canonical attribute, or fails validation, the scan stops rather than guessing.
 
-Without a registry, the existing behavior remains: missing, partial, conflicting, or unapproved semantics are reported as requiring domain review and are never interpreted as evidence that no semantic relationship exists.
+An empty registry, or missing entries for some attributes, does not establish that semantic relationships are absent. Missing, partial, conflicting, or unapproved semantics remain flagged for domain review and are never interpreted as evidence that no semantic relationship exists.
