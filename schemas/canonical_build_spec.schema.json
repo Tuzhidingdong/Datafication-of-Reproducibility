@@ -3,63 +3,275 @@
   "$id": "https://github.com/Tuzhidingdong/Datafication-of-Reproducibility/schemas/canonical_build_spec.schema.json",
   "title": "Explicit canonical entity grouping and linking specification",
   "type": "object",
-  "required": ["schema_version", "project_id", "mapping_version", "mapping_plan_sha256", "source_inventory_sha256", "entity_definitions", "links"],
+  "required": [
+    "schema_version",
+    "project_id",
+    "mapping_version",
+    "mapping_plan_sha256",
+    "source_inventory_sha256",
+    "entity_definitions",
+    "links"
+  ],
   "properties": {
-    "schema_version": {"const": "1.0"},
-    "project_id": {"type": "string", "minLength": 1},
-    "mapping_version": {"type": "string", "minLength": 1},
-    "mapping_plan_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
-    "source_inventory_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
-    "entity_definitions": {"type": "array", "items": {"$ref": "#/$defs/entity_definition"}},
-    "links": {"type": "array", "items": {"$ref": "#/$defs/link"}}
+    "schema_version": {
+      "const": "1.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mapping_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mapping_plan_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "source_inventory_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "entity_definitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entity_definition"
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/link"
+      }
+    }
   },
   "additionalProperties": false,
   "$defs": {
     "entity_definition": {
       "type": "object",
-      "required": ["definition_id", "entity_type", "source_file", "grouping", "field_rule_ids"],
+      "required": [
+        "definition_id",
+        "entity_type",
+        "source_file",
+        "grouping",
+        "field_rule_ids"
+      ],
       "properties": {
-        "definition_id": {"type": "string", "minLength": 1},
-        "entity_type": {"enum": ["studies", "systems", "conditions", "experiments", "observations", "comparisons", "evidence"]},
-        "source_file": {"type": "string", "minLength": 1},
-        "source_format": {"enum": ["csv", "json"]},
-        "record_selector": {"type": "string", "minLength": 1, "pattern": "^/"},
+        "definition_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity_type": {
+          "enum": [
+            "studies",
+            "systems",
+            "conditions",
+            "experiments",
+            "observations",
+            "comparisons",
+            "evidence"
+          ]
+        },
+        "source_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_format": {
+          "enum": [
+            "csv",
+            "json"
+          ]
+        },
+        "record_selector": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^/"
+        },
         "grouping": {
           "type": "object",
-          "required": ["mode"],
+          "required": [
+            "mode"
+          ],
           "properties": {
-            "mode": {"enum": ["SOURCE_ROW", "GROUP_BY_FIELDS"]},
-            "source_item_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+            "mode": {
+              "enum": [
+                "SOURCE_ROW",
+                "GROUP_BY_FIELDS"
+              ]
+            },
+            "source_item_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            }
           },
           "allOf": [
-            {"if": {"properties": {"mode": {"const": "SOURCE_ROW"}}, "required": ["mode"]}, "then": {"properties": {"source_item_ids": {"maxItems": 0}}}},
-            {"if": {"properties": {"mode": {"const": "GROUP_BY_FIELDS"}}, "required": ["mode"]}, "then": {"required": ["source_item_ids"], "properties": {"source_item_ids": {"minItems": 1}}}}
+            {
+              "if": {
+                "properties": {
+                  "mode": {
+                    "const": "SOURCE_ROW"
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "source_item_ids": {
+                    "maxItems": 0
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "mode": {
+                    "const": "GROUP_BY_FIELDS"
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              },
+              "then": {
+                "required": [
+                  "source_item_ids"
+                ],
+                "properties": {
+                  "source_item_ids": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
           ],
           "additionalProperties": false
         },
-        "field_rule_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+        "field_rule_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "value_candidate_bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "binding_id",
+              "candidate_source",
+              "value_source_item_id"
+            ],
+            "properties": {
+              "binding_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "candidate_source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value_source_item_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "unit_source_item_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "quoted_text_source_item_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        }
       },
-      "allOf": [{
-        "if": {"properties": {"source_format": {"const": "json"}}, "required": ["source_format"]},
-        "then": {"required": ["record_selector"]}
-      }],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_format": {
+                "const": "json"
+              }
+            },
+            "required": [
+              "source_format"
+            ]
+          },
+          "then": {
+            "required": [
+              "record_selector"
+            ]
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "link": {
       "type": "object",
-      "required": ["child_definition_id", "parent_definition_id", "field_id"],
+      "required": [
+        "child_definition_id",
+        "parent_definition_id",
+        "field_id"
+      ],
       "properties": {
-        "child_definition_id": {"type": "string", "minLength": 1},
-        "parent_definition_id": {"type": "string", "minLength": 1},
-        "field_id": {"type": "string", "minLength": 1},
-        "match_mode": {"enum": ["ROW_OVERLAP", "FIELD_EQUALITY"]},
-        "child_key_field": {"type": "string", "minLength": 1},
-        "parent_key_field": {"type": "string", "minLength": 1}
+        "child_definition_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_definition_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "field_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "match_mode": {
+          "enum": [
+            "ROW_OVERLAP",
+            "FIELD_EQUALITY"
+          ]
+        },
+        "child_key_field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_key_field": {
+          "type": "string",
+          "minLength": 1
+        }
       },
-      "allOf": [{
-        "if": {"properties": {"match_mode": {"const": "FIELD_EQUALITY"}}, "required": ["match_mode"]},
-        "then": {"required": ["child_key_field", "parent_key_field"]}
-      }],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "match_mode": {
+                "const": "FIELD_EQUALITY"
+              }
+            },
+            "required": [
+              "match_mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "child_key_field",
+              "parent_key_field"
+            ]
+          }
+        }
+      ],
       "additionalProperties": false
     }
   }
