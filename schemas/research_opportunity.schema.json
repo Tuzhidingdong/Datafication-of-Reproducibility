@@ -360,6 +360,36 @@
                 "string",
                 "null"
               ]
+            },
+            "review_rationale": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "source_id",
+                  "source_sha256",
+                  "locator"
+                ],
+                "properties": {
+                  "source_id": {
+                    "type": "string"
+                  },
+                  "source_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  },
+                  "locator": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
             }
           },
           "additionalProperties": false
@@ -436,6 +466,36 @@
                 "string",
                 "null"
               ]
+            },
+            "review_rationale": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "source_id",
+                  "source_sha256",
+                  "locator"
+                ],
+                "properties": {
+                  "source_id": {
+                    "type": "string"
+                  },
+                  "source_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  },
+                  "locator": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
             }
           },
           "additionalProperties": false
@@ -532,6 +592,13 @@
         }
       },
       "additionalProperties": true
+    },
+    "related_group_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     }
   },
   "additionalProperties": false
