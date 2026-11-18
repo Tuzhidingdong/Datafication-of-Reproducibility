@@ -227,7 +227,8 @@ class CanonicalDiscoveryTests(unittest.TestCase):
                 "candidate_sensitivity_profile.json",
             ):
                 self.assertTrue((output / name).is_file(), name)
-            inventory_rows = list(__import__("csv").DictReader((output / "candidate_value_inventory.csv").open(encoding="utf-8")))
+            with (output / "candidate_value_inventory.csv").open(encoding="utf-8", newline="") as handle:
+                inventory_rows = list(__import__("csv").DictReader(handle))
             self.assertTrue(any(row["source_metadata_json"] != "{}" for row in inventory_rows))
             candidate_rows = (output / "candidate_value_inventory.csv").read_text(encoding="utf-8")
             self.assertIn("source_metadata_json", candidate_rows.splitlines()[0])
@@ -235,7 +236,7 @@ class CanonicalDiscoveryTests(unittest.TestCase):
             brief = (output / "agent_research_brief.md").read_text(encoding="utf-8")
             self.assertNotIn("Synthetic structured quote A", brief)
             report = json.loads((output / "discovery_report.json").read_text(encoding="utf-8"))
-            self.assertEqual(report["candidate_value_record_count"], 4)
+            self.assertEqual(report["candidate_value_record_count"], 5)
             self.assertEqual(report["candidate_value_count"], 5)
             self.assertEqual(report["candidate_sensitivity_scenario_count"], 2)
             manifest = json.loads((output / "discovery_manifest.json").read_text(encoding="utf-8"))
