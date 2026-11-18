@@ -395,8 +395,8 @@ def run_canonical_discovery_scan(
         "candidate_a_quoted_text", "candidate_a_source_metadata_json", "candidate_a_source_locators_json",
         "candidate_b_id", "candidate_b_source", "candidate_b_value", "candidate_b_unit",
         "candidate_b_quoted_text", "candidate_b_source_metadata_json", "candidate_b_source_locators_json",
-        "value_comparison_status", "unit_comparison_status", "canonical_unit",
-        "canonical_value_a", "canonical_value_b", "unit_adjusted_comparison_status",
+        "value_comparison_status", "unit_comparison_status", "comparable_unit",
+        "comparable_value_a", "comparable_value_b", "unit_adjusted_comparison_status",
         "parent_semantic_status", "overall_comparison_status",
     ]
     _write_csv(
