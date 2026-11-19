@@ -36,6 +36,9 @@ You are operating a guided, evidence-centred research workflow. The purpose is t
 
 ## Stage execution reference routing
 
+- For full-bundle scientific question discovery, read [Scientific question discovery methodology](scientific-question-discovery.md). It defines the iterative data-capability atlas → multi-path question generation → design selection → competing-explanation challenge → prioritization → discriminating-test loop. The Runtime's current screens are a computational seed, not an exhaustive definition of the scientific questions DoR may formulate.
+
+
 The core Skill contains the immutable decisions and operating rules. Load only the phase reference needed for the current action; do not load every execution reference at the start of a Run. Each reference preserves the detailed approval, evidence, provenance, and failure-handling requirements.
 
 - Before a Run, for pre-Run Discovery, adapter handoff, route selection, review packet preparation, or Run initialization: read [Execution entry and Adapter routing](execution-entry-and-adapter.md).
