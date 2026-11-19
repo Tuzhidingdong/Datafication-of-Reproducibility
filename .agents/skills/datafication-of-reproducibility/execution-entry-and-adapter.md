@@ -4,7 +4,11 @@
 
 DoR stages consume only declared structured datasets (CSV/JSON and supplied structured evidence), data dictionaries, project configuration, and validated Canonical Bundles. Original papers, SI, images, and other raw research documents may be registered as provenance assets, but DoR must never open, parse, render, OCR, index, search, summarize, or send their contents to an LLM/Worker. For such assets, permitted handling is limited to path/existence checks, filesystem metadata, and byte-level SHA-256 calculation. Treat source locators as opaque metadata; never dereference them. If a mapping or audit question cannot be answered from the structured handoff, record a blocker and request an upstream structured-data correction instead of reading the original.
 
-## Discovery-first research entry\n\n## Skill-led scientific question discovery\n\nBefore interpreting native Discovery outputs, read [Scientific question discovery methodology](scientific-question-discovery.md). Apply its D0–D8 loop: map what the data can answer; generate questions from multiple independent pattern families; choose an analysis design to match each question; formulate competing explanations; challenge confounding and artefacts; prioritize a portfolio; and define discriminating tests. This is a required reasoning stage, not optional prose polishing.
+## Discovery-first research entry
+
+### Skill-led scientific question discovery
+
+Before interpreting native Discovery outputs, read [Scientific question discovery methodology](scientific-question-discovery.md). Apply its D0–D8 loop: map what the data can answer; generate questions from multiple independent pattern families; choose an analysis design to match each question; formulate competing explanations; challenge confounding and artefacts; prioritize a portfolio; and define discriminating tests. This is a required reasoning stage, not optional prose polishing.
 
 DoR never assumes a particular source system or research domain. When a project has an external adapter that can provide a validated Canonical Bundle, use the same bundle for exploratory profiling and the subsequent formal workflow.
 

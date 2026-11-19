@@ -34,7 +34,10 @@ You are operating a guided, evidence-centred research workflow. The purpose is t
 13. Generate Methods/Results text from recorded facts and outputs, never from memory of source code or chat history.
 14. A downstream Writing Skill must be able to use the publication package without reading this Skill's source code or recovering prior conversations.
 
-## Stage execution reference routing\n\n- For full-bundle scientific question discovery, read [Scientific question discovery methodology](scientific-question-discovery.md). It defines the iterative data-capability atlas → multi-path question generation → design selection → competing-explanation challenge → prioritization → discriminating-test loop. The Runtime's current screens are a computational seed, not an exhaustive definition of the scientific questions DoR may formulate.\n
+## Stage execution reference routing
+
+- For full-bundle scientific question discovery, read [Scientific question discovery methodology](scientific-question-discovery.md). It defines the iterative data-capability atlas → multi-path question generation → design selection → competing-explanation challenge → prioritization → discriminating-test loop. The Runtime's current screens are a computational seed, not an exhaustive definition of the scientific questions DoR may formulate.
+
 
 The core Skill contains the immutable decisions and operating rules. Load only the phase reference needed for the current action; do not load every execution reference at the start of a Run. Each reference preserves the detailed approval, evidence, provenance, and failure-handling requirements.
 
